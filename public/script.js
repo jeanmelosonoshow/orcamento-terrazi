@@ -108,8 +108,8 @@ async function adicionarAoOrcamento(produto) {
         const index = quoteCart.findIndex(item => item.tempId === novoItem.tempId);
         
         if (index !== -1) {
-            // Se a IA devolver o resumo, usamos. Se não, mantemos um aviso.
-            quoteCart[index].briefingEditado = aiData.summary || "Por favor, preencha os dados técnicos manualmente.";
+            // Se vier vazio (""), ele limpa o campo. Se vier texto, ele coloca o texto.
+            quoteCart[index].briefingEditado = aiData.summary || ""; 
             renderQuoteSidebar();
         }
 
