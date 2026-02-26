@@ -61,12 +61,18 @@ async function fetchProducts(isInitial = false) {
 // 2. RENDERIZAR CARDS (Com estoque visível)
 function renderProducts(products) {
     productsGrid.innerHTML = '';
+    
+    if (products.length === 0) {
+        productsGrid.innerHTML = '<p>Nenhum produto encontrado com os filtros atuais.</p>';
+        return;
+    }
+
     products.forEach(p => {
-        // Verifica estoque (ajuste o nome da propriedade conforme sua API)
-        const stockQty = p.stock !== undefined && p.stock !== null ? p.stock : 0;
+        const stockQty = (p.stock !== undefined && p.stock !== null) ? p.stock : 0;
         const stockLabel = stockQty > 0 ? `${stockQty} un. em estoque` : "Sob consulta";
         const stockColor = stockQty > 0 ? "#2D5A27" : "#cc0000";
-
+        
+        // Criamos o botão via DOM para evitar erros de escape de string no HTML
         const card = document.createElement('div');
         card.className = 'product-card';
         card.innerHTML = `
@@ -75,12 +81,17 @@ function renderProducts(products) {
                 <h4>${p.name}</h4>
                 <p class="sku" style="font-size: 0.7rem; color: #999;">SKU: ${p.sku}</p>
                 <p style="font-size: 0.65rem; color: ${stockColor}; font-weight: bold; margin: 2px 0;">${stockLabel}</p>
-                <p class="price" style="font-weight: bold; margin: 5px 0;">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                <button class="btn-primary" style="width: 100%; font-size: 0.7rem;" onclick='adicionarAoOrcamento(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
-                    ADICIONAR AO PROJETO
-                </button>
+                <p class="price" style="font-weight: bold; margin: 5px 0;">R$ ${parseFloat(p.price || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
             </div>
         `;
+
+        const btn = document.createElement('button');
+        btn.className = 'btn-primary';
+        btn.style = "width: 100%; font-size: 0.7rem;";
+        btn.innerText = "ADICIONAR AO PROJETO";
+        btn.onclick = () => adicionarAoOrcamento(p); // Forma mais segura de passar o objeto
+
+        card.querySelector('.card-info').appendChild(btn);
         productsGrid.appendChild(card);
     });
 }
