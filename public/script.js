@@ -21,23 +21,25 @@ window.onload = () => fetchProducts(true);
 // 1. BUSCA DE PRODUTOS (Filtro de visibilidade, estoque e 12 itens na home)
 async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : searchInput.value.trim();
-    
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
     
     try {
         const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
         let products = await response.json();
 
-        // FILTRO: Apenas produtos visíveis/publicados
-        products = products.filter(p => p.visible !== false && p.published !== false);
+        // 1. FILTRO: Remove o que não estiver publicado
+        // Usamos p.published === true para ser rigoroso
+        products = products.filter(p => p.published === true);
 
+        // 2. LÓGICA DA HOME (isInitial):
         if (isInitial) {
-            // Embaralha e pega 12 itens aleatórios para preencher a tela
+            // Embaralha e limita a 12
             products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         }
 
         renderProducts(products);
     } catch (error) {
+        console.error("Erro na busca:", error);
         productsGrid.innerHTML = '<p>Erro ao conectar com a galeria.</p>';
     }
 }
