@@ -42,9 +42,9 @@ function renderProducts(products) {
             <img src="${p.image}" alt="${p.name}">
             <div class="card-info">
                 <h4>${p.name}</h4>
-                <p class="sku">${p.sku}</p>
-                <p class="price">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                <button class="btn-add" onclick='adicionarAoOrcamento(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+                <p class="sku" style="font-size: 0.7rem; color: #999;">SKU: ${p.sku}</p>
+                <p class="price" style="font-weight: bold; margin: 5px 0;">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                <button class="btn-primary" style="width: 100%; font-size: 0.7rem;" onclick='adicionarAoOrcamento(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
                     ADICIONAR AO PROJETO
                 </button>
             </div>
