@@ -36,21 +36,33 @@ export default async function handler(req, res) {
       }
       
       // FILTRO E MAPEAMENTO NO BACKEND
-      const products = data
-          .filter(p => p.published === true) // Apenas itens publicados
-          .map(p => ({
-              id: p.id,
-              sku: p.variants[0]?.sku || 'S/ SKU',
-              name: p.name.pt || p.name.es || 'Produto sem nome',
-              description: p.description?.pt || p.description?.es || p.description || "", 
-              price: p.variants[0]?.price || "0.00",
-              stock: p.variants[0]?.stock ?? 0,
-              image: p.images[0]?.src || '',
-              // Enviamos essas flags para o front por segurança, se precisar
-              published: p.published 
-          }));
-      
-      res.status(200).json(products);
+   // Filtramos e mapeamos em uma única passada para melhor performance
+         const products = data
+             .filter(p => p.published === true) // Garante que SÓ o que é visível passe
+             .map(p => {
+                 // Selecionamos a variante principal
+                 const mainVariant = p.variants && p.variants.length > 0 ? p.variants[0] : null;
+         
+                 return {
+                     id: p.id,
+                     // Fallback para SKU caso não exista na variante
+                     sku: mainVariant?.sku || 'S/ SKU',
+                     // Prioridade para Português, depois Espanhol, depois Nome Genérico
+                     name: p.name?.pt || p.name?.es || p.name || 'Produto sem nome',
+                     // Tratamento robusto para descrição (remove tags HTML se necessário no futuro)
+                     description: p.description?.pt || p.description?.es || (typeof p.description === 'string' ? p.description : ""),
+                     // Garante que o preço seja tratado como número ou string formatada
+                     price: mainVariant?.price || "0.00",
+                     // Estoque: Nuvemshop usa null para "infinito", então convertemos para texto ou 0
+                     stock: mainVariant?.stock !== null ? mainVariant?.stock : "Consultar",
+                     // Imagem: Pega a primeira ou uma placeholder se estiver sem foto
+                     image: p.images && p.images.length > 0 ? p.images[0].src : 'https://via.placeholder.com/300',
+                     // Mantemos a flag para o frontend
+                     published: p.published 
+                 };
+             });
+         
+         res.status(200).json(products);
 
   } catch (error) {
     console.error("Erro catastrófico na API:", error);
