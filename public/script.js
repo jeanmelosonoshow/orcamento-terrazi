@@ -93,14 +93,16 @@ async function adicionarAoOrcamento(produto) {
     renderQuoteSidebar();
 
     try {
-        const aiResponse = await fetch('/api/summarize', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                productName: produto.name, 
-                description: descricaoPura.substring(0, 3000) // Limite de segurança
-            })
-        });
+        // No script.js, dentro de adicionarAoOrcamento:
+            const aiResponse = await fetch('/api/summarize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    productName: produto.name, 
+                    // Garantindo que estamos pegando a descrição correta
+                    description: (produto.description?.pt || produto.description || "").substring(0, 3000)
+                })
+            });
 
         const aiData = await aiResponse.json();
         const index = quoteCart.findIndex(item => item.tempId === novoItem.tempId);
