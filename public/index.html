@@ -26,9 +26,20 @@
         </section>
 
         <aside class="quote-sidebar">
-            <h3>Itens do Orçamento</h3>
-            <div id="quoteItems" class="quote-items">
+            <h3>Dados do Orçamento</h3>
+            <div class="customer-info" style="display: grid; gap: 8px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                <input type="text" id="custName" placeholder="Nome do Cliente" style="font-size: 12px; padding: 8px;">
+                <input type="text" id="custDoc" placeholder="CPF / CNPJ" style="font-size: 12px; padding: 8px;">
+                <div style="display:flex; gap:5px; align-items:center;">
+                    <label style="font-size: 10px; color: #666;">Validade:</label>
+                    <input type="date" id="quoteValid" style="font-size: 12px; padding: 5px; flex:1;">
                 </div>
+                <input type="text" id="sellerName" placeholder="Nome do Vendedor" style="font-size: 12px; padding: 8px;">
+                <input type="text" id="sellerPhone" placeholder="Telefone Vendedor" style="font-size: 12px; padding: 8px;">
+            </div>
+        
+            <h3>Itens do Orçamento</h3>
+            <div id="quoteItems" class="quote-items"></div>
             <div class="quote-footer">
                 <button id="generatePdfBtn" class="btn-primary">GERAR ORÇAMENTO PDF</button>
             </div>
