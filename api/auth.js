@@ -1,12 +1,11 @@
 export default async function handler(req, res) {
-  const { code } = req.query; // A Nuvemshop envia ?code=...
+  const { code } = req.query;
 
   if (!code) {
-    return res.status(400).send("Código não encontrado.");
+    return res.status(400).send("Aguardando código de autorização...");
   }
 
   try {
-    // 1. Aqui fazemos a troca do CODE pelo TOKEN
     const response = await fetch("https://www.tiendanube.com/apps/authorize/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -20,15 +19,16 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // 2. O 'data.access_token' é o que você vai salvar na Vercel!
-    console.log("Seu Access Token é:", data.access_token);
-
-    res.status(200).json({ 
-      message: "Sucesso!", 
-      token: data.access_token,
-      store_id: data.user_id 
+    // Este é o Token que você vai usar para buscar os produtos!
+    // DICA: Salve esse 'access_token' e o 'user_id' (Store ID)
+    res.status(200).json({
+      status: "Sucesso!",
+      access_token: data.access_token,
+      store_id: data.user_id,
+      scope: data.scope
     });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao gerar token: " + error.message });
   }
 }
