@@ -240,3 +240,25 @@ main {
     object-fit: cover; /* 'cover' preenche melhor o quadrado do que 'contain' */
     border-radius: 4px;
 }
+
+
+/* Limita o container de itens para não empurrar o botão de gerar PDF para fora da tela */
+.quote-items {
+    flex: 1;
+    overflow-y: auto; /* Cria scroll interno nos itens */
+    max-height: calc(100vh - 250px); /* Ajusta conforme o tamanho do seu header/footer */
+    padding-right: 5px;
+}
+
+/* Garante que a imagem do item no carrinho seja minúscula */
+.item-quote-edit .edit-header img {
+    width: 45px !important;
+    height: 45px !important;
+    object-fit: cover;
+}
+
+/* Deixa os campos menores para ganhar espaço vertical */
+.item-quote-edit {
+    padding: 10px;
+    margin-bottom: 10px;
+}
