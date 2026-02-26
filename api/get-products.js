@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // 1. Forma moderna de ler a URL para evitar o erro [DEP0169]
+   // 1. Forma moderna de ler a URL para evitar o erro [DEP0169]
   const { searchParams } = new URL(req.url, `https://${req.headers.host}`);
   const q = searchParams.get('q') || '';
 
