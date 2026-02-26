@@ -40,13 +40,24 @@ function renderProducts(products) {
     products.forEach(p => {
         const card = document.createElement('div');
         card.className = 'product-card';
+        
+        // Prova Real: Se p.description existir, mostra os primeiros 50 caracteres, senão avisa que está vazio
+        const textoDescricaoParaValidar = p.description && p.description.length > 0 
+            ? p.description.substring(0, 60) + "..." 
+            : "<span style='color:red;'>Sem descrição na API</span>";
+
         card.innerHTML = `
             <img src="${p.image}" alt="${p.name}" loading="lazy">
             <div class="card-info">
                 <h4>${p.name}</h4>
                 <p class="sku">SKU: ${p.sku}</p>
-                <p class="stock">Estoque: ${p.stock} un</p>
                 <p class="price">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                
+                <div style="background: #f4f4f4; padding: 5px; font-size: 10px; margin: 10px 0; border: 1px dashed #ccc;">
+                    <strong>Debug Descrição:</strong><br>
+                    ${textoDescricaoParaValidar}
+                </div>
+
                 <button class="btn-add" id="btn-${p.id}">+ ADICIONAR AO ORÇAMENTO</button>
             </div>
         `;
