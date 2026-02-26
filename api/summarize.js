@@ -20,10 +20,21 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Aja como um especialista em design de interiores. 
-            Com base na descrição abaixo, crie um briefing técnico (dimensões, material, acabamento) em tópicos. 
-            Produto: ${productName}
-            Descrição: ${description}`
+            text: `Você é um assistente técnico especializado em mobiliário de alto padrão para arquitetos. 
+            Sua tarefa é ler a descrição de um produto e extrair apenas os dados técnicos reais.
+                  
+                  PRODUTO: ${productName}
+                  DESCRIÇÃO: ${description}
+                  
+                  INSTRUÇÕES:
+                  1. Retorne os dados em tópicos (bullet points).
+                  2. Foque exclusivamente em:
+                     - Dimensões (Largura, Profundidade, Altura).
+                     - Materiais (ex: Madeira Maciça, MDF, Metal).
+                     - Acabamentos/Diferenciais (ex: Corrediça telescópica, Fecho toque).
+                  3. Se encontrar informações de "Características" e "Dimensões" na descrição, priorize-as.
+                  4. NÃO inclua textos de marketing ou frases como "levar sofisticação para sua casa".
+                  5. Responda apenas com os tópicos técnicos.`
           }]
         }],
         // Configurações para garantir que ele responda de forma mais solta e técnica
