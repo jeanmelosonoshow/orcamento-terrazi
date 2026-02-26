@@ -1,6 +1,7 @@
 export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
   
+  // Lista de chaves separadas por vírgula na Vercel
   const apiKeysString = process.env.GEMINI_API_KEY || "";
   const apiKeys = apiKeysString.split(',').map(k => k.trim()).filter(k => k);
 
@@ -11,10 +12,14 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send();
   const { description, productName } = req.body;
 
-  // Função interna para tentar cada chave
+  // Limpeza básica para evitar enviar HTML muito pesado para a IA
+  const descriptionLimpa = description ? description.replace(/<[^>]*>?/gm, '') : "";
+
+  // Função interna para tentar cada chave silenciosamente
   async function tryGenerate(index) {
     if (index >= apiKeys.length) {
-      return ""; // Esgotou todas as chaves, retorna vazio
+      console.error("Todas as chaves da IA falharam.");
+      return ""; // Retorna vazio para acionar o Fallback no script.js
     }
 
     const currentKey = apiKeys[index];
@@ -27,22 +32,21 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Extraia dados técnicos (Dimensões, Materiais e Diferenciais) em tópicos. Produto: ${productName}. Descrição: ${description}`
+              text: `Aja como arquiteto. Extraia dados técnicos (Dimensões, Materiais e Diferenciais) em tópicos curtos. Se não houver dados, responda 'Sem dados'. Produto: ${productName}. Descrição: ${descriptionLimpa}`
             }]
           }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 400 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 500 }
         })
       });
 
       const data = await response.json();
 
-      // Se der erro de quota ou qualquer erro do Google, tenta a PRÓXIMA chave
+      // Caso a chave atual esteja sem cota ou dê erro, pula para a próxima
       if (data.error) {
-        console.error(`Chave ${index} falhou: ${data.error.message}`);
+        console.warn(`Chave index ${index} indisponível. Tentando próxima...`);
         return tryGenerate(index + 1);
       }
 
-      // Se der certo, retorna o texto
       if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
         return data.candidates[0].content.parts[0].text;
       }
