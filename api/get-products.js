@@ -31,23 +31,26 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Se a API retornar algo que não seja um array, tratamos aqui
-    if (!Array.isArray(data)) {
-      return res.status(200).json([]);
-    }
-
-    const products = data.map(p => ({
-        id: p.id,
-        sku: p.variants[0]?.sku || 'S/ SKU',
-        name: p.name.pt || p.name.es || 'Produto sem nome',
-        // A Nuvemshop às vezes coloca a descrição dentro de um objeto de idioma
-        description: p.description?.pt || p.description?.es || p.description || "", 
-        price: p.variants[0]?.price || "0.00",
-        stock: p.variants[0]?.stock ?? 0,
-        image: p.images[0]?.src || '',
-      }));
-
-    res.status(200).json(products);
+      if (!Array.isArray(data)) {
+          return res.status(200).json([]);
+      }
+      
+      // FILTRO E MAPEAMENTO NO BACKEND
+      const products = data
+          .filter(p => p.published === true) // Apenas itens publicados
+          .map(p => ({
+              id: p.id,
+              sku: p.variants[0]?.sku || 'S/ SKU',
+              name: p.name.pt || p.name.es || 'Produto sem nome',
+              description: p.description?.pt || p.description?.es || p.description || "", 
+              price: p.variants[0]?.price || "0.00",
+              stock: p.variants[0]?.stock ?? 0,
+              image: p.images[0]?.src || '',
+              // Enviamos essas flags para o front por segurança, se precisar
+              published: p.published 
+          }));
+      
+      res.status(200).json(products);
 
   } catch (error) {
     console.error("Erro catastrófico na API:", error);
