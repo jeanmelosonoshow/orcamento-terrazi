@@ -99,62 +99,107 @@ generatePdfBtn.addEventListener('click', () => {
     if (quoteCart.length === 0) return alert("Selecione itens primeiro.");
 
     const element = document.createElement('div');
-    element.className = "pdf-container";
-
     const valorTotal = quoteCart.reduce((acc, item) => acc + parseFloat(item.price), 0);
+    
+    // Texto institucional que vamos remover dos itens e colocar no fim
+    const textoInstitucional = "cada peça da casa terrazi é fruto do design brasileiro";
 
     let html = `
         <style>
-            .pdf-container { padding: 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; }
-            .header { text-align: center; border-bottom: 0.5px solid #eaeaea; padding-bottom: 30px; margin-bottom: 40px; }
-            .logo { height: 45px; margin-bottom: 10px; }
-            .title { text-transform: uppercase; letter-spacing: 4px; font-size: 11px; color: #999; }
+            .pdf-container { padding: 30px; font-family: 'Helvetica', Arial, sans-serif; color: #1a1a1a; }
+            .pdf-header { text-align: center; border-bottom: 1px solid #1A3017; padding-bottom: 15px; margin-bottom: 25px; }
+            .pdf-logo { height: 40px; }
             
-            .product-row { display: flex; gap: 40px; margin-bottom: 50px; page-break-inside: avoid; align-items: flex-start; }
-            .product-image { width: 220px; height: 220px; object-fit: cover; filter: contrast(1.05); }
-            .product-details { flex: 1; }
-            .product-name { font-size: 18px; font-weight: 500; text-transform: uppercase; margin: 0 0 10px 0; border-bottom: 1px solid #1a1a1a; padding-bottom: 5px; }
-            .product-sku { font-size: 9px; color: #bbb; margin-bottom: 15px; }
-            .product-desc { font-size: 12px; line-height: 1.6; color: #444; text-align: justify; }
-            .product-desc p, .product-desc ul { margin-bottom: 8px; }
-            .product-price { font-size: 15px; font-weight: 600; margin-top: 15px; color: #1A3017; }
+            /* Container do Produto: Ajustado para caber 2 por página */
+            .product-block { 
+                display: flex; 
+                gap: 20px; 
+                margin-bottom: 30px; 
+                page-break-inside: avoid; 
+                border-bottom: 1px solid #eee; 
+                padding-bottom: 20px;
+                min-height: 380px; /* Garante consistência para caber 2 */
+            }
             
-            .footer-total { margin-top: 60px; padding-top: 20px; border-top: 2px solid #1a1a1a; text-align: right; page-break-inside: avoid; }
-            .total-label { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 2px; }
-            .total-value { font-size: 24px; font-weight: 700; color: #1A3017; }
+            .left-column { width: 180px; flex-shrink: 0; }
+            .product-image { width: 180px; height: 180px; object-fit: cover; margin-bottom: 10px; }
+            
+            /* O destaque vermelho: agora compacto abaixo da foto */
+            .tech-specs { 
+                font-size: 9px; 
+                line-height: 1.3; 
+                color: #1A3017; 
+                background: #f9f9f9; 
+                padding: 8px; 
+                border-radius: 4px;
+            }
+            .tech-specs strong { display: block; margin-bottom: 4px; color: #2D5A27; text-transform: uppercase; }
+
+            .right-column { flex: 1; }
+            .product-name { font-size: 15px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0; color: #1A3017; }
+            .product-sku { font-size: 9px; color: #999; margin-bottom: 10px; }
+            
+            /* Descrição principal limpa */
+            .product-desc { font-size: 10.5px; line-height: 1.5; color: #444; text-align: justify; }
+            .product-price { font-size: 14px; font-weight: bold; margin-top: 10px; color: #1A3017; }
+
+            .institutional-footer { margin-top: 20px; padding: 15px; border-top: 1px solid #eee; font-size: 10px; color: #777; font-style: italic; text-align: center; }
+            .footer-total { margin-top: 20px; text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; }
         </style>
 
-        <div class="header">
-            <img src="${LOGO_URL}" class="logo">
-            <div class="title">Curadoria de Mobiliário Contemporâneo</div>
-        </div>
+        <div class="pdf-container">
+            <div class="pdf-header">
+                <img src="${LOGO_URL}" class="pdf-logo">
+            </div>
     `;
 
     quoteCart.forEach(item => {
+        // 1. Limpeza da descrição: remove o texto institucional repetitivo
+        let descLimpa = item.description;
+        if (descLimpa.toLowerCase().includes("cada peça da casa terrazi")) {
+            descLimpa = descLimpa.split(/cada peça da casa terrazi/i)[0];
+        }
+
+        // 2. Separação visual: vamos tentar identificar a parte de "características" 
+        // Se houver uma tag de lista ou um marcador específico, poderíamos mover, 
+        // mas aqui vamos tratar a descrição limpa no bloco principal.
+        
         html += `
-            <div class="product-row">
-                <img src="${item.image}" class="product-image">
-                <div class="product-details">
+            <div class="product-block">
+                <div class="left-column">
+                    <img src="${item.image}" class="product-image">
+                    <div class="tech-specs">
+                        <strong>Especificações Técnicas</strong>
+                        Referência: ${item.sku}<br>
+                        Garantia: 12 meses estrutura<br>
+                        Procedência: Brasil
+                    </div>
+                </div>
+                <div class="right-column">
                     <h2 class="product-name">${item.displayName}</h2>
                     <div class="product-sku">REF: ${item.sku}</div>
-                    <div class="product-desc">${item.description}</div>
-                    <div class="product-price">R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div class="product-desc">${descLimpa}</div>
+                    <div class="product-price">Investimento: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
                 </div>
             </div>
         `;
     });
 
     html += `
-        <div class="footer-total">
-            <div class="total-label">Investimento Total</div>
-            <div class="total-value">R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+            <div class="institutional-footer">
+                ${textoInstitucional} e produzida integralmente no Brasil. Valorizamos a produção local e a identidade brasileira.
+            </div>
+            <div class="footer-total">
+                <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Total do Orçamento:</span><br>
+                <span style="font-size: 22px;">R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+            </div>
         </div>
     `;
 
     element.innerHTML = html;
 
     const opt = {
-        margin: [0.4, 0.4],
+        margin: [0.3, 0.3], // Margens menores para ganhar espaço
         filename: `Terrazi_Orcamento.pdf`,
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
