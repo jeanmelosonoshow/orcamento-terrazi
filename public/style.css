@@ -154,3 +154,15 @@ main {
     .pdf-item img { width: 150px; border-radius: 4px; }
     .pdf-briefing { font-size: 11pt; line-height: 1.6; color: #444; }
 }
+
+#brand-logo {
+    height: 50px; /* Ajuste conforme preferir o tamanho */
+    width: auto;
+    display: block;
+}
+
+/* Garante que no PDF a logo tenha um espaçamento superior */
+.pdf-logo {
+    margin-bottom: 30px;
+    text-align: center;
+}
