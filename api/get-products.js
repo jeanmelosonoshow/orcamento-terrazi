@@ -3,7 +3,7 @@ export default async function handler(req, res) {
   const { q } = req.query; 
 
   const storeId = process.env.NUVEMSHOP_STORE_ID;
-  const accessToken = process.env.NUVEMSHOP_TOKEN;
+  const accessToken = process.env.NUVEMSHOP_ACCESS_TOKEN;
 
   try {
     const response = await fetch(`https://api.tiendanube.com/v1/${storeId}/products?q=${q || ''}`, {
