@@ -67,8 +67,12 @@ async function adicionarAoOrcamento(produto) {
         btn.disabled = true;
     }
 
+    // Limpa tags HTML simples da descrição para facilitar o trabalho da IA
+    const descricaoLimpa = produto.description ? produto.description.replace(/<[^>]*>?/gm, '') : "";
+
     const novoItem = {
         ...produto,
+        description: descricaoLimpa, // Atualizamos o objeto com a descrição limpa
         tempId: Date.now(),
         briefingEditado: "Gerando resumo técnico inteligente..."
     };
@@ -82,7 +86,7 @@ async function adicionarAoOrcamento(produto) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 productName: produto.name, 
-                description: produto.description 
+                description: descricaoLimpa // Enviamos a descrição sem HTML
             })
         });
 
@@ -90,7 +94,8 @@ async function adicionarAoOrcamento(produto) {
         const index = quoteCart.findIndex(item => item.tempId === novoItem.tempId);
         
         if (index !== -1) {
-            quoteCart[index].briefingEditado = aiData.summary || "Resumo gerado.";
+            // Se a IA falhar ou retornar vazio, mantemos um aviso claro
+            quoteCart[index].briefingEditado = aiData.summary || "Informação técnica indisponível.";
             renderQuoteSidebar();
         }
 
@@ -98,7 +103,7 @@ async function adicionarAoOrcamento(produto) {
         console.error("Erro na IA:", error);
         const index = quoteCart.findIndex(item => item.tempId === novoItem.tempId);
         if (index !== -1) {
-            quoteCart[index].briefingEditado = "Erro ao gerar resumo. Edite manualmente.";
+            quoteCart[index].briefingEditado = "Erro de conexão com a inteligência.";
             renderQuoteSidebar();
         }
     } finally {
