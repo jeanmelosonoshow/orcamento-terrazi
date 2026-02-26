@@ -24,22 +24,24 @@ async function fetchProducts(isInitial = false) {
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
     
     try {
-        const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
-        let products = await response.json();
+        // Adicionamos per_page=100 para garantir que venham muitos produtos da Nuvemshop
+        const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}&per_page=100`);
+        let allProducts = await response.json();
 
-        // 1. FILTRO: Remove o que não estiver publicado
-        // Usamos p.published === true para ser rigoroso
-        products = products.filter(p => p.published === true);
+        // FILTRO MELHORADO: 
+        // Removemos apenas se o flag for EXPLICITAMENTE false. 
+        // Se for undefined ou true, ele mantém.
+        let products = allProducts.filter(p => p.published !== false && p.visible !== false);
 
-        // 2. LÓGICA DA HOME (isInitial):
         if (isInitial) {
-            // Embaralha e limita a 12
+            // Embaralha e tenta pegar 12. 
+            // Se houver menos de 12 visíveis no total da loja, ele mostrará todos os disponíveis.
             products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         }
 
         renderProducts(products);
     } catch (error) {
-        console.error("Erro na busca:", error);
+        console.error("Erro ao buscar produtos:", error);
         productsGrid.innerHTML = '<p>Erro ao conectar com a galeria.</p>';
     }
 }
