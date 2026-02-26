@@ -3,18 +3,14 @@
   "version": "1.0.0",
   "description": "Ferramenta de orçamentos minimalista integrada à Nuvemshop",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "vercel dev",
-    "deploy": "vercel"
+    "start": "vercel dev"
   },
   "dependencies": {
     "node-fetch": "^3.3.2"
   },
-  "devDependencies": {
-    "vercel": "^32.0.0"
-  },
   "engines": {
-    "node": "18.x"
-  },
-  "type": "module"
+    "node": "24.x"
+  }
 }
