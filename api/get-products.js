@@ -37,14 +37,15 @@ export default async function handler(req, res) {
     }
 
     const products = data.map(p => ({
-      id: p.id,
-      sku: p.variants[0]?.sku || 'S/ SKU',
-      name: p.name.pt || p.name.es || 'Produto sem nome',
-      description: p.description ? p.description.pt : '',
-      price: p.variants[0]?.price || "0.00",
-      stock: p.variants[0]?.stock ?? 0,
-      image: p.images[0]?.src || '',
-    }));
+        id: p.id,
+        sku: p.variants[0]?.sku || 'S/ SKU',
+        name: p.name.pt || p.name.es || 'Produto sem nome',
+        // A Nuvemshop às vezes coloca a descrição dentro de um objeto de idioma
+        description: p.description?.pt || p.description?.es || p.description || "", 
+        price: p.variants[0]?.price || "0.00",
+        stock: p.variants[0]?.stock ?? 0,
+        image: p.images[0]?.src || '',
+      }));
 
     res.status(200).json(products);
 
