@@ -41,9 +41,8 @@ function renderProducts(products) {
         const card = document.createElement('div');
         card.className = 'product-card';
         
-        // Prova Real: Se p.description existir, mostra os primeiros 50 caracteres, senão avisa que está vazio
         const textoDescricaoParaValidar = p.description && p.description.length > 0 
-            ? p.description.substring(0, 60) + "..." 
+            ? p.description.substring(0, 60).replace(/<[^>]*>?/gm, '') + "..." 
             : "<span style='color:red;'>Sem descrição na API</span>";
 
         card.innerHTML = `
@@ -53,8 +52,8 @@ function renderProducts(products) {
                 <p class="sku">SKU: ${p.sku}</p>
                 <p class="price">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                 
-                <div style="background: #f4f4f4; padding: 5px; font-size: 10px; margin: 10px 0; border: 1px dashed #ccc;">
-                    <strong>Debug Descrição:</strong><br>
+                <div style="background: #f4f4f4; padding: 5px; font-size: 10px; margin: 10px 0; border: 1px dashed #ccc; color: #666;">
+                    <strong>Preview Descrição:</strong><br>
                     ${textoDescricaoParaValidar}
                 </div>
 
@@ -70,18 +69,15 @@ function renderProducts(products) {
     });
 }
 
-// 3. ADICIONAR AO ORÇAMENTO + CHAMADA DE IA
+// 3. ADICIONAR AO ORÇAMENTO + CHAMADA DE IA (COM FALLBACK)
 async function adicionarAoOrcamento(produto) {
     const btn = document.getElementById(`btn-${produto.id}`);
+    if(btn && btn.disabled) return;
+
     if(btn) {
         btn.innerText = "IA PROCESSANDO...";
         btn.disabled = true;
     }
-
-    // 1. LIMPEZA DE HTML: Transforma a descrição em texto puro
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = produto.description;
-    const descricaoPura = tempDiv.textContent || tempDiv.innerText || "";
 
     const novoItem = {
         ...produto,
@@ -93,28 +89,35 @@ async function adicionarAoOrcamento(produto) {
     renderQuoteSidebar();
 
     try {
-        // No script.js, dentro de adicionarAoOrcamento:
-            const aiResponse = await fetch('/api/summarize', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    productName: produto.name, 
-                    // Garantindo que estamos pegando a descrição correta
-                    description: (produto.description?.pt || produto.description || "").substring(0, 3000)
-                })
-            });
+        const aiResponse = await fetch('/api/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                productName: produto.name, 
+                description: produto.description 
+            })
+        });
 
         const aiData = await aiResponse.json();
         const index = quoteCart.findIndex(item => item.tempId === novoItem.tempId);
         
         if (index !== -1) {
-            // Se vier vazio (""), ele limpa o campo. Se vier texto, ele coloca o texto.
-            quoteCart[index].briefingEditado = aiData.summary || ""; 
+            // Lógica de Fallback: Se a IA falhar em todas as chaves (vazio), usa a descrição original
+            if (!aiData.summary || aiData.summary.trim() === "") {
+                quoteCart[index].briefingEditado = produto.description;
+            } else {
+                quoteCart[index].briefingEditado = aiData.summary;
+            }
             renderQuoteSidebar();
         }
 
     } catch (error) {
         console.error("Erro na IA:", error);
+        const index = quoteCart.findIndex(item => item.tempId === novoItem.tempId);
+        if (index !== -1) {
+            quoteCart[index].briefingEditado = produto.description;
+            renderQuoteSidebar();
+        }
     } finally {
         if(btn) {
             btn.innerText = "+ ADICIONAR AO ORÇAMENTO";
@@ -123,7 +126,7 @@ async function adicionarAoOrcamento(produto) {
     }
 }
 
-// 4. RENDERIZAR LATERAL DE ORÇAMENTO
+// 4. RENDERIZAR LATERAL DE ORÇAMENTO (EDITÁVEL)
 function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
 
@@ -132,7 +135,7 @@ function renderQuoteSidebar() {
         itemDiv.className = 'item-quote-edit';
         itemDiv.innerHTML = `
             <div class="edit-header">
-                <img src="${item.image}" width="40">
+                <img src="${item.image}" width="40" height="40" style="object-fit: cover; border-radius: 4px;">
                 <strong>${item.name}</strong>
                 <button onclick="removerItem(${index})" class="btn-remove">×</button>
             </div>
@@ -141,8 +144,9 @@ function renderQuoteSidebar() {
                 <input type="number" step="0.01" value="${item.price}" 
                     onchange="atualizarDados(${index}, 'price', this.value)">
                 
-                <label>Briefing Técnico (IA):</label>
-                <textarea onchange="atualizarDados(${index}, 'briefingEditado', this.value)">${item.briefingEditado}</textarea>
+                <label>Briefing Técnico:</label>
+                <textarea onchange="atualizarDados(${index}, 'briefingEditado', this.value)" 
+                placeholder="Insira as especificações aqui...">${item.briefingEditado}</textarea>
             </div>
         `;
         quoteItemsContainer.appendChild(itemDiv);
@@ -159,7 +163,7 @@ window.atualizarDados = (index, campo, valor) => {
     quoteCart[index][campo] = valor;
 };
 
-// 6. GERAÇÃO DO PDF (IMPLEMENTAÇÃO COM LOGO E CORS)
+// 6. GERAÇÃO DO PDF (LAYOUT DE LUXO COM TOTALIZAÇÃO)
 generatePdfBtn.addEventListener('click', () => {
     if (quoteCart.length === 0) {
         alert("Adicione pelo menos um item ao orçamento.");
@@ -167,66 +171,67 @@ generatePdfBtn.addEventListener('click', () => {
     }
 
     const element = document.createElement('div');
-    element.style.padding = "40px";
+    element.style.padding = "45px";
     element.style.color = "#1A3017";
     element.style.fontFamily = "'Inter', sans-serif";
 
-    // Cabeçalho do PDF com a Logo
+    // Cálculo do Total
+    const valorTotalOrcamento = quoteCart.reduce((acc, item) => acc + parseFloat(item.price), 0);
+
     let htmlConteudo = `
-        <div style="text-align: center; margin-bottom: 40px; border-bottom: 1px solid #1A3017; padding-bottom: 20px;">
-            <img src="${LOGO_URL}" style="height: 60px; width: auto; margin-bottom: 10px;">
-            <h2 style="font-weight: 300; text-transform: uppercase; font-size: 12px; letter-spacing: 4px; margin: 0;">Proposta Técnica de Mobiliário</h2>
+        <div style="text-align: center; margin-bottom: 50px; border-bottom: 1px solid #1A3017; padding-bottom: 30px;">
+            <img src="${LOGO_URL}" style="height: 55px; width: auto; margin-bottom: 15px;">
+            <p style="text-transform: uppercase; font-size: 10px; letter-spacing: 5px; color: #888; margin: 0;">Proposta Técnica de Mobiliário</p>
+        </div>
+        
+        <div style="margin-bottom: 40px;">
+            <h1 style="font-weight: 300; font-size: 22px; margin: 0;">Orçamento para Cliente</h1>
+            <p style="font-size: 12px; color: #666;">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</p>
         </div>
     `;
 
-    // Listagem de Itens
     quoteCart.forEach(item => {
-        // Converte quebras de linha em <br> para o PDF
-        const briefingFormatado = item.briefingEditado.replace(/\n/g, '<br>');
-
+        // Fallback: se o briefing tiver HTML (descrição original), ele será renderizado corretamente
         htmlConteudo += `
-            <div style="display: flex; gap: 25px; margin-bottom: 40px; page-break-inside: avoid; align-items: flex-start;">
-                <img src="${item.image}" style="width: 180px; height: auto; border-radius: 2px;">
+            <div style="display: flex; gap: 30px; margin-bottom: 45px; page-break-inside: avoid; border-bottom: 1px solid #f0f0f0; padding-bottom: 30px;">
+                <img src="${item.image}" style="width: 160px; height: 160px; object-fit: cover; border-radius: 2px;">
                 <div style="flex: 1;">
-                    <h3 style="margin: 0 0 5px 0; font-size: 18px; color: #1A3017;">${item.name}</h3>
-                    <p style="font-size: 11px; color: #666; margin-bottom: 15px;">REF/SKU: ${item.sku}</p>
-                    <div style="font-size: 13px; line-height: 1.6; color: #333; margin-bottom: 15px;">
-                        ${briefingFormatado}
+                    <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; text-transform: uppercase;">${item.name}</h3>
+                    <p style="font-size: 10px; color: #aaa; margin-bottom: 15px;">REF/SKU: ${item.sku}</p>
+                    <div style="font-size: 12px; line-height: 1.7; color: #444;">
+                        ${item.briefingEditado.replace(/\n/g, '<br>')}
                     </div>
-                    <p style="font-weight: 600; font-size: 15px; color: #2D5A27;">
-                        Valor Sugerido: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    <p style="font-size: 14px; font-weight: 600; margin-top: 15px;">
+                        Valor Unitário: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                     </p>
                 </div>
             </div>
         `;
     });
 
-    // Rodapé do PDF
+    // Bloco Final de Valor Total
     htmlConteudo += `
-        <div style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; font-size: 10px; color: #aaa; text-align: center;">
-            Documento gerado em ${new Date().toLocaleDateString('pt-BR')} | Terrazi - Curadoria Técnica
+        <div style="margin-top: 40px; background-color: #fcfcfc; padding: 30px; border-radius: 4px; text-align: right; page-break-inside: avoid;">
+            <p style="font-size: 12px; color: #888; margin-bottom: 5px;">Investimento Total Estimado</p>
+            <h2 style="font-size: 28px; color: #1A3017; margin: 0;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <p style="font-size: 10px; color: #aaa; margin-top: 15px;">* Preços sujeitos a alteração sem aviso prévio conforme política comercial.</p>
         </div>
     `;
 
     element.innerHTML = htmlConteudo;
 
     const opt = {
-        margin: [0.5, 0.5],
-        filename: `orcamento-terrazi-${Date.now()}.pdf`,
+        margin: [0.3, 0.3],
+        filename: `Terrazi-Orcamento-${Date.now()}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, // Crucial para carregar a logo e as fotos dos produtos no PDF
-            logging: false,
-            letterRendering: true
-        },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
     html2pdf().set(opt).from(element).save();
 });
 
-// Event Listeners
+// Event Listeners Iniciais
 searchBtn.addEventListener('click', fetchProducts);
 searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') fetchProducts();
