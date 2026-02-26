@@ -24,24 +24,27 @@ async function fetchProducts(isInitial = false) {
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
     
     try {
-        // Adicionamos per_page=100 para garantir que venham muitos produtos da Nuvemshop
-        const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}&per_page=100`);
-        let allProducts = await response.json();
+        // Buscamos os produtos da sua API na Vercel
+        const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
+        let products = await response.json();
 
-        // FILTRO MELHORADO: 
-        // Removemos apenas se o flag for EXPLICITAMENTE false. 
-        // Se for undefined ou true, ele mantém.
-        let products = allProducts.filter(p => p.published !== false && p.visible !== false);
+        // CORREÇÃO DO FILTRO:
+        // Só removemos se for EXPLICITAMENTE falso. 
+        // Se a propriedade não existir (undefined), o produto será exibido.
+        products = products.filter(p => {
+            const isVisible = p.visible !== false;
+            const isPublished = p.published !== false;
+            return isVisible && isPublished;
+        });
 
         if (isInitial) {
-            // Embaralha e tenta pegar 12. 
-            // Se houver menos de 12 visíveis no total da loja, ele mostrará todos os disponíveis.
+            // Embaralha e pega os 12 para a home
             products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         }
 
         renderProducts(products);
     } catch (error) {
-        console.error("Erro ao buscar produtos:", error);
+        console.error("Erro ao carregar produtos:", error);
         productsGrid.innerHTML = '<p>Erro ao conectar com a galeria.</p>';
     }
 }
