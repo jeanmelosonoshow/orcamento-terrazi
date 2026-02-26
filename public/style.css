@@ -1,0 +1,139 @@
+:root {
+    --verde-escuro: #1A3017;
+    --verde-medio: #2D5A27;
+    --verde-claro: #E8F5E9;
+    --cinza-suave: #F9F9F9;
+    --texto: #333;
+    --borda: #E0E0E0;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #FFF;
+    color: var(--texto);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+header {
+    padding: 20px 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--borda);
+}
+
+.logo {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    letter-spacing: 4px;
+    color: var(--verde-escuro);
+}
+
+.search-container {
+    display: flex;
+    gap: 10px;
+    width: 50%;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    outline: none;
+}
+
+button {
+    cursor: pointer;
+    transition: 0.3s;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+}
+
+.btn-primary, #searchBtn {
+    background-color: var(--verde-escuro);
+    color: white;
+}
+
+.btn-primary:hover { background-color: var(--verde-medio); }
+
+main {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.results-section {
+    padding: 30px;
+    overflow-y: auto;
+    background-color: var(--cinza-suave);
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+/* Cards de Produto */
+.product-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--borda);
+    text-align: center;
+}
+
+.product-card img {
+    max-width: 100%;
+    height: 180px;
+    object-fit: contain;
+}
+
+.product-card h4 {
+    font-size: 0.9rem;
+    margin: 10px 0;
+    height: 40px;
+}
+
+/* Sidebar de Orçamento */
+.quote-sidebar {
+    border-left: 1px solid var(--borda);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    background: white;
+}
+
+.quote-items {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.item-quote-edit {
+    background: var(--verde-claro);
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.item-quote-edit textarea {
+    width: 100%;
+    height: 80px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    padding: 5px;
+}
+
+.price-edit {
+    width: 80px;
+    font-weight: bold;
+    color: var(--verde-medio);
+}
