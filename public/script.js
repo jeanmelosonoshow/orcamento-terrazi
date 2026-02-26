@@ -74,16 +74,17 @@ function renderProducts(products) {
 async function adicionarAoOrcamento(produto) {
     const btn = document.getElementById(`btn-${produto.id}`);
     if(btn) {
-        btn.innerText = "PROCESSANDO IA...";
+        btn.innerText = "IA PROCESSANDO...";
         btn.disabled = true;
     }
 
-    // Limpa tags HTML simples da descrição para facilitar o trabalho da IA
-    const descricaoLimpa = produto.description ? produto.description.replace(/<[^>]*>?/gm, '') : "";
+    // 1. LIMPEZA DE HTML: Transforma a descrição em texto puro
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = produto.description;
+    const descricaoPura = tempDiv.textContent || tempDiv.innerText || "";
 
     const novoItem = {
         ...produto,
-        description: descricaoLimpa, // Atualizamos o objeto com a descrição limpa
         tempId: Date.now(),
         briefingEditado: "Gerando resumo técnico inteligente..."
     };
@@ -97,7 +98,7 @@ async function adicionarAoOrcamento(produto) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 productName: produto.name, 
-                description: descricaoLimpa // Enviamos a descrição sem HTML
+                description: descricaoPura.substring(0, 3000) // Limite de segurança
             })
         });
 
@@ -105,18 +106,13 @@ async function adicionarAoOrcamento(produto) {
         const index = quoteCart.findIndex(item => item.tempId === novoItem.tempId);
         
         if (index !== -1) {
-            // Se a IA falhar ou retornar vazio, mantemos um aviso claro
-            quoteCart[index].briefingEditado = aiData.summary || "Informação técnica indisponível.";
+            // Se a IA devolver o resumo, usamos. Se não, mantemos um aviso.
+            quoteCart[index].briefingEditado = aiData.summary || "Por favor, preencha os dados técnicos manualmente.";
             renderQuoteSidebar();
         }
 
     } catch (error) {
         console.error("Erro na IA:", error);
-        const index = quoteCart.findIndex(item => item.tempId === novoItem.tempId);
-        if (index !== -1) {
-            quoteCart[index].briefingEditado = "Erro de conexão com a inteligência.";
-            renderQuoteSidebar();
-        }
     } finally {
         if(btn) {
             btn.innerText = "+ ADICIONAR AO ORÇAMENTO";
