@@ -170,29 +170,37 @@ generatePdfBtn.addEventListener('click', () => {
 
     let html = `
         <style>
+            @media print {
+                /* Força o navegador a respeitar as margens em todas as páginas */
+                body { margin: 0; }
+            }
+
             .pdf-body { 
                 font-family: 'Helvetica', sans-serif; 
                 color: #1a1a1a; 
                 background: white; 
-                padding: 50px 40px 40px 60px; /* Padding fixo no topo e laterais */
+                /* MARGEM DO TOPO GARANTIDA: 50px de respiro para o início de cada página */
+                padding: 50px 40px 40px 65px; 
                 position: relative;
+                box-sizing: border-box;
             }
             
-            /* Barra verde contínua à esquerda */
             .brand-sidebar {
                 position: absolute;
                 left: 0; top: 0; bottom: 0;
                 width: 8px;
                 background: #1A3017;
-                z-index: 100;
+                /* Garante que a barra acompanhe todas as páginas */
+                height: 100%;
             }
 
             .pdf-header { 
                 display: flex; justify-content: space-between; align-items: flex-end; 
-                border-bottom: 2px solid #1A3017; padding-bottom: 15px; margin-bottom: 25px; 
+                border-bottom: 2px solid #1A3017; padding-bottom: 15px; 
+                margin-bottom: 30px; 
             }
             
-            .pdf-logo { height: 55px; }
+            .pdf-logo { height: 50px; }
 
             .header-info { text-align: right; line-height: 1.4; }
             .header-info strong { font-size: 12px; color: #1A3017; letter-spacing: 1px; text-transform: uppercase; }
@@ -200,46 +208,42 @@ generatePdfBtn.addEventListener('click', () => {
 
             .info-box { 
                 background: #f9f9f9; padding: 15px; border-radius: 4px; 
-                margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; 
+                margin-bottom: 35px; display: grid; grid-template-columns: 1fr 1fr; 
                 gap: 20px; font-size: 11px; border: 1px solid #eee;
             }
 
-            /* REGRA CRUCIAL: Impede que o bloco do produto seja cortado ao meio entre páginas */
+            /* BLOCO DE PRODUTO: Padding interno e margem externa para evitar colagem */
             .product-block { 
                 width: 100%; 
                 page-break-inside: avoid !important; 
-                margin-bottom: 40px; /* Espaço entre produtos na mesma página */
-                border-bottom: 1px solid #eee;
-                padding-bottom: 20px;
+                margin-bottom: 50px; 
+                padding-top: 20px; /* Respiro extra se o produto cair no topo de uma nova página */
+                border-bottom: 1px solid #f0f0f0;
+                padding-bottom: 30px;
             }
             
-            .product-content { display: flex; gap: 25px; }
-            .left-column { width: 200px; flex-shrink: 0; }
-            .product-image { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
+            .product-content { display: flex; gap: 30px; }
+            .left-column { width: 220px; flex-shrink: 0; }
+            .product-image { width: 220px; height: 220px; object-fit: cover; border-radius: 4px; margin-bottom: 12px; }
             
             .dimensoes-box { 
                 font-size: 10px; line-height: 1.4; color: #1A3017; 
-                background: #E8F5E9; padding: 10px; border-radius: 4px; 
+                background: #F4F9F4; padding: 12px; border-radius: 4px; 
             }
-            .dimensoes-box strong { display: block; margin-bottom: 3px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.1); }
+            .dimensoes-box strong { display: block; margin-bottom: 4px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.1); }
 
             .right-column { flex: 1; display: flex; flex-direction: column; }
-            .product-title { font-size: 19px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
-            .sku-label { font-size: 9px; color: #999; margin-bottom: 10px; display: block; }
-            .product-desc { font-size: 11px; line-height: 1.5; color: #333; text-align: justify; margin-bottom: 12px; }
+            .product-title { font-size: 19px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; line-height: 1.2; }
+            .sku-label { font-size: 9px; color: #999; margin-bottom: 12px; display: block; }
+            .product-desc { font-size: 11px; line-height: 1.6; color: #333; text-align: justify; margin-bottom: 15px; }
             
-            .tech-info-box { 
-                font-size: 10px; line-height: 1.4; color: #555; 
-                border-top: 1px dashed #ccc; padding-top: 10px; margin-bottom: 15px; 
-            }
-
             .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; border: 1px solid #eee; }
-            .item-price-table td { font-size: 13px; padding: 10px; text-align: center; font-weight: bold; color: #1A3017; }
+            .item-price-table td { font-size: 13px; padding: 12px; text-align: center; font-weight: bold; color: #1A3017; }
             .td-label { font-size: 8px; text-transform: uppercase; color: #888; background: #fafafa; border-bottom: 1px solid #eee; font-weight: normal; }
 
-            .footer-area { page-break-inside: avoid; }
-            .inst-footer { margin-top: 30px; padding: 20px; border-top: 1px solid #eee; font-size: 9px; color: #777; text-align: center; line-height: 1.6; font-style: italic; }
-            .total-final { margin-top: 10px; text-align: right; background: #1A3017; color: white; padding: 20px; border-radius: 4px; }
+            .footer-area { page-break-inside: avoid; margin-top: 20px; }
+            .inst-footer { padding: 25px; border-top: 1px solid #eee; font-size: 9px; color: #777; text-align: center; line-height: 1.6; font-style: italic; }
+            .total-final { text-align: right; background: #1A3017; color: white; padding: 25px; border-radius: 4px; }
         </style>
         
         <div class="pdf-body">
@@ -300,7 +304,6 @@ generatePdfBtn.addEventListener('click', () => {
                         <h2 class="product-title">${item.displayName}</h2>
                         <span class="sku-label">SKU: ${item.sku}</span>
                         <div class="product-desc">${emocional}</div>
-                        ${tecnico ? `<div class="tech-info-box"><strong>Características</strong><br>${tecnico}</div>` : ''}
                         
                         <table class="item-price-table">
                             <tr>
@@ -325,7 +328,7 @@ generatePdfBtn.addEventListener('click', () => {
                 <div class="inst-footer">${textoInstitucionalFinal}</div>
                 <div class="total-final">
                     <span style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Total Geral do Orçamento:</span><br>
-                    <span style="font-size: 24px; font-weight: bold;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                    <span style="font-size: 26px; font-weight: bold;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                 </div>
             </div>
         </div>
@@ -334,7 +337,8 @@ generatePdfBtn.addEventListener('click', () => {
     element.innerHTML = html;
     
     html2pdf().set({
-        margin: 0, 
+        // Mantemos 30 de margem nas opções do plugin para garantir o distanciamento da borda física da folha
+        margin: [30, 0, 30, 0], 
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
