@@ -149,7 +149,7 @@ generatePdfBtn.addEventListener('click', () => {
     const dataValidade = quoteValid.value ? new Date(quoteValid.value).toLocaleDateString('pt-BR') : 'A consultar';
     
     const textoInstitucionalFinal = `
-        É FRUTO DO DESIGN BRASILEIRO. CRIADA E PRODUZIDA INTEGRALMENTE NO BRASIL. 
+        CADA PEÇA DA CASA TERRAZI É FRUTO DO DESIGN BRASILEIRO, CRIADA E PRODUZIDA INTEGRALMENTE NO BRASIL. 
         VALORIZAMOS A PRODUÇÃO LOCAL, O TALENTO DOS NOSSOS PROFISSIONAIS E A QUALIDADE QUE SÓ O OLHAR ATENTO 
         DE QUEM ENTENDE DO PRÓPRIO TERRITÓRIO PODE OFERECER. AO ESCOLHER UM DOS NOSSOS MÓVEIS, 
         VOCÊ LEVA PARA CASA NÃO APENAS SOFISTICAÇÃO E FUNCIONALIDADE, MAS TAMBÉM UMA HISTÓRIA FEITA AQUI 
@@ -163,20 +163,17 @@ generatePdfBtn.addEventListener('click', () => {
             
             .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; }
 
-            /* BLOCO DO PRODUTO - ESTA É A PARTE QUE GARANTE A QUEBRA CORRETA */
             .product-block { 
-                display: flex; 
-                gap: 25px; 
-                margin-bottom: 20px; 
+                display: block; /* Alterado para block para melhor controle de quebra */
+                width: 100%;
+                margin-bottom: 30px; 
                 padding-bottom: 20px; 
                 border-bottom: 1px solid #eee; 
-                page-break-inside: avoid !important; /* Força o bloco a não quebrar entre páginas */
+                page-break-inside: avoid !important; 
                 break-inside: avoid !important;
-                display: flow-root; /* Ajuda o motor do PDF a calcular a altura total do bloco */
-                width: 100%;
             }
             
-            .product-flex-container { display: flex; gap: 25px; } /* Wrapper interno para o flex não bugar o page-break */
+            .product-content { display: flex; gap: 25px; }
             
             .left-column { width: 210px; flex-shrink: 0; }
             .product-image { width: 210px; height: 210px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
@@ -188,12 +185,12 @@ generatePdfBtn.addEventListener('click', () => {
             .product-title { font-size: 15px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
             .sku-label { font-size: 9px; color: #999; margin-bottom: 8px; display: block; }
             
-            .product-desc { font-size: 10px; line-height: 1.4; color: #444; text-align: justify; margin-bottom: 8px; }
+            .product-desc { font-size: 10px; line-height: 1.4; color: #444; text-align: justify; margin-bottom: 5px; }
             
             .tech-info-box { font-size: 9px; line-height: 1.3; color: #555; border-top: 1px dashed #ccc; padding-top: 8px; margin-top: 0; }
             .tech-info-box strong { color: #1A3017; text-transform: uppercase; font-size: 8.5px; display: block; margin-bottom: 4px; }
 
-            .price-row { font-size: 13px; font-weight: bold; margin-top: 12px; color: #1A3017; text-align: right; background: #f5f5f5; padding: 6px 10px; border-radius: 4px; }
+            .price-row { font-size: 13px; font-weight: bold; margin-top: 10px; color: #1A3017; text-align: right; background: #f5f5f5; padding: 6px 10px; border-radius: 4px; }
 
             .inst-footer { margin-top: 40px; padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; page-break-inside: avoid; }
             .total-final { margin-top: 5px; text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; page-break-inside: avoid; }
@@ -207,7 +204,6 @@ generatePdfBtn.addEventListener('click', () => {
                     Data: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}
                 </div>
             </div>
-
             <div class="info-box">
                 <div><strong>CLIENTE:</strong> ${custName.value || '---'}<br><strong>DOC:</strong> ${custDoc.value || '---'}</div>
                 <div><strong>VENDEDOR:</strong> ${sellerName.value || '---'}<br><strong>CONTATO:</strong> ${sellerPhone.value || '---'}</div>
@@ -215,29 +211,34 @@ generatePdfBtn.addEventListener('click', () => {
     `;
 
     quoteCart.forEach(item => {
-        const limparTexto = (txt) => {
+        const limparProfundo = (txt) => {
             if (!txt) return "";
-            return txt
-                // Remove o institucional longo (independente de onde ele esteja)
-                .replace(/cada peça da casa terrazi[\s\S]*identidade brasileira\./gi, "") 
-                .replace(/É FRUTO DO DESIGN BRASILEIRO[\s\S]*IDENTIDADE BRASILEIRA\./gi, "")
-                .replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "")
-                // Remove tags e marcadores indesejados
-                .replace(/<\/?[^>]+(>|$)/g, "") 
-                .replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "") 
-                .trim();
+            // Remove tags HTML primeiro
+            let limpo = txt.replace(/<\/?[^>]+(>|$)/g, "");
+            
+            // REMOÇÃO INTELIGENTE: Se encontrar partes do institucional, remove o bloco todo
+            // Esta regex pega variações de quebra de linha e espaços
+            const padraoInstitucional = /cada peça da casa terrazi[\s\S]*identidade brasileira/gi;
+            const padraoDesign = /fruto do design brasileiro[\s\S]*identidade brasileira/gi;
+            
+            limpo = limpo.replace(padraoInstitucional, "");
+            limpo = limpo.replace(padraoDesign, "");
+            limpo = limpo.replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "");
+            
+            // Remove pontos, traços e espaços extras que sobram no início/fim
+            return limpo.replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "").trim();
         };
 
         let rawText = item.description || "";
         let parts = rawText.split(/(características|medidas|dimensões|especificações|caraterísticas)/i);
-        let emocional = limparTexto(parts[0]);
+        let emocional = limparProfundo(parts[0]);
         
         let tecnico = "";
         let dimensoes = "";
 
         for (let i = 1; i < parts.length; i += 2) {
             let label = parts[i].toLowerCase();
-            let content = limparTexto(parts[i+1]);
+            let content = limparProfundo(parts[i+1]);
             
             if (content) {
                 if (label.includes("dimensões") || label.includes("medidas")) {
@@ -250,7 +251,7 @@ generatePdfBtn.addEventListener('click', () => {
 
         html += `
             <div class="product-block">
-                <div class="product-flex-container">
+                <div class="product-content">
                     <div class="left-column">
                         <img src="${item.image}" class="product-image">
                         ${dimensoes ? `<div class="dimensoes-box"><strong>Dimensões</strong>${dimensoes}</div>` : ''}
@@ -258,15 +259,8 @@ generatePdfBtn.addEventListener('click', () => {
                     <div class="right-column">
                         <h2 class="product-title">${item.displayName}</h2>
                         <span class="sku-label">SKU: ${item.sku}</span>
-                        
                         <div class="product-desc">${emocional}</div>
-                        
-                        ${tecnico ? `
-                        <div class="tech-info-box">
-                            <strong>Características do Produto</strong>
-                            ${tecnico}
-                        </div>` : ''}
-                        
+                        ${tecnico ? `<div class="tech-info-box"><strong>Características do Produto</strong>${tecnico}</div>` : ''}
                         <div class="price-row">VALOR UNITÁRIO: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
                     </div>
                 </div>
@@ -285,10 +279,10 @@ generatePdfBtn.addEventListener('click', () => {
 
     element.innerHTML = html;
     html2pdf().set({
-        margin: [0.5, 0.4], // Margem superior levemente maior para segurança de quebra
+        margin: [0.5, 0.4],
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     }).from(element).save();
 });
