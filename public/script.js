@@ -170,19 +170,12 @@ generatePdfBtn.addEventListener('click', () => {
 
     let html = `
         <style>
-            @media print {
-                /* Força o navegador a respeitar as margens em todas as páginas */
-                body { margin: 0; }
-            }
-
             .pdf-body { 
                 font-family: 'Helvetica', sans-serif; 
                 color: #1a1a1a; 
                 background: white; 
-                /* MARGEM DO TOPO GARANTIDA: 50px de respiro para o início de cada página */
-                padding: 50px 40px 40px 65px; 
+                padding: 40px 40px 30px 60px; /* Padding superior para não colar no topo */
                 position: relative;
-                box-sizing: border-box;
             }
             
             .brand-sidebar {
@@ -190,60 +183,64 @@ generatePdfBtn.addEventListener('click', () => {
                 left: 0; top: 0; bottom: 0;
                 width: 8px;
                 background: #1A3017;
-                /* Garante que a barra acompanhe todas as páginas */
-                height: 100%;
             }
 
             .pdf-header { 
                 display: flex; justify-content: space-between; align-items: flex-end; 
-                border-bottom: 2px solid #1A3017; padding-bottom: 15px; 
-                margin-bottom: 30px; 
+                border-bottom: 2px solid #1A3017; padding-bottom: 10px; 
+                margin-bottom: 20px; 
             }
             
-            .pdf-logo { height: 50px; }
+            .pdf-logo { height: 45px; }
 
-            .header-info { text-align: right; line-height: 1.4; }
-            .header-info strong { font-size: 12px; color: #1A3017; letter-spacing: 1px; text-transform: uppercase; }
-            .header-info span { font-size: 10px; color: #666; }
+            .header-info { text-align: right; line-height: 1.3; }
+            .header-info strong { font-size: 11px; color: #1A3017; letter-spacing: 1px; text-transform: uppercase; }
+            .header-info span { font-size: 9px; color: #666; }
 
             .info-box { 
-                background: #f9f9f9; padding: 15px; border-radius: 4px; 
-                margin-bottom: 35px; display: grid; grid-template-columns: 1fr 1fr; 
-                gap: 20px; font-size: 11px; border: 1px solid #eee;
+                background: #f9f9f9; padding: 12px; border-radius: 4px; 
+                margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; 
+                gap: 15px; font-size: 10px; border: 1px solid #eee;
             }
 
-            /* BLOCO DE PRODUTO: Padding interno e margem externa para evitar colagem */
             .product-block { 
                 width: 100%; 
                 page-break-inside: avoid !important; 
-                margin-bottom: 50px; 
-                padding-top: 20px; /* Respiro extra se o produto cair no topo de uma nova página */
+                margin-bottom: 25px; 
+                padding-top: 15px; /* Margem de segurança caso inicie no topo da página */
                 border-bottom: 1px solid #f0f0f0;
-                padding-bottom: 30px;
+                padding-bottom: 15px;
             }
             
-            .product-content { display: flex; gap: 30px; }
-            .left-column { width: 220px; flex-shrink: 0; }
-            .product-image { width: 220px; height: 220px; object-fit: cover; border-radius: 4px; margin-bottom: 12px; }
+            .product-content { display: flex; gap: 20px; }
+            .left-column { width: 180px; flex-shrink: 0; }
+            .product-image { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
             
             .dimensoes-box { 
-                font-size: 10px; line-height: 1.4; color: #1A3017; 
-                background: #F4F9F4; padding: 12px; border-radius: 4px; 
+                font-size: 9px; line-height: 1.3; color: #1A3017; 
+                background: #F4F9F4; padding: 8px; border-radius: 4px; 
             }
-            .dimensoes-box strong { display: block; margin-bottom: 4px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.1); }
+            .dimensoes-box strong { display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.1); }
 
             .right-column { flex: 1; display: flex; flex-direction: column; }
-            .product-title { font-size: 19px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; line-height: 1.2; }
-            .sku-label { font-size: 9px; color: #999; margin-bottom: 12px; display: block; }
-            .product-desc { font-size: 11px; line-height: 1.6; color: #333; text-align: justify; margin-bottom: 15px; }
+            .product-title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
+            .sku-label { font-size: 8px; color: #999; margin-bottom: 8px; display: block; }
+            .product-desc { font-size: 10px; line-height: 1.4; color: #333; text-align: justify; margin-bottom: 10px; }
             
-            .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; border: 1px solid #eee; }
-            .item-price-table td { font-size: 13px; padding: 12px; text-align: center; font-weight: bold; color: #1A3017; }
-            .td-label { font-size: 8px; text-transform: uppercase; color: #888; background: #fafafa; border-bottom: 1px solid #eee; font-weight: normal; }
+            /* CARACTERÍSTICAS REATIVADAS */
+            .tech-info-box { 
+                font-size: 9.5px; line-height: 1.3; color: #444; 
+                border-top: 1px dashed #ddd; padding-top: 8px; margin-bottom: 12px; 
+            }
+            .tech-info-box strong { font-size: 8px; text-transform: uppercase; color: #1A3017; }
 
-            .footer-area { page-break-inside: avoid; margin-top: 20px; }
-            .inst-footer { padding: 25px; border-top: 1px solid #eee; font-size: 9px; color: #777; text-align: center; line-height: 1.6; font-style: italic; }
-            .total-final { text-align: right; background: #1A3017; color: white; padding: 25px; border-radius: 4px; }
+            .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; border: 1px solid #eee; }
+            .item-price-table td { font-size: 11px; padding: 8px; text-align: center; font-weight: bold; color: #1A3017; }
+            .td-label { font-size: 7.5px; text-transform: uppercase; color: #888; background: #fafafa; border-bottom: 1px solid #eee; font-weight: normal; }
+
+            .footer-area { page-break-inside: avoid; margin-top: 15px; }
+            .inst-footer { padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; }
+            .total-final { text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; }
         </style>
         
         <div class="pdf-body">
@@ -305,6 +302,8 @@ generatePdfBtn.addEventListener('click', () => {
                         <span class="sku-label">SKU: ${item.sku}</span>
                         <div class="product-desc">${emocional}</div>
                         
+                        ${tecnico ? `<div class="tech-info-box"><strong>Características do Produto:</strong><br>${tecnico}</div>` : ''}
+                        
                         <table class="item-price-table">
                             <tr>
                                 <td class="td-label">Qtd</td>
@@ -327,8 +326,8 @@ generatePdfBtn.addEventListener('click', () => {
             <div class="footer-area">
                 <div class="inst-footer">${textoInstitucionalFinal}</div>
                 <div class="total-final">
-                    <span style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Total Geral do Orçamento:</span><br>
-                    <span style="font-size: 26px; font-weight: bold;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                    <span style="font-size: 9px; text-transform: uppercase; opacity: 0.8;">Total Geral:</span><br>
+                    <span style="font-size: 22px; font-weight: bold;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                 </div>
             </div>
         </div>
@@ -337,8 +336,7 @@ generatePdfBtn.addEventListener('click', () => {
     element.innerHTML = html;
     
     html2pdf().set({
-        // Mantemos 30 de margem nas opções do plugin para garantir o distanciamento da borda física da folha
-        margin: [30, 0, 30, 0], 
+        margin: [20, 0, 20, 0], // Margem de segurança externa
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
