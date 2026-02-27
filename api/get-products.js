@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(`https://api.tiendanube.com/v1/${storeId}/products?q=${encodeURIComponent(q)}`, {
+    const response = await fetch(`https://api.tiendanube.com/v1/${storeId}/products?per_page=100&q=${encodeURIComponent(q)}`, {
       method: 'GET',
       headers: {
         'Authentication': `bearer ${accessToken.trim()}`,
