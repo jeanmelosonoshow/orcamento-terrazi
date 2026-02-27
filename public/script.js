@@ -147,38 +147,53 @@ generatePdfBtn.addEventListener('click', () => {
     const element = document.createElement('div');
     const valorTotal = quoteCart.reduce((acc, item) => acc + parseFloat(item.price), 0);
     const dataValidade = quoteValid.value ? new Date(quoteValid.value).toLocaleDateString('pt-BR') : 'A consultar';
-    const textoInstitucional = "cada peça da casa terrazi é fruto do design brasileiro";
+    const textoInstitucional = "Cada peça da Casa Terrazi é fruto do design brasileiro";
 
     let html = `
         <style>
-            .pdf-container { padding: 30px; font-family: 'Helvetica', Arial, sans-serif; color: #1a1a1a; }
-            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #1A3017; padding-bottom: 15px; margin-bottom: 20px; }
-            .pdf-logo { height: 40px; }
-            .header-info { font-size: 10px; text-align: right; color: #666; }
+            .pdf-container { padding: 20px; font-family: 'Helvetica', Arial, sans-serif; color: #1a1a1a; }
+            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
+            .pdf-logo { height: 45px; }
+            .header-info { font-size: 10px; text-align: right; color: #444; line-height: 1.4; }
             
             .client-vendedor-box { 
-                background: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 25px; 
-                display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 11px;
+                background: #f4f4f4; padding: 12px; border-radius: 4px; margin-bottom: 20px; 
+                display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; border: 1px solid #eee;
             }
 
+            /* Forçar 2 produtos por página */
             .product-block { 
-                display: flex; gap: 20px; margin-bottom: 25px; page-break-inside: avoid; 
-                border-bottom: 1px solid #eee; padding-bottom: 15px; min-height: 350px;
+                display: flex; gap: 25px; 
+                padding: 20px 0;
+                border-bottom: 1px solid #eee; 
+                min-height: 440px; /* Altura ideal para caber exatamente 2 em um A4 */
+                page-break-inside: avoid;
             }
-            .left-column { width: 180px; flex-shrink: 0; }
-            .product-image { width: 180px; height: 180px; object-fit: cover; margin-bottom: 10px; }
             
-            .tech-specs { font-size: 9px; line-height: 1.3; color: #1A3017; background: #f2f2f2; padding: 8px; border-radius: 4px; }
-            .tech-specs strong { display: block; margin-bottom: 3px; text-transform: uppercase; }
+            .left-column { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; }
+            .product-image { width: 220px; height: 220px; object-fit: cover; border-radius: 4px; margin-bottom: 12px; border: 1px solid #f0f0f0; }
+            
+            .tech-specs { 
+                font-size: 9px; line-height: 1.4; color: #1A3017; background: #f9f9f9; 
+                padding: 10px; border-radius: 4px; border-left: 3px solid #1A3017;
+            }
+            .tech-specs strong { display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-            .right-column { flex: 1; }
-            .product-name { font-size: 15px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
-            .product-sku { font-size: 9px; color: #999; margin-bottom: 10px; }
-            .product-desc { font-size: 10.5px; line-height: 1.4; color: #444; text-align: justify; }
-            .product-price { font-size: 14px; font-weight: bold; margin-top: 10px; color: #1A3017; }
+            .right-column { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; }
+            .product-name { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0; color: #1A3017; border-bottom: 1px solid #1A3017; padding-bottom: 5px; }
+            .product-sku { font-size: 10px; color: #888; margin-bottom: 15px; font-weight: bold; }
+            .product-desc { font-size: 11px; line-height: 1.6; color: #333; text-align: justify; margin-bottom: 15px; }
+            
+            .product-price { 
+                margin-top: auto; font-size: 16px; font-weight: bold; color: #1A3017; 
+                background: #f0f3f0; padding: 10px; border-radius: 4px; text-align: right;
+            }
 
-            .institutional-footer { margin-top: 20px; padding: 15px; border-top: 1px solid #eee; font-size: 10px; color: #777; font-style: italic; text-align: center; }
-            .footer-total { margin-top: 20px; text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; }
+            .footer-total { 
+                margin-top: 30px; text-align: right; background: #1A3017; color: white; 
+                padding: 20px; border-radius: 4px; page-break-inside: avoid;
+            }
+            .inst-footer { font-size: 9px; color: #777; text-align: center; margin-top: 15px; font-style: italic; }
         </style>
 
         <div class="pdf-container">
@@ -186,19 +201,19 @@ generatePdfBtn.addEventListener('click', () => {
                 <img src="${LOGO_URL}" class="pdf-logo">
                 <div class="header-info">
                     <strong>ORÇAMENTO TERRAZI</strong><br>
-                    Data: ${new Date().toLocaleDateString('pt-BR')}<br>
+                    Emissão: ${new Date().toLocaleDateString('pt-BR')}<br>
                     Validade: ${dataValidade}
                 </div>
             </div>
 
             <div class="client-vendedor-box">
                 <div>
-                    <strong>DADOS DO CLIENTE</strong><br>
+                    <strong style="color:#1A3017">DADOS DO CLIENTE</strong><br>
                     Nome: ${custName.value || '---'}<br>
-                    Documento: ${custDoc.value || '---'}
+                    CPF/CNPJ: ${custDoc.value || '---'}
                 </div>
                 <div>
-                    <strong>CONSULTOR TERRAZI</strong><br>
+                    <strong style="color:#1A3017">CONSULTOR TERRAZI</strong><br>
                     Vendedor: ${sellerName.value || '---'}<br>
                     Contato: ${sellerPhone.value || '---'}
                 </div>
@@ -206,49 +221,62 @@ generatePdfBtn.addEventListener('click', () => {
     `;
 
     quoteCart.forEach(item => {
-        let descLimpa = item.description || "";
-        if (descLimpa.toLowerCase().includes("cada peça da casa terrazi")) {
-            descLimpa = descLimpa.split(/cada peça da casa terrazi/i)[0];
-        }
+        // --- TRATAMENTO DA DESCRIÇÃO ---
+        let rawDesc = item.description || "";
+        
+        // Remove texto institucional repetido
+        rawDesc = rawDesc.replace(/cada peça da casa terrazi/gi, "");
+
+        // Tenta separar características (lista/medidas) da descrição emocional
+        // Geralmente características técnicas vêm após palavras-chave como "características", "medidas" ou "estrutura"
+        let descParts = rawDesc.split(/(características|medidas|especificações|estrutura do produto|dimensões)/i);
+        let textoEmocional = descParts[0].trim();
+        let textoTecnico = descParts.slice(1).join(" ").trim();
 
         html += `
             <div class="product-block">
                 <div class="left-column">
                     <img src="${item.image}" class="product-image">
                     <div class="tech-specs">
-                        <strong>Informações Técnicas</strong>
-                        SKU: ${item.sku}<br>
-                        Estoque Disponível: ${item.stock || 'Consulta'}<br>
-                        Garantia: 12 meses estrutura
+                        <strong>Especificações Técnicas</strong>
+                        ${textoTecnico || 'Consulte nossa equipe para detalhes de medidas e acabamentos personalizados.'}
                     </div>
                 </div>
                 <div class="right-column">
                     <h2 class="product-name">${item.displayName}</h2>
-                    <div class="product-desc">${descLimpa}</div>
-                    <div class="product-price">VALOR UNITÁRIO: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div class="product-sku">REF: ${item.sku}</div>
+                    <div class="product-desc">${textoEmocional}</div>
+                    <div class="product-price">
+                        <span style="font-size: 10px; font-weight: normal; text-transform: uppercase; display: block;">Valor Unitário</span>
+                        R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    </div>
                 </div>
             </div>
         `;
     });
 
     html += `
-            <div class="institutional-footer">
-                ${textoInstitucional} e produzida integralmente no Brasil. Valorizamos a produção local e a identidade brasileira.
-            </div>
             <div class="footer-total">
-                <span style="font-size: 10px; text-transform: uppercase;">Total Geral do Orçamento:</span><br>
-                <span style="font-size: 24px;">R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                <span style="font-size: 11px; text-transform: uppercase; opacity: 0.8;">Valor Total do Projeto</span><br>
+                <span style="font-size: 28px; letter-spacing: -1px;">R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+            </div>
+            <div class="inst-footer">
+                ${textoInstitucional} e produzida integralmente no Brasil.
             </div>
         </div>
     `;
 
     element.innerHTML = html;
-    html2pdf().set({
-        margin: [0.3, 0.3],
+    
+    const opt = {
+        margin: [0.2, 0.2],
         filename: `Terrazi_Orcamento_${custName.value || 'Cliente'}.pdf`,
-        html2canvas: { scale: 2, useCORS: true },
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-    }).from(element).save();
+    };
+
+    html2pdf().set(opt).from(element).save();
 });
 
 searchBtn.addEventListener('click', () => fetchProducts(false));
