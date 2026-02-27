@@ -292,3 +292,28 @@ generatePdfBtn.addEventListener('click', () => {
 
 searchBtn.addEventListener('click', () => fetchProducts(false));
 searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') fetchProducts(false); });
+
+// Função para limpar todo o orçamento
+window.limparOrcamento = () => {
+    if (quoteCart.length === 0) return;
+    if (confirm("Deseja remover todos os itens do orçamento?")) {
+        quoteCart = [];
+        renderQuoteSidebar();
+    }
+};
+
+// Ajuste na pesquisa: Voltar ao início quando o campo for limpo
+searchInput.addEventListener('input', (e) => {
+    if (e.target.value.trim() === "") {
+        fetchProducts(true); // Carrega os 12 aleatórios da home novamente
+    }
+});
+
+// Garante que o botão BUSCAR também funcione se clicar após limpar
+searchBtn.addEventListener('click', () => {
+    if (searchInput.value.trim() === "") {
+        fetchProducts(true);
+    } else {
+        fetchProducts(false);
+    }
+});
