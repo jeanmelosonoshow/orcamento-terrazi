@@ -148,7 +148,6 @@ generatePdfBtn.addEventListener('click', () => {
     const valorTotal = quoteCart.reduce((acc, item) => acc + parseFloat(item.price), 0);
     const dataValidade = quoteValid.value ? new Date(quoteValid.value).toLocaleDateString('pt-BR') : 'A consultar';
     
-    // O texto institucional agora é uma constante única para o final do PDF
     const textoInstitucionalFinal = `
         É FRUTO DO DESIGN BRASILEIRO. CRIADA E PRODUZIDA INTEGRALMENTE NO BRASIL. 
         VALORIZAMOS A PRODUÇÃO LOCAL, O TALENTO DOS NOSSOS PROFISSIONAIS E A QUALIDADE QUE SÓ O OLHAR ATENTO 
@@ -167,23 +166,28 @@ generatePdfBtn.addEventListener('click', () => {
                 display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px;
             }
 
-            /* Forçar 2 produtos por página */
             .product-block { 
                 display: flex; gap: 25px; margin-bottom: 20px; 
                 padding-bottom: 20px; border-bottom: 1px solid #eee;
-                page-break-inside: avoid; min-height: 430px; 
+                page-break-inside: avoid; min-height: 400px; 
             }
             .left-column { width: 210px; flex-shrink: 0; }
             .product-image { width: 210px; height: 210px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
             
-            .tech-specs { font-size: 9px; line-height: 1.4; color: #1A3017; background: #f2f2f2; padding: 10px; border-radius: 4px; }
-            .tech-specs strong { display: block; margin-bottom: 5px; text-transform: uppercase; border-bottom: 1px solid #ccc; }
+            /* Apenas Dimensões abaixo da foto */
+            .dimensoes-specs { font-size: 9px; line-height: 1.4; color: #1A3017; background: #E8F5E9; padding: 10px; border-radius: 4px; }
+            .dimensoes-specs strong { display: block; margin-bottom: 5px; text-transform: uppercase; border-bottom: 1px solid rgba(26,48,23,0.2); }
 
             .right-column { flex: 1; display: flex; flex-direction: column; }
             .product-name { font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
             .product-sku { font-size: 9px; color: #999; margin-bottom: 10px; font-weight: bold; }
-            .product-desc { font-size: 10.5px; line-height: 1.5; color: #444; text-align: justify; flex-grow: 1; }
-            .product-price { font-size: 14px; font-weight: bold; margin-top: 15px; color: #1A3017; text-align: right; background: #E8F5E9; padding: 8px; border-radius: 4px; }
+            .product-desc { font-size: 10.5px; line-height: 1.5; color: #444; text-align: justify; margin-bottom: 15px; }
+            
+            /* Info Técnica abaixo do descritivo */
+            .tech-info-area { font-size: 9.5px; line-height: 1.4; color: #555; border-top: 1px dashed #ccc; padding-top: 10px; margin-top: auto; }
+            .tech-info-area strong { color: #1A3017; text-transform: uppercase; font-size: 9px; }
+
+            .product-price { font-size: 14px; font-weight: bold; margin-top: 15px; color: #1A3017; text-align: right; background: #f2f2f2; padding: 8px; border-radius: 4px; }
 
             .institutional-footer { margin-top: 30px; padding: 20px; border-top: 1px solid #eee; font-size: 9px; color: #666; text-align: center; line-height: 1.6; }
             .footer-total { margin-top: 10px; text-align: right; background: #1A3017; color: white; padding: 20px; border-radius: 4px; }
@@ -208,31 +212,50 @@ generatePdfBtn.addEventListener('click', () => {
     quoteCart.forEach(item => {
         let descLimpa = item.description || "";
 
-        // 1. Remove o Texto Institucional de cada item
+        // 1. Remove os textos repetitivos
         descLimpa = descLimpa.replace(/É FRUTO DO DESIGN BRASILEIRO[\s\S]*IDENTIDADE BRASILEIRA\./gi, "");
-
-        // 2. Remove o texto do WhatsApp e Peças sob medida
         descLimpa = descLimpa.replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "");
 
-        // 3. Separa o que é Especificação Técnica (Medidas/Características) para ir para baixo da foto
-        // Procuramos por palavras chave para quebrar o texto
+        // 2. Separa Texto Emocional, Características (Técnico) e Dimensões
         let partes = descLimpa.split(/(características|medidas|dimensões|especificações)/i);
         let textoDescritivo = partes[0].trim();
-        let textoTecnico = partes.slice(1).join(" ").trim();
+        
+        let textoTecnico = "";
+        let textoDimensoes = "";
+
+        // Organiza as partes encontradas
+        for (let i = 1; i < partes.length; i += 2) {
+            let chave = partes[i].toLowerCase();
+            let valor = partes[i+1] ? partes[i+1].trim() : "";
+            
+            if (chave.includes("dimensões") || chave.includes("medidas")) {
+                textoDimensoes += valor;
+            } else {
+                textoTecnico += `<strong>${partes[i]}:</strong> ${valor}<br>`;
+            }
+        }
 
         html += `
             <div class="product-block">
                 <div class="left-column">
                     <img src="${item.image}" class="product-image">
-                    <div class="tech-specs">
-                        <strong>Informações Técnicas</strong>
-                        ${textoTecnico || "Consulte detalhes de acabamentos e tecidos com nosso consultor."}
-                    </div>
+                    ${textoDimensoes ? `
+                    <div class="dimensoes-specs">
+                        <strong>Dimensões</strong>
+                        ${textoDimensoes}
+                    </div>` : ''}
                 </div>
                 <div class="right-column">
                     <h2 class="product-name">${item.displayName}</h2>
                     <div class="product-sku">SKU: ${item.sku}</div>
+                    
                     <div class="product-desc">${textoDescritivo}</div>
+                    
+                    ${textoTecnico ? `
+                    <div class="tech-info-area">
+                        ${textoTecnico}
+                    </div>` : ''}
+                    
                     <div class="product-price">VALOR UNITÁRIO: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
                 </div>
             </div>
