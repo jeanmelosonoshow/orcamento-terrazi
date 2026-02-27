@@ -163,12 +163,20 @@ generatePdfBtn.addEventListener('click', () => {
             
             .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; }
 
+            /* BLOCO DO PRODUTO - ESTA É A PARTE QUE GARANTE A QUEBRA CORRETA */
             .product-block { 
-                display: flex; gap: 25px; margin-bottom: 30px; padding-bottom: 20px; 
+                display: flex; 
+                gap: 25px; 
+                margin-bottom: 20px; 
+                padding-bottom: 20px; 
                 border-bottom: 1px solid #eee; 
-                page-break-inside: avoid; 
-                break-inside: avoid;
+                page-break-inside: avoid !important; /* Força o bloco a não quebrar entre páginas */
+                break-inside: avoid !important;
+                display: flow-root; /* Ajuda o motor do PDF a calcular a altura total do bloco */
+                width: 100%;
             }
+            
+            .product-flex-container { display: flex; gap: 25px; } /* Wrapper interno para o flex não bugar o page-break */
             
             .left-column { width: 210px; flex-shrink: 0; }
             .product-image { width: 210px; height: 210px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
@@ -207,21 +215,20 @@ generatePdfBtn.addEventListener('click', () => {
     `;
 
     quoteCart.forEach(item => {
-        // Função interna para limpar o lixo de qualquer string (Institucional, WhatsApp, Tags e Marcadores)
         const limparTexto = (txt) => {
             if (!txt) return "";
             return txt
-                .replace(/cada peça da casa terrazi[\s\S]*identidade brasileira\./gi, "") // Remove o institucional (mesmo se estiver no meio das dimensões)
+                // Remove o institucional longo (independente de onde ele esteja)
+                .replace(/cada peça da casa terrazi[\s\S]*identidade brasileira\./gi, "") 
                 .replace(/É FRUTO DO DESIGN BRASILEIRO[\s\S]*IDENTIDADE BRASILEIRA\./gi, "")
                 .replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "")
-                .replace(/<\/?[^>]+(>|$)/g, "") // Remove tags HTML como <li>, <ul>, etc.
-                .replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "") // Remove pontos de lista e traços órfãos
+                // Remove tags e marcadores indesejados
+                .replace(/<\/?[^>]+(>|$)/g, "") 
+                .replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "") 
                 .trim();
         };
 
         let rawText = item.description || "";
-        
-        // Separação de blocos
         let parts = rawText.split(/(características|medidas|dimensões|especificações|caraterísticas)/i);
         let emocional = limparTexto(parts[0]);
         
@@ -243,23 +250,25 @@ generatePdfBtn.addEventListener('click', () => {
 
         html += `
             <div class="product-block">
-                <div class="left-column">
-                    <img src="${item.image}" class="product-image">
-                    ${dimensoes ? `<div class="dimensoes-box"><strong>Dimensões</strong>${dimensoes}</div>` : ''}
-                </div>
-                <div class="right-column">
-                    <h2 class="product-title">${item.displayName}</h2>
-                    <span class="sku-label">SKU: ${item.sku}</span>
-                    
-                    <div class="product-desc">${emocional}</div>
-                    
-                    ${tecnico ? `
-                    <div class="tech-info-box">
-                        <strong>Características do Produto</strong>
-                        ${tecnico}
-                    </div>` : ''}
-                    
-                    <div class="price-row">VALOR UNITÁRIO: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                <div class="product-flex-container">
+                    <div class="left-column">
+                        <img src="${item.image}" class="product-image">
+                        ${dimensoes ? `<div class="dimensoes-box"><strong>Dimensões</strong>${dimensoes}</div>` : ''}
+                    </div>
+                    <div class="right-column">
+                        <h2 class="product-title">${item.displayName}</h2>
+                        <span class="sku-label">SKU: ${item.sku}</span>
+                        
+                        <div class="product-desc">${emocional}</div>
+                        
+                        ${tecnico ? `
+                        <div class="tech-info-box">
+                            <strong>Características do Produto</strong>
+                            ${tecnico}
+                        </div>` : ''}
+                        
+                        <div class="price-row">VALOR UNITÁRIO: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    </div>
                 </div>
             </div>
         `;
@@ -276,7 +285,7 @@ generatePdfBtn.addEventListener('click', () => {
 
     element.innerHTML = html;
     html2pdf().set({
-        margin: [0.4, 0.4],
+        margin: [0.5, 0.4], // Margem superior levemente maior para segurança de quebra
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
