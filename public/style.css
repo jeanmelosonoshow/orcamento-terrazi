@@ -243,11 +243,14 @@ main {
 
 
 /* Limita o container de itens para não empurrar o botão de gerar PDF para fora da tela */
-.quote-items {
-    flex: 1;
-    overflow-y: auto; /* Cria scroll interno nos itens */
-    max-height: calc(100vh - 250px); /* Ajusta conforme o tamanho do seu header/footer */
-    padding-right: 5px;
+#quoteItems {
+    flex: 1; /* Faz esta parte ocupar o espaço disponível */
+    overflow-y: auto; /* Ativa a rolagem vertical quando necessário */
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    max-height: calc(100vh - 350px); /* Ajusta conforme o tamanho do seu formulário */
 }
 
 /* Garante que a imagem do item no carrinho seja minúscula */
@@ -261,4 +264,19 @@ main {
 .item-quote-edit {
     padding: 10px;
     margin-bottom: 10px;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Ocupa a altura total da tela */
+    position: sticky;
+    top: 0;
+}
+
+/* Garante que o container do botão não suma */
+.sidebar-footer {
+    padding: 15px 0;
+    background: white;
+    border-top: 1px solid #eee;
 }
