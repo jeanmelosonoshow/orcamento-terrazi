@@ -19,7 +19,7 @@ const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/com
 window.onload = () => fetchProducts(true);
 
 // 1. BUSCA DE PRODUTOS (Filtro de visibilidade, estoque e 12 itens na home)
-async function fetchProducts(isInitial = false) {
+/*async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : searchInput.value.trim();
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
     
@@ -45,6 +45,30 @@ async function fetchProducts(isInitial = false) {
         renderProducts(products);
     } catch (error) {
         console.error("Erro ao carregar produtos:", error);
+        productsGrid.innerHTML = '<p>Erro ao conectar com a galeria.</p>';
+    }
+}*/
+
+async function fetchProducts(isInitial = false) {
+    const query = isInitial ? "" : searchInput.value.trim();
+    productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
+    
+    try {
+        const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
+        let products = await response.json();
+
+        // FILTRO: Só remove se for explicitamente falso.
+        // Se a propriedade não vier do backend, ele assume que o produto é visível.
+        products = products.filter(p => p.published !== false && p.visible !== false);
+
+        if (isInitial) {
+            // Agora, com per_page=100 no backend, teremos itens de sobra aqui
+            products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
+        }
+
+        renderProducts(products);
+    } catch (error) {
+        console.error(error);
         productsGrid.innerHTML = '<p>Erro ao conectar com a galeria.</p>';
     }
 }
