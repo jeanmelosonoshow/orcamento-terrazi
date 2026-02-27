@@ -34,7 +34,7 @@ async function fetchProducts(isInitial = false) {
         products = products.filter(p => {
             const isVisible = p.visible !== false;
             const isPublished = p.published !== false;
-            return isVisible && isPublished;
+            return isVisible || isPublished;
         });
 
         if (isInitial) {
