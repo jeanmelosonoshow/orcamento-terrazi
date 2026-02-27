@@ -158,80 +158,77 @@ generatePdfBtn.addEventListener('click', () => {
     let html = `
         <style>
             .pdf-container { padding: 30px; font-family: 'Helvetica', sans-serif; color: #1a1a1a; }
-            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 15px; margin-bottom: 20px; }
-            .pdf-logo { height: 45px; }
+            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
+            .pdf-logo { height: 40px; }
             
-            .client-vendedor-box { 
-                background: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 20px; 
-                display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px;
-            }
+            .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; }
 
             .product-block { 
-                display: flex; gap: 25px; margin-bottom: 20px; 
-                padding-bottom: 20px; border-bottom: 1px solid #eee;
-                page-break-inside: avoid; min-height: 400px; 
+                display: flex; gap: 25px; margin-bottom: 10px; padding-bottom: 15px; 
+                border-bottom: 1px solid #eee; page-break-inside: avoid; min-height: 380px; 
             }
+            
             .left-column { width: 210px; flex-shrink: 0; }
-            .product-image { width: 210px; height: 210px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
+            .product-image { width: 210px; height: 210px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
             
-            /* Apenas Dimensões abaixo da foto */
-            .dimensoes-specs { font-size: 9px; line-height: 1.4; color: #1A3017; background: #E8F5E9; padding: 10px; border-radius: 4px; }
-            .dimensoes-specs strong { display: block; margin-bottom: 5px; text-transform: uppercase; border-bottom: 1px solid rgba(26,48,23,0.2); }
+            .dimensoes-box { font-size: 9px; line-height: 1.3; color: #1A3017; background: #E8F5E9; padding: 8px; border-radius: 4px; }
+            .dimensoes-box strong { display: block; margin-bottom: 3px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.2); }
 
-            .right-column { flex: 1; display: flex; flex-direction: column; }
-            .product-name { font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
-            .product-sku { font-size: 9px; color: #999; margin-bottom: 10px; font-weight: bold; }
-            .product-desc { font-size: 10.5px; line-height: 1.5; color: #444; text-align: justify; margin-bottom: 15px; }
+            .right-column { flex: 1; display: block; } /* Mudado para block para tirar o espaçamento flex */
+            .product-title { font-size: 15px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
+            .sku-label { font-size: 9px; color: #999; margin-bottom: 12px; display: block; }
             
-            /* Info Técnica abaixo do descritivo */
-            .tech-info-area { font-size: 9.5px; line-height: 1.4; color: #555; border-top: 1px dashed #ccc; padding-top: 10px; margin-top: auto; }
-            .tech-info-area strong { color: #1A3017; text-transform: uppercase; font-size: 9px; }
+            .product-desc { font-size: 10px; line-height: 1.4; color: #444; text-align: justify; margin-bottom: 10px; }
+            
+            .tech-info-box { font-size: 9px; line-height: 1.3; color: #555; border-top: 1px dashed #ccc; padding-top: 10px; margin-top: 5px; }
+            .tech-info-box strong { color: #1A3017; text-transform: uppercase; font-size: 8.5px; display: block; margin-bottom: 4px; }
 
-            .product-price { font-size: 14px; font-weight: bold; margin-top: 15px; color: #1A3017; text-align: right; background: #f2f2f2; padding: 8px; border-radius: 4px; }
+            .price-row { font-size: 13px; font-weight: bold; margin-top: 15px; color: #1A3017; text-align: right; background: #f5f5f5; padding: 6px 10px; border-radius: 4px; }
 
-            .institutional-footer { margin-top: 30px; padding: 20px; border-top: 1px solid #eee; font-size: 9px; color: #666; text-align: center; line-height: 1.6; }
-            .footer-total { margin-top: 10px; text-align: right; background: #1A3017; color: white; padding: 20px; border-radius: 4px; }
+            .inst-footer { margin-top: 25px; padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; }
+            .total-final { margin-top: 5px; text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; }
         </style>
 
         <div class="pdf-container">
             <div class="pdf-header">
                 <img src="${LOGO_URL}" class="pdf-logo">
-                <div style="font-size: 10px; text-align: right;">
+                <div style="font-size: 9px; text-align: right;">
                     <strong>ORÇAMENTO TERRAZI</strong><br>
-                    Data: ${new Date().toLocaleDateString('pt-BR')}<br>
-                    Validade: ${dataValidade}
+                    Data: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}
                 </div>
             </div>
 
-            <div class="client-vendedor-box">
-                <div><strong>DADOS DO CLIENTE</strong><br>Nome: ${custName.value || '---'}<br>Documento: ${custDoc.value || '---'}</div>
-                <div><strong>CONSULTOR TERRAZI</strong><br>Vendedor: ${sellerName.value || '---'}<br>Contato: ${sellerPhone.value || '---'}</div>
+            <div class="info-box">
+                <div><strong>CLIENTE:</strong> ${custName.value || '---'}<br><strong>DOC:</strong> ${custDoc.value || '---'}</div>
+                <div><strong>VENDEDOR:</strong> ${sellerName.value || '---'}<br><strong>CONTATO:</strong> ${sellerPhone.value || '---'}</div>
             </div>
     `;
 
     quoteCart.forEach(item => {
-        let descLimpa = item.description || "";
+        let rawText = item.description || "";
 
-        // 1. Remove os textos repetitivos
-        descLimpa = descLimpa.replace(/É FRUTO DO DESIGN BRASILEIRO[\s\S]*IDENTIDADE BRASILEIRA\./gi, "");
-        descLimpa = descLimpa.replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "");
+        // 1. Limpeza total de textos institucionais e lixo de HTML/WhatsApp
+        rawText = rawText.replace(/É FRUTO DO DESIGN BRASILEIRO[\s\S]*IDENTIDADE BRASILEIRA\./gi, "");
+        rawText = rawText.replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "");
 
-        // 2. Separa Texto Emocional, Características (Técnico) e Dimensões
-        let partes = descLimpa.split(/(características|medidas|dimensões|especificações)/i);
-        let textoDescritivo = partes[0].trim();
+        // 2. Quebra o texto por palavras-chave
+        let parts = rawText.split(/(características|medidas|dimensões|especificações|caraterísticas)/i);
+        let emocional = parts[0].trim();
         
-        let textoTecnico = "";
-        let textoDimensoes = "";
+        let tecnico = "";
+        let dimensoes = "";
 
-        // Organiza as partes encontradas
-        for (let i = 1; i < partes.length; i += 2) {
-            let chave = partes[i].toLowerCase();
-            let valor = partes[i+1] ? partes[i+1].trim() : "";
+        for (let i = 1; i < parts.length; i += 2) {
+            let label = parts[i].toLowerCase();
+            // Limpeza agressiva: remove pontos de lista (•), traços e espaços extras que sobram das tags <li>
+            let content = parts[i+1] ? parts[i+1].replace(/^[•\-\s*]+|[•\-\s*]+$/gm, "").trim() : "";
             
-            if (chave.includes("dimensões") || chave.includes("medidas")) {
-                textoDimensoes += valor;
-            } else {
-                textoTecnico += `<strong>${partes[i]}:</strong> ${valor}<br>`;
+            if (content) {
+                if (label.includes("dimensões") || label.includes("medidas")) {
+                    dimensoes += content + "<br>";
+                } else {
+                    tecnico += content + "<br>";
+                }
             }
         }
 
@@ -239,36 +236,31 @@ generatePdfBtn.addEventListener('click', () => {
             <div class="product-block">
                 <div class="left-column">
                     <img src="${item.image}" class="product-image">
-                    ${textoDimensoes ? `
-                    <div class="dimensoes-specs">
-                        <strong>Dimensões</strong>
-                        ${textoDimensoes}
-                    </div>` : ''}
+                    ${dimensoes ? `<div class="dimensoes-box"><strong>Dimensões</strong>${dimensoes}</div>` : ''}
                 </div>
                 <div class="right-column">
-                    <h2 class="product-name">${item.displayName}</h2>
-                    <div class="product-sku">SKU: ${item.sku}</div>
+                    <h2 class="product-title">${item.displayName}</h2>
+                    <span class="sku-label">SKU: ${item.sku}</span>
                     
-                    <div class="product-desc">${textoDescritivo}</div>
+                    <div class="product-desc">${emocional}</div>
                     
-                    ${textoTecnico ? `
-                    <div class="tech-info-area">
-                        ${textoTecnico}
+                    ${tecnico ? `
+                    <div class="tech-info-box">
+                        <strong>Características do Produto</strong>
+                        ${tecnico}
                     </div>` : ''}
                     
-                    <div class="product-price">VALOR UNITÁRIO: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <div class="price-row">VALOR UNITÁRIO: R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
                 </div>
             </div>
         `;
     });
 
     html += `
-            <div class="institutional-footer">
-                ${textoInstitucionalFinal}
-            </div>
-            <div class="footer-total">
-                <span style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Total Geral do Orçamento:</span><br>
-                <span style="font-size: 24px;">R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+            <div class="inst-footer">${textoInstitucionalFinal}</div>
+            <div class="total-final">
+                <span style="font-size: 9px; text-transform: uppercase; opacity: 0.8;">Total Geral do Orçamento:</span><br>
+                <span style="font-size: 22px;">R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
             </div>
         </div>
     `;
