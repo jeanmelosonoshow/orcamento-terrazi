@@ -11,6 +11,7 @@ const custDoc = document.getElementById('custDoc');
 const quoteValid = document.getElementById('quoteValid');
 const sellerName = document.getElementById('sellerName');
 const sellerPhone = document.getElementById('sellerPhone');
+const displayTotalGeral = document.getElementById('displayTotalGeral');
 
 let quoteCart = [];
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
@@ -18,37 +19,7 @@ const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/com
 // Carregar itens iniciais ao abrir a página
 window.onload = () => fetchProducts(true);
 
-// 1. BUSCA DE PRODUTOS (Filtro de visibilidade, estoque e 12 itens na home)
-/*async function fetchProducts(isInitial = false) {
-    const query = isInitial ? "" : searchInput.value.trim();
-    productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
-    
-    try {
-        // Buscamos os produtos da sua API na Vercel
-        const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
-        let products = await response.json();
-
-        // CORREÇÃO DO FILTRO:
-        // Só removemos se for EXPLICITAMENTE falso. 
-        // Se a propriedade não existir (undefined), o produto será exibido.
-        products = products.filter(p => {
-            const isVisible = p.visible !== false;
-            const isPublished = p.published !== false;
-            return isVisible || isPublished;
-        });
-
-        if (isInitial) {
-            // Embaralha e pega os 12 para a home
-            products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
-        }
-
-        renderProducts(products);
-    } catch (error) {
-        console.error("Erro ao carregar produtos:", error);
-        productsGrid.innerHTML = '<p>Erro ao conectar com a galeria.</p>';
-    }
-}*/
-
+// 1. BUSCA DE PRODUTOS
 async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : searchInput.value.trim();
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
@@ -57,12 +28,9 @@ async function fetchProducts(isInitial = false) {
         const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
         let products = await response.json();
 
-        // FILTRO: Só remove se for explicitamente falso.
-        // Se a propriedade não vier do backend, ele assume que o produto é visível.
         products = products.filter(p => p.published !== false && p.visible !== false);
 
         if (isInitial) {
-            // Agora, com per_page=100 no backend, teremos itens de sobra aqui
             products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         }
 
@@ -73,7 +41,7 @@ async function fetchProducts(isInitial = false) {
     }
 }
 
-// 2. RENDERIZAR CARDS NA VITRINE (Com exibição de estoque)
+// 2. RENDERIZAR CARDS NA VITRINE
 function renderProducts(products) {
     productsGrid.innerHTML = '';
     products.forEach(p => {
@@ -104,49 +72,87 @@ function adicionarAoOrcamento(produto) {
     const novoItem = {
         ...produto,
         tempId: Date.now(),
-        displayName: produto.name 
+        displayName: produto.name,
+        quantity: 1 // Garantindo quantidade inicial
     };
     quoteCart.push(novoItem);
     renderQuoteSidebar();
 }
 
-// 4. RENDERIZAR LATERAL (Com Scroll e Edição)
+// 4. RENDERIZAR LATERAL (Com Quantidade e Preço)
 function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
     quoteCart.forEach((item, index) => {
+        const subtotalItem = (item.quantity || 1) * item.price;
         const itemDiv = document.createElement('div');
         itemDiv.className = 'item-quote-edit';
+        itemDiv.style = "margin-bottom: 15px; padding: 10px; border: 1px solid #eee; border-radius: 4px; background: #fff;";
+        
         itemDiv.innerHTML = `
-            <div class="edit-header">
-                <img src="${item.image}">
+            <div class="edit-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <img src="${item.image}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 3px;">
                 <div style="flex:1">
                     <input type="text" class="input-edit-name" value="${item.displayName}" 
+                        style="width: 100%; font-size: 11px; font-weight: bold; border: 1px solid transparent;"
                         onchange="atualizarDados(${index}, 'displayName', this.value)">
                 </div>
-                <button onclick="removerItem(${index})" class="btn-remove">×</button>
+                <button onclick="removerItem(${index})" class="btn-remove" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">×</button>
             </div>
-            <div class="edit-body">
+            <div class="edit-body" style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px;">
                 <div class="input-group">
-                    <span>R$</span>
+                    <label style="font-size: 9px; display: block; color: #666;">QTD</label>
+                    <input type="number" min="1" value="${item.quantity || 1}" 
+                        style="width: 100%; font-size: 11px; padding: 4px;"
+                        onchange="atualizarDados(${index}, 'quantity', this.value)">
+                </div>
+                <div class="input-group">
+                    <label style="font-size: 9px; display: block; color: #666;">PREÇO UNIT. (R$)</label>
                     <input type="number" step="0.01" value="${item.price}" 
+                        style="width: 100%; font-size: 11px; padding: 4px;"
                         onchange="atualizarDados(${index}, 'price', this.value)">
                 </div>
+            </div>
+            <div style="text-align: right; margin-top: 5px; font-size: 10px; color: #1A3017; font-weight: bold;">
+                Subtotal: R$ ${subtotalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
             </div>
         `;
         quoteItemsContainer.appendChild(itemDiv);
     });
+    atualizarDestaqueTotal();
 }
 
-window.atualizarDados = (index, campo, valor) => { quoteCart[index][campo] = valor; };
-window.removerItem = (index) => { quoteCart.splice(index, 1); renderQuoteSidebar(); };
+window.atualizarDados = (index, campo, valor) => { 
+    if (campo === 'price' || campo === 'quantity') {
+        quoteCart[index][campo] = parseFloat(valor) || 0;
+    } else {
+        quoteCart[index][campo] = valor;
+    }
+    renderQuoteSidebar(); // Re-renderiza para atualizar subtotais individuais e total geral
+};
 
-// 5. GERAÇÃO DO PDF - OTIMIZADO (Dados de cliente, vendedor e 2 itens por página)
+window.removerItem = (index) => { 
+    quoteCart.splice(index, 1); 
+    renderQuoteSidebar(); 
+};
+
+function atualizarDestaqueTotal() {
+    const totalGeral = quoteCart.reduce((acc, item) => {
+        const qtd = parseInt(item.quantity) || 1;
+        const preco = parseFloat(item.price) || 0;
+        return acc + (preco * qtd);
+    }, 0);
+
+    if (displayTotalGeral) {
+        displayTotalGeral.innerText = `R$ ${totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    }
+}
+
+// 5. GERAÇÃO DO PDF
 generatePdfBtn.addEventListener('click', () => {
     if (quoteCart.length === 0) return alert("Selecione itens primeiro.");
 
     const element = document.createElement('div');
     
-    // CÁLCULO TOTAL CONSIDERANDO QTD
     const valorTotalOrcamento = quoteCart.reduce((acc, item) => {
         const qtd = parseInt(item.quantity) || 1;
         const preco = parseFloat(item.price) || 0;
@@ -168,31 +174,21 @@ generatePdfBtn.addEventListener('click', () => {
             .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
             .pdf-logo { height: 40px; }
             .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; }
-
-            .product-block { 
-                display: block; width: 100%; margin-bottom: 25px; padding-bottom: 15px; 
-                border-bottom: 1px solid #eee; page-break-inside: avoid !important; 
-            }
+            .product-block { display: block; width: 100%; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; page-break-inside: avoid !important; }
             .product-content { display: flex; gap: 20px; }
             .left-column { width: 180px; flex-shrink: 0; }
             .product-image { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
-            
             .dimensoes-box { font-size: 8.5px; line-height: 1.3; color: #1A3017; background: #E8F5E9; padding: 8px; border-radius: 4px; }
             .dimensoes-box strong { display: block; margin-bottom: 3px; text-transform: uppercase; font-size: 7.5px; border-bottom: 1px solid rgba(26,48,23,0.1); }
-
             .right-column { flex: 1; display: flex; flex-direction: column; }
             .product-title { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
             .sku-label { font-size: 8px; color: #999; margin-bottom: 6px; display: block; }
             .product-desc { font-size: 9.5px; line-height: 1.4; color: #444; text-align: justify; margin-bottom: 8px; flex-grow: 1; }
-            
             .tech-info-box { font-size: 8.5px; line-height: 1.3; color: #555; border-top: 1px dashed #ccc; padding-top: 6px; margin-bottom: 10px; }
-
-            /* TABELA DE PREÇOS POR ITEM */
             .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; background: #fdfdfd; border: 1px solid #eee; }
             .item-price-table th { font-size: 7px; text-transform: uppercase; color: #777; padding: 4px 8px; text-align: center; border-bottom: 1px solid #eee; }
             .item-price-table td { font-size: 11px; padding: 6px 8px; text-align: center; font-weight: bold; color: #1A3017; }
             .td-total { background: #f5f5f5; width: 40%; text-align: right !important; }
-
             .inst-footer { margin-top: 40px; padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; page-break-inside: avoid; }
             .total-final { margin-top: 5px; text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; page-break-inside: avoid; }
         </style>
@@ -296,18 +292,3 @@ generatePdfBtn.addEventListener('click', () => {
 
 searchBtn.addEventListener('click', () => fetchProducts(false));
 searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') fetchProducts(false); });
-
-// Chame esta função sempre que mudar uma quantidade ou preço na tela
-function atualizarDestaqueTotal() {
-    const totalGeral = quoteCart.reduce((acc, item) => {
-        const qtd = parseInt(item.quantity) || 1;
-        const preco = parseFloat(item.price) || 0;
-        return acc + (preco * qtd);
-    }, 0);
-
-    // Supondo que você tenha um elemento com id "total-destaque-tela"
-    const display = document.getElementById('total-destaque-tela');
-    if(display) {
-        display.innerHTML = `Subtotal Geral: <strong>R$ ${totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong>`;
-    }
-}
