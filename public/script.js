@@ -153,14 +153,17 @@ generatePdfBtn.addEventListener('click', () => {
 
     const element = document.createElement('div');
     
+    // 1. Herda cálculo de total da origem
     const valorTotalOrcamento = quoteCart.reduce((acc, item) => {
         const qtd = parseInt(item.quantity) || 1;
         const preco = parseFloat(item.price) || 0;
         return acc + (preco * qtd);
     }, 0);
 
+    // 2. Herda lógica de data de validade da origem
     const dataValidade = quoteValid.value ? new Date(quoteValid.value).toLocaleDateString('pt-BR') : 'A consultar';
     
+    // 3. Herda texto institucional completo da origem
     const textoInstitucionalFinal = `
         CADA PEÇA DA CASA TERRAZI É FRUTO DO DESIGN BRASILEIRO, CRIADA E PRODUZIDA INTEGRALMENTE NO BRASIL. 
         VALORIZAMOS A PRODUÇÃO LOCAL, O TALENTO DOS NOSSOS PROFISSIONAIS E A QUALIDADE QUE SÓ O OLHAR ATENTO 
@@ -170,89 +173,61 @@ generatePdfBtn.addEventListener('click', () => {
 
     let html = `
         <style>
-            .pdf-container { 
+            .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; background: white; }
+            
+            /* Ajuste para garantir padding em cada nova página e evitar cortes */
+            .page-container {
                 position: relative;
-                padding: 40px 40px 40px 60px; /* Espaço extra à esquerda para a barra */
-                font-family: 'Helvetica', sans-serif; 
-                color: #1a1a1a; 
-                background: white;
+                padding: 50px 40px 40px 60px; /* Padding Superior de 50px garantido */
+                min-height: 1060px; 
+                box-sizing: border-box;
+                page-break-after: always; /* Força cada item (ou grupo) em nova página se necessário */
             }
             
-            /* BARRA LATERAL DA MARCA */
             .brand-sidebar {
                 position: absolute;
-                left: 0;
-                top: 0;
-                bottom: 0;
+                left: 0; top: 0; bottom: 0;
                 width: 8px;
                 background: #1A3017;
             }
 
             .pdf-header { 
-                display: flex; 
-                justify-content: space-between; 
-                align-items: flex-end; 
-                border-bottom: 2px solid #1A3017; 
-                padding-bottom: 15px; 
-                margin-bottom: 25px; 
+                display: flex; justify-content: space-between; align-items: flex-end; 
+                border-bottom: 2px solid #1A3017; padding-bottom: 15px; margin-bottom: 25px; 
             }
             
-            .pdf-logo { height: 55px; } /* Logo aumentada */
+            .pdf-logo { height: 55px; }
 
             .header-info { text-align: right; line-height: 1.4; }
             .header-info strong { font-size: 12px; color: #1A3017; letter-spacing: 1px; text-transform: uppercase; }
             .header-info span { font-size: 10px; color: #666; }
 
             .info-box { 
-                background: #f9f9f9; 
-                padding: 15px; 
-                border-radius: 4px; 
-                margin-bottom: 30px; 
-                display: grid; 
-                grid-template-columns: 1fr 1fr; 
-                gap: 20px; 
-                font-size: 11px; 
-                border: 1px solid #eee;
+                background: #f9f9f9; padding: 15px; border-radius: 4px; 
+                margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; 
+                gap: 20px; font-size: 11px; border: 1px solid #eee;
             }
 
-            .product-block { 
-                display: block; 
-                width: 100%; 
-                margin-bottom: 35px; 
-                padding-bottom: 20px; 
-                border-bottom: 1px solid #eee; 
-                page-break-inside: avoid !important; 
-            }
-            
+            /* Mantém a regra de não cortar o bloco do produto */
+            .product-block { width: 100%; page-break-inside: avoid !important; margin-bottom: 20px; }
             .product-content { display: flex; gap: 25px; }
-            
             .left-column { width: 200px; flex-shrink: 0; }
             .product-image { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
             
             .dimensoes-box { 
-                font-size: 10px; 
-                line-height: 1.4; 
-                color: #1A3017; 
-                background: #E8F5E9; 
-                padding: 10px; 
-                border-radius: 4px; 
+                font-size: 10px; line-height: 1.4; color: #1A3017; 
+                background: #E8F5E9; padding: 10px; border-radius: 4px; 
             }
             .dimensoes-box strong { display: block; margin-bottom: 3px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.1); }
 
             .right-column { flex: 1; display: flex; flex-direction: column; }
-            
-            .product-title { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
+            .product-title { font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
             .sku-label { font-size: 9px; color: #999; margin-bottom: 10px; display: block; }
-            
             .product-desc { font-size: 11px; line-height: 1.5; color: #333; text-align: justify; margin-bottom: 12px; }
             
             .tech-info-box { 
-                font-size: 10px; 
-                line-height: 1.4; 
-                color: #555; 
-                border-top: 1px dashed #ccc; 
-                padding-top: 10px; 
-                margin-bottom: 15px; 
+                font-size: 10px; line-height: 1.4; color: #555; 
+                border-top: 1px dashed #ccc; padding-top: 10px; margin-bottom: 15px; 
             }
 
             .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; border: 1px solid #eee; }
@@ -260,29 +235,14 @@ generatePdfBtn.addEventListener('click', () => {
             .item-price-table td { font-size: 13px; padding: 10px; text-align: center; font-weight: bold; color: #1A3017; }
             .td-total { background: #f1f1f1; width: 40%; }
 
-            .inst-footer { margin-top: 40px; padding: 20px; border-top: 1px solid #eee; font-size: 9px; color: #777; text-align: center; line-height: 1.6; font-style: italic; page-break-inside: avoid; }
-            .total-final { margin-top: 10px; text-align: right; background: #1A3017; color: white; padding: 20px; border-radius: 4px; page-break-inside: avoid; }
+            .inst-footer { margin-top: 30px; padding: 20px; border-top: 1px solid #eee; font-size: 9px; color: #777; text-align: center; line-height: 1.6; font-style: italic; }
+            .total-final { margin-top: 10px; text-align: right; background: #1A3017; color: white; padding: 20px; border-radius: 4px; }
         </style>
-
-        <div class="pdf-container">
-            <div class="brand-sidebar"></div>
-            
-            <div class="pdf-header">
-                <img src="${LOGO_URL}" class="pdf-logo">
-                <div class="header-info">
-                    <strong>ORÇAMENTO TERRAZI</strong><br>
-                    <span>Emissão: ${new Date().toLocaleDateString('pt-BR')}</span><br>
-                    <span>Validade: ${dataValidade}</span>
-                </div>
-            </div>
-
-            <div class="info-box">
-                <div><strong>CLIENTE:</strong> ${custName.value || '---'}<br><strong>DOC:</strong> ${custDoc.value || '---'}</div>
-                <div><strong>VENDEDOR:</strong> ${sellerName.value || '---'}<br><strong>CONTATO:</strong> ${sellerPhone.value || '---'}</div>
-            </div>
+        <div class="pdf-body">
     `;
 
-    quoteCart.forEach(item => {
+    quoteCart.forEach((item, index) => {
+        // 4. Herda EXATAMENTE a lógica de limpeza de texto (limparProfundo) da origem
         const limparProfundo = (txt) => {
             if (!txt) return "";
             let limpo = txt.replace(/<\/?[^>]+(>|$)/g, "");
@@ -292,10 +252,12 @@ generatePdfBtn.addEventListener('click', () => {
             return limpo.replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "").trim();
         };
 
+        // 5. Herda lógica de cálculo unitário e total por item
         const qtd = parseInt(item.quantity) || 1;
         const vUnit = parseFloat(item.price) || 0;
         const vTotalItem = qtd * vUnit;
 
+        // 6. Herda lógica de split de descrição/características/medidas
         let rawText = item.description || "";
         let parts = rawText.split(/(características|medidas|dimensões|especificações|caraterísticas)/i);
         let emocional = limparProfundo(parts[0]);
@@ -311,57 +273,81 @@ generatePdfBtn.addEventListener('click', () => {
             }
         }
 
+        // Inicia uma nova página para cada produto para evitar quebras feias
         html += `
-            <div class="product-block">
-                <div class="product-content">
-                    <div class="left-column">
-                        <img src="${item.image}" class="product-image">
-                        ${dimensoes ? `<div class="dimensoes-box"><strong>Dimensões</strong>${dimensoes}</div>` : ''}
-                    </div>
-                    <div class="right-column">
-                        <h2 class="product-title">${item.displayName}</h2>
-                        <span class="sku-label">SKU: ${item.sku}</span>
-                        <div class="product-desc">${emocional}</div>
-                        ${tecnico ? `<div class="tech-info-box"><strong>Características</strong><br>${tecnico}</div>` : ''}
-                        
-                        <table class="item-price-table">
-                            <thead>
-                                <tr>
-                                    <th>Qtd</th>
-                                    <th>Valor Unitário</th>
-                                    <th class="td-total">Subtotal Item</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>${qtd}</td>
-                                    <td>R$ ${vUnit.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                                    <td class="td-total">R$ ${vTotalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+            <div class="page-container">
+                <div class="brand-sidebar"></div>
+                
+                <div class="pdf-header">
+                    <img src="${LOGO_URL}" class="pdf-logo">
+                    <div class="header-info">
+                        <strong>ORÇAMENTO TERRAZI</strong><br>
+                        <span>Emissão: ${new Date().toLocaleDateString('pt-BR')}</span><br>
+                        <span>Validade: ${dataValidade}</span>
                     </div>
                 </div>
+
+                ${index === 0 ? `
+                <div class="info-box">
+                    <div><strong>CLIENTE:</strong> ${custName.value || '---'}<br><strong>DOC:</strong> ${custDoc.value || '---'}</div>
+                    <div><strong>VENDEDOR:</strong> ${sellerName.value || '---'}<br><strong>CONTATO:</strong> ${sellerPhone.value || '---'}</div>
+                </div>
+                ` : ''}
+
+                <div class="product-block">
+                    <div class="product-content">
+                        <div class="left-column">
+                            <img src="${item.image}" class="product-image">
+                            ${dimensoes ? `<div class="dimensoes-box"><strong>Dimensões</strong>${dimensoes}</div>` : ''}
+                        </div>
+                        <div class="right-column">
+                            <h2 class="product-title">${item.displayName}</h2>
+                            <span class="sku-label">SKU: ${item.sku}</span>
+                            <div class="product-desc">${emocional}</div>
+                            ${tecnico ? `<div class="tech-info-box"><strong>Características</strong><br>${tecnico}</div>` : ''}
+                            
+                            <table class="item-price-table">
+                                <thead>
+                                    <tr>
+                                        <th>Qtd</th>
+                                        <th>Valor Unitário</th>
+                                        <th class="td-total">Subtotal Item</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>${qtd}</td>
+                                        <td>R$ ${vUnit.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                        <td class="td-total">R$ ${vTotalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                ${index === quoteCart.length - 1 ? `
+                    <div class="inst-footer">${textoInstitucionalFinal}</div>
+                    <div class="total-final">
+                        <span style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Total Geral do Orçamento:</span><br>
+                        <span style="font-size: 24px; font-weight: bold;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                    </div>
+                ` : ''}
             </div>
         `;
     });
 
-    html += `
-            <div class="inst-footer">${textoInstitucionalFinal}</div>
-            <div class="total-final">
-                <span style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Total Geral do Orçamento:</span><br>
-                <span style="font-size: 24px; font-weight: bold;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-            </div>
-        </div>
-    `;
+    html += `</div>`;
 
     element.innerHTML = html;
+    
+    // 7. Herda configurações de salvamento da origem, ajustando apenas margens para o novo layout
     html2pdf().set({
-        margin: [0, 0], // Margem controlada pelo padding do container para a barra lateral sangrar
+        margin: 0, 
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
     }).from(element).save();
 });
 
