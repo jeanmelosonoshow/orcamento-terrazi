@@ -170,37 +170,112 @@ generatePdfBtn.addEventListener('click', () => {
 
     let html = `
         <style>
-            .pdf-container { padding: 30px; font-family: 'Helvetica', sans-serif; color: #1a1a1a; }
-            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
-            .pdf-logo { height: 40px; }
-            .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; }
-            .product-block { display: block; width: 100%; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; page-break-inside: avoid !important; }
-            .product-content { display: flex; gap: 20px; }
-            .left-column { width: 180px; flex-shrink: 0; }
-            .product-image { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
-            .dimensoes-box { font-size: 8.5px; line-height: 1.3; color: #1A3017; background: #E8F5E9; padding: 8px; border-radius: 4px; }
-            .dimensoes-box strong { display: block; margin-bottom: 3px; text-transform: uppercase; font-size: 7.5px; border-bottom: 1px solid rgba(26,48,23,0.1); }
+            .pdf-container { 
+                position: relative;
+                padding: 40px 40px 40px 60px; /* Espaço extra à esquerda para a barra */
+                font-family: 'Helvetica', sans-serif; 
+                color: #1a1a1a; 
+                background: white;
+            }
+            
+            /* BARRA LATERAL DA MARCA */
+            .brand-sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 8px;
+                background: #1A3017;
+            }
+
+            .pdf-header { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: flex-end; 
+                border-bottom: 2px solid #1A3017; 
+                padding-bottom: 15px; 
+                margin-bottom: 25px; 
+            }
+            
+            .pdf-logo { height: 55px; } /* Logo aumentada */
+
+            .header-info { text-align: right; line-height: 1.4; }
+            .header-info strong { font-size: 12px; color: #1A3017; letter-spacing: 1px; text-transform: uppercase; }
+            .header-info span { font-size: 10px; color: #666; }
+
+            .info-box { 
+                background: #f9f9f9; 
+                padding: 15px; 
+                border-radius: 4px; 
+                margin-bottom: 30px; 
+                display: grid; 
+                grid-template-columns: 1fr 1fr; 
+                gap: 20px; 
+                font-size: 11px; 
+                border: 1px solid #eee;
+            }
+
+            .product-block { 
+                display: block; 
+                width: 100%; 
+                margin-bottom: 35px; 
+                padding-bottom: 20px; 
+                border-bottom: 1px solid #eee; 
+                page-break-inside: avoid !important; 
+            }
+            
+            .product-content { display: flex; gap: 25px; }
+            
+            .left-column { width: 200px; flex-shrink: 0; }
+            .product-image { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
+            
+            .dimensoes-box { 
+                font-size: 10px; 
+                line-height: 1.4; 
+                color: #1A3017; 
+                background: #E8F5E9; 
+                padding: 10px; 
+                border-radius: 4px; 
+            }
+            .dimensoes-box strong { display: block; margin-bottom: 3px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.1); }
+
             .right-column { flex: 1; display: flex; flex-direction: column; }
-            .product-title { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
-            .sku-label { font-size: 8px; color: #999; margin-bottom: 6px; display: block; }
-            .product-desc { font-size: 9.5px; line-height: 1.4; color: #444; text-align: justify; margin-bottom: 8px; flex-grow: 1; }
-            .tech-info-box { font-size: 8.5px; line-height: 1.3; color: #555; border-top: 1px dashed #ccc; padding-top: 6px; margin-bottom: 10px; }
-            .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; background: #fdfdfd; border: 1px solid #eee; }
-            .item-price-table th { font-size: 7px; text-transform: uppercase; color: #777; padding: 4px 8px; text-align: center; border-bottom: 1px solid #eee; }
-            .item-price-table td { font-size: 11px; padding: 6px 8px; text-align: center; font-weight: bold; color: #1A3017; }
-            .td-total { background: #f5f5f5; width: 40%; text-align: right !important; }
-            .inst-footer { margin-top: 40px; padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; page-break-inside: avoid; }
-            .total-final { margin-top: 5px; text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; page-break-inside: avoid; }
+            
+            .product-title { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
+            .sku-label { font-size: 9px; color: #999; margin-bottom: 10px; display: block; }
+            
+            .product-desc { font-size: 11px; line-height: 1.5; color: #333; text-align: justify; margin-bottom: 12px; }
+            
+            .tech-info-box { 
+                font-size: 10px; 
+                line-height: 1.4; 
+                color: #555; 
+                border-top: 1px dashed #ccc; 
+                padding-top: 10px; 
+                margin-bottom: 15px; 
+            }
+
+            .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; border: 1px solid #eee; }
+            .item-price-table th { font-size: 8px; text-transform: uppercase; color: #888; padding: 6px; text-align: center; background: #fafafa; }
+            .item-price-table td { font-size: 13px; padding: 10px; text-align: center; font-weight: bold; color: #1A3017; }
+            .td-total { background: #f1f1f1; width: 40%; }
+
+            .inst-footer { margin-top: 40px; padding: 20px; border-top: 1px solid #eee; font-size: 9px; color: #777; text-align: center; line-height: 1.6; font-style: italic; page-break-inside: avoid; }
+            .total-final { margin-top: 10px; text-align: right; background: #1A3017; color: white; padding: 20px; border-radius: 4px; page-break-inside: avoid; }
         </style>
 
         <div class="pdf-container">
+            <div class="brand-sidebar"></div>
+            
             <div class="pdf-header">
                 <img src="${LOGO_URL}" class="pdf-logo">
-                <div style="font-size: 9px; text-align: right;">
+                <div class="header-info">
                     <strong>ORÇAMENTO TERRAZI</strong><br>
-                    Data: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}
+                    <span>Emissão: ${new Date().toLocaleDateString('pt-BR')}</span><br>
+                    <span>Validade: ${dataValidade}</span>
                 </div>
             </div>
+
             <div class="info-box">
                 <div><strong>CLIENTE:</strong> ${custName.value || '---'}<br><strong>DOC:</strong> ${custDoc.value || '---'}</div>
                 <div><strong>VENDEDOR:</strong> ${sellerName.value || '---'}<br><strong>CONTATO:</strong> ${sellerPhone.value || '---'}</div>
@@ -274,18 +349,18 @@ generatePdfBtn.addEventListener('click', () => {
     html += `
             <div class="inst-footer">${textoInstitucionalFinal}</div>
             <div class="total-final">
-                <span style="font-size: 9px; text-transform: uppercase; opacity: 0.8;">Total Geral do Orçamento:</span><br>
-                <span style="font-size: 22px;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                <span style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Total Geral do Orçamento:</span><br>
+                <span style="font-size: 24px; font-weight: bold;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
             </div>
         </div>
     `;
 
     element.innerHTML = html;
     html2pdf().set({
-        margin: [0.4, 0.4],
+        margin: [0, 0], // Margem controlada pelo padding do container para a barra lateral sangrar
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     }).from(element).save();
 });
