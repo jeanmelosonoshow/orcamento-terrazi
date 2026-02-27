@@ -6,6 +6,29 @@
     <title>Terrazi | Gerador de Orçamentos</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@300;500&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos auxiliares para a barra lateral de itens */
+        .quote-items {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .total-highlight-box {
+            background: #1A3017;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+            margin-top: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #displayTotalGeral {
+            display: block;
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
 
@@ -42,7 +65,12 @@
             <div id="quoteItems" class="quote-items"></div>
             
             <div class="quote-footer">
-                <button id="generatePdfBtn" class="btn-primary" style="width: 100%;">GERAR ORÇAMENTO PDF</button>
+                <button id="generatePdfBtn" class="btn-primary" style="width: 100%; margin-bottom: 10px;">GERAR ORÇAMENTO PDF</button>
+                
+                <div id="totalHighlight" class="total-highlight-box">
+                    <span style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Valor Total Somado</span>
+                    <span id="displayTotalGeral">R$ 0,00</span>
+                </div>
             </div>
         </aside>
     </main>
