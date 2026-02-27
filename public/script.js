@@ -163,9 +163,12 @@ generatePdfBtn.addEventListener('click', () => {
             
             .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; }
 
+            /* Forçar o bloco a não quebrar entre páginas */
             .product-block { 
-                display: flex; gap: 25px; margin-bottom: 10px; padding-bottom: 15px; 
-                border-bottom: 1px solid #eee; page-break-inside: avoid; min-height: 380px; 
+                display: flex; gap: 25px; margin-bottom: 30px; padding-bottom: 20px; 
+                border-bottom: 1px solid #eee; 
+                page-break-inside: avoid; /* Impede que o produto seja cortado ao meio */
+                break-inside: avoid;
             }
             
             .left-column { width: 210px; flex-shrink: 0; }
@@ -174,19 +177,20 @@ generatePdfBtn.addEventListener('click', () => {
             .dimensoes-box { font-size: 9px; line-height: 1.3; color: #1A3017; background: #E8F5E9; padding: 8px; border-radius: 4px; }
             .dimensoes-box strong { display: block; margin-bottom: 3px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.2); }
 
-            .right-column { flex: 1; display: block; } /* Mudado para block para tirar o espaçamento flex */
+            .right-column { flex: 1; }
             .product-title { font-size: 15px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
-            .sku-label { font-size: 9px; color: #999; margin-bottom: 12px; display: block; }
+            .sku-label { font-size: 9px; color: #999; margin-bottom: 8px; display: block; }
             
-            .product-desc { font-size: 10px; line-height: 1.4; color: #444; text-align: justify; margin-bottom: 10px; }
+            .product-desc { font-size: 10px; line-height: 1.4; color: #444; text-align: justify; margin-bottom: 8px; }
             
-            .tech-info-box { font-size: 9px; line-height: 1.3; color: #555; border-top: 1px dashed #ccc; padding-top: 10px; margin-top: 5px; }
+            /* Características encostadas no texto acima */
+            .tech-info-box { font-size: 9px; line-height: 1.3; color: #555; border-top: 1px dashed #ccc; padding-top: 8px; margin-top: 0; }
             .tech-info-box strong { color: #1A3017; text-transform: uppercase; font-size: 8.5px; display: block; margin-bottom: 4px; }
 
-            .price-row { font-size: 13px; font-weight: bold; margin-top: 15px; color: #1A3017; text-align: right; background: #f5f5f5; padding: 6px 10px; border-radius: 4px; }
+            .price-row { font-size: 13px; font-weight: bold; margin-top: 12px; color: #1A3017; text-align: right; background: #f5f5f5; padding: 6px 10px; border-radius: 4px; }
 
-            .inst-footer { margin-top: 25px; padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; }
-            .total-final { margin-top: 5px; text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; }
+            .inst-footer { margin-top: 40px; padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; page-break-inside: avoid; }
+            .total-final { margin-top: 5px; text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; page-break-inside: avoid; }
         </style>
 
         <div class="pdf-container">
@@ -207,11 +211,11 @@ generatePdfBtn.addEventListener('click', () => {
     quoteCart.forEach(item => {
         let rawText = item.description || "";
 
-        // 1. Limpeza total de textos institucionais e lixo de HTML/WhatsApp
+        // 1. Limpeza de Institucional e WhatsApp
         rawText = rawText.replace(/É FRUTO DO DESIGN BRASILEIRO[\s\S]*IDENTIDADE BRASILEIRA\./gi, "");
         rawText = rawText.replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "");
 
-        // 2. Quebra o texto por palavras-chave
+        // 2. Separação de blocos
         let parts = rawText.split(/(características|medidas|dimensões|especificações|caraterísticas)/i);
         let emocional = parts[0].trim();
         
@@ -220,8 +224,8 @@ generatePdfBtn.addEventListener('click', () => {
 
         for (let i = 1; i < parts.length; i += 2) {
             let label = parts[i].toLowerCase();
-            // Limpeza agressiva: remove pontos de lista (•), traços e espaços extras que sobram das tags <li>
-            let content = parts[i+1] ? parts[i+1].replace(/^[•\-\s*]+|[•\-\s*]+$/gm, "").trim() : "";
+            // Limpeza de tags HTML e de marcadores de lista órfãos (pontos, traços, asteriscos)
+            let content = parts[i+1] ? parts[i+1].replace(/<\/?[^>]+(>|$)/g, "").replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "").trim() : "";
             
             if (content) {
                 if (label.includes("dimensões") || label.includes("medidas")) {
@@ -267,10 +271,10 @@ generatePdfBtn.addEventListener('click', () => {
 
     element.innerHTML = html;
     html2pdf().set({
-        margin: [0.3, 0.3],
+        margin: [0.4, 0.4], // Margem ligeiramente maior para ajudar na quebra de página
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     }).from(element).save();
 });
