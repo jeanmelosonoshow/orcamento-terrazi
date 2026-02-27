@@ -163,11 +163,10 @@ generatePdfBtn.addEventListener('click', () => {
             
             .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; }
 
-            /* Forçar o bloco a não quebrar entre páginas */
             .product-block { 
                 display: flex; gap: 25px; margin-bottom: 30px; padding-bottom: 20px; 
                 border-bottom: 1px solid #eee; 
-                page-break-inside: avoid; /* Impede que o produto seja cortado ao meio */
+                page-break-inside: avoid; 
                 break-inside: avoid;
             }
             
@@ -183,7 +182,6 @@ generatePdfBtn.addEventListener('click', () => {
             
             .product-desc { font-size: 10px; line-height: 1.4; color: #444; text-align: justify; margin-bottom: 8px; }
             
-            /* Características encostadas no texto acima */
             .tech-info-box { font-size: 9px; line-height: 1.3; color: #555; border-top: 1px dashed #ccc; padding-top: 8px; margin-top: 0; }
             .tech-info-box strong { color: #1A3017; text-transform: uppercase; font-size: 8.5px; display: block; margin-bottom: 4px; }
 
@@ -209,23 +207,30 @@ generatePdfBtn.addEventListener('click', () => {
     `;
 
     quoteCart.forEach(item => {
+        // Função interna para limpar o lixo de qualquer string (Institucional, WhatsApp, Tags e Marcadores)
+        const limparTexto = (txt) => {
+            if (!txt) return "";
+            return txt
+                .replace(/cada peça da casa terrazi[\s\S]*identidade brasileira\./gi, "") // Remove o institucional (mesmo se estiver no meio das dimensões)
+                .replace(/É FRUTO DO DESIGN BRASILEIRO[\s\S]*IDENTIDADE BRASILEIRA\./gi, "")
+                .replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "")
+                .replace(/<\/?[^>]+(>|$)/g, "") // Remove tags HTML como <li>, <ul>, etc.
+                .replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "") // Remove pontos de lista e traços órfãos
+                .trim();
+        };
+
         let rawText = item.description || "";
-
-        // 1. Limpeza de Institucional e WhatsApp
-        rawText = rawText.replace(/É FRUTO DO DESIGN BRASILEIRO[\s\S]*IDENTIDADE BRASILEIRA\./gi, "");
-        rawText = rawText.replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "");
-
-        // 2. Separação de blocos
+        
+        // Separação de blocos
         let parts = rawText.split(/(características|medidas|dimensões|especificações|caraterísticas)/i);
-        let emocional = parts[0].trim();
+        let emocional = limparTexto(parts[0]);
         
         let tecnico = "";
         let dimensoes = "";
 
         for (let i = 1; i < parts.length; i += 2) {
             let label = parts[i].toLowerCase();
-            // Limpeza de tags HTML e de marcadores de lista órfãos (pontos, traços, asteriscos)
-            let content = parts[i+1] ? parts[i+1].replace(/<\/?[^>]+(>|$)/g, "").replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "").trim() : "";
+            let content = limparTexto(parts[i+1]);
             
             if (content) {
                 if (label.includes("dimensões") || label.includes("medidas")) {
@@ -271,7 +276,7 @@ generatePdfBtn.addEventListener('click', () => {
 
     element.innerHTML = html;
     html2pdf().set({
-        margin: [0.4, 0.4], // Margem ligeiramente maior para ajudar na quebra de página
+        margin: [0.4, 0.4],
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
