@@ -11,6 +11,7 @@ const custDoc = document.getElementById('custDoc');
 const quoteValid = document.getElementById('quoteValid');
 const sellerName = document.getElementById('sellerName');
 const sellerPhone = document.getElementById('sellerPhone');
+const generalObs = document.getElementById('generalObs');
 const displayTotalGeral = document.getElementById('displayTotalGeral');
 
 let quoteCart = [];
@@ -73,7 +74,8 @@ function adicionarAoOrcamento(produto) {
         ...produto,
         tempId: Date.now(),
         displayName: produto.name,
-        quantity: 1 // Garantindo quantidade inicial
+        quantity: 1 ,
+        variation: ""
     };
     quoteCart.push(novoItem);
     renderQuoteSidebar();
