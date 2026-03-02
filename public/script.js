@@ -11,7 +11,7 @@ const custDoc = document.getElementById('custDoc');
 const quoteValid = document.getElementById('quoteValid');
 const sellerName = document.getElementById('sellerName');
 const sellerPhone = document.getElementById('sellerPhone');
-const generalObs = document.getElementById('generalObs');
+const generalObs = document.getElementById('generalObs'); // Novo Seletor
 const displayTotalGeral = document.getElementById('displayTotalGeral');
 
 let quoteCart = [];
@@ -74,14 +74,14 @@ function adicionarAoOrcamento(produto) {
         ...produto,
         tempId: Date.now(),
         displayName: produto.name,
-        quantity: 1 ,
-        variation: ""
+        quantity: 1,
+        variation: "" // Inicializa campo de variação
     };
     quoteCart.push(novoItem);
     renderQuoteSidebar();
 }
 
-// 4. RENDERIZAR LATERAL (Com Quantidade e Preço)
+// 4. RENDERIZAR LATERAL
 function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
     quoteCart.forEach((item, index) => {
@@ -100,6 +100,13 @@ function renderQuoteSidebar() {
                 </div>
                 <button onclick="removerItem(${index})" class="btn-remove" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">×</button>
             </div>
+
+            <div style="margin-bottom: 8px;">
+                <input type="text" placeholder="Variação (Tecido, Cor, Acabamento...)" value="${item.variation || ''}" 
+                    style="width: 100%; font-size: 10px; padding: 4px; border: 1px solid #eee; border-radius: 3px; background: #fdfdfd;"
+                    onchange="atualizarDados(${index}, 'variation', this.value)">
+            </div>
+
             <div class="edit-body" style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px;">
                 <div class="input-group">
                     <label style="font-size: 9px; display: block; color: #666;">QTD</label>
@@ -129,7 +136,7 @@ window.atualizarDados = (index, campo, valor) => {
     } else {
         quoteCart[index][campo] = valor;
     }
-    renderQuoteSidebar(); // Re-renderiza para atualizar subtotais individuais e total geral
+    renderQuoteSidebar(); 
 };
 
 window.removerItem = (index) => { 
@@ -154,7 +161,6 @@ generatePdfBtn.addEventListener('click', () => {
     if (quoteCart.length === 0) return alert("Selecione itens primeiro.");
 
     const element = document.createElement('div');
-    
     const valorTotalOrcamento = quoteCart.reduce((acc, item) => {
         const qtd = parseInt(item.quantity) || 1;
         const preco = parseFloat(item.price) || 0;
@@ -172,82 +178,38 @@ generatePdfBtn.addEventListener('click', () => {
 
     let html = `
         <style>
-            .pdf-body { 
-                font-family: 'Helvetica', sans-serif; 
-                color: #1a1a1a; 
-                background: white; 
-                padding: 40px 40px 30px 60px; /* Padding superior para não colar no topo */
-                position: relative;
-            }
-            
-            .brand-sidebar {
-                position: absolute;
-                left: 0; top: 0; bottom: 0;
-                width: 8px;
-                background: #1A3017;
-            }
-
-            .pdf-header { 
-                display: flex; justify-content: space-between; align-items: flex-end; 
-                border-bottom: 2px solid #1A3017; padding-bottom: 10px; 
-                margin-bottom: 20px; 
-            }
-            
+            .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; background: white; padding: 40px 40px 30px 60px; position: relative; }
+            .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: #1A3017; }
+            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
             .pdf-logo { height: 45px; }
-
             .header-info { text-align: right; line-height: 1.3; }
             .header-info strong { font-size: 11px; color: #1A3017; letter-spacing: 1px; text-transform: uppercase; }
             .header-info span { font-size: 9px; color: #666; }
-
-            .info-box { 
-                background: #f9f9f9; padding: 12px; border-radius: 4px; 
-                margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; 
-                gap: 15px; font-size: 10px; border: 1px solid #eee;
-            }
-
-            .product-block { 
-                width: 100%; 
-                page-break-inside: avoid !important; 
-                margin-bottom: 25px; 
-                padding-top: 15px; /* Margem de segurança caso inicie no topo da página */
-                border-bottom: 1px solid #f0f0f0;
-                padding-bottom: 15px;
-            }
-            
+            .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; border: 1px solid #eee; }
+            .product-block { width: 100%; page-break-inside: avoid !important; margin-bottom: 25px; padding-top: 15px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
             .product-content { display: flex; gap: 20px; }
             .left-column { width: 180px; flex-shrink: 0; }
             .product-image { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
-            
-            .dimensoes-box { 
-                font-size: 9px; line-height: 1.3; color: #1A3017; 
-                background: #F4F9F4; padding: 8px; border-radius: 4px; 
-            }
+            .dimensoes-box { font-size: 9px; line-height: 1.3; color: #1A3017; background: #F4F9F4; padding: 8px; border-radius: 4px; }
             .dimensoes-box strong { display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.1); }
-
             .right-column { flex: 1; display: flex; flex-direction: column; }
             .product-title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
-            .sku-label { font-size: 8px; color: #999; margin-bottom: 8px; display: block; }
+            .sku-label { font-size: 8px; color: #999; margin-bottom: 5px; display: block; }
+            .product-variation-pdf { font-size: 10px; color: #1A3017; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
             .product-desc { font-size: 10px; line-height: 1.4; color: #333; text-align: justify; margin-bottom: 10px; }
-            
-            /* CARACTERÍSTICAS REATIVADAS */
-            .tech-info-box { 
-                font-size: 9.5px; line-height: 1.3; color: #444; 
-                border-top: 1px dashed #ddd; padding-top: 8px; margin-bottom: 12px; 
-            }
+            .tech-info-box { font-size: 9.5px; line-height: 1.3; color: #444; border-top: 1px dashed #ddd; padding-top: 8px; margin-bottom: 12px; }
             .tech-info-box strong { font-size: 8px; text-transform: uppercase; color: #1A3017; }
-
             .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; border: 1px solid #eee; }
             .item-price-table td { font-size: 11px; padding: 8px; text-align: center; font-weight: bold; color: #1A3017; }
             .td-label { font-size: 7.5px; text-transform: uppercase; color: #888; background: #fafafa; border-bottom: 1px solid #eee; font-weight: normal; }
-
             .footer-area { page-break-inside: avoid; margin-top: 15px; }
             .inst-footer { padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; }
             .total-final { text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; }
+            .obs-final-box { background: #f9f9f9; padding: 10px; border: 1px solid #eee; border-radius: 4px; font-size: 10px; margin-bottom: 15px; color: #333; }
         </style>
         
         <div class="pdf-body">
             <div class="brand-sidebar"></div>
-            
             <div class="pdf-header">
                 <img src="${LOGO_URL}" class="pdf-logo">
                 <div class="header-info">
@@ -256,7 +218,6 @@ generatePdfBtn.addEventListener('click', () => {
                     <span>Validade: ${dataValidade}</span>
                 </div>
             </div>
-
             <div class="info-box">
                 <div><strong>CLIENTE:</strong> ${custName.value || '---'}<br><strong>DOC:</strong> ${custDoc.value || '---'}</div>
                 <div><strong>VENDEDOR:</strong> ${sellerName.value || '---'}<br><strong>CONTATO:</strong> ${sellerPhone.value || '---'}</div>
@@ -302,8 +263,10 @@ generatePdfBtn.addEventListener('click', () => {
                     <div class="right-column">
                         <h2 class="product-title">${item.displayName}</h2>
                         <span class="sku-label">SKU: ${item.sku}</span>
-                        <div class="product-desc">${emocional}</div>
                         
+                        ${item.variation ? `<div class="product-variation-pdf">Variação: ${item.variation}</div>` : ''}
+
+                        <div class="product-desc">${emocional}</div>
                         ${tecnico ? `<div class="tech-info-box"><strong>Características do Produto:</strong><br>${tecnico}</div>` : ''}
                         
                         <table class="item-price-table">
@@ -326,6 +289,13 @@ generatePdfBtn.addEventListener('click', () => {
 
     html += `
             <div class="footer-area">
+                ${generalObs.value ? `
+                    <div class="obs-final-box">
+                        <strong>OBSERVAÇÕES:</strong><br>
+                        ${generalObs.value.replace(/\n/g, '<br>')}
+                    </div>
+                ` : ''}
+
                 <div class="inst-footer">${textoInstitucionalFinal}</div>
                 <div class="total-final">
                     <span style="font-size: 9px; text-transform: uppercase; opacity: 0.8;">Total Geral:</span><br>
@@ -338,7 +308,7 @@ generatePdfBtn.addEventListener('click', () => {
     element.innerHTML = html;
     
     html2pdf().set({
-        margin: [20, 0, 20, 0], // Margem de segurança externa
+        margin: [20, 0, 20, 0],
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
@@ -347,10 +317,20 @@ generatePdfBtn.addEventListener('click', () => {
     }).from(element).save();
 });
 
-searchBtn.addEventListener('click', () => fetchProducts(false));
-searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') fetchProducts(false); });
+// Eventos de Busca e Interface
+searchBtn.addEventListener('click', () => {
+    if (searchInput.value.trim() === "") fetchProducts(true);
+    else fetchProducts(false);
+});
 
-// Função para limpar todo o orçamento
+searchInput.addEventListener('keypress', (e) => { 
+    if (e.key === 'Enter') fetchProducts(false); 
+});
+
+searchInput.addEventListener('input', (e) => {
+    if (e.target.value.trim() === "") fetchProducts(true);
+});
+
 window.limparOrcamento = () => {
     if (quoteCart.length === 0) return;
     if (confirm("Deseja remover todos os itens do orçamento?")) {
@@ -358,19 +338,3 @@ window.limparOrcamento = () => {
         renderQuoteSidebar();
     }
 };
-
-// Ajuste na pesquisa: Voltar ao início quando o campo for limpo
-searchInput.addEventListener('input', (e) => {
-    if (e.target.value.trim() === "") {
-        fetchProducts(true); // Carrega os 12 aleatórios da home novamente
-    }
-});
-
-// Garante que o botão BUSCAR também funcione se clicar após limpar
-searchBtn.addEventListener('click', () => {
-    if (searchInput.value.trim() === "") {
-        fetchProducts(true);
-    } else {
-        fetchProducts(false);
-    }
-});
