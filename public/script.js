@@ -2,22 +2,22 @@
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const productsGrid = document.getElementById('productsGrid');
-const quoteItemsContainer = document.getElementById('quoteItems');
+const orcamentoItemsContainer = document.getElementById('quoteItems'); // Mantido ID do HTML
 const generatePdfBtn = document.getElementById('generatePdfBtn');
 
-// Novos seletores para dados do orçamento
+// Seletores para dados do orçamento
 const custName = document.getElementById('custName');
 const custDoc = document.getElementById('custDoc');
-const quoteValid = document.getElementById('quoteValid');
+const orcamentoValid = document.getElementById('quoteValid');
 const sellerName = document.getElementById('sellerName');
 const sellerPhone = document.getElementById('sellerPhone');
-const generalObs = document.getElementById('generalObs'); // Novo Seletor
+const generalObs = document.getElementById('generalObs');
 const displayTotalGeral = document.getElementById('displayTotalGeral');
 
-let quoteCart = [];
+let carrinhoOrcamento = [];
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
-// Carregar itens iniciais ao abrir a página
+// Início
 window.onload = () => fetchProducts(true);
 
 // 1. BUSCA DE PRODUTOS
@@ -28,13 +28,11 @@ async function fetchProducts(isInitial = false) {
     try {
         const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
         let products = await response.json();
-
         products = products.filter(p => p.published !== false && p.visible !== false);
 
         if (isInitial) {
             products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         }
-
         renderProducts(products);
     } catch (error) {
         console.error(error);
@@ -42,11 +40,11 @@ async function fetchProducts(isInitial = false) {
     }
 }
 
-// 2. RENDERIZAR CARDS NA VITRINE
+// 2. RENDERIZAR VITRINE
 function renderProducts(products) {
     productsGrid.innerHTML = '';
     products.forEach(p => {
-        const stockQty = p.stock !== null && p.stock !== undefined ? p.stock : 0;
+        const stockQty = p.stock ?? 0;
         const stockLabel = stockQty > 0 ? `${stockQty} un. em estoque` : "Sob consulta";
         const stockColor = stockQty > 0 ? "#2D5A27" : "#cc0000";
 
@@ -68,23 +66,22 @@ function renderProducts(products) {
     });
 }
 
-// 3. ADICIONAR AO CARRINHO
+// 3. GESTÃO DO CARRINHO (ORÇAMENTO)
 function adicionarAoOrcamento(produto) {
     const novoItem = {
         ...produto,
         tempId: Date.now(),
         displayName: produto.name,
         quantity: 1,
-        variation: "" // Inicializa campo de variação
+        variation: "" 
     };
-    quoteCart.push(novoItem);
-    renderQuoteSidebar();
+    carrinhoOrcamento.push(novoItem);
+    renderOrcamentoSidebar();
 }
 
-// 4. RENDERIZAR LATERAL
-function renderQuoteSidebar() {
-    quoteItemsContainer.innerHTML = '';
-    quoteCart.forEach((item, index) => {
+function renderOrcamentoSidebar() {
+    orcamentoItemsContainer.innerHTML = '';
+    carrinhoOrcamento.forEach((item, index) => {
         const subtotalItem = (item.quantity || 1) * item.price;
         const itemDiv = document.createElement('div');
         itemDiv.className = 'item-quote-edit';
@@ -125,56 +122,41 @@ function renderQuoteSidebar() {
                 Subtotal: R$ ${subtotalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
             </div>
         `;
-        quoteItemsContainer.appendChild(itemDiv);
+        orcamentoItemsContainer.appendChild(itemDiv);
     });
     atualizarDestaqueTotal();
 }
 
 window.atualizarDados = (index, campo, valor) => { 
     if (campo === 'price' || campo === 'quantity') {
-        quoteCart[index][campo] = parseFloat(valor) || 0;
+        carrinhoOrcamento[index][campo] = parseFloat(valor) || 0;
     } else {
-        quoteCart[index][campo] = valor;
+        carrinhoOrcamento[index][campo] = valor;
     }
-    renderQuoteSidebar(); 
+    renderOrcamentoSidebar(); 
 };
 
 window.removerItem = (index) => { 
-    quoteCart.splice(index, 1); 
-    renderQuoteSidebar(); 
+    carrinhoOrcamento.splice(index, 1); 
+    renderOrcamentoSidebar(); 
 };
 
 function atualizarDestaqueTotal() {
-    const totalGeral = quoteCart.reduce((acc, item) => {
-        const qtd = parseInt(item.quantity) || 1;
-        const preco = parseFloat(item.price) || 0;
-        return acc + (preco * qtd);
-    }, 0);
-
+    const totalGeral = carrinhoOrcamento.reduce((acc, item) => acc + ((parseFloat(item.price) || 0) * (parseInt(item.quantity) || 1)), 0);
     if (displayTotalGeral) {
         displayTotalGeral.innerText = `R$ ${totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
     }
 }
 
-// 5. GERAÇÃO DO PDF
+// 4. GERAÇÃO DO PDF
 generatePdfBtn.addEventListener('click', () => {
-    if (quoteCart.length === 0) return alert("Selecione itens primeiro.");
+    if (carrinhoOrcamento.length === 0) return alert("Selecione itens primeiro.");
 
     const element = document.createElement('div');
-    const valorTotalOrcamento = quoteCart.reduce((acc, item) => {
-        const qtd = parseInt(item.quantity) || 1;
-        const preco = parseFloat(item.price) || 0;
-        return acc + (preco * qtd);
-    }, 0);
-
-    const dataValidade = quoteValid.value ? new Date(quoteValid.value).toLocaleDateString('pt-BR') : 'A consultar';
+    const valorTotalOrcamento = carrinhoOrcamento.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const dataValidadeStr = orcamentoValid.value ? new Date(orcamentoValid.value).toLocaleDateString('pt-BR') : 'A consultar';
     
-    const textoInstitucionalFinal = `
-        CADA PEÇA DA CASA TERRAZI É FRUTO DO DESIGN BRASILEIRO, CRIADA E PRODUZIDA INTEGRALMENTE NO BRASIL. 
-        VALORIZAMOS A PRODUÇÃO LOCAL, O TALENTO DOS NOSSOS PROFISSIONAIS E A QUALIDADE QUE SÓ O OLHAR ATENTO 
-        DE QUEM ENTENDE DO PRÓPRIO TERRITÓRIO PODE OFERECER. AO ESCOLHER UM DOS NOSSOS MÓVEIS, 
-        VOCÊ LEVA PARA CASA NÃO APENAS SOFISTICAÇÃO E FUNCIONALIDADE, MAS TAMBÉM UMA HISTÓRIA FEITA AQUI 
-        - COM ORIGINALIDADE, CUIDADO E IDENTIDADE BRASILEIRA.`;
+    const textoInstitucionalFinal = `CADA PEÇA DA CASA TERRAZI É FRUTO DO DESIGN BRASILEIRO, CRIADA E PRODUZIDA INTEGRALMENTE NO BRASIL...`;
 
     let html = `
         <style>
@@ -184,30 +166,20 @@ generatePdfBtn.addEventListener('click', () => {
             .pdf-logo { height: 45px; }
             .header-info { text-align: right; line-height: 1.3; }
             .header-info strong { font-size: 11px; color: #1A3017; letter-spacing: 1px; text-transform: uppercase; }
-            .header-info span { font-size: 9px; color: #666; }
             .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; border: 1px solid #eee; }
-            .product-block { width: 100%; page-break-inside: avoid !important; margin-bottom: 25px; padding-top: 15px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
+            .product-block { width: 100%; page-break-inside: avoid !important; margin-bottom: 25px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
             .product-content { display: flex; gap: 20px; }
             .left-column { width: 180px; flex-shrink: 0; }
-            .product-image { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
-            .dimensoes-box { font-size: 9px; line-height: 1.3; color: #1A3017; background: #F4F9F4; padding: 8px; border-radius: 4px; }
-            .dimensoes-box strong { display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid rgba(26,48,23,0.1); }
+            .product-image { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; }
             .right-column { flex: 1; display: flex; flex-direction: column; }
             .product-title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 0; color: #1A3017; }
-            .sku-label { font-size: 8px; color: #999; margin-bottom: 5px; display: block; }
             .product-variation-pdf { font-size: 10px; color: #1A3017; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
-            .product-desc { font-size: 10px; line-height: 1.4; color: #333; text-align: justify; margin-bottom: 10px; }
-            .tech-info-box { font-size: 9.5px; line-height: 1.3; color: #444; border-top: 1px dashed #ddd; padding-top: 8px; margin-bottom: 12px; }
-            .tech-info-box strong { font-size: 8px; text-transform: uppercase; color: #1A3017; }
             .item-price-table { width: 100%; border-collapse: collapse; margin-top: auto; border: 1px solid #eee; }
             .item-price-table td { font-size: 11px; padding: 8px; text-align: center; font-weight: bold; color: #1A3017; }
-            .td-label { font-size: 7.5px; text-transform: uppercase; color: #888; background: #fafafa; border-bottom: 1px solid #eee; font-weight: normal; }
-            .footer-area { page-break-inside: avoid; margin-top: 15px; }
-            .inst-footer { padding: 15px; border-top: 1px solid #eee; font-size: 8.5px; color: #777; text-align: center; line-height: 1.5; font-style: italic; }
+            .td-label { font-size: 7.5px; text-transform: uppercase; color: #888; background: #fafafa; }
             .total-final { text-align: right; background: #1A3017; color: white; padding: 15px; border-radius: 4px; }
             .obs-final-box { background: #f9f9f9; padding: 10px; border: 1px solid #eee; border-radius: 4px; font-size: 10px; margin-bottom: 15px; color: #333; }
         </style>
-        
         <div class="pdf-body">
             <div class="brand-sidebar"></div>
             <div class="pdf-header">
@@ -215,7 +187,7 @@ generatePdfBtn.addEventListener('click', () => {
                 <div class="header-info">
                     <strong>ORÇAMENTO TERRAZI</strong><br>
                     <span>Emissão: ${new Date().toLocaleDateString('pt-BR')}</span><br>
-                    <span>Validade: ${dataValidade}</span>
+                    <span>Validade: ${dataValidadeStr}</span>
                 </div>
             </div>
             <div class="info-box">
@@ -224,61 +196,34 @@ generatePdfBtn.addEventListener('click', () => {
             </div>
     `;
 
-    quoteCart.forEach(item => {
+    carrinhoOrcamento.forEach(item => {
         const limparProfundo = (txt) => {
             if (!txt) return "";
             let limpo = txt.replace(/<\/?[^>]+(>|$)/g, "");
-            const padraoInstitucional = /cada peça da casa terrazi[\s\S]*identidade brasileira/gi;
-            const padraoDesign = /fruto do design brasileiro[\s\S]*identidade brasileira/gi;
-            limpo = limpo.replace(padraoInstitucional, "").replace(padraoDesign, "").replace(/além dos produtos disponíveis no site[\s\S]*WHATSAPP/gi, "");
-            return limpo.replace(/^[•\-\s*·]+|[•\-\s*·]+$/gm, "").trim();
+            return limpo.replace(/cada peça da casa terrazi[\s\S]*identidade brasileira/gi, "").trim();
         };
-
-        const qtd = parseInt(item.quantity) || 1;
-        const vUnit = parseFloat(item.price) || 0;
-        const vTotalItem = qtd * vUnit;
-
-        let rawText = item.description || "";
-        let parts = rawText.split(/(características|medidas|dimensões|especificações|caraterísticas)/i);
-        let emocional = limparProfundo(parts[0]);
-        let tecnico = "";
-        let dimensoes = "";
-
-        for (let i = 1; i < parts.length; i += 2) {
-            let label = parts[i].toLowerCase();
-            let content = limparProfundo(parts[i+1]);
-            if (content) {
-                if (label.includes("dimensões") || label.includes("medidas")) dimensoes += content + "<br>";
-                else tecnico += content + "<br>";
-            }
-        }
 
         html += `
             <div class="product-block">
                 <div class="product-content">
                     <div class="left-column">
                         <img src="${item.image}" class="product-image">
-                        ${dimensoes ? `<div class="dimensoes-box"><strong>Dimensões</strong>${dimensoes}</div>` : ''}
                     </div>
                     <div class="right-column">
                         <h2 class="product-title">${item.displayName}</h2>
-                        <span class="sku-label">SKU: ${item.sku}</span>
-                        
+                        <span style="font-size: 8px; color: #999;">SKU: ${item.sku}</span>
                         ${item.variation ? `<div class="product-variation-pdf">Variação: ${item.variation}</div>` : ''}
-
-                        <div class="product-desc">${emocional}</div>
-                        ${tecnico ? `<div class="tech-info-box"><strong>Características do Produto:</strong><br>${tecnico}</div>` : ''}
-                        
+                        <div style="font-size: 10px; color: #333; margin: 10px 0;">${limparProfundo(item.description)}</div>
                         <table class="item-price-table">
                             <tr>
                                 <td class="td-label">Qtd</td>
                                 <td class="td-label">Valor Unitário</td>
-                                <td class="td-label" style="background: #f1f1f1; color: #1A3017;">Subtotal Item</td>
+                                <td class="td-label" style="background: #f1f1f1;">Subtotal Item</td>
                             </tr>
                             <tr>
-                                <td>${qtd}</td>
-                                <td>R$ ${vUnit.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                                <td style="background: #f1f1f1;">R$ ${vTotalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                <td>${item.quantity}</td>
+                                <td>R$ ${item.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                <td style="background: #f1f1f1;">R$ ${(item.price * item.quantity).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                             </tr>
                         </table>
                     </div>
@@ -289,16 +234,9 @@ generatePdfBtn.addEventListener('click', () => {
 
     html += `
             <div class="footer-area">
-                ${generalObs.value ? `
-                    <div class="obs-final-box">
-                        <strong>OBSERVAÇÕES:</strong><br>
-                        ${generalObs.value.replace(/\n/g, '<br>')}
-                    </div>
-                ` : ''}
-
-                <div class="inst-footer">${textoInstitucionalFinal}</div>
+                ${generalObs.value ? `<div class="obs-final-box"><strong>OBSERVAÇÕES:</strong><br>${generalObs.value.replace(/\n/g, '<br>')}</div>` : ''}
                 <div class="total-final">
-                    <span style="font-size: 9px; text-transform: uppercase; opacity: 0.8;">Total Geral:</span><br>
+                    <span style="font-size: 9px; opacity: 0.8;">TOTAL GERAL:</span><br>
                     <span style="font-size: 22px; font-weight: bold;">R$ ${valorTotalOrcamento.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                 </div>
             </div>
@@ -306,25 +244,17 @@ generatePdfBtn.addEventListener('click', () => {
     `;
 
     element.innerHTML = html;
-    
     html2pdf().set({
         margin: [20, 0, 20, 0],
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
     }).from(element).save();
 });
 
-// Eventos de Busca e Interface
+// Eventos de Busca
 searchBtn.addEventListener('click', () => {
     if (searchInput.value.trim() === "") fetchProducts(true);
     else fetchProducts(false);
-});
-
-searchInput.addEventListener('keypress', (e) => { 
-    if (e.key === 'Enter') fetchProducts(false); 
 });
 
 searchInput.addEventListener('input', (e) => {
@@ -332,9 +262,13 @@ searchInput.addEventListener('input', (e) => {
 });
 
 window.limparOrcamento = () => {
-    if (quoteCart.length === 0) return;
-    if (confirm("Deseja remover todos os itens do orçamento?")) {
-        quoteCart = [];
-        renderQuoteSidebar();
+    if (confirm("Deseja remover todos os itens?")) {
+        carrinhoOrcamento = [];
+        renderOrcamentoSidebar();
     }
 };
+
+// Funções para Banco de Dados (Placeholder para o próximo passo)
+async function listarOrcamentos() {
+    console.log("Aqui chamaremos a API de listagem do Vercel Postgres");
+}
