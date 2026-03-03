@@ -28,20 +28,34 @@ async function carregarHistorico() {
 
 function renderizarCards(lista) {
     const grid = document.getElementById('orcamentosGrid');
+    const hoje = new Date();
     grid.innerHTML = '';
+
     lista.forEach(o => {
+        const dataValidade = new Date(o.data_validade);
+        let statusFinal = o.status;
+
+        // Regra de Expiração Automática
+        if (dataValidade < hoje && o.status === 'Pendente') {
+            statusFinal = 'Expirado';
+        }
+
         const card = document.createElement('div');
-        card.className = `orcamento-card status-${(o.status || 'pendente').toLowerCase()}`;
+        card.className = `orcamento-card status-${statusFinal.toLowerCase()}`;
         card.innerHTML = `
-            <div class="card-header"><span>#${o.id}</span> <span>${new Date(o.data_criacao).toLocaleDateString()}</span></div>
+            <div class="card-header">
+                <span>#${o.id}</span> 
+                <span style="font-size:11px;">Vencimento: ${dataValidade.toLocaleDateString()}</span>
+            </div>
             <div class="card-body">
                 <h3>${o.cliente_nome || 'Consumidor'}</h3>
                 <p>Vendedor: ${o.vendedor_nome}</p>
-                <p style="font-size:10px;">Filial: ${o.id_filial || '---'}</p>
-                <div class="total">R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                <div class="total">R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR')}</div>
+                <div class="badge-status">${statusFinal.toUpperCase()}</div>
             </div>
-            <div class="card-footer">
-                <button onclick="clonagemRapida(${o.id})">REABRIR / CLONAR</button>
+            <div class="card-footer" style="display:flex; gap:8px;">
+                <button class="btn-reabrir" onclick="clonagemRapida(${o.id})">REABRIR</button>
+                <button class="btn-imprimir" onclick="gerarImpressaoRapida(${o.id})">IMPRIMIR</button>
             </div>`;
         grid.appendChild(card);
     });
