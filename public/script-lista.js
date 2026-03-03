@@ -49,8 +49,14 @@ function renderizarCards(lista) {
 
 // FUNÇÃO DE FILTRO GLOBAL (Correção da funcionalidade)
 window.filtrarCards = () => {
-    const termo = document.getElementById('filterInput').value.toLowerCase();
+    const termo = document.getElementById('filterInput').value.toLowerCase().trim();
     const status = document.getElementById('statusFilter').value;
+
+    // Se não houver termo nem status, mostra tudo original
+    if (termo === "" && status === "") {
+        renderizarCards(window.todosOrcamentos);
+        return;
+    }
 
     const filtrados = window.todosOrcamentos.filter(o => {
         const nomeCliente = (o.cliente_nome || "").toLowerCase();
