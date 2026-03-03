@@ -11,12 +11,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-        <div id="top-bar-user" style="background: #1A3017; color: #fff; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; font-family: sans-serif; font-size: 13px;">
-            <div id="user-display">
-                 <div id="user-info-topo"></div>
-                </div>
-            <button onclick="logout()" style="background: #c0392b; color: white; border: none; padding: 5px 12px; border-radius: 3px; cursor: pointer; font-weight: bold;">SAIR</button>
+    <div id="top-bar-user" style="background: #1A3017; color: #fff; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; font-family: sans-serif; font-size: 13px;">
+        <div id="user-info-topo">
+            Carregando usuário...
         </div>
+        <button onclick="fazerLogout()" style="background: #c0392b; color: white; border: none; padding: 5px 12px; border-radius: 3px; cursor: pointer; font-weight: bold;">SAIR</button>
+    </div>
     
     <header class="lista-header">
         <div class="header-content">
@@ -49,6 +49,6 @@
         </div>
     </main>
 
-    <script src="script-lista.js" type="module"></script>
+    <script src="script-lista.js"></script>
 </body>
 </html>
