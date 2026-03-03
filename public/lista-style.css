@@ -2,6 +2,17 @@
 body {
     font-family: 'Inter', sans-serif;
     background-color: #fcfcfc;
+    margin: 0;
+    padding: 0;
+}
+
+/* Container Principal - GARANTE LARGURA TOTAL */
+.container {
+    width: 100% !important;
+    max-width: 1400px; 
+    margin: 0 auto;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .lista-header {
@@ -12,7 +23,7 @@ body {
 }
 
 .header-content {
-    max-width: 1200px;
+    max-width: 1400px; /* Alinhado com o container */
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -29,41 +40,16 @@ body {
     margin: 0;
 }
 
-.header-actions-top {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
-}
-
-/* Botão Novo Orçamento seguindo estilo da index */
-.btn-primary-outline {
-    background: transparent;
-    color: #1A3017;
-    border: 1px solid #1A3017;
-    padding: 8px 16px;
-    border-radius: 4px;
-    text-decoration: none;
-    font-size: 0.75rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-
-.btn-primary-outline:hover {
-    background: #1A3017;
-    color: #fff;
-}
-
-/* Barra de Filtros Customizada */
+/* Barra de Filtros */
 .filters-bar {
     display: flex;
     gap: 15px;
     margin-bottom: 30px;
+    width: 100%;
 }
 
-.input-wrapper, .select-wrapper {
-    flex: 1;
-}
+.input-wrapper { flex: 3; }
+.select-wrapper { flex: 1; }
 
 .filters-bar input, .filters-bar select {
     width: 100%;
@@ -71,100 +57,128 @@ body {
     border: 1px solid #e0e0e0;
     border-radius: 4px;
     font-size: 0.85rem;
-    outline: none;
     color: #333;
     background: #fff;
-    transition: border-color 0.2s;
 }
 
-/* Estilizando o Select para remover a aparência de sistema antigo */
-.filters-bar select {
-    cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231A3017' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 15px center;
-    background-size: 15px;
-    padding-right: 40px;
-    text-transform: uppercase;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-}
-
-.filters-bar input:focus, .filters-bar select:focus {
-    border-color: #1A3017;
-}
-
-/* Container principal dos cards */
+/* GRID DE ORÇAMENTOS - CORREÇÃO PARA LINHA HORIZONTAL */
 #orcamentosGrid {
-    display: grid;
-    /* Cria colunas de no mínimo 350px. Se houver espaço, coloca mais na mesma linha */
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
-    gap: 20px;
-    padding: 20px;
-    width: 100%;
-    max-width: 1400px; /* Limita a largura total em telas ultra-wide */
-    margin: 0 auto;    /* Centraliza o bloco na tela */
+    display: grid !important;
+    /* Divide em colunas iguais. Em telas grandes cabem 3 ou 4, em menores 1 ou 2 */
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+    gap: 25px;
+    width: 100% !important;
+    padding: 0;
+    margin-top: 20px;
 }
 
-/* Ajuste no card para ocupar 100% da sua coluna no grid */
+/* CARD DE ORÇAMENTO */
 .orcamento-card {
-    width: 100%;
-    margin: 0; /* Remove margens fixas que podem desalinhá-lo */
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-sizing: border-box;
+    min-height: 250px;
 }
 
-.total-valor {
+.orcamento-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.08);
+}
+
+/* Estilização Interna do Card */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #999;
+    margin-bottom: 10px;
+}
+
+.cliente-nome {
+    font-size: 1.1rem;
     color: #1A3017;
-    font-family: 'Montserrat', sans-serif;
-    border-top: 1px solid #f0f0f0;
+    margin: 5px 0;
+}
+
+.vendedor-info {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+/* Badges e Status */
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: #f0f0f0;
+}
+
+/* Bordas Laterais por Status */
+.status-pendente { border-left: 6px solid #f1c40f !important; }
+.status-gerou-venda { border-left: 6px solid #2d5a27 !important; }
+.status-cancelado { border-left: 6px solid #e74c3c !important; }
+.status-expirado { border-left: 6px solid #95a5a6 !important; }
+
+/* Rodapé do Card e Ações */
+.card-footer {
+    margin-top: auto;
+    border-top: 1px solid #f9f9f9;
     padding-top: 15px;
 }
 
-/* Loader Premium */
-.loader {
-    grid-column: 1 / -1;
-    text-align: center;
+.total-valor {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.total-valor .valor {
+    font-size: 1.1rem;
+    font-weight: 700;
     color: #1A3017;
-    padding: 50px;
-    font-style: italic;
-    opacity: 0.7;
 }
 
-.status-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: bold;
-    background: #eee;
-}
-
-/* Cores de destaque por status */
-.orcamento-card.status-pendente { border-left: 5px solid #f1c40f; }
-.orcamento-card.status-finalizado-com-venda { border-left: 5px solid #2d5a27; }
-.orcamento-card.status-expirado { border-left: 5px solid #e74c3c; }
-
-.select-status-inline {
-    width: 100%;
-    padding: 8px;
-    font-size: 11px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-bottom: 5px;
-    cursor: pointer;
+.acoes-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .btn-clonar {
-    width: 100%;
     background: #1A3017;
     color: white;
     border: none;
-    padding: 8px;
+    padding: 10px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
     cursor: pointer;
     text-transform: uppercase;
+    transition: background 0.2s;
+}
+
+.btn-clonar:hover {
+    background: #2d5a27;
+}
+
+.status-fechado-msg {
+    font-size: 0.7rem;
+    color: #999;
+    text-align: center;
+    font-style: italic;
+    padding: 8px;
+    background: #f9f9f9;
+    border-radius: 4px;
 }
