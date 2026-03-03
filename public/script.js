@@ -2,7 +2,7 @@
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const productsGrid = document.getElementById('productsGrid');
-const orcamentoItemsContainer = document.getElementById('quoteItems'); // Mantido ID do HTML
+const orcamentoItemsContainer = document.getElementById('quoteItems'); 
 const generatePdfBtn = document.getElementById('generatePdfBtn');
 
 // Seletores para dados do orçamento
@@ -17,8 +17,44 @@ const displayTotalGeral = document.getElementById('displayTotalGeral');
 let carrinhoOrcamento = [];
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
-// Início
-window.onload = () => fetchProducts(true);
+// Início - Agora verifica se há dados clonados antes de carregar a vitrine padrão
+window.onload = () => {
+    fetchProducts(true);
+    verificarClonagem();
+};
+
+// --- FUNÇÃO DE CLONAGEM ---
+function verificarClonagem() {
+    const dadosClonados = localStorage.getItem('clonar_orcamento');
+    if (dadosClonados) {
+        const o = JSON.parse(dadosClonados);
+        
+        // Preenche os campos do cliente
+        if(custName) custName.value = o.cliente_nome || '';
+        if(custDoc) custDoc.value = o.cliente_doc || '';
+        if(sellerName) sellerName.value = o.vendedor_nome || '';
+        if(sellerPhone) sellerPhone.value = o.vendedor_contato || '';
+        if(generalObs) generalObs.value = o.obs_geral || '';
+        
+        // Mapeia os itens vindos do banco para o formato do carrinho local
+        carrinhoOrcamento = o.items.map(item => ({
+            sku: item.sku,
+            displayName: item.nome_produto,
+            price: parseFloat(item.preco_unitario),
+            quantity: item.quantidade,
+            variation: item.variacao,
+            image: item.imagem_url,
+            description: item.descricao_tecnica,
+            tempId: Date.now() + Math.random()
+        }));
+
+        renderOrcamentoSidebar();
+        
+        // Limpa o cache de clonagem para não repetir no F5
+        localStorage.removeItem('clonar_orcamento');
+        alert("Itens do orçamento anterior carregados!");
+    }
+}
 
 // 1. BUSCA DE PRODUTOS
 async function fetchProducts(isInitial = false) {
@@ -148,16 +184,51 @@ function atualizarDestaqueTotal() {
     }
 }
 
-// 4. GERAÇÃO DO PDF
-generatePdfBtn.addEventListener('click', () => {
+// --- FUNÇÃO PARA SALVAR NO BANCO DE DADOS ---
+async function salvarNoBanco() {
+    if (carrinhoOrcamento.length === 0) return alert("Adicione itens antes de salvar.");
+
+    const dados = {
+        cust_name: custName.value,
+        cust_doc: custDoc.value,
+        valid_until: orcamentoValid.value,
+        seller_name: sellerName.value,
+        seller_phone: sellerPhone.value,
+        general_obs: generalObs.value,
+        total_value: carrinhoOrcamento.reduce((acc, i) => acc + (i.price * i.quantity), 0),
+        items: carrinhoOrcamento
+    };
+
+    try {
+        const res = await fetch('/api/salvar-orcamento', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Orçamento #${data.orcamentoId} salvo com sucesso!`);
+        } else {
+            alert("Erro ao salvar no banco.");
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Falha na conexão com o banco.");
+    }
+}
+
+// 4. GERAÇÃO DO PDF (MODIFICADA PARA SALVAR NO BANCO ANTES)
+generatePdfBtn.addEventListener('click', async () => {
     if (carrinhoOrcamento.length === 0) return alert("Selecione itens primeiro.");
+
+    // Opcional: Salva automaticamente ao gerar PDF
+    await salvarNoBanco();
 
     const element = document.createElement('div');
     const valorTotalOrcamento = carrinhoOrcamento.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const dataValidadeStr = orcamentoValid.value ? new Date(orcamentoValid.value).toLocaleDateString('pt-BR') : 'A consultar';
     
-    const textoInstitucionalFinal = `CADA PEÇA DA CASA TERRAZI É FRUTO DO DESIGN BRASILEIRO, CRIADA E PRODUZIDA INTEGRALMENTE NO BRASIL...`;
-
     let html = `
         <style>
             .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; background: white; padding: 40px 40px 30px 60px; position: relative; }
@@ -267,8 +338,3 @@ window.limparOrcamento = () => {
         renderOrcamentoSidebar();
     }
 };
-
-// Funções para Banco de Dados (Placeholder para o próximo passo)
-async function listarOrcamentos() {
-    console.log("Aqui chamaremos a API de listagem do Vercel Postgres");
-}
