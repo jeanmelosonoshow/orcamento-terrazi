@@ -79,22 +79,31 @@ window.gerarImpressao = async (id, statusAtual) => {
         
         if (!orcamento) return alert("Erro ao carregar dados.");
 
-        // Dados para o localStorage
+        // Salva os dados no localStorage
         orcamento.status_atual = statusAtual;
         orcamento.id_impressao = id;
         localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
         
-        // --- LÓGICA DO IFRAME OCULTO ---
-        // Criamos um iframe que o usuário não vê
+        // Criar iframe "invisível" mas renderizável
         const iframe = document.createElement('iframe');
-        iframe.style.display = 'none'; 
+        iframe.id = 'print-helper-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.bottom = '0';
+        iframe.style.right = '0';
+        iframe.style.width = '1px';
+        iframe.style.height = '1px';
+        iframe.style.opacity = '0.01'; // Quase invisível, mas existe para o browser
+        iframe.style.border = 'none';
+        
         iframe.src = 'index.html?modo=impressao';
         document.body.appendChild(iframe);
 
-        // Removemos o iframe da memória após 10 segundos (tempo folgado para o PDF gerar)
+        // Limpeza após o download
         setTimeout(() => {
-            document.body.removeChild(iframe);
-        }, 10000);
+            if (document.getElementById('print-helper-frame')) {
+                document.body.removeChild(iframe);
+            }
+        }, 15000); // Tempo para garantir o processamento
 
     } catch (error) {
         console.error("Erro ao preparar impressão:", error);
