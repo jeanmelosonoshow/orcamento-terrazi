@@ -1,4 +1,3 @@
-// script-lista.js
 const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
 
 if (!usuarioLogado) {
@@ -8,32 +7,25 @@ if (!usuarioLogado) {
 async function carregarHistorico() {
     const grid = document.getElementById('orcamentosGrid');
     
-    // Captura filtros da tela se existirem
-    const buscaVendedor = document.getElementById('filterVendedor')?.value || '';
-    const buscaFilial = document.getElementById('filterFilial')?.value || '';
-
-    // Monta a URL com as permissões do usuário logado
+    // Filtros de hierarquia automáticos enviados para a API
     const params = new URLSearchParams({
         categoria: usuarioLogado.categoria,
         idfuncionario: usuarioLogado.idfuncionario,
-        idfilial: usuarioLogado.idfilial,
-        buscaVendedor: buscaVendedor,
-        buscaFilial: buscaFilial
+        idfilial: usuarioLogado.idfilial
     });
 
     try {
         const response = await fetch(`/api/listar-orcamentos?${params.toString()}`);
         const orcamentos = await response.json();
         
-        if (orcamentos.length === 0) {
-            grid.innerHTML = '<div class="loader">Nenhum orçamento encontrado.</div>';
+        if (!orcamentos || orcamentos.length === 0) {
+            grid.innerHTML = '<p>Nenhum orçamento encontrado.</p>';
             return;
         }
         window.todosOrcamentos = orcamentos;
         renderizarCards(orcamentos);
     } catch (error) {
-        console.error("Erro ao carregar:", error);
-        grid.innerHTML = '<div class="loader" style="color: red;">Erro ao carregar histórico.</div>';
+        grid.innerHTML = '<p style="color:red;">Erro ao carregar histórico.</p>';
     }
 }
 
@@ -41,141 +33,46 @@ function renderizarCards(lista) {
     const grid = document.getElementById('orcamentosGrid');
     grid.innerHTML = '';
     lista.forEach(o => {
-        const ehPendente = o.status === 'Pendente';
-        const statusClass = o.status.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s/g, '-');
-        const dataCriacao = new Date(o.data_criacao).toLocaleDateString('pt-BR');
-        const dataValidade = o.data_validade ? new Date(o.data_validade).toLocaleDateString('pt-BR') : '---';
-        
         const card = document.createElement('div');
-        card.className = `orcamento-card status-${statusClass}`;
+        card.className = `orcamento-card status-${o.status.toLowerCase()}`;
         card.innerHTML = `
-            <div class="card-header">
-                <span class="id-orcamento">#${o.id}</span>
-                <span class="data-orcamento">${dataCriacao}</span>
-            </div>
+            <div class="card-header"><span>#${o.id}</span> <span>${new Date(o.data_criacao).toLocaleDateString()}</span></div>
             <div class="card-body">
-                <h3 class="cliente-nome">${o.cliente_nome || 'Consumidor'}</h3>
-                <p class="vendedor-info">Vendedor: <strong>${o.vendedor_nome || 'Geral'}</strong></p>
-                <p class="vendedor-info" style="font-size: 0.7rem; color: #666;">Filial: <strong>${o.id_filial || '---'}</strong></p>
-                <div class="status-badge">${o.status.toUpperCase()}</div>
+                <h3>${o.cliente_nome || 'Consumidor'}</h3>
+                <p>Vendedor: ${o.vendedor_nome}</p>
+                <p style="font-size:10px;">Filial: ${o.id_filial || '---'}</p>
+                <div class="total">R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR')}</div>
             </div>
             <div class="card-footer">
-                <div class="validade-row" style="font-size: 0.75rem; color: #999; margin-bottom: 8px; border-bottom: 1px solid #f5f5f5; padding-bottom: 5px;">
-                    Validade: <strong style="color: #444;">${dataValidade}</strong>
-                </div>
-                <div class="total-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <span class="total-label" style="font-size: 0.8rem; color: #888; font-weight: 500;">TOTAL</span>
-                    <span class="total-valor-bold" style="font-size: 1.25rem; font-weight: 700; color: #1A3017;">
-                        R$ ${parseFloat(o.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                    </span>
-                </div>
-                <div class="acoes-grid">
-                    ${ehPendente ? `
-                        <select onchange="alterarStatus(${o.id}, this.value)" class="select-status-inline">
-                            <option value="" disabled selected>Alterar Status</option>
-                            <option value="Gerou Venda">Gerou Venda</option>
-                            <option value="Cancelado">Cancelado</option>
-                        </select>
-                    ` : `<div class="status-fechado-msg" style="text-align: center; font-size: 0.7rem; color: #999; padding: 8px; background: #f9f9f9; border-radius: 4px; font-style: italic;">Status Finalizado</div>`}
-                    <div class="botoes-acoes-row" style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button onclick="gerarImpressao(${o.id}, '${o.status}')" class="btn-imprimir" style="flex: 1; background: white; border: 1px solid #1A3017; color: #1A3017; padding: 10px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; cursor: pointer;">
-                            IMPRIMIR
-                        </button>
-                        <button onclick="clonarOrcamento(${o.id})" class="btn-clonar" style="flex: 1.5; background: #1A3017; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; cursor: pointer;">
-                            REABRIR / CLONAR
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
+                <button onclick="clonarOrcamento(${o.id})">REABRIR / CLONAR</button>
+                <button onclick="gerarImpressao(${o.id}, '${o.status}')">IMPRIMIR</button>
+            </div>`;
         grid.appendChild(card);
     });
 }
 
-// Funções de apoio (Imprimir, Alterar Status, Clonar e Filtrar mantidas conforme original)
-window.gerarImpressao = async (id, statusAtual) => {
-    try {
-        const response = await fetch(`/api/detalhe-orcamento?id=${id}`);
-        const orcamento = await response.json();
-        if (!orcamento) return alert("Erro ao carregar dados.");
-        orcamento.status_atual = statusAtual;
-        orcamento.id_impressao = id;
-        localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
-        const iframe = document.createElement('iframe');
-        iframe.id = 'print-helper-frame';
-        iframe.style.position = 'fixed';
-        iframe.style.bottom = '0';
-        iframe.style.right = '0';
-        iframe.style.width = '1px';
-        iframe.style.height = '1px';
-        iframe.style.opacity = '0.01';
-        iframe.src = 'index.html?modo=impressao';
-        document.body.appendChild(iframe);
-        setTimeout(() => {
-            if (document.getElementById('print-helper-frame')) document.body.removeChild(iframe);
-        }, 15000);
-    } catch (error) { console.error("Erro ao preparar impressão:", error); }
-};
-
-window.alterarStatus = async (id, novoStatus) => {
-    if (!novoStatus) return;
-    if (!confirm(`Deseja alterar para "${novoStatus}"?`)) { location.reload(); return; }
-    try {
-        const res = await fetch('/api/status-orcamento', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, status: novoStatus })
-        });
-        if (res.ok) { alert("Status atualizado!"); carregarHistorico(); }
-    } catch (error) { alert("Erro de conexão."); }
-};
-
 window.clonarOrcamento = async (id) => {
-    try {
-        const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
-        const orcamento = await res.json();
-        localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
-        window.location.href = 'index.html';
-    } catch (error) { alert("Erro ao clonar."); }
+    const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
+    const orcamento = await res.json();
+    localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
+    window.location.href = 'index.html';
 };
 
-window.filtrarCards = () => {
-    const termo = document.getElementById('filterInput').value.toLowerCase();
-    const status = document.getElementById('statusFilter').value;
-    const filtrados = window.todosOrcamentos.filter(o => {
-        const bateNome = (o.cliente_nome || "").toLowerCase().includes(termo);
-        const bateStatus = status === "" || o.status === status;
-        return bateNome && bateStatus;
-    });
-    renderizarCards(filtrados);
-};
+window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
 
-document.addEventListener('DOMContentLoaded', carregarHistorico);
-
-// Função para exibir os dados do usuário no topo da página
 function exibirUsuarioLogado() {
-    const usuario = JSON.parse(sessionStorage.getItem('usuarioLogado'));
-    
-    if (usuario) {
-        const infoTopo = document.getElementById('user-info-topo');
-        if (infoTopo) {
-            infoTopo.innerHTML = `
-                <span><strong>Vendedor:</strong> ${usuario.nomefuncionario}</span> | 
-                <span><strong>Categoria:</strong> ${usuario.categoria}</span> | 
-                <span><strong>Filial:</strong> ${usuario.idfilial}</span>
-                <button onclick="fazerLogout()" style="margin-left: 15px; cursor: pointer; background: #c0392b; color: white; border: none; padding: 5px 10px; border-radius: 4px;">Sair</button>
-            `;
-        }
-    } else {
-        window.location.href = 'login.html';
+    const infoTopo = document.getElementById('user-info-topo');
+    if (infoTopo && usuarioLogado) {
+        infoTopo.innerHTML = `
+            <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario}</span> | 
+            <span><strong>Categoria:</strong> ${usuarioLogado.categoria}</span> | 
+            <span><strong>Filial:</strong> ${usuarioLogado.idfilial}</span>
+            <button onclick="fazerLogout()" style="margin-left:15px; background:#c0392b; color:white; border:none; padding:5px; border-radius:4px; cursor:pointer;">Sair</button>
+        `;
     }
 }
 
-// Função de Logout
-window.fazerLogout = () => {
-    sessionStorage.clear();
-    window.location.href = 'login.html';
-};
-
-// Chame a função ao carregar a página
-document.addEventListener('DOMContentLoaded', exibirUsuarioLogado);
+document.addEventListener('DOMContentLoaded', () => {
+    exibirUsuarioLogado();
+    carregarHistorico();
+});
