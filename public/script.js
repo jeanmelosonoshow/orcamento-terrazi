@@ -65,8 +65,14 @@ window.onload = () => {
         // Se for apenas para imprimir, dispara o botão automaticamente
         if (isModoImpressao) {
             setTimeout(() => {
-                if (generatePdfBtn) generatePdfBtn.click();
-            }, 1000);
+                if (generatePdfBtn) {
+                    // Forçamos o clique para gerar o arquivo
+                    generatePdfBtn.click();
+                    
+                    // Como estamos num iframe oculto, não precisamos fechar a janela, 
+                    // o script-lista.js vai remover o iframe sozinho.
+                }
+            }, 1200); // Um pouquinho mais de delay para garantir carregamento no iframe
         }
     }
 };
