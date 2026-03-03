@@ -349,3 +349,31 @@ generatePdfBtn.addEventListener('click', async () => {
 });
 
 window.limparOrcamento = () => { if (confirm("Remover todos os itens?")) { quoteCart = []; renderQuoteSidebar(); } };
+
+// Função para exibir os dados do usuário no topo da página
+function exibirUsuarioLogado() {
+    const usuario = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+    
+    if (usuario) {
+        const infoTopo = document.getElementById('user-info-topo');
+        if (infoTopo) {
+            infoTopo.innerHTML = `
+                <span><strong>Vendedor:</strong> ${usuario.nomefuncionario}</span> | 
+                <span><strong>Categoria:</strong> ${usuario.categoria}</span> | 
+                <span><strong>Filial:</strong> ${usuario.idfilial}</span>
+                <button onclick="fazerLogout()" style="margin-left: 15px; cursor: pointer; background: #c0392b; color: white; border: none; padding: 5px 10px; border-radius: 4px;">Sair</button>
+            `;
+        }
+    } else {
+        window.location.href = 'login.html';
+    }
+}
+
+// Função de Logout
+window.fazerLogout = () => {
+    sessionStorage.clear();
+    window.location.href = 'login.html';
+};
+
+// Chame a função ao carregar a página
+document.addEventListener('DOMContentLoaded', exibirUsuarioLogado);
