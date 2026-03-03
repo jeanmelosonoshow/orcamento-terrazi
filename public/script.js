@@ -17,40 +17,64 @@ const displayTotalGeral = document.getElementById('displayTotalGeral');
 let quoteCart = [];
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
-// 1. INICIALIZAÇÃO E CLONAGEM (Mantido intacto)
+// Variáveis de controle para o modo de impressão
+let isModoImpressao = false;
+let statusParaImpressao = "";
+let idParaImpressao = "";
+
+// 1. INICIALIZAÇÃO E CLONAGEM / IMPRESSÃO
 window.onload = () => {
     fetchProducts(true);
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    isModoImpressao = urlParams.get('modo') === 'impressao';
     
     const clonarData = localStorage.getItem('clonar_orcamento');
     if (clonarData) {
         const data = JSON.parse(clonarData);
+        
+        // Captura dados extras para o cabeçalho do PDF
+        statusParaImpressao = data.status_atual || "";
+        idParaImpressao = data.id_impressao || "";
+
         custName.value = data.cliente_nome || '';
         custDoc.value = data.cliente_doc || '';
         sellerName.value = data.vendedor_nome || '';
         sellerPhone.value = data.vendedor_contato || '';
         generalObs.value = data.obs_geral || '';
         
-        quoteCart = data.items.map(item => ({
+        if (data.data_validade) {
+            quoteValid.value = data.data_validade.split('T')[0];
+        }
+        
+        // Mapeia os itens (suporta nomes de campos da API ou do Objeto local)
+        quoteCart = (data.items || data.itens || []).map(item => ({
             sku: item.sku,
-            displayName: item.nome_produto,
-            price: parseFloat(item.preco_unitario),
-            quantity: item.quantidade,
-            variation: item.variacao,
-            image: item.imagem_url,
-            description: item.descricao_tecnica,
+            displayName: item.nome_produto || item.displayName,
+            price: parseFloat(item.preco_unitario || item.price),
+            quantity: parseInt(item.quantidade || item.quantity),
+            variation: item.variacao || item.variation || '',
+            image: item.imagem_url || item.image,
+            description: item.descricao_tecnica || item.description,
             tempId: Date.now() + Math.random()
         }));
         
         renderQuoteSidebar();
         localStorage.removeItem('clonar_orcamento'); 
+
+        // Se for apenas para imprimir, dispara o botão automaticamente
+        if (isModoImpressao) {
+            setTimeout(() => {
+                if (generatePdfBtn) generatePdfBtn.click();
+            }, 1000);
+        }
     }
 };
 
-// 2. BUSCA DE PRODUTOS (Atualizado com lógica de retorno ao estado inicial)
+// 2. BUSCA DE PRODUTOS
 async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : searchInput.value.trim();
     
-    // Se o usuário apagar o texto na busca, voltamos para a curadoria inicial
     if (!isInitial && query === "") {
         return fetchProducts(true);
     }
@@ -74,21 +98,12 @@ async function fetchProducts(isInitial = false) {
     }
 }
 
-// 3. RENDERIZAÇÃO (Atualizado para exibir ESTOQUE)
+// 3. RENDERIZAÇÃO DE PRODUTOS
 function renderProducts(products) {
     productsGrid.innerHTML = '';
     products.forEach(p => {
-        // Lógica visual para o estoque
         const estoqueNum = parseInt(p.stock);
-        
-        // NOVA LÓGICA: 
-        // 1. Se for "Sob Consulta", fica Vermelho (#d9534f)
-        // 2. Se for número e menor que 1, fica Vermelho (#d9534f)
-        // 3. Caso contrário, usa o Verde Escuro da marca (#1A3017)
-        const corEstoque = (p.stock === "Sob Consulta" || estoqueNum < 1) 
-            ? "#d9534f" 
-            : "#1A3017";
-
+        const corEstoque = (p.stock === "Sob Consulta" || estoqueNum < 1) ? "#d9534f" : "#1A3017";
         const textoEstoque = p.stock === "Sob Consulta" ? "Sob Consulta" : `Estoque: ${p.stock}`;
 
         const card = document.createElement('div');
@@ -98,14 +113,12 @@ function renderProducts(products) {
             <div class="card-info">
                 <h4>${p.name}</h4>
                 <p class="sku" style="font-size: 0.7rem; color: #999;">SKU: ${p.sku}</p>
-                
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 5px 0;">
                     <p class="price" style="font-weight: bold; margin: 0;">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                     <span style="font-size: 0.65rem; font-weight: bold; color: ${corEstoque}; background: #f4f4f4; padding: 2px 5px; border-radius: 3px;">
                         ${textoEstoque}
                     </span>
                 </div>
-
                 <button class="btn-primary" style="width: 100%; font-size: 0.7rem;" onclick='adicionarAoOrcamento(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
                     ADICIONAR AO PROJETO
                 </button>
@@ -115,21 +128,16 @@ function renderProducts(products) {
     });
 }
 
-// EVENTOS DE BUSCA (Atualizado para detectar quando o texto é apagado)
+// EVENTOS DE BUSCA
 searchBtn.addEventListener('click', () => fetchProducts(false));
-
 searchInput.addEventListener('input', () => {
-    // Se apagar tudo, reseta para a curadoria inicial
-    if (searchInput.value.trim() === "") {
-        fetchProducts(true);
-    }
+    if (searchInput.value.trim() === "") fetchProducts(true);
 });
-
 searchInput.addEventListener('keypress', (e) => { 
     if (e.key === 'Enter') fetchProducts(false); 
 });
 
-// --- LÓGICA DO CARRINHO E PDF (MANTIDAS EXATAMENTE COMO VOCÊ ENVIOU) ---
+// --- LÓGICA DO CARRINHO ---
 
 function adicionarAoOrcamento(produto) {
     const novoItem = {
@@ -225,14 +233,25 @@ async function salvarNoBanco() {
     } catch (error) { console.error("Erro ao salvar no banco:", error); }
 }
 
+// --- GERAÇÃO DO PDF ---
+
 generatePdfBtn.addEventListener('click', async () => {
     if (quoteCart.length === 0) return alert("Selecione itens primeiro.");
-    salvarNoBanco();
+    
+    // SÓ SALVA SE NÃO FOR MODO DE IMPRESSÃO DE HISTÓRICO
+    if (!isModoImpressao) {
+        salvarNoBanco();
+    }
 
     const element = document.createElement('div');
     const valorTotalOrcamento = quoteCart.reduce((acc, item) => acc + (parseFloat(item.price) * parseInt(item.quantity)), 0);
     const dataValidade = quoteValid.value ? new Date(quoteValid.value).toLocaleDateString('pt-BR') : 'A consultar';
     
+    // Carimbo de Status (Apenas se vier da lista)
+    let carimboHtml = (isModoImpressao && statusParaImpressao) 
+        ? `<div style="margin-top: 5px; padding: 3px 8px; border: 1.5px solid #1A3017; color: #1A3017; display: inline-block; font-weight: 900; font-size: 10px; text-transform: uppercase;">${statusParaImpressao}</div>`
+        : "";
+
     let html = `
         <style>
             .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; background: white; padding: 40px 40px 30px 60px; position: relative; }
@@ -256,7 +275,12 @@ generatePdfBtn.addEventListener('click', async () => {
             <div class="brand-sidebar"></div>
             <div class="pdf-header">
                 <img src="${LOGO_URL}" class="pdf-logo">
-                <div class="header-info"><strong>ORÇAMENTO TERRAZI</strong><br>Emissão: ${new Date().toLocaleDateString('pt-BR')}<br>Validade: ${dataValidade}</div>
+                <div class="header-info">
+                    <strong>ORÇAMENTO TERRAZI ${idParaImpressao ? '#' + idParaImpressao : ''}</strong><br>
+                    Emissão: ${new Date().toLocaleDateString('pt-BR')}<br>
+                    Validade: ${dataValidade}<br>
+                    ${carimboHtml}
+                </div>
             </div>
             <div class="info-box">
                 <div><strong>CLIENTE:</strong> ${custName.value || '---'}<br><strong>DOC:</strong> ${custDoc.value || '---'}</div>
