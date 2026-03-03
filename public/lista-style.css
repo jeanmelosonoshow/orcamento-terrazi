@@ -170,3 +170,54 @@ input[type="text"], #statusFilter {
 }
 
 .btn-clonar:hover { background-color: var(--verde-medio); }
+
+
+
+
+/* Estilização das opções do Filtro de Status */
+#statusFilter option[value="Pendente"] {
+    background-color: #fff9db; /* Amarelo claro */
+    color: #f1c40f;
+    font-weight: bold;
+}
+
+#statusFilter option[value="Gerou Venda"] {
+    background-color: var(--verde-claro); /* Verde claro */
+    color: var(--verde-medio);
+    font-weight: bold;
+}
+
+#statusFilter option[value="Cancelado"] {
+    background-color: #fff5f5; /* Vermelho claro */
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+#statusFilter option[value="Expirado"] {
+    background-color: #f1f3f5; /* Cinza claro */
+    color: #95a5a6;
+    font-weight: bold;
+}
+
+/* Ajuste premium para o botão Novo Orçamento (Estilo PDF Casa Terrazi) */
+.btn-primary-outline {
+    background-color: var(--verde-escuro) !important;
+    color: #FFF !important;
+    border: none !important;
+    padding: 12px 25px !important;
+    border-radius: 4px !important;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-primary-outline:hover {
+    background-color: var(--verde-medio) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
