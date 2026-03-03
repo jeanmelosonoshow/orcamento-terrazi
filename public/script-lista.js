@@ -29,30 +29,43 @@ async function carregarHistorico() {
 function renderizarCards(lista) {
     const grid = document.getElementById('orcamentosGrid');
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); // Normaliza para comparar apenas a data
+    hoje.setHours(0, 0, 0, 0); 
     
     grid.innerHTML = '';
 
     lista.forEach(o => {
-        // Garante que a data seja lida corretamente independente do formato do banco
-        const dataValidade = new Date(o.data_validade || o.valid_until);
+        // CORREÇÃO DA DATA: Adicionamos o T00:00 para forçar o JS a ler no fuso local e não UTC
+        // Isso evita que a data apareça com um dia a menos.
+        const dataOriginal = o.data_validade || o.valid_until;
+        const dataValidade = new Date(dataOriginal + 'T00:00');
         dataValidade.setHours(0, 0, 0, 0); 
         
         let statusFinal = o.status || 'Pendente';
 
-        // Regra de Expiração Automática: se a validade é anterior a hoje e não foi vendido
+        // Regra de Expiração Automática
         if (dataValidade < hoje && (statusFinal.toLowerCase() === 'pendente' || statusFinal.toLowerCase() === 'novo')) {
             statusFinal = 'Expirado';
         }
 
+        // DEFINIÇÃO DE CORES PARA O STATUS (Tema Terrazi)
+        let badgeColor = "#856404"; // Marrom/Dourado para Pendente
+        let badgeBg = "#fff3cd";    // Fundo Amarelo Suave
+        
+        if (statusFinal === 'Expirado') {
+            badgeColor = "#721c24"; // Vermelho Escuro
+            badgeBg = "#f8d7da";    // Fundo Vermelho Suave
+        } else if (statusFinal.toLowerCase() === 'fechado' || statusFinal.toLowerCase() === 'vendido') {
+            badgeColor = "#1A3017"; // Verde Terrazi
+            badgeBg = "#E8F5E9";    // Verde Claro
+        }
+
         const card = document.createElement('div');
-        // Mantém a classe de status para o CSS aplicar as cores (amarelo, vermelho ou verde)
         card.className = `orcamento-card status-${statusFinal.toLowerCase()}`; 
         
         card.innerHTML = `
             <div class="card-header">
                 <span>#${o.id}</span> 
-                <span style="font-size:11px; font-weight:600;">Vencimento: ${dataValidade.toLocaleDateString('pt-BR')}</span>
+                <span style="font-size:11px; font-weight:600;">Validade: ${dataValidade.toLocaleDateString('pt-BR')}</span>
             </div>
             <div class="card-body">
                 <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #1A3017;">${o.cliente_nome || 'Consumidor'}</h3>
@@ -60,7 +73,7 @@ function renderizarCards(lista) {
                 <div class="total" style="font-size: 18px; font-weight: 700; color: #1A3017;">
                     R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </div>
-                <div class="badge-status" style="margin-top:10px; display:inline-block; padding:4px 10px; border-radius:12px; font-size:10px; font-weight:bold; text-transform:uppercase;">
+                <div class="badge-status" style="margin-top:10px; display:inline-block; padding:4px 12px; border-radius:12px; font-size:10px; font-weight:bold; text-transform:uppercase; color: ${badgeColor}; background-color: ${badgeBg};">
                     ${statusFinal}
                 </div>
             </div>
