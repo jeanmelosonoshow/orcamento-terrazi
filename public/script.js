@@ -1,3 +1,22 @@
+const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+
+if (!usuarioLogado) {
+    window.location.href = 'login.html';
+} else {
+    // Exibir no topo da página
+    document.getElementById('header-user-info').innerText = 
+        `${usuarioLogado.nomefuncionario} (${usuarioLogado.categoria}) - Filial: ${usuarioLogado.idfilial}`;
+    
+    // Travar nome do vendedor
+    const sellerInput = document.getElementById('sellerName');
+    if (sellerInput) {
+        sellerInput.value = usuarioLogado.nomefuncionario;
+        sellerInput.readOnly = true;
+    }
+}
+
+
+
 // Seletores
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
