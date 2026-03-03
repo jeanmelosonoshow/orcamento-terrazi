@@ -1,110 +1,111 @@
-/* Reset e Fontes */
+/* Importando variáveis e padrões globais */
+:root {
+    --verde-escuro: #1A3017;
+    --verde-medio: #2D5A27;
+    --verde-claro: #E8F5E9;
+    --cinza-suave: #F9F9F9;
+    --texto: #333;
+    --borda: #E0E0E0;
+}
+
+/* RESET DE COMPORTAMENTO DA INDEX */
 body {
     font-family: 'Inter', sans-serif;
-    background-color: #fcfcfc;
+    background-color: #FFF;
+    color: var(--texto);
     margin: 0;
-    padding: 0;
+    /* Remove o flex do body que trava a altura da tela */
+    display: block !important; 
+    height: auto !important; 
+    overflow-y: auto !important;
 }
 
-/* Container Principal - GARANTE LARGURA TOTAL */
-.container {
-    width: 100% !important;
-    max-width: 1400px; 
-    margin: 0 auto;
-    padding: 20px;
-    box-sizing: border-box;
-}
-
+/* HEADER - Mantendo o padrão da logo */
 .lista-header {
-    background: #fff;
-    padding: 20px 0;
-    border-bottom: 1px solid #eee;
-    margin-bottom: 30px;
-}
-
-.header-content {
-    max-width: 1400px; /* Alinhado com o container */
-    margin: 0 auto;
+    padding: 20px 5%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 20px;
+    border-bottom: 1px solid var(--borda);
+    background: white;
 }
 
-.premium-title {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.2rem;
-    color: #1A3017;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin: 0;
+/* RESET DO MAIN - O segredo para a grade horizontal */
+main {
+    /* Cancela as 2 colunas da index (1fr 350px) */
+    display: block !important; 
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 30px 5%;
 }
 
-/* Barra de Filtros */
+/* BARRA DE FILTROS */
 .filters-bar {
     display: flex;
     gap: 15px;
-    margin-bottom: 30px;
+    margin-bottom: 40px;
     width: 100%;
 }
 
 .input-wrapper { flex: 3; }
 .select-wrapper { flex: 1; }
 
-.filters-bar input, .filters-bar select {
+input[type="text"], select {
     width: 100%;
-    padding: 12px 15px;
-    border: 1px solid #e0e0e0;
+    padding: 12px;
+    border: 1px solid var(--borda);
     border-radius: 4px;
-    font-size: 0.85rem;
-    color: #333;
-    background: #fff;
+    outline: none;
+    font-size: 0.9rem;
 }
 
-/* GRID DE ORÇAMENTOS - CORREÇÃO PARA LINHA HORIZONTAL */
+/* A GRADE DE ORÇAMENTOS - Ocupando a linha horizontal conforme sua marcação */
 #orcamentosGrid {
     display: grid !important;
-    /* Divide em colunas iguais. Em telas grandes cabem 3 ou 4, em menores 1 ou 2 */
+    /* Cria as colunas da grade: mínimo 320px cada */
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
     gap: 25px;
     width: 100% !important;
-    padding: 0;
-    margin-top: 20px;
 }
 
-/* CARD DE ORÇAMENTO */
+/* ESTILO DO CARD TERRAZI */
 .orcamento-card {
-    background: #fff;
-    border: 1px solid #eee;
+    background: white;
+    border: 1px solid var(--borda);
     border-radius: 8px;
     padding: 20px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-    box-sizing: border-box;
-    min-height: 250px;
+    transition: 0.3s;
+    position: relative;
 }
 
 .orcamento-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 15px rgba(0,0,0,0.08);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transform: translateY(-3px);
 }
 
-/* Estilização Interna do Card */
+/* Bordas de Status */
+.status-pendente { border-left: 6px solid #f1c40f !important; }
+.status-gerou-venda { border-left: 6px solid var(--verde-medio) !important; }
+.status-cancelado { border-left: 6px solid #ff4d4d !important; }
+.status-expirado { border-left: 6px solid #999 !important; }
+
+/* Conteúdo Interno */
 .card-header {
     display: flex;
     justify-content: space-between;
     font-size: 0.75rem;
-    color: #999;
-    margin-bottom: 10px;
+    color: #888;
+    margin-bottom: 15px;
 }
 
 .cliente-nome {
     font-size: 1.1rem;
-    color: #1A3017;
-    margin: 5px 0;
+    color: var(--verde-escuro);
+    font-weight: 600;
+    margin: 0 0 5px 0;
 }
 
 .vendedor-info {
@@ -113,72 +114,37 @@ body {
     margin-bottom: 15px;
 }
 
-/* Badges e Status */
-.status-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    background: #f0f0f0;
-}
-
-/* Bordas Laterais por Status */
-.status-pendente { border-left: 6px solid #f1c40f !important; }
-.status-gerou-venda { border-left: 6px solid #2d5a27 !important; }
-.status-cancelado { border-left: 6px solid #e74c3c !important; }
-.status-expirado { border-left: 6px solid #95a5a6 !important; }
-
-/* Rodapé do Card e Ações */
-.card-footer {
-    margin-top: auto;
-    border-top: 1px solid #f9f9f9;
-    padding-top: 15px;
-}
-
 .total-valor {
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid var(--cinza-suave);
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
+    font-weight: bold;
+    color: var(--verde-escuro);
 }
 
-.total-valor .valor {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #1A3017;
-}
-
+/* Botões de Ação */
 .acoes-grid {
+    margin-top: 15px;
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
 .btn-clonar {
-    background: #1A3017;
+    background-color: var(--verde-escuro);
     color: white;
-    border: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
     padding: 10px;
     border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 600;
+}
+
+.btn-clonar:hover { background-color: var(--verde-medio); }
+
+.select-status-inline {
+    background: var(--cinza-suave);
     cursor: pointer;
-    text-transform: uppercase;
-    transition: background 0.2s;
-}
-
-.btn-clonar:hover {
-    background: #2d5a27;
-}
-
-.status-fechado-msg {
-    font-size: 0.7rem;
-    color: #999;
-    text-align: center;
-    font-style: italic;
-    padding: 8px;
-    background: #f9f9f9;
-    border-radius: 4px;
 }
