@@ -79,15 +79,22 @@ window.gerarImpressao = async (id, statusAtual) => {
         
         if (!orcamento) return alert("Erro ao carregar dados.");
 
-        // Adicionamos o status atual e ID ao objeto para que o PDF saiba mostrar o carimbo
+        // Dados para o localStorage
         orcamento.status_atual = statusAtual;
         orcamento.id_impressao = id;
-
-        // Salva no localStorage exatamente como o "Clonar" faz
         localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
         
-        // Abre a index em uma nova aba passando o comando de impressão
-        window.open('index.html?modo=impressao', '_blank');
+        // --- LÓGICA DO IFRAME OCULTO ---
+        // Criamos um iframe que o usuário não vê
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none'; 
+        iframe.src = 'index.html?modo=impressao';
+        document.body.appendChild(iframe);
+
+        // Removemos o iframe da memória após 10 segundos (tempo folgado para o PDF gerar)
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 10000);
 
     } catch (error) {
         console.error("Erro ao preparar impressão:", error);
