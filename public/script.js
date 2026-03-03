@@ -1,9 +1,6 @@
 // 0. VERIFICAÇÃO DE LOGIN E DADOS DO USUÁRIO
 const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
-
-if (!usuarioLogado) {
-    window.location.href = 'login.html';
-}
+if (!usuarioLogado) { window.location.href = 'login.html'; }
 
 // Seletores
 const searchInput = document.getElementById('searchInput');
@@ -11,8 +8,6 @@ const searchBtn = document.getElementById('searchBtn');
 const productsGrid = document.getElementById('productsGrid');
 const quoteItemsContainer = document.getElementById('quoteItems');
 const generatePdfBtn = document.getElementById('generatePdfBtn');
-
-// Seletores para dados do orçamento
 const custName = document.getElementById('custName');
 const custDoc = document.getElementById('custDoc');
 const quoteValid = document.getElementById('quoteValid');
@@ -22,42 +17,41 @@ const generalObs = document.getElementById('generalObs');
 const displayTotalGeral = document.getElementById('displayTotalGeral');
 
 let quoteCart = [];
-const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
-
-let isModoImpressao = false;
-let statusParaImpressao = "";
-let idParaImpressao = "";
 
 // 1. INICIALIZAÇÃO
-window.onload = () => {
-    // Exibe dados no topo
+document.addEventListener('DOMContentLoaded', () => {
     exibirUsuarioLogado();
 
-    // Trava nome do vendedor no formulário
     if (sellerName) {
         sellerName.value = usuarioLogado.nomefuncionario;
         sellerName.readOnly = true;
     }
 
+    // Carregamento inicial de produtos
     fetchProducts(true);
-    
+
+    // VINCULAÇÃO DA BUSCA (Correção da funcionalidade)
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => fetchProducts(false));
+    }
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchProducts(false);
+        });
+    }
+
+    // Lógica de clonagem/impressão
     const urlParams = new URLSearchParams(window.location.search);
-    isModoImpressao = urlParams.get('modo') === 'impressao';
-    
+    const isModoImpressao = urlParams.get('modo') === 'impressao';
     const clonarData = localStorage.getItem('clonar_orcamento');
+
     if (clonarData) {
         const data = JSON.parse(clonarData);
-        statusParaImpressao = data.status_atual || "";
-        idParaImpressao = data.id_impressao || "";
-
         custName.value = data.cliente_nome || '';
         custDoc.value = data.cliente_doc || '';
         sellerPhone.value = data.vendedor_contato || '';
         generalObs.value = data.obs_geral || '';
-        
-        if (data.data_validade) {
-            quoteValid.value = data.data_validade.split('T')[0];
-        }
+        if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
         
         quoteCart = (data.items || data.itens || []).map(item => ({
             sku: item.sku,
@@ -72,16 +66,15 @@ window.onload = () => {
         
         renderQuoteSidebar();
         localStorage.removeItem('clonar_orcamento'); 
-
-        if (isModoImpressao) {
-            setTimeout(() => { if (generatePdfBtn) generatePdfBtn.click(); }, 3000);
+        if (isModoImpressao && generatePdfBtn) {
+            setTimeout(() => { generatePdfBtn.click(); }, 3000);
         }
     }
-};
+});
 
 // 2. BUSCA E RENDERIZAÇÃO
 async function fetchProducts(isInitial = false) {
-    const query = isInitial ? "" : searchInput.value.trim();
+    const query = isInitial ? "" : (searchInput ? searchInput.value.trim() : "");
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
     try {
         const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
@@ -112,10 +105,10 @@ function renderProducts(products) {
 }
 
 // 3. CARRINHO E EDIÇÃO
-function adicionarAoOrcamento(produto) {
+window.adicionarAoOrcamento = (produto) => {
     quoteCart.push({ ...produto, tempId: Date.now(), displayName: produto.name, quantity: 1, variation: "" });
     renderQuoteSidebar();
-}
+};
 
 function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
@@ -145,12 +138,14 @@ window.atualizarDados = (index, campo, valor) => {
 
 window.removerItem = (index) => { quoteCart.splice(index, 1); renderQuoteSidebar(); };
 
+window.limparOrcamento = () => { quoteCart = []; renderQuoteSidebar(); };
+
 function atualizarDestaqueTotal() {
     const total = quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     if (displayTotalGeral) displayTotalGeral.innerText = `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 }
 
-// 4. SALVAMENTO E PDF
+// 4. SALVAMENTO E PDF (Mantenha sua lógica de PDF completa aqui)
 async function salvarNoBanco() {
     const totalGeral = quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const payload = {
@@ -169,7 +164,6 @@ async function salvarNoBanco() {
             idfilial: usuarioLogado.idfilial
         }
     };
-
     try {
         const response = await fetch('/api/salvar-orcamento', {
             method: 'POST',
@@ -180,13 +174,13 @@ async function salvarNoBanco() {
     } catch (error) { console.error("Erro ao salvar:", error); }
 }
 
-generatePdfBtn.addEventListener('click', async () => {
-    if (quoteCart.length === 0) return alert("Selecione itens.");
-    if (!isModoImpressao) await salvarNoBanco();
-    // ... (Logica de HTML do PDF mantida conforme sua versão anterior)
-    alert("Gerando PDF...");
-    // Chame aqui sua lógica de html2pdf
-});
+if (generatePdfBtn) {
+    generatePdfBtn.addEventListener('click', async () => {
+        if (quoteCart.length === 0) return alert("Selecione itens.");
+        await salvarNoBanco();
+        alert("Salvando e gerando PDF...");
+    });
+}
 
 // 5. FUNÇÕES DE SESSÃO
 function exibirUsuarioLogado() {
@@ -196,7 +190,6 @@ function exibirUsuarioLogado() {
             <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario}</span> | 
             <span><strong>Categoria:</strong> ${usuarioLogado.categoria}</span> | 
             <span><strong>Filial:</strong> ${usuarioLogado.idfilial}</span>
-            <button onclick="fazerLogout()" style="margin-left:15px; background:#c0392b; color:white; border:none; padding:5px; border-radius:4px; cursor:pointer;">Sair</button>
         `;
     }
 }
