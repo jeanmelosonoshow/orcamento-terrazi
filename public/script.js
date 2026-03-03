@@ -78,9 +78,17 @@ async function fetchProducts(isInitial = false) {
 function renderProducts(products) {
     productsGrid.innerHTML = '';
     products.forEach(p => {
-        // Lógica visual para o estoque (Verde se ok, Laranja/Vermelho se baixo)
+        // Lógica visual para o estoque
         const estoqueNum = parseInt(p.stock);
-        const corEstoque = (isNaN(estoqueNum)) ? "#666" : (estoqueNum < 3 ? "#d9534f" : "#1A3017");
+        
+        // NOVA LÓGICA: 
+        // 1. Se for "Sob Consulta", fica Vermelho (#d9534f)
+        // 2. Se for número e menor que 1, fica Vermelho (#d9534f)
+        // 3. Caso contrário, usa o Verde Escuro da marca (#1A3017)
+        const corEstoque = (p.stock === "Sob Consulta" || estoqueNum < 1) 
+            ? "#d9534f" 
+            : "#1A3017";
+
         const textoEstoque = p.stock === "Sob Consulta" ? "Sob Consulta" : `Estoque: ${p.stock}`;
 
         const card = document.createElement('div');
