@@ -68,12 +68,12 @@ export default async function handler(req, res) {
         // QUERY ATUALIZADA: Busca os campos solicitados
         const sql = `
             SELECT 
-                ID_FUNCIONARIO, 
-                NOME_FUNCIONARIO, 
-                CATEGORIA, 
-                ID_FILIAL 
+                IDFUNCIONARIO AS ID_FUNCIONARIO, 
+                NOMEFUNCIONARIO AS NOME_FUNCIONARIO, 
+                CASTEGORIA AS CATEGORIA, 
+                IDFILIAL AS ID_FILIAL 
             FROM FUNCIONARIO 
-            WHERE LOGIN = ? AND SENHAWEB = ? AND STATUS = 'A'
+            WHERE LOGIN = ? AND SENHAWEB = ? AND STATUS = 'A' AND CATEGORIA IN ('GR','SU','VD','DI')
         `;
         
         db.query(sql, [usuario, senhaHash], function(err, result) {
