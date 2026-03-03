@@ -359,7 +359,12 @@ generatePdfBtn.addEventListener('click', async () => {
         margin: [20, 0, 20, 0],
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, // ESSENCIAL
+            logging: false, 
+            letterRendering: true 
+        },
         jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     }).from(element).save();
