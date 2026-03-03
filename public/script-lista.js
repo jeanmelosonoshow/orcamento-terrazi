@@ -1,50 +1,91 @@
-window.clonarOrcamento = async (id) => {
-    try {
-        const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
-        if (!res.ok) throw new Error("Falha ao buscar dados");
-        
-        const orcamento = await res.json();
-        
-        // Salvamos no localStorage para a index.html ler
-        localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
-        
-        // Redireciona para a página principal para iniciar a edição
-        window.location.href = 'index.html';
-    } catch (error) {
-        console.error(error);
-        alert("Erro ao recuperar dados para clonagem. Verifique a conexão.");
-    }
-};
+// script-lista.js
 
-window.alterarStatus = async (id, novoStatus) => {
-    if (!novoStatus) return;
-
-    // Confirmação para evitar fechamento acidental (já que a trava impede retorno)
-    const confirmar = confirm(`Deseja realmente alterar o status para "${novoStatus.toUpperCase()}"? Esta ação não poderá ser desfeita.`);
+async function carregarHistorico() {
+    const grid = document.getElementById('orcamentosGrid');
+    const statusFilter = document.getElementById('statusFilter');
     
-    if (!confirmar) {
-        location.reload(); // Recarrega para voltar o select ao valor original visualmente
-        return;
-    }
-
     try {
-        const res = await fetch('/api/status-orcamento', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, status: novoStatus })
-        });
-        
-        const data = await res.json();
+        const response = await fetch('/api/listar-orcamentos');
+        const orcamentos = await response.json();
 
-        if (res.ok) {
-            alert("Status atualizado com sucesso!");
-            location.reload(); 
-        } else {
-            alert(`Erro: ${data.error}`);
-            location.reload();
+        if (orcamentos.length === 0) {
+            grid.innerHTML = '<div class="loader">Nenhum orçamento encontrado.</div>';
+            return;
         }
+
+        // Renderiza os cards
+        renderizarCards(orcamentos);
+
+        // Armazena globalmente para o filtro funcionar sem nova requisição
+        window.todosOrcamentos = orcamentos;
+
     } catch (error) {
-        alert("Erro de rede ao atualizar status.");
-        location.reload();
+        console.error("Erro ao carregar:", error);
+        grid.innerHTML = '<div class="loader" style="color: red;">Erro ao carregar histórico.</div>';
     }
+}
+
+function renderizarCards(lista) {
+    const grid = document.getElementById('orcamentosGrid');
+    grid.innerHTML = '';
+
+    lista.forEach(o => {
+        // Ajuste de cores por status
+        const statusClass = o.status.toLowerCase().replace(/\s/g, '-');
+        
+        // Formatação da data (Tratando data_criacao do seu banco)
+        const dataFormatada = new Date(o.data_criacao).toLocaleDateString('pt-BR');
+        
+        const card = document.createElement('div');
+        card.className = `orcamento-card status-${statusClass}`;
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="id-orcamento">#${o.id}</span>
+                <span class="data-orcamento">${dataFormatada}</span>
+            </div>
+            
+            <div class="card-body">
+                <h3 class="cliente-nome">${o.cliente_nome || 'Consumidor'}</h3>
+                <p class="vendedor-info">Vendedor: <strong>${o.vendedor_nome || 'Geral'}</strong></p>
+                <div class="status-badge">${o.status.toUpperCase()}</div>
+            </div>
+
+            <div class="card-footer">
+                <div class="total-valor">
+                    <span class="label">Total</span>
+                    <span class="valor">R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                </div>
+                
+                <div class="acoes-grid">
+                    <select onchange="alterarStatus(${o.id}, this.value)" class="select-status-inline">
+                        <option value="" disabled selected>Alterar Status</option>
+                        <option value="Finalizado com Venda">Venda</option>
+                        <option value="Finalizado sem retorno">Sem Retorno</option>
+                    </select>
+                    <button onclick="clonarOrcamento(${o.id})" class="btn-clonar" title="Clonar Orçamento">
+                        REABRIR / CLONAR
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+// Função de Filtro (Nome ou CPF)
+window.filtrarCards = () => {
+    const termo = document.getElementById('filterInput').value.toLowerCase();
+    const status = document.getElementById('statusFilter').value;
+    
+    const filtrados = window.todosOrcamentos.filter(o => {
+        const bateNome = (o.cliente_nome || "").toLowerCase().includes(termo);
+        const bateDoc = (o.cliente_doc || "").includes(termo);
+        const bateStatus = status === "" || o.status === status;
+        return (bateNome || bateDoc) && bateStatus;
+    });
+
+    renderizarCards(filtrados);
 };
+
+// Inicializa
+document.addEventListener('DOMContentLoaded', carregarHistorico);
