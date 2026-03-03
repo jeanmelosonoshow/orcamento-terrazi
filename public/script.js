@@ -131,20 +131,46 @@ function renderQuoteSidebar() {
     quoteCart.forEach((item, index) => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'item-quote-edit';
+        
+        // Estrutura Premium: Título e Delete na linha 1, Variação na 2, Controles na 3
         itemDiv.innerHTML = `
-            <div style="display:flex; gap:10px;">
-                <img src="${item.image}" style="width:40px;">
-                <input type="text" value="${item.displayName}" onchange="atualizarDados(${index}, 'displayName', this.value)" style="flex:1">
-                <button onclick="removerItem(${index})">×</button>
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:5px;">
+                <img src="${item.image}" style="width:35px; height:35px; object-fit:cover; border-radius:4px;">
+                <input type="text" value="${item.displayName}" 
+                    onchange="atualizarDados(${index}, 'displayName', this.value)" 
+                    style="flex:1; font-weight:600; border:none; background:transparent; font-size:13px;" title="Nome do Produto">
+                <button onclick="removerItem(${index})" 
+                    style="background:none; border:none; color:#c0392b; cursor:pointer; font-size:18px; font-weight:bold; padding:0 5px;">&times;</button>
             </div>
-            <input type="text" placeholder="Variação..." value="${item.variation || ''}" onchange="atualizarDados(${index}, 'variation', this.value)">
-            <div style="display:flex; gap:5px;">
-                <input type="number" value="${item.quantity}" onchange="atualizarDados(${index}, 'quantity', this.value)">
-                <input type="number" step="0.01" value="${item.price}" onchange="atualizarDados(${index}, 'price', this.value)">
-            </div>`;
+            
+            <div style="margin-bottom:8px;">
+                <input type="text" placeholder="Adicionar variação (ex: cor, tamanho)..." value="${item.variation || ''}" 
+                    onchange="atualizarDados(${index}, 'variation', this.value)" 
+                    style="width:100%; font-size:11px; color:#666; font-style:italic; padding:4px 0; border:none; border-bottom:1px solid #eee; background:transparent;">
+            </div>
+
+            <div class="item-controls-grid" style="display: grid; grid-template-columns: 60px 1fr; gap: 10px; align-items: center;">
+                <div style="display:flex; flex-direction:column;">
+                    <label style="font-size:9px; color:#999; text-transform:uppercase;">Qtd</label>
+                    <input type="number" value="${item.quantity}" 
+                        onchange="atualizarDados(${index}, 'quantity', this.value)" 
+                        style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px;">
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <label style="font-size:9px; color:#999; text-transform:uppercase;">Preço Unitário (R$)</label>
+                    <input type="number" step="0.01" value="${item.price}" 
+                        onchange="atualizarDados(${index}, 'price', this.value)" 
+                        style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; font-weight:600; color:#1A3017;">
+                </div>
+            </div>
+        `;
         quoteItemsContainer.appendChild(itemDiv);
     });
-    atualizarDestaqueTotal();
+    
+    // Atualiza o total no box de destaque
+    if (typeof atualizarDestaqueTotal === "function") {
+        atualizarDestaqueTotal();
+    }
 }
 
 window.atualizarDados = (index, campo, valor) => {
