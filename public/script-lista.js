@@ -77,7 +77,6 @@ window.gerarImpressao = async (id, statusAtual) => {
         const response = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const o = await response.json();
         
-        // Normalização dos itens para garantir que a lista seja lida corretamente
         const listaProdutos = o.items || o.itens || [];
 
         if (!o || listaProdutos.length === 0) {
@@ -89,7 +88,6 @@ window.gerarImpressao = async (id, statusAtual) => {
         const dataValidade = o.data_validade ? new Date(o.data_validade).toLocaleDateString('pt-BR') : 'A consultar';
         const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp"; 
 
-        // Recálculo de segurança do total
         const valorTotalCalculado = listaProdutos.reduce((acc, item) => {
             const p = parseFloat(item.preco_unitario || item.price || 0);
             const q = parseInt(item.quantidade || item.quantity || 0);
@@ -107,23 +105,32 @@ window.gerarImpressao = async (id, statusAtual) => {
 
         let html = `
             <style>
-                .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; background: white; padding: 40px 40px 30px 60px; position: relative; }
+                /* Ajuste de margens para evitar empurrar o cabeçalho */
+                .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; background: white; padding: 20px 40px 40px 50px; position: relative; }
                 .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: #1A3017; }
-                .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
-                .pdf-logo { height: 45px; }
-                .header-info { text-align: right; font-size: 9px; color: #666; line-height: 1.4; }
-                .info-box { background: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px; border: 1px solid #eee; }
-                .product-block { width: 100%; page-break-inside: avoid !important; margin-bottom: 25px; padding-top: 15px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
+                
+                /* Cabeçalho mais compacto para não ocupar espaço excessivo */
+                .pdf-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 15px; }
+                .pdf-logo { height: 40px; }
+                .header-info { text-align: right; font-size: 9px; color: #666; line-height: 1.2; }
+                
+                .info-box { background: #f9f9f9; padding: 10px; border-radius: 4px; margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 10px; border: 1px solid #eee; }
+                .product-block { width: 100%; page-break-inside: avoid !important; margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
                 .product-content { display: flex; gap: 20px; }
-                .left-column { width: 180px; flex-shrink: 0; }
-                .product-image { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
+                .left-column { width: 150px; flex-shrink: 0; }
+                .product-image { width: 150px; height: 150px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
                 .dimensoes-box { font-size: 9px; line-height: 1.3; color: #1A3017; background: #F4F9F4; padding: 8px; border-radius: 4px; }
                 .right-column { flex: 1; }
-                .product-title { font-size: 15px; font-weight: bold; color: #1A3017; margin: 0; text-transform: uppercase; }
+                .product-title { font-size: 14px; font-weight: bold; color: #1A3017; margin: 0; text-transform: uppercase; }
+                
                 .item-price-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                 .item-price-table td { font-size: 10px; padding: 6px; border: 1px solid #eee; text-align: center; font-weight: bold; }
                 .td-label { background: #fafafa; font-size: 8px; color: #888; text-transform: uppercase; }
-                .status-carimbo { margin-top: 8px; padding: 4px 12px; border: 2px solid #1A3017; color: #1A3017; display: inline-block; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+                .status-carimbo { margin-top: 5px; padding: 2px 8px; border: 1.5px solid #1A3017; color: #1A3017; display: inline-block; font-weight: 900; font-size: 10px; text-transform: uppercase; }
+                
+                /* Bloco de Total com proteção de quebra */
+                .final-block { page-break-inside: avoid !important; margin-top: 20px; }
+                .total-box { background: #1A3017; color: white; padding: 15px; text-align: right; border-radius: 4px; }
             </style>
             <div class="pdf-body">
                 <div class="brand-sidebar"></div>
@@ -131,8 +138,7 @@ window.gerarImpressao = async (id, statusAtual) => {
                     <img src="${LOGO_URL}" class="pdf-logo">
                     <div class="header-info">
                         <strong>ORÇAMENTO TERRAZI #${o.id}</strong><br>
-                        Emissão: ${dataCriacao}<br>
-                        Validade: ${dataValidade}<br>
+                        Emissão: ${dataCriacao} | Validade: ${dataValidade}<br>
                         <div class="status-carimbo">${statusAtual.toUpperCase()}</div>
                     </div>
                 </div>
@@ -189,23 +195,25 @@ window.gerarImpressao = async (id, statusAtual) => {
         });
 
         html += `
-                ${o.obs_geral ? `<div style="background: #f9f9f9; padding: 10px; border: 1px solid #eee; font-size: 10px; margin-top: 20px;"><strong>OBSERVAÇÕES:</strong><br>${o.obs_geral}</div>` : ''}
-                <div style="background: #1A3017; color: white; padding: 15px; text-align: right; border-radius: 4px; margin-top: 15px;">
-                    <span style="font-size: 18px; font-weight: bold;">TOTAL: R$ ${totalExibicao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                <div class="final-block">
+                    ${o.obs_geral ? `<div style="background: #f9f9f9; padding: 10px; border: 1px solid #eee; font-size: 10px; margin-bottom: 10px;"><strong>OBSERVAÇÕES:</strong><br>${o.obs_geral}</div>` : ''}
+                    <div class="total-box">
+                        <span style="font-size: 18px; font-weight: bold;">TOTAL: R$ ${totalExibicao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                    </div>
                 </div>
             </div>`;
 
         element.innerHTML = html;
         
         const opt = {
-            margin: [20, 0, 20, 0],
+            margin: [30, 0, 30, 0], // Aumentei a margem superior/inferior do PDF
             filename: `Terrazi_Orcamento_${o.id}.pdf`,
-            html2canvas: { scale: 2, useCORS: true },
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
 
-        // Gerar o PDF e abrir diretamente como Blob em nova aba
         html2pdf().set(opt).from(element).toPdf().output('bloburl').then(function (pdfUrl) {
             window.open(pdfUrl, '_blank');
         });
