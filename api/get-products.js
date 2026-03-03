@@ -54,7 +54,7 @@ export default async function handler(req, res) {
                      // Garante que o preço seja tratado como número ou string formatada
                      price: mainVariant?.price || "0.00",
                      // Estoque: Nuvemshop usa null para "infinito", então convertemos para texto ou 0
-                     stock: mainVariant?.stock !== null ? mainVariant?.stock : "Consultar",
+                     stock: mainVariant?.stock !== null ? mainVariant?.stock : "Sob Consulta",
                      // Imagem: Pega a primeira ou uma placeholder se estiver sem foto
                      image: p.images && p.images.length > 0 ? p.images[0].src : 'https://via.placeholder.com/300',
                      // Mantemos a flag para o frontend
