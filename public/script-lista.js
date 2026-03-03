@@ -2,7 +2,6 @@
 
 async function carregarHistorico() {
     const grid = document.getElementById('orcamentosGrid');
-    const statusFilter = document.getElementById('statusFilter');
     
     try {
         const response = await fetch('/api/listar-orcamentos');
@@ -13,11 +12,11 @@ async function carregarHistorico() {
             return;
         }
 
+        // Armazena globalmente para o filtro funcionar
+        window.todosOrcamentos = orcamentos;
+        
         // Renderiza os cards
         renderizarCards(orcamentos);
-
-        // Armazena globalmente para o filtro funcionar sem nova requisição
-        window.todosOrcamentos = orcamentos;
 
     } catch (error) {
         console.error("Erro ao carregar:", error);
@@ -30,10 +29,12 @@ function renderizarCards(lista) {
     grid.innerHTML = '';
 
     lista.forEach(o => {
-        // Ajuste de cores por status
-        const statusClass = o.status.toLowerCase().replace(/\s/g, '-');
+        // Define se o orçamento permite alteração de status
+        const ehPendente = o.status === 'Pendente';
         
-        // Formatação da data (Tratando data_criacao do seu banco)
+        // Normaliza o status para classes CSS (ex: "Gerou Venda" vira "gerou-venda")
+        const statusClass = o.status.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s/g, '-');
+        
         const dataFormatada = new Date(o.data_criacao).toLocaleDateString('pt-BR');
         
         const card = document.createElement('div');
@@ -56,12 +57,15 @@ function renderizarCards(lista) {
                     <span class="valor">R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                 </div>
                 
-                <div class="acoes-grid">                                         
+                <div class="acoes-grid">
+                    ${ehPendente ? `
                         <select onchange="alterarStatus(${o.id}, this.value)" class="select-status-inline">
                             <option value="" disabled selected>Alterar Status</option>
                             <option value="Gerou Venda">Gerou Venda</option>
                             <option value="Cancelado">Cancelado</option>
                         </select>
+                    ` : `<div class="status-fechado-msg">Status Finalizado</div>`}
+
                     <button onclick="clonarOrcamento(${o.id})" class="btn-clonar" title="Clonar Orçamento">
                         REABRIR / CLONAR
                     </button>
@@ -72,7 +76,47 @@ function renderizarCards(lista) {
     });
 }
 
-// Função de Filtro (Nome ou CPF)
+// Funções Globais de Ação
+window.alterarStatus = async (id, novoStatus) => {
+    if (!novoStatus) return;
+
+    const confirmar = confirm(`Deseja alterar o status para "${novoStatus}"? Esta ação não pode ser desfeita.`);
+    if (!confirmar) {
+        location.reload();
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/status-orcamento', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status: novoStatus })
+        });
+        
+        if (res.ok) {
+            alert("Status atualizado!");
+            carregarHistorico(); // Recarrega a lista
+        } else {
+            const err = await res.json();
+            alert(`Erro: ${err.error}`);
+            location.reload();
+        }
+    } catch (error) {
+        alert("Erro ao conectar com o servidor.");
+    }
+};
+
+window.clonarOrcamento = async (id) => {
+    try {
+        const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
+        const orcamento = await res.json();
+        localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
+        window.location.href = 'index.html';
+    } catch (error) {
+        alert("Erro ao recuperar dados para clonagem.");
+    }
+};
+
 window.filtrarCards = () => {
     const termo = document.getElementById('filterInput').value.toLowerCase();
     const status = document.getElementById('statusFilter').value;
@@ -87,5 +131,4 @@ window.filtrarCards = () => {
     renderizarCards(filtrados);
 };
 
-// Inicializa
 document.addEventListener('DOMContentLoaded', carregarHistorico);
