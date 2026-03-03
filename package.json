@@ -8,9 +8,10 @@
     "start": "vercel dev"
   },
   "dependencies": {
+    "@vercel/postgres": "^0.5.0",
     "node-fetch": "^3.3.2"
   },
   "engines": {
-    "node": "24.x"
+    "node": "22.x"
   }
 }
