@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   const client = await db.connect();
 
   try {
-    // Busca os orçamentos usando a coluna correta (data_criacao) e a lógica de expiração
+    // A mágica acontece no CASE WHEN abaixo
     const { rows } = await client.query(`
       SELECT 
         id,
@@ -28,8 +28,8 @@ export default async function handler(req, res) {
 
     res.status(200).json(rows);
   } catch (error) {
-    console.error("Erro na API de listagem:", error);
-    res.status(500).json({ error: 'Erro ao listar orçamentos', details: error.message });
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao listar orçamentos' });
   } finally {
     client.release();
   }
