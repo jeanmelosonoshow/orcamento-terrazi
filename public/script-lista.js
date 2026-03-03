@@ -90,10 +90,19 @@ function renderizarCards(lista) {
 }
 
 // Nova Função de Impressão (Abre em nova aba com status atual)
+
 window.gerarImpressao = (id, statusAtual) => {
-    // Passamos o ID e o Status para que o PDF reflita se já foi vendido, cancelado, etc.
+    // AJUSTE DE ROTA: Verifique se sua rota correta é /api/gerar-pdf ou apenas /gerar-pdf
+    // Adicionamos o id, o status para o PDF e o modo de visualização
     const url = `/api/gerar-pdf?id=${id}&status=${encodeURIComponent(statusAtual)}&view=true`;
-    window.open(url, '_blank');
+    
+    // Abre em uma nova aba
+    const novaAba = window.open(url, '_blank');
+    
+    // Verificação de segurança caso o navegador bloqueie o pop-up
+    if (!novaAba) {
+        alert("O bloqueador de pop-ups impediu a abertura do PDF. Por favor, autorize este site.");
+    }
 };
 
 window.alterarStatus = async (id, novoStatus) => {
