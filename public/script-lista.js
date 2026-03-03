@@ -32,17 +32,19 @@ function renderizarCards(lista) {
         // Define se o orçamento permite alteração de status
         const ehPendente = o.status === 'Pendente';
         
-        // Normaliza o status para classes CSS (ex: "Gerou Venda" vira "gerou-venda")
+        // Normaliza o status para classes CSS
         const statusClass = o.status.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s/g, '-');
         
-        const dataFormatada = new Date(o.data_criacao).toLocaleDateString('pt-BR');
+        // Datas formatadas
+        const dataCriacao = new Date(o.data_criacao).toLocaleDateString('pt-BR');
+        const dataValidade = new Date(o.data_validade).toLocaleDateString('pt-BR');
         
         const card = document.createElement('div');
         card.className = `orcamento-card status-${statusClass}`;
         card.innerHTML = `
             <div class="card-header">
                 <span class="id-orcamento">#${o.id}</span>
-                <span class="data-orcamento">${dataFormatada}</span>
+                <span class="data-orcamento">${dataCriacao}</span>
             </div>
             
             <div class="card-body">
@@ -52,9 +54,15 @@ function renderizarCards(lista) {
             </div>
 
             <div class="card-footer">
-                <div class="total-valor">
-                    <span class="label">Total</span>
-                    <span class="valor">R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                <div class="validade-row" style="font-size: 0.7rem; color: #999; margin-bottom: 8px;">
+                    Validade: <strong>${dataValidade}</strong>
+                </div>
+
+                <div class="total-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span class="total-label" style="font-size: 0.8rem; color: #888;">Total</span>
+                    <span class="total-valor-bold" style="font-size: 1.2rem; font-weight: 700; color: #1A3017;">
+                        R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    </span>
                 </div>
                 
                 <div class="acoes-grid">
@@ -95,7 +103,7 @@ window.alterarStatus = async (id, novoStatus) => {
         
         if (res.ok) {
             alert("Status atualizado!");
-            carregarHistorico(); // Recarrega a lista
+            carregarHistorico(); 
         } else {
             const err = await res.json();
             alert(`Erro: ${err.error}`);
