@@ -6,21 +6,30 @@ export default async function handler(req, res) {
   const client = await db.connect();
 
   try {
-    // Busca os orçamentos ordenando pelo mais recente
+    // Busca os orçamentos usando a coluna correta (data_criacao) e a lógica de expiração
     const { rows } = await client.query(`
-      SELECT *, 
-      CASE 
-        WHEN status = 'Pendente' AND data_validade < CURRENT_DATE THEN 'Expirado'
-        ELSE status 
-      END as status_atualizado
+      SELECT 
+        id,
+        data_criacao,
+        data_validade,
+        cliente_nome,
+        cliente_doc,
+        vendedor_nome,
+        vendedor_contato,
+        obs_geral,
+        valor_total,
+        CASE 
+          WHEN status = 'Pendente' AND data_validade < CURRENT_DATE THEN 'Expirado'
+          ELSE status 
+        END as status
       FROM orcamentos 
       ORDER BY id DESC
     `);
 
     res.status(200).json(rows);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao listar orçamentos' });
+    console.error("Erro na API de listagem:", error);
+    res.status(500).json({ error: 'Erro ao listar orçamentos', details: error.message });
   } finally {
     client.release();
   }
