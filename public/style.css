@@ -182,3 +182,55 @@ main {
     -webkit-box-orient: vertical;
     margin-bottom: 10px;
 }
+
+/* Card de Item no Orçamento (Lado Direito) */
+.item-quote-edit {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Grid para alinhar Quantidade e Preço sem quebrar */
+.item-controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr; /* Qtde menor, Preço maior */
+    gap: 10px;
+}
+
+.item-controls-grid input {
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+/* Botões da Lista (Tema Terrazi) */
+.btn-reabrir {
+    background: #1A3017;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.btn-imprimir {
+    background: #fff;
+    color: #1A3017;
+    border: 1px solid #1A3017;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-imprimir:hover {
+    background: #f4f4f4;
+}
