@@ -120,3 +120,39 @@ body {
     font-style: italic;
     opacity: 0.7;
 }
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    background: #eee;
+}
+
+/* Cores de destaque por status */
+.orcamento-card.status-pendente { border-left: 5px solid #f1c40f; }
+.orcamento-card.status-finalizado-com-venda { border-left: 5px solid #2d5a27; }
+.orcamento-card.status-expirado { border-left: 5px solid #e74c3c; }
+
+.select-status-inline {
+    width: 100%;
+    padding: 8px;
+    font-size: 11px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+.btn-clonar {
+    width: 100%;
+    background: #1A3017;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+}
