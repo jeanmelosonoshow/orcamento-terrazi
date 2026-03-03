@@ -28,6 +28,32 @@
             font-weight: bold;
             margin-top: 5px;
         }
+
+        /* Estilo para o novo botão de histórico */
+        .btn-history {
+            background-color: #f4f4f4;
+            color: #1A3017;
+            border: 1px solid #1A3017;
+            padding: 0 15px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-history:hover {
+            background-color: #1A3017;
+            color: white;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -38,7 +64,10 @@
         </div>
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Pesquise por SKU ou nome do produto...">
-            <button id="searchBtn">BUSCAR</button>
+            <div class="header-actions">
+                <button id="searchBtn">BUSCAR</button>
+                <a href="lista-orcamentos.html" class="btn-history">HISTÓRICO</a>
+            </div>
         </div>
     </header>
 
