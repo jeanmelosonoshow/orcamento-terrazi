@@ -95,23 +95,25 @@ body {
     border-color: #1A3017;
 }
 
+/* Container principal dos cards */
 #orcamentosGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Cria colunas automáticas */
+    /* Cria colunas de no mínimo 350px. Se houver espaço, coloca mais na mesma linha */
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
     gap: 20px;
     padding: 20px;
     width: 100%;
-    box-sizing: border-box;
+    max-width: 1400px; /* Limita a largura total em telas ultra-wide */
+    margin: 0 auto;    /* Centraliza o bloco na tela */
 }
 
-/* Estilo dos Cards (Reforço) */
+/* Ajuste no card para ocupar 100% da sua coluna no grid */
 .orcamento-card {
     width: 100%;
-    max-width: 400px; /* Opcional: define um limite para o card não esticar demais */
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin: 0; /* Remove margens fixas que podem desalinhá-lo */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .total-valor {
