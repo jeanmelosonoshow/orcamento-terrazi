@@ -95,13 +95,19 @@ window.gerarImpressao = async (id, statusAtual) => {
         const response = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const o = await response.json();
 
-        if (!o || !o.itens) return alert("Erro ao carregar detalhes do orçamento.");
+        // AJUSTE: A API retorna "items", não "itens"
+        const listaProdutos = o.items || o.itens;
+
+        if (!o || !listaProdutos) {
+            console.error("Dados recebidos da API:", o);
+            return alert("Erro: Não foi possível carregar os itens deste orçamento.");
+        }
 
         const element = document.createElement('div');
+        // Ajuste de campos de data e logo
+        const dataCriacao = o.data_criacao ? new Date(o.data_criacao).toLocaleDateString('pt-BR') : '---';
         const dataValidade = o.data_validade ? new Date(o.data_validade).toLocaleDateString('pt-BR') : 'A consultar';
-        
-        // Mantendo a compatibilidade com a logo da index
-        const LOGO_URL = window.LOGO_URL || "/logo.png"; 
+        const LOGO_URL = "/logo.png"; 
 
         let html = `
             <style>
@@ -118,18 +124,9 @@ window.gerarImpressao = async (id, statusAtual) => {
                 .item-price-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                 .item-price-table td { font-size: 10px; padding: 6px; border: 1px solid #eee; text-align: center; font-weight: bold; }
                 .td-label { background: #fafafa; font-size: 8px; color: #888; text-transform: uppercase; }
-                
-                /* Estilo do carimbo de status no cabeçalho */
                 .status-carimbo { 
-                    margin-top: 8px;
-                    padding: 4px 8px;
-                    border: 1.5px solid #1A3017;
-                    color: #1A3017;
-                    display: inline-block;
-                    font-weight: 800;
-                    font-size: 10px;
-                    letter-spacing: 1px;
-                    text-transform: uppercase;
+                    margin-top: 8px; padding: 4px 8px; border: 1.5px solid #1A3017; color: #1A3017;
+                    display: inline-block; font-weight: 800; font-size: 10px; text-transform: uppercase;
                 }
             </style>
             <div class="pdf-body">
@@ -138,7 +135,7 @@ window.gerarImpressao = async (id, statusAtual) => {
                     <img src="${LOGO_URL}" class="pdf-logo">
                     <div class="header-info">
                         <strong>ORÇAMENTO TERRAZI #${o.id}</strong><br>
-                        Emissão: ${new Date(o.data_criacao).toLocaleDateString('pt-BR')}<br>
+                        Emissão: ${dataCriacao}<br>
                         Validade: ${dataValidade}<br>
                         <div class="status-carimbo">${statusAtual.toUpperCase()}</div>
                     </div>
@@ -148,20 +145,26 @@ window.gerarImpressao = async (id, statusAtual) => {
                     <div><strong>VENDEDOR:</strong> ${o.vendedor_nome || '---'}<br><strong>CONTATO:</strong> ${o.vendedor_contato || '---'}</div>
                 </div>`;
 
-        o.itens.forEach(item => {
+        // Uso do listaProdutos (mapeado de o.items da sua API)
+        listaProdutos.forEach(item => {
+            // Ajuste dos nomes das colunas baseado no seu banco de dados
+            const nomeProd = item.display_name || item.nome || item.displayName;
+            const precoProd = parseFloat(item.price || item.preco_unitario || 0);
+            const qtdProd = parseInt(item.quantity || item.quantidade || 0);
+
             html += `
                 <div class="product-block">
                     <div class="product-content">
-                        <img src="${item.image}" class="product-image">
+                        <img src="${item.image || item.imagem_url}" class="product-image">
                         <div style="flex: 1;">
-                            <h2 class="product-title">${item.displayName || item.name}</h2>
-                            <p style="font-size: 9px; margin: 5px 0; color: #555;">${item.description || ''}</p>
+                            <h2 class="product-title">${nomeProd}</h2>
+                            <p style="font-size: 9px; margin: 5px 0; color: #555;">${item.description || item.descricao || ''}</p>
                             <table class="item-price-table">
                                 <tr><td class="td-label">Qtd</td><td class="td-label">Unitário</td><td class="td-label">Subtotal</td></tr>
                                 <tr>
-                                    <td>${item.quantity}</td>
-                                    <td>R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                                    <td>R$ ${(item.quantity * item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                    <td>${qtdProd}</td>
+                                    <td>R$ ${precoProd.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                    <td>R$ ${(qtdProd * precoProd).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                                 </tr>
                             </table>
                         </div>
@@ -184,14 +187,13 @@ window.gerarImpressao = async (id, statusAtual) => {
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         };
 
-        // Gera e abre em nova aba
         html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
             window.open(pdf.output('bloburl'), '_blank');
         });
 
     } catch (error) {
-        console.error("Erro:", error);
-        alert("Erro ao gerar PDF.");
+        console.error("Erro completo:", error);
+        alert("Erro ao processar PDF: " + error.message);
     }
 };
 
