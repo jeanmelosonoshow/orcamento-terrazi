@@ -34,38 +34,46 @@ function renderizarCards(lista) {
     grid.innerHTML = '';
 
     lista.forEach(o => {
-        // CORREÇÃO DA DATA: Adicionamos o T00:00 para forçar o JS a ler no fuso local e não UTC
-        // Isso evita que a data apareça com um dia a menos.
-        const dataOriginal = o.data_validade || o.valid_until;
-        const dataValidade = new Date(dataOriginal + 'T00:00');
-        dataValidade.setHours(0, 0, 0, 0); 
+        // TRATAMENTO DE DATA SEGURO
+        let dataExibicao = "Sem data";
+        let dataValidade = null;
         
-        let statusFinal = o.status || 'Pendente';
+        if (o.data_validade || o.valid_until) {
+            const dataRaw = o.data_validade || o.valid_until;
+            // Divide a string para evitar problemas de fuso horário
+            const partes = dataRaw.split('T')[0].split('-'); 
+            dataValidade = new Date(partes[0], partes[1] - 1, partes[2]);
+            dataValidade.setHours(0, 0, 0, 0);
+            dataExibicao = dataValidade.toLocaleDateString('pt-BR');
+        }
+        
+        // PADRONIZAÇÃO DO STATUS PARA COMPARAÇÃO
+        let statusFinal = (o.status || 'Pendente').trim().toUpperCase();
 
-        // Regra de Expiração Automática
-        if (dataValidade < hoje && (statusFinal.toLowerCase() === 'pendente' || statusFinal.toLowerCase() === 'novo')) {
-            statusFinal = 'Expirado';
+        // Regra de Expiração Automática (Só aplica se ainda for Pendente)
+        if (dataValidade && dataValidade < hoje && statusFinal === 'PENDENTE') {
+            statusFinal = 'EXPIRADO';
         }
 
-        // DEFINIÇÃO DE CORES PARA O STATUS (Tema Terrazi)
-        let badgeColor = "#856404"; // Marrom/Dourado para Pendente
-        let badgeBg = "#fff3cd";    // Fundo Amarelo Suave
+        // CORES POR STATUS (Baseado exatamente na sua imagem)
+        let badgeColor = "#856404"; // Marrom (Padrão/Pendente)
+        let badgeBg = "#fff3cd";    // Amarelo (Padrão/Pendente)
         
-        if (statusFinal === 'Expirado') {
+        if (statusFinal === 'EXPIRADO' || statusFinal === 'CANCELADO') {
             badgeColor = "#721c24"; // Vermelho Escuro
-            badgeBg = "#f8d7da";    // Fundo Vermelho Suave
-        } else if (statusFinal.toLowerCase() === 'fechado' || statusFinal.toLowerCase() === 'vendido') {
+            badgeBg = "#f8d7da";    // Fundo Vermelho
+        } else if (statusFinal === 'GEROU VENDA' || statusFinal === 'VENDIDO' || statusFinal === 'FECHADO') {
             badgeColor = "#1A3017"; // Verde Terrazi
-            badgeBg = "#E8F5E9";    // Verde Claro
+            badgeBg = "#E8F5E9";    // Fundo Verde
         }
 
         const card = document.createElement('div');
-        card.className = `orcamento-card status-${statusFinal.toLowerCase()}`; 
+        card.className = `orcamento-card status-${statusFinal.toLowerCase().replace(/\s+/g, '-')}`; 
         
         card.innerHTML = `
             <div class="card-header">
                 <span>#${o.id}</span> 
-                <span style="font-size:11px; font-weight:600;">Validade: ${dataValidade.toLocaleDateString('pt-BR')}</span>
+                <span style="font-size:11px; font-weight:600;">Validade: ${dataExibicao}</span>
             </div>
             <div class="card-body">
                 <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #1A3017;">${o.cliente_nome || 'Consumidor'}</h3>
