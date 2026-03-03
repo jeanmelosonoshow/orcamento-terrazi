@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Casa Terrazi</title>
+    <style>
+        :root {
+            --primary-color: #1A3017;
+            --accent-color: #C5A47E;
+            --bg-color: #f4f4f4;
+        }
+
+        body {
+            font-family: 'Helvetica', Arial, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .logo {
+            width: 180px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background-color: #2a4a25;
+        }
+
+        #message {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #d9534f;
+            min-height: 20px;
+        }
+
+        .footer-text {
+            margin-top: 30px;
+            font-size: 11px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <img src="https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp" alt="Casa Terrazi" class="logo">
+    
+    <h2>Acesso Restrito</h2>
+    
+    <div class="form-group">
+        <label for="usuario">Usuário / ID</label>
+        <input type="text" id="usuario" placeholder="Digite seu usuário">
+    </div>
+
+    <div class="form-group">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" placeholder="••••••••">
+    </div>
+
+    <button onclick="realizarLogin()">Entrar no Sistema</button>
+
+    <div id="message"></div>
+
+    <div class="footer-text">
+        Exclusivo para Vendedores e Gerentes Casa Terrazi
+    </div>
+</div>
+
+<script>
+    async function realizarLogin() {
+        const usuario = document.getElementById('usuario').value;
+        const senha = document.getElementById('senha').value;
+        const msgDiv = document.getElementById('message');
+
+        if (!usuario || !senha) {
+            msgDiv.innerText = "Preencha todos os campos.";
+            return;
+        }
+
+        try {
+            msgDiv.style.color = "#666";
+            msgDiv.innerText = "Autenticando...";
+
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario, senha })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.idfuncionario) {
+                // SALVA A SESSÃO (Isso alimenta o script.js e script-lista.js)
+                sessionStorage.setItem('usuarioLogado', JSON.stringify(result));
+                
+                // Redireciona para a tela principal
+                window.location.href = 'index.html';
+            } else {
+                msgDiv.style.color = "#d9534f";
+                msgDiv.innerText = result.error || "Usuário ou senha inválidos.";
+            }
+        } catch (error) {
+            msgDiv.style.color = "#d9534f";
+            msgDiv.innerText = "Erro ao conectar com o servidor.";
+        }
+    }
+
+    // Permitir login ao apertar Enter
+    document.addEventListener('keypress', (e) => {
+        if(e.key === 'Enter') realizarLogin();
+    });
+</script>
+
+</body>
+</html>
