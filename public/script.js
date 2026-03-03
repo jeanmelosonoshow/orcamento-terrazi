@@ -1,11 +1,9 @@
-// 0. VERIFICAÇÃO DE LOGIN E DADOS DO USUÁRIO (Proteção contra nulos)
+// 0. CONTROLE DE ACESSO E IDENTIFICAÇÃO (Garante que não trave a página)
 const usuarioLogadoRaw = sessionStorage.getItem('usuarioLogado');
-if (!usuarioLogadoRaw) { 
-    window.location.href = 'login.html'; 
-}
+if (!usuarioLogadoRaw) { window.location.href = 'login.html'; }
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
 
-// Seletores
+// Seletores do DOM
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const productsGrid = document.getElementById('productsGrid');
@@ -21,28 +19,26 @@ const displayTotalGeral = document.getElementById('displayTotalGeral');
 
 let quoteCart = [];
 
-// 1. INICIALIZAÇÃO
+// 1. INICIALIZAÇÃO E CARREGAMENTO DE DADOS
 document.addEventListener('DOMContentLoaded', () => {
-    // Resolve o "Carregando identificação..."
-    exibirUsuarioLogado();
+    exibirUsuarioLogado(); // Resolve o "Carregando identificação..."
 
-    if (sellerName && usuarioLogado) {
-        sellerName.value = usuarioLogado.nomefuncionario || '';
+    if (sellerName) {
+        sellerName.value = usuarioLogado.nomefuncionario;
         sellerName.readOnly = true;
     }
 
     fetchProducts(true);
 
-    // VINCULAÇÃO DA BUSCA
+    // Gerenciamento de Busca
     if (searchBtn) searchBtn.addEventListener('click', () => fetchProducts(false));
     if (searchInput) {
         searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') fetchProducts(false); });
         searchInput.addEventListener('input', (e) => { if (e.target.value.trim() === "") fetchProducts(true); });
     }
 
-    // Lógica de clonagem/impressão
+    // Processamento de Clonagem ou Impressão Direta do Histórico
     const urlParams = new URLSearchParams(window.location.search);
-    const isModoImpressao = urlParams.get('modo') === 'impressao';
     const clonarData = localStorage.getItem('clonar_orcamento');
 
     if (clonarData) {
@@ -52,10 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sellerPhone.value = data.vendedor_contato || '';
         generalObs.value = data.obs_geral || '';
         
-        // CORREÇÃO DE DATA PARA EVITAR "INVALID DATE"
-        if (data.data_validade) {
-            quoteValid.value = data.data_validade.split('T')[0];
-        }
+        // Correção de Data para evitar "Invalid Date"
+        if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
         
         quoteCart = (data.items || data.itens || []).map(item => ({
             sku: item.sku,
@@ -64,40 +58,35 @@ document.addEventListener('DOMContentLoaded', () => {
             quantity: parseInt(item.quantidade || item.quantity),
             variation: item.variacao || item.variation || '',
             image: item.imagem_url || item.image,
-            description: item.descricao_tecnica || item.description,
+            description: item.descricao_tecnica || item.description || '',
+            dimensions: item.dimensoes || item.dimensions || '',
+            features: item.caracteristicas || item.features || '',
             tempId: Date.now() + Math.random()
         }));
         
         renderQuoteSidebar();
         localStorage.removeItem('clonar_orcamento'); 
-        if (isModoImpressao && generatePdfBtn) {
-            setTimeout(() => { generatePdfBtn.click(); }, 3000);
+        if (urlParams.get('modo') === 'impressao') {
+            setTimeout(() => { generatePdfBtn.click(); }, 2500);
         }
     }
 });
 
-// 2. BUSCA E RENDERIZAÇÃO
+// 2. BUSCA E VITRINE (Mantém aleatoriedade inicial)
 async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : (searchInput ? searchInput.value.trim() : "");
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
     try {
         const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
         let products = await response.json();
-        products = products.filter(p => p.published !== false && p.visible !== false);
         if (isInitial) products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         renderProducts(products);
-    } catch (error) {
-        productsGrid.innerHTML = '<p>Erro ao conectar com a galeria.</p>';
-    }
+    } catch (error) { productsGrid.innerHTML = '<p>Erro ao conectar.</p>'; }
 }
 
 function renderProducts(products) {
     productsGrid.innerHTML = '';
     products.forEach(p => {
-        const isLowStock = parseFloat(p.stock) < 1 || p.stock === "Sob Consulta";
-        const stockColor = isLowStock ? "#c0392b" : "#1A3017";
-        const stockLabel = p.stock === "Sob Consulta" ? "Sob Consulta" : `Estoque: ${p.stock}`;
-
         const card = document.createElement('div');
         card.className = 'product-card';
         card.innerHTML = `
@@ -105,7 +94,6 @@ function renderProducts(products) {
             <div class="card-info">
                 <h4>${p.name}</h4>
                 <p class="sku">SKU: ${p.sku}</p>
-                <p class="stock" style="color: ${stockColor}; font-weight: bold; font-size: 11px;">${stockLabel}</p>
                 <p class="price">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                 <button class="btn-primary" onclick='adicionarAoOrcamento(${JSON.stringify(p).replace(/'/g, "&apos;")})'>ADICIONAR</button>
             </div>`;
@@ -113,9 +101,18 @@ function renderProducts(products) {
     });
 }
 
-// 3. CARRINHO E EDIÇÃO
+// 3. CARRINHO E EDIÇÃO (Não suprime os campos técnicos)
 window.adicionarAoOrcamento = (produto) => {
-    quoteCart.push({ ...produto, tempId: Date.now(), displayName: produto.name, quantity: 1, variation: "" });
+    quoteCart.push({ 
+        ...produto, 
+        tempId: Date.now(), 
+        displayName: produto.name, 
+        quantity: 1, 
+        variation: "",
+        dimensions: produto.dimensions || "",
+        features: produto.features || "",
+        description: produto.description || ""
+    });
     renderQuoteSidebar();
 };
 
@@ -127,19 +124,13 @@ function renderQuoteSidebar() {
         itemDiv.innerHTML = `
             <div style="display:flex; gap:10px; align-items:center; margin-bottom:5px;">
                 <img src="${item.image}" style="width:35px; height:35px; object-fit:cover; border-radius:4px;">
-                <input type="text" value="${item.displayName}" 
-                    onchange="atualizarDados(${index}, 'displayName', this.value)" 
-                    style="flex:1; font-weight:600; border:none; background:transparent; font-size:13px;">
-                <button onclick="removerItem(${index})" style="background:none; border:none; color:#c0392b; cursor:pointer; font-size:18px;">&times;</button>
+                <input type="text" value="${item.displayName}" onchange="atualizarDados(${index}, 'displayName', this.value)" style="flex:1; font-weight:600; border:none; background:transparent; font-size:12px;">
+                <button onclick="removerItem(${index})" style="background:none; border:none; color:#c0392b; cursor:pointer;">&times;</button>
             </div>
-            <div style="margin-bottom:8px;">
-                <input type="text" placeholder="Adicionar variação..." value="${item.variation || ''}" 
-                    onchange="atualizarDados(${index}, 'variation', this.value)" 
-                    style="width:100%; font-size:11px; color:#666; border:none; border-bottom:1px solid #eee; background:transparent;">
-            </div>
-            <div style="display: grid; grid-template-columns: 60px 1fr; gap: 10px;">
-                <input type="number" value="${item.quantity}" onchange="atualizarDados(${index}, 'quantity', this.value)" style="width:100%; padding:4px; font-size:12px;">
-                <input type="number" step="0.01" value="${item.price}" onchange="atualizarDados(${index}, 'price', this.value)" style="width:100%; padding:4px; font-size:12px; font-weight:600;">
+            <input type="text" placeholder="Variação (cor, tecido...)" value="${item.variation || ''}" onchange="atualizarDados(${index}, 'variation', this.value)" style="width:100%; font-size:11px; margin-bottom:5px; border:none; border-bottom:1px solid #eee;">
+            <div style="display: grid; grid-template-columns: 50px 1fr; gap: 8px;">
+                <input type="number" value="${item.quantity}" onchange="atualizarDados(${index}, 'quantity', this.value)" style="width:100%; padding:3px;">
+                <input type="number" step="0.01" value="${item.price}" onchange="atualizarDados(${index}, 'price', this.value)" style="width:100%; padding:3px; font-weight:bold;">
             </div>`;
         quoteItemsContainer.appendChild(itemDiv);
     });
@@ -150,18 +141,14 @@ window.atualizarDados = (index, campo, valor) => {
     quoteCart[index][campo] = (campo === 'price' || campo === 'quantity') ? parseFloat(valor) : valor;
     atualizarDestaqueTotal();
 };
-
 window.removerItem = (index) => { quoteCart.splice(index, 1); renderQuoteSidebar(); };
-window.limparOrcamento = () => { quoteCart = []; renderQuoteSidebar(); };
-
 function atualizarDestaqueTotal() {
     const total = quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     if (displayTotalGeral) displayTotalGeral.innerText = `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 }
 
-// 4. SALVAMENTO E PDF (Restaurado e com Filial)
+// 4. SALVAMENTO E GERAÇÃO DO PDF (LAYOUT CATÁLOGO PREMIUM)
 async function salvarNoBanco() {
-    const totalGeral = quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const payload = {
         cust_name: custName.value,
         cust_doc: custDoc.value,
@@ -169,104 +156,138 @@ async function salvarNoBanco() {
         seller_name: sellerName.value,
         seller_phone: sellerPhone.value,
         general_obs: generalObs.value,
-        total_value: totalGeral,
+        total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
         items: quoteCart,
-        // Envia dados para vendedor_orcamento
         dados_vendedor: {
             idfuncionario: usuarioLogado.idfuncionario,
             nomefuncionario: usuarioLogado.nomefuncionario,
             idfilial: usuarioLogado.idfilial
         }
     };
-    try {
-        const response = await fetch('/api/salvar-orcamento', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        return await response.json();
-    } catch (error) { console.error("Erro ao salvar:", error); }
+    const response = await fetch('/api/salvar-orcamento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return await response.json();
 }
 
 if (generatePdfBtn) {
     generatePdfBtn.addEventListener('click', async () => {
-        if (quoteCart.length === 0) return alert("Selecione itens.");
-        const res = await salvarNoBanco();
-        const idOrcamento = res?.id || "";
+        if (quoteCart.length === 0) return alert("Adicione itens primeiro.");
         
-        // LÓGICA DO PDF (Incluindo Filial no cabeçalho)
-        const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+        const res = await salvarNoBanco();
+        const nPedido = res.id || "---";
+
         const element = document.createElement('div');
-        const dataValidadeFormatada = quoteValid.value ? new Date(quoteValid.value + 'T00:00').toLocaleDateString('pt-BR') : 'A consultar';
+        const dataValidade = quoteValid.value ? new Date(quoteValid.value + 'T00:00').toLocaleDateString('pt-BR') : '---';
 
         let html = `
         <style>
-            .pdf-body { font-family: Helvetica, sans-serif; padding: 40px; position: relative; }
-            .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: #1A3017; }
-            .pdf-header { display: flex; justify-content: space-between; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
-            .info-box { background: #f9f9f9; padding: 12px; display: grid; grid-template-columns: 1fr 1fr; font-size: 10px; border: 1px solid #eee; margin-bottom: 20px; }
-            .product-block { display: flex; gap: 20px; border-bottom: 1px solid #f0f0f0; padding: 15px 0; page-break-inside: avoid; }
+            .pdf-container { font-family: 'Helvetica', sans-serif; color: #333; padding: 0; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; padding: 30px 40px; border-bottom: 2px solid #1A3017; }
+            .order-info { text-align: right; }
+            .order-number { font-size: 24px; font-weight: bold; color: #1A3017; }
+            .client-seller-info { background: #F4F4F4; padding: 15px 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 11px; }
+            .product-row { display: flex; gap: 30px; padding: 40px; border-bottom: 1px solid #EEE; page-break-inside: avoid; }
+            .product-img { width: 240px; height: 240px; object-fit: cover; border-radius: 4px; }
+            .product-detail { flex: 1; }
+            .product-detail h2 { font-size: 20px; color: #1A3017; margin: 0 0 10px 0; font-weight: bold; }
+            .desc-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 15px; text-align: justify; }
+            .specs-box { background: #F9F9F9; padding: 12px; border-radius: 4px; font-size: 10px; border-left: 3px solid #1A3017; margin-bottom: 15px; }
+            .table-values { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            .table-values th { background: #F4F4F4; padding: 8px; text-align: center; color: #666; font-size: 9px; text-transform: uppercase; }
+            .table-values td { padding: 10px; text-align: center; border: 1px solid #EEE; font-size: 12px; }
+            .footer-total { background: #1A3017; color: white; padding: 25px 40px; text-align: right; font-size: 22px; font-weight: bold; }
+            .obs-section { padding: 20px 40px; font-size: 10px; color: #666; line-height: 1.4; border-top: 1px solid #EEE; }
         </style>
-        <div class="pdf-body">
-            <div class="brand-sidebar"></div>
-            <div class="pdf-header">
-                <img src="${LOGO_URL}" style="height:45px;">
-                <div style="text-align:right; font-size:9px;">
-                    <strong>ORÇAMENTO TERRAZI #${idOrcamento}</strong><br>
-                    <strong>Filial: ${usuarioLogado.idfilial}</strong><br>
-                    Emissão: ${new Date().toLocaleDateString('pt-BR')}<br>
-                    Validade: ${dataValidadeFormatada}
+        <div class="pdf-container">
+            <div class="header">
+                <img src="https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp" style="height: 55px;">
+                <div class="order-info">
+                    <div class="order-number">ORÇAMENTO #${nPedido}</div>
+                    <div style="font-size: 11px; margin-top: 5px;">
+                        <strong>Filial: ${usuarioLogado.idfilial}</strong><br>
+                        Emissão: ${new Date().toLocaleDateString('pt-BR')}<br>
+                        Validade: ${dataValidade}
+                    </div>
                 </div>
             </div>
-            <div class="info-box">
-                <div><strong>CLIENTE:</strong> ${custName.value || '---'}<br><strong>DOC:</strong> ${custDoc.value || '---'}</div>
-                <div><strong>VENDEDOR:</strong> ${sellerName.value || '---'}<br><strong>FILIAL:</strong> ${usuarioLogado.idfilial}</div>
+            <div class="client-seller-info">
+                <div>
+                    <strong>DADOS DO CLIENTE</strong><br>
+                    NOME: ${custName.value || '---'}<br>
+                    DOC: ${custDoc.value || '---'}
+                </div>
+                <div>
+                    <strong>DADOS DO VENDEDOR</strong><br>
+                    VENDEDOR: ${sellerName.value}<br>
+                    CONTATO: ${sellerPhone.value || '---'}
+                </div>
             </div>`;
 
         quoteCart.forEach(item => {
             html += `
-            <div class="product-block">
-                <img src="${item.image}" style="width:150px; height:150px; object-fit:cover;">
-                <div style="flex:1">
-                    <h2 style="font-size:14px; color:#1A3017; margin:0;">${item.displayName}</h2>
-                    <p style="font-size:10px; color:#666;">SKU: ${item.sku}</p>
-                    ${item.variation ? `<p style="font-size:10px;"><strong>VARIAÇÃO:</strong> ${item.variation}</p>` : ''}
-                    <div style="margin-top:10px; font-weight:bold; font-size:12px;">
-                        Qtd: ${item.quantity} | Unit: R$ ${item.price.toLocaleString('pt-BR')} | Subtotal: R$ ${(item.quantity * item.price).toLocaleString('pt-BR')}
+            <div class="product-row">
+                <img src="${item.image}" class="product-img">
+                <div class="product-detail">
+                    <h2>${item.displayName}</h2>
+                    <div class="desc-text">${item.description}</div>
+                    
+                    ${item.variation ? `<div style="font-size:11px; margin-bottom:10px;"><strong>VARIAÇÃO:</strong> ${item.variation}</div>` : ''}
+
+                    <div class="specs-box">
+                        <strong>DIMENSÕES:</strong><br>${item.dimensions || 'Conforme padrão da peça'}<br><br>
+                        <strong>CARACTERÍSTICAS:</strong><br>${item.features || 'Material de alta qualidade, acabamento refinado.'}
                     </div>
+
+                    <table class="table-values">
+                        <thead>
+                            <tr><th>Qtd</th><th>Valor Unitário</th><th>Subtotal</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>${item.quantity}</td>
+                                <td>R$ ${item.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                <td><strong>R$ ${(item.quantity * item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>`;
         });
 
+        if (generalObs.value) {
+            html += `<div class="obs-section"><strong>OBSERVAÇÕES GERAIS:</strong><br>${generalObs.value.replace(/\n/g, '<br>')}</div>`;
+        }
+
         html += `
-            <div style="margin-top:20px; background:#1A3017; color:white; padding:15px; text-align:right; font-size:18px; font-weight:bold;">
-                TOTAL: R$ ${displayTotalGeral.innerText}
+            <div class="footer-total">
+                VALOR TOTAL: R$ ${displayTotalGeral.innerText}
             </div>
         </div>`;
 
         element.innerHTML = html;
         html2pdf().set({
-            margin: [20, 0, 20, 0],
-            filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
+            margin: 0,
+            filename: `Terrazi_Orcamento_${nPedido}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         }).from(element).save();
     });
 }
 
-// 5. FUNÇÕES DE SESSÃO
+// 5. AUXILIARES DE INTERFACE
 function exibirUsuarioLogado() {
     const infoTopo = document.getElementById('user-info-topo');
-    if (infoTopo && usuarioLogado) {
+    if (infoTopo) {
         infoTopo.innerHTML = `
-            <div style="display:flex; align-items:center; gap:15px; width:100%; color: white; padding: 10px;">
-                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario}</span>
-                <span><strong>Filial:</strong> ${usuarioLogado.idfilial}</span>
+            <div style="display:flex; align-items:center; gap:15px; width:100%; color: white; padding: 10px; font-size: 13px;">
+                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario} | <strong>Filial:</strong> ${usuarioLogado.idfilial}</span>
                 <div style="flex-grow:1"></div>
-                <button onclick="fazerLogout()" style="background:#c0392b; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">SAIR</button>
-            </div>
-        `;
+                <button onclick="fazerLogout()" style="background:#c0392b; color:white; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">SAIR</button>
+            </div>`;
     }
 }
-
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
