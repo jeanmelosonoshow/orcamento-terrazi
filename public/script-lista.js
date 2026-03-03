@@ -32,7 +32,7 @@ function renderizarCards(lista) {
         // Define se o orçamento permite alteração de status
         const ehPendente = o.status === 'Pendente';
         
-        // Normaliza o status para classes CSS (ex: "Gerou Venda" -> "gerou-venda")
+        // Normaliza o status para classes CSS
         const statusClass = o.status.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s/g, '-');
         
         // Datas formatadas
@@ -74,9 +74,14 @@ function renderizarCards(lista) {
                         </select>
                     ` : `<div class="status-fechado-msg" style="text-align: center; font-size: 0.7rem; color: #999; padding: 8px; background: #f9f9f9; border-radius: 4px; font-style: italic;">Status Finalizado</div>`}
 
-                    <button onclick="clonarOrcamento(${o.id})" class="btn-clonar" title="Clonar Orçamento">
-                        REABRIR / CLONAR
-                    </button>
+                    <div class="botoes-acoes-row" style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button onclick="gerarImpressao(${o.id}, '${o.status}')" class="btn-imprimir" style="flex: 1; background: white; border: 1px solid #1A3017; color: #1A3017; padding: 10px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; cursor: pointer;">
+                            IMPRIMIR
+                        </button>
+                        <button onclick="clonarOrcamento(${o.id})" class="btn-clonar" style="flex: 1.5; background: #1A3017; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; cursor: pointer;">
+                            REABRIR / CLONAR
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -84,7 +89,13 @@ function renderizarCards(lista) {
     });
 }
 
-// Funções Globais de Ação
+// Nova Função de Impressão (Abre em nova aba com status atual)
+window.gerarImpressao = (id, statusAtual) => {
+    // Passamos o ID e o Status para que o PDF reflita se já foi vendido, cancelado, etc.
+    const url = `/api/gerar-pdf?id=${id}&status=${encodeURIComponent(statusAtual)}&view=true`;
+    window.open(url, '_blank');
+};
+
 window.alterarStatus = async (id, novoStatus) => {
     if (!novoStatus) return;
 
@@ -130,7 +141,6 @@ window.filtrarCards = () => {
     const termo = document.getElementById('filterInput').value.toLowerCase();
     const status = statusSelect.value;
     
-    // Feedback visual de cor no select de filtro principal
     statusSelect.style.backgroundColor = "white";
     if (status === "Pendente") statusSelect.style.backgroundColor = "#fff9db";
     if (status === "Gerou Venda") statusSelect.style.backgroundColor = "#E8F5E9";
