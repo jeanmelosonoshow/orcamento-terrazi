@@ -7,7 +7,6 @@ export default async function handler(req, res) {
   const orcamento = req.body;
 
   try {
-    // Inicia uma transação para garantir a integridade total dos dados
     await client.query('BEGIN');
 
     // 1. Insere o cabeçalho do orçamento
@@ -36,8 +35,7 @@ export default async function handler(req, res) {
 
     const orcamentoId = resultOrcamento.rows[0].id;
 
-    // 2. NOVA ETAPA: Insere o vínculo na tabela VENDEDOR_ORCAMENTO
-    // Captura os dados vindos do login/sessionStorage enviados pelo front-end
+    // 2. Vínculo na tabela VENDEDOR_ORCAMENTO
     const v = orcamento.dados_vendedor; 
     if (v) {
       await client.query(`
@@ -82,12 +80,10 @@ export default async function handler(req, res) {
       ]);
     }
 
-    // Se tudo deu certo, confirma as 3 inserções no banco
     await client.query('COMMIT');
     res.status(200).json({ success: true, orcamentoId });
 
   } catch (error) {
-    // Se qualquer uma das etapas falhar, desfaz tudo (inclusive o cabeçalho)
     await client.query('ROLLBACK');
     console.error("Erro ao salvar no banco:", error);
     res.status(500).json({ error: 'Erro ao salvar orçamento', details: error.message });
