@@ -75,152 +75,22 @@ function renderizarCards(lista) {
 window.gerarImpressao = async (id, statusAtual) => {
     try {
         const response = await fetch(`/api/detalhe-orcamento?id=${id}`);
-        const o = await response.json();
+        const orcamento = await response.json();
         
-        const listaProdutos = o.items || o.itens || [];
+        if (!orcamento) return alert("Erro ao carregar dados.");
 
-        if (!o || listaProdutos.length === 0) {
-            return alert("Erro ao carregar detalhes ou orçamento vazio.");
-        }
+        // Adicionamos o status atual e ID ao objeto para que o PDF saiba mostrar o carimbo
+        orcamento.status_atual = statusAtual;
+        orcamento.id_impressao = id;
 
-        const element = document.createElement('div');
-        const dataCriacao = o.data_criacao ? new Date(o.data_criacao).toLocaleDateString('pt-BR') : '---';
-        const dataValidade = o.data_validade ? new Date(o.data_validade).toLocaleDateString('pt-BR') : 'A consultar';
-        const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp"; 
-
-        const valorTotalCalculado = listaProdutos.reduce((acc, item) => {
-            const p = parseFloat(item.preco_unitario || item.price || 0);
-            const q = parseInt(item.quantidade || item.quantity || 0);
-            return acc + (p * q);
-        }, 0);
-
-        const totalExibicao = parseFloat(o.valor_total || o.total_value || valorTotalCalculado);
-
-        const limparProfundo = (txt) => {
-            if (!txt) return "";
-            let limpo = txt.replace(/<\/?[^>]+(>|$)/g, ""); 
-            limpo = limpo.replace(/cada peça da casa terrazi[\s\S]*identidade brasileira/gi, ""); 
-            return limpo.trim();
-        };
-
-        let html = `
-            <style>
-                /* Ajuste de margens para evitar empurrar o cabeçalho */
-                .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; background: white; padding: 20px 40px 40px 50px; position: relative; }
-                .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: #1A3017; }
-                
-                /* Cabeçalho mais compacto para não ocupar espaço excessivo */
-                .pdf-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 15px; }
-                .pdf-logo { height: 40px; }
-                .header-info { text-align: right; font-size: 9px; color: #666; line-height: 1.2; }
-                
-                .info-box { background: #f9f9f9; padding: 10px; border-radius: 4px; margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 10px; border: 1px solid #eee; }
-                .product-block { width: 100%; page-break-inside: avoid !important; margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
-                .product-content { display: flex; gap: 20px; }
-                .left-column { width: 150px; flex-shrink: 0; }
-                .product-image { width: 150px; height: 150px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; }
-                .dimensoes-box { font-size: 9px; line-height: 1.3; color: #1A3017; background: #F4F9F4; padding: 8px; border-radius: 4px; }
-                .right-column { flex: 1; }
-                .product-title { font-size: 14px; font-weight: bold; color: #1A3017; margin: 0; text-transform: uppercase; }
-                
-                .item-price-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                .item-price-table td { font-size: 10px; padding: 6px; border: 1px solid #eee; text-align: center; font-weight: bold; }
-                .td-label { background: #fafafa; font-size: 8px; color: #888; text-transform: uppercase; }
-                .status-carimbo { margin-top: 5px; padding: 2px 8px; border: 1.5px solid #1A3017; color: #1A3017; display: inline-block; font-weight: 900; font-size: 10px; text-transform: uppercase; }
-                
-                /* Bloco de Total com proteção de quebra */
-                .final-block { page-break-inside: avoid !important; margin-top: 20px; }
-                .total-box { background: #1A3017; color: white; padding: 15px; text-align: right; border-radius: 4px; }
-            </style>
-            <div class="pdf-body">
-                <div class="brand-sidebar"></div>
-                <div class="pdf-header">
-                    <img src="${LOGO_URL}" class="pdf-logo">
-                    <div class="header-info">
-                        <strong>ORÇAMENTO TERRAZI #${o.id}</strong><br>
-                        Emissão: ${dataCriacao} | Validade: ${dataValidade}<br>
-                        <div class="status-carimbo">${statusAtual.toUpperCase()}</div>
-                    </div>
-                </div>
-                <div class="info-box">
-                    <div><strong>CLIENTE:</strong> ${o.cliente_nome || '---'}<br><strong>DOC:</strong> ${o.cliente_doc || '---'}</div>
-                    <div><strong>VENDEDOR:</strong> ${o.vendedor_nome || '---'}<br><strong>CONTATO:</strong> ${o.vendedor_contato || '---'}</div>
-                </div>`;
-
-        listaProdutos.forEach(item => {
-            let rawText = item.descricao_tecnica || item.description || item.descricao || "";
-            let parts = rawText.split(/(características|medidas|dimensões|especificações)/i);
-            let emocional = limparProfundo(parts[0]);
-            let tecnico = "";
-            let dimensoes = "";
-
-            for (let i = 1; i < parts.length; i += 2) {
-                let label = parts[i].toLowerCase();
-                let content = limparProfundo(parts[i+1]);
-                if (label.includes("dimensões") || label.includes("medidas")) dimensoes += content + " ";
-                else tecnico += content + " ";
-            }
-
-            const nomeProd = item.nome_produto || item.display_name || item.nome || "Produto";
-            const precoProd = parseFloat(item.preco_unitario || item.price || 0);
-            const qtdProd = parseInt(item.quantidade || item.quantity || 0);
-            const imgProd = item.imagem_url || item.image || "";
-            const varProd = item.variacao || item.variation || "";
-
-            html += `
-                <div class="product-block">
-                    <div class="product-content">
-                        <div class="left-column">
-                            <img src="${imgProd}" class="product-image">
-                            ${dimensoes ? `<div class="dimensoes-box"><strong>DIMENSÕES</strong><br>${dimensoes}</div>` : ''}
-                        </div>
-                        <div class="right-column">
-                            <h2 class="product-title">${nomeProd}</h2>
-                            <span style="font-size: 8px; color: #999;">SKU: ${item.sku || '---'}</span>
-                            ${varProd ? `<div style="font-size: 10px; color: #1A3017; font-weight: bold; margin: 5px 0;">VARIAÇÃO: ${varProd}</div>` : ''}
-                            <div style="font-size: 10px; line-height: 1.4; margin-top: 5px; color: #444;">${emocional}</div>
-                            ${tecnico ? `<div style="font-size: 9px; border-top: 1px dashed #ddd; margin-top: 8px; padding-top: 5px; color: #666;"><strong>CARACTERÍSTICAS:</strong><br>${tecnico}</div>` : ''}
-                            
-                            <table class="item-price-table">
-                                <tr><td class="td-label">Qtd</td><td class="td-label">Unitário</td><td class="td-label">Subtotal</td></tr>
-                                <tr>
-                                    <td>${qtdProd}</td>
-                                    <td>R$ ${precoProd.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                                    <td>R$ ${(qtdProd * precoProd).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>`;
-        });
-
-        html += `
-                <div class="final-block">
-                    ${o.obs_geral ? `<div style="background: #f9f9f9; padding: 10px; border: 1px solid #eee; font-size: 10px; margin-bottom: 10px;"><strong>OBSERVAÇÕES:</strong><br>${o.obs_geral}</div>` : ''}
-                    <div class="total-box">
-                        <span style="font-size: 18px; font-weight: bold;">TOTAL: R$ ${totalExibicao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                    </div>
-                </div>
-            </div>`;
-
-        element.innerHTML = html;
+        // Salva no localStorage exatamente como o "Clonar" faz
+        localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
         
-        const opt = {
-            margin: [30, 0, 30, 0], // Aumentei a margem superior/inferior do PDF
-            filename: `Terrazi_Orcamento_${o.id}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-        };
-
-        html2pdf().set(opt).from(element).toPdf().output('bloburl').then(function (pdfUrl) {
-            window.open(pdfUrl, '_blank');
-        });
+        // Abre a index em uma nova aba passando o comando de impressão
+        window.open('index.html?modo=impressao', '_blank');
 
     } catch (error) {
-        console.error("Erro completo:", error);
-        alert("Erro ao processar PDF: " + error.message);
+        console.error("Erro ao preparar impressão:", error);
     }
 };
 
