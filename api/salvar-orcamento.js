@@ -7,11 +7,10 @@ export default async function handler(req, res) {
   const orcamento = req.body;
 
   try {
-    // Inicia uma transação para garantir a integridade dos dados
+    // Inicia uma transação para garantir a integridade total dos dados
     await client.query('BEGIN');
 
-    // 1. Insere o cabeçalho
-    // A data_criacao será preenchida automaticamente pelo banco (DEFAULT)
+    // 1. Insere o cabeçalho do orçamento
     const resultOrcamento = await client.query(`
       INSERT INTO orcamentos (
         data_validade, 
@@ -25,19 +24,40 @@ export default async function handler(req, res) {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id
     `, [
-      orcamento.valid_until && orcamento.valid_until !== "" ? orcamento.valid_until : null, // Evita erro de string vazia em campo DATE
+      orcamento.valid_until && orcamento.valid_until !== "" ? orcamento.valid_until : null,
       orcamento.cust_name || 'Consumidor', 
       orcamento.cust_doc || '',
       orcamento.seller_name || '', 
       orcamento.seller_phone || '', 
       orcamento.general_obs || '',
-      parseFloat(orcamento.total_value) || 0, // Garante que seja gravado como número
+      parseFloat(orcamento.total_value) || 0,
       'Pendente'
     ]);
 
     const orcamentoId = resultOrcamento.rows[0].id;
 
-    // 2. Insere os itens vinculados ao ID do orçamento acima
+    // 2. NOVA ETAPA: Insere o vínculo na tabela VENDEDOR_ORCAMENTO
+    // Captura os dados vindos do login/sessionStorage enviados pelo front-end
+    const v = orcamento.dados_vendedor; 
+    if (v) {
+      await client.query(`
+        INSERT INTO VENDEDOR_ORCAMENTO (
+          id_orcamento, 
+          id_funcionario, 
+          nome_funcionario, 
+          categoria, 
+          id_filial
+        ) VALUES ($1, $2, $3, $4, $5)
+      `, [
+        orcamentoId,
+        v.idfuncionario,
+        v.nomefuncionario,
+        v.categoria,
+        v.idfilial
+      ]);
+    }
+
+    // 3. Insere os itens vinculados
     for (const item of orcamento.items) {
       await client.query(`
         INSERT INTO itens_orcamento (
@@ -62,9 +82,12 @@ export default async function handler(req, res) {
       ]);
     }
 
+    // Se tudo deu certo, confirma as 3 inserções no banco
     await client.query('COMMIT');
     res.status(200).json({ success: true, orcamentoId });
+
   } catch (error) {
+    // Se qualquer uma das etapas falhar, desfaz tudo (inclusive o cabeçalho)
     await client.query('ROLLBACK');
     console.error("Erro ao salvar no banco:", error);
     res.status(500).json({ error: 'Erro ao salvar orçamento', details: error.message });
