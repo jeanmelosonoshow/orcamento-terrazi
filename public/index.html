@@ -28,8 +28,6 @@
             font-weight: bold;
             margin-top: 5px;
         }
-
-        /* Estilo para o novo botão de histórico */
         .btn-history {
             background-color: #f4f4f4;
             color: #1A3017;
@@ -57,12 +55,11 @@
     </style>
 </head>
 <body>
-    <div id="user-info-topo"></div>
     <div id="top-bar-user" style="background: #1A3017; color: #fff; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; font-family: sans-serif; font-size: 13px;">
-        <div id="user-display">
-             <div id="user-info-topo"></div>
-            </div>
-        <button onclick="logout()" style="background: #c0392b; color: white; border: none; padding: 5px 12px; border-radius: 3px; cursor: pointer; font-weight: bold;">SAIR</button>
+        <div id="user-info-topo">
+            Carregando identificação...
+        </div>
+        <button onclick="fazerLogout()" style="background: #c0392b; color: white; border: none; padding: 5px 12px; border-radius: 3px; cursor: pointer; font-weight: bold;">SAIR</button>
     </div>
 
     <header>
@@ -92,7 +89,7 @@
                     <label style="font-size: 10px; color: #666;">Validade:</label>
                     <input type="date" id="quoteValid" style="font-size: 12px; padding: 5px; flex:1;">
                 </div>
-                <input type="text" id="sellerName" placeholder="Nome do Vendedor" style="font-size: 12px; padding: 8px;">
+                <input type="text" id="sellerName" placeholder="Nome do Vendedor" readonly style="font-size: 12px; padding: 8px; background-color: #f9f9f9; cursor: not-allowed;">
                 <input type="text" id="sellerPhone" placeholder="Telefone Vendedor" style="font-size: 12px; padding: 8px;">
             </div>
         
@@ -108,7 +105,7 @@
             <div class="quote-footer">
                 <div style="margin-bottom: 15px;">
                     <label style="font-size: 10px; color: #666; display: block; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;">Observações Gerais:</label>
-                    <textarea id="generalObs" placeholder="Ex: Prazo de entrega 30 dias, Condiçoes de Pagamento..." 
+                    <textarea id="generalObs" placeholder="Ex: Prazo de entrega 30 dias, Condições de Pagamento..." 
                         style="width: 100%; font-size: 11px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 60px; resize: none;"></textarea>
                 </div>
                 <button id="generatePdfBtn" class="btn-primary" style="width: 100%; margin-bottom: 10px;">GERAR ORÇAMENTO PDF</button>
@@ -121,7 +118,7 @@
         </aside>
     </main>
 
-    <script src="script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
