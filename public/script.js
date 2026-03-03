@@ -100,6 +100,11 @@ async function fetchProducts(isInitial = false) {
 function renderProducts(products) {
     productsGrid.innerHTML = '';
     products.forEach(p => {
+        // Lógica de Cor do Estoque
+        const isLowStock = parseFloat(p.stock) < 1 || p.stock === "Sob Consulta";
+        const stockColor = isLowStock ? "#c0392b" : "#1A3017";
+        const stockLabel = p.stock === "Sob Consulta" ? "Sob Consulta" : `Estoque: ${p.stock}`;
+
         const card = document.createElement('div');
         card.className = 'product-card';
         card.innerHTML = `
@@ -107,6 +112,7 @@ function renderProducts(products) {
             <div class="card-info">
                 <h4>${p.name}</h4>
                 <p class="sku">SKU: ${p.sku}</p>
+                <p class="stock" style="color: ${stockColor}; font-weight: bold; font-size: 11px;">${stockLabel}</p>
                 <p class="price">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                 <button class="btn-primary" onclick='adicionarAoOrcamento(${JSON.stringify(p).replace(/'/g, "&apos;")})'>ADICIONAR</button>
             </div>`;
