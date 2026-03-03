@@ -203,9 +203,12 @@ function exibirUsuarioLogado() {
     const infoTopo = document.getElementById('user-info-topo');
     if (infoTopo && usuarioLogado) {
         infoTopo.innerHTML = `
-            <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario}</span> | 
-            <span><strong>Categoria:</strong> ${usuarioLogado.categoria}</span> | 
-            <span><strong>Filial:</strong> ${usuarioLogado.idfilial}</span>
+            <div style="display:flex; align-items:center; gap:15px; width:100%;">
+                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario}</span>
+                <span><strong>Filial:</strong> ${usuarioLogado.idfilial}</span>
+                <div style="flex-grow:1"></div>
+                <button onclick="fazerLogout()" style="background:#c0392b; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">SAIR</button>
+            </div>
         `;
     }
 }
