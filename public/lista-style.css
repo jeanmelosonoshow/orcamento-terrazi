@@ -1,4 +1,4 @@
-/* Importando variáveis e padrões globais */
+/* Importando variáveis oficiais do seu style.css */
 :root {
     --verde-escuro: #1A3017;
     --verde-medio: #2D5A27;
@@ -8,19 +8,17 @@
     --borda: #E0E0E0;
 }
 
-/* RESET DE COMPORTAMENTO DA INDEX */
+/* RESET TOTAL PARA ISOLAR DA INDEX */
 body {
     font-family: 'Inter', sans-serif;
     background-color: #FFF;
     color: var(--texto);
     margin: 0;
-    /* Remove o flex do body que trava a altura da tela */
     display: block !important; 
-    height: auto !important; 
-    overflow-y: auto !important;
+    height: auto !important;
 }
 
-/* HEADER - Mantendo o padrão da logo */
+/* HEADER PREMIUM */
 .lista-header {
     padding: 20px 5%;
     display: flex;
@@ -30,46 +28,73 @@ body {
     background: white;
 }
 
-/* RESET DO MAIN - O segredo para a grade horizontal */
-main {
-    /* Cancela as 2 colunas da index (1fr 350px) */
-    display: block !important; 
+.header-content {
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
-    padding: 30px 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-/* BARRA DE FILTROS */
+/* Ajuste do Botão NOVO ORÇAMENTO (Estilo PDF Terrazi) */
+.btn-primary-outline {
+    background-color: var(--verde-escuro) !important;
+    color: white !important;
+    padding: 12px 24px !important;
+    border-radius: 4px !important;
+    text-decoration: none !important;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: 0.3s;
+    border: none !important;
+    display: inline-block;
+}
+
+.btn-primary-outline:hover {
+    background-color: var(--verde-medio) !important;
+    transform: translateY(-2px);
+}
+
+/* MAIN E FILTROS */
+main {
+    display: block !important; /* Mata o grid de 2 colunas da index */
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 5%;
+}
+
 .filters-bar {
     display: flex;
     gap: 15px;
     margin-bottom: 40px;
-    width: 100%;
 }
 
 .input-wrapper { flex: 3; }
 .select-wrapper { flex: 1; }
 
-input[type="text"], select {
+input[type="text"], #statusFilter {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     border: 1px solid var(--borda);
     border-radius: 4px;
     outline: none;
     font-size: 0.9rem;
 }
 
-/* A GRADE DE ORÇAMENTOS - Ocupando a linha horizontal conforme sua marcação */
+/* GRID DE GRADE (Conforme marcação vermelha) */
 #orcamentosGrid {
     display: grid !important;
-    /* Cria as colunas da grade: mínimo 320px cada */
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
     gap: 25px;
     width: 100% !important;
 }
 
-/* ESTILO DO CARD TERRAZI */
+/* CARD PREMIUM */
 .orcamento-card {
     background: white;
     border: 1px solid var(--borda);
@@ -78,73 +103,70 @@ input[type="text"], select {
     display: flex;
     flex-direction: column;
     transition: 0.3s;
-    position: relative;
 }
 
 .orcamento-card:hover {
-    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
 }
 
-/* Bordas de Status */
+/* Status Colors nas Bordas e Badges */
 .status-pendente { border-left: 6px solid #f1c40f !important; }
 .status-gerou-venda { border-left: 6px solid var(--verde-medio) !important; }
-.status-cancelado { border-left: 6px solid #ff4d4d !important; }
-.status-expirado { border-left: 6px solid #999 !important; }
+.status-cancelado { border-left: 6px solid #e74c3c !important; }
+.status-expirado { border-left: 6px solid #95a5a6 !important; }
 
-/* Conteúdo Interno */
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: #888;
-    margin-bottom: 15px;
+.status-badge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
 }
 
-.cliente-nome {
-    font-size: 1.1rem;
-    color: var(--verde-escuro);
-    font-weight: 600;
-    margin: 0 0 5px 0;
-}
+/* Cores de Background para os Badges dentro do card */
+.status-pendente .status-badge { background: #fff9db; color: #f1c40f; }
+.status-gerou-venda .status-badge { background: var(--verde-claro); color: var(--verde-medio); }
+.status-cancelado .status-badge { background: #fff5f5; color: #e74c3c; }
+.status-expirado .status-badge { background: #f1f3f5; color: #95a5a6; }
 
-.vendedor-info {
-    font-size: 0.85rem;
-    color: #666;
-    margin-bottom: 15px;
-}
-
-.total-valor {
-    margin-top: auto;
+/* RODAPÉ DO CARD COM VALIDADE */
+.card-footer {
+    margin-top: 20px;
     padding-top: 15px;
-    border-top: 1px solid var(--cinza-suave);
+    border-top: 1px solid #f5f5f5;
+}
+
+.total-row {
     display: flex;
     justify-content: space-between;
-    font-weight: bold;
-    color: var(--verde-escuro);
+    align-items: center;
+    margin-bottom: 15px;
 }
 
-/* Botões de Ação */
-.acoes-grid {
-    margin-top: 15px;
+.total-label { font-size: 0.8rem; color: #888; }
+.total-valor-bold { font-size: 1.2rem; font-weight: 700; color: var(--verde-escuro); }
+
+.validade-row {
+    font-size: 0.7rem;
+    color: #999;
+    margin-bottom: 10px;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    gap: 5px;
 }
 
+/* BOTÃO CLONAR/REABRIR */
 .btn-clonar {
+    width: 100%;
     background-color: var(--verde-escuro);
     color: white;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    padding: 10px;
+    padding: 12px;
+    border: none;
     border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    cursor: pointer;
 }
 
 .btn-clonar:hover { background-color: var(--verde-medio); }
-
-.select-status-inline {
-    background: var(--cinza-suave);
-    cursor: pointer;
-}
