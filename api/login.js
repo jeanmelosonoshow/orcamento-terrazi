@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const Firebird = require('node-firebird');
 const crypto = require('crypto');
 
