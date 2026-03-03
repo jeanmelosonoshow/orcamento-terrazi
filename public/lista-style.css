@@ -221,3 +221,53 @@ input[type="text"], #statusFilter {
     background-color: var(--verde-medio) !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
+
+/* Estilização Premium do Seletor de Status */
+.select-status-inline {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    background-color: var(--cinza-suave);
+    color: var(--verde-escuro);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    appearance: none; /* Remove a seta padrão */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231A3017' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    transition: 0.3s;
+}
+
+.select-status-inline:hover {
+    border-color: var(--verde-medio);
+    background-color: #fff;
+}
+
+/* Novo Botão Imprimir */
+.btn-imprimir {
+    background-color: #fff;
+    color: var(--verde-escuro);
+    border: 1px solid var(--verde-escuro) !important;
+    padding: 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    flex: 1; /* Para alinhar lado a lado se necessário */
+    transition: 0.3s;
+}
+
+.btn-imprimir:hover {
+    background-color: var(--verde-claro);
+}
+
+/* Container para botões lado a lado */
+.botoes-acoes-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
