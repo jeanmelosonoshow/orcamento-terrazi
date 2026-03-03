@@ -56,12 +56,12 @@ function renderizarCards(lista) {
                     <span class="valor">R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                 </div>
                 
-                <div class="acoes-grid">
-                    <select onchange="alterarStatus(${o.id}, this.value)" class="select-status-inline">
-                        <option value="" disabled selected>Alterar Status</option>
-                        <option value="Finalizado com Venda">Venda</option>
-                        <option value="Finalizado sem retorno">Sem Retorno</option>
-                    </select>
+                <div class="acoes-grid">                                         
+                        <select onchange="alterarStatus(${o.id}, this.value)" class="select-status-inline">
+                            <option value="" disabled selected>Alterar Status</option>
+                            <option value="Gerou Venda">Gerou Venda</option>
+                            <option value="Cancelado">Cancelado</option>
+                        </select>
                     <button onclick="clonarOrcamento(${o.id})" class="btn-clonar" title="Clonar Orçamento">
                         REABRIR / CLONAR
                     </button>
