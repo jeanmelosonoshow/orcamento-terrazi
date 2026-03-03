@@ -30,15 +30,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Carregamento inicial de produtos
     fetchProducts(true);
 
-    // VINCULAÇÃO DA BUSCA (Correção da funcionalidade)
-    if (searchBtn) {
-        searchBtn.addEventListener('click', () => fetchProducts(false));
-    }
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') fetchProducts(false);
-        });
-    }
+  
+    // VINCULAÇÃO DA BUSCA COM VOLTA AO INICIAL AO APAGAR
+        if (searchBtn) {
+            searchBtn.addEventListener('click', () => fetchProducts(false));
+        }
+        
+        if (searchInput) {
+            // 1. Detecta o Enter
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') fetchProducts(false);
+            });
+        
+            // 2. Detecta quando o usuário apaga o texto (Volta ao inicial)
+            searchInput.addEventListener('input', (e) => {
+                if (e.target.value.trim() === "") {
+                    fetchProducts(true); // O 'true' ativa o modo inicial (aleatório/geral)
+                }
+            });
+        }
 
     // Lógica de clonagem/impressão
     const urlParams = new URLSearchParams(window.location.search);
