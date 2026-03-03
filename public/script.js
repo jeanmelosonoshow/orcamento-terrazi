@@ -64,15 +64,24 @@ window.onload = () => {
 
         // Se for apenas para imprimir, dispara o botão automaticamente
         if (isModoImpressao) {
+            // Aguarda o DOM e as imagens carregarem no frame
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    const btn = document.getElementById('generatePdfBtn');
+                    if (btn) {
+                        console.log("Iniciando geração automática do PDF...");
+                        btn.click();
+                    }
+                }, 2000); // 2 segundos de margem de segurança para o render
+            });
+            
+            // Caso o window.load já tenha passado (redundância)
             setTimeout(() => {
-                if (generatePdfBtn) {
-                    // Forçamos o clique para gerar o arquivo
-                    generatePdfBtn.click();
-                    
-                    // Como estamos num iframe oculto, não precisamos fechar a janela, 
-                    // o script-lista.js vai remover o iframe sozinho.
+                const btn = document.getElementById('generatePdfBtn');
+                if (btn && quoteCart.length > 0) {
+                    btn.click();
                 }
-            }, 1200); // Um pouquinho mais de delay para garantir carregamento no iframe
+            }, 3500);
         }
     }
 };
