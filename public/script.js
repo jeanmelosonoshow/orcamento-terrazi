@@ -1,21 +1,9 @@
+// 0. VERIFICAÇÃO DE LOGIN E DADOS DO USUÁRIO
 const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
 
 if (!usuarioLogado) {
     window.location.href = 'login.html';
-} else {
-    // Exibir no topo da página
-    document.getElementById('header-user-info').innerText = 
-        `${usuarioLogado.nomefuncionario} (${usuarioLogado.categoria}) - Filial: ${usuarioLogado.idfilial}`;
-    
-    // Travar nome do vendedor
-    const sellerInput = document.getElementById('sellerName');
-    if (sellerInput) {
-        sellerInput.value = usuarioLogado.nomefuncionario;
-        sellerInput.readOnly = true;
-    }
 }
-
-
 
 // Seletores
 const searchInput = document.getElementById('searchInput');
@@ -43,6 +31,18 @@ let idParaImpressao = "";
 
 // 1. INICIALIZAÇÃO E CLONAGEM / IMPRESSÃO
 window.onload = () => {
+    // Preencher dados do funcionário no topo
+    const headerInfo = document.getElementById('header-user-info');
+    if (headerInfo) {
+        headerInfo.innerText = `${usuarioLogado.nomefuncionario} (${usuarioLogado.categoria}) - Filial: ${usuarioLogado.idfilial}`;
+    }
+
+    // Travar nome do vendedor no formulário
+    if (sellerName) {
+        sellerName.value = usuarioLogado.nomefuncionario;
+        sellerName.readOnly = true;
+    }
+
     fetchProducts(true);
     
     const urlParams = new URLSearchParams(window.location.search);
@@ -52,13 +52,12 @@ window.onload = () => {
     if (clonarData) {
         const data = JSON.parse(clonarData);
         
-        // Captura dados extras para o cabeçalho do PDF
         statusParaImpressao = data.status_atual || "";
         idParaImpressao = data.id_impressao || "";
 
         custName.value = data.cliente_nome || '';
         custDoc.value = data.cliente_doc || '';
-        sellerName.value = data.vendedor_nome || '';
+        // Se for clonagem, mantemos o vendedor logado atualmente, não o antigo
         sellerPhone.value = data.vendedor_contato || '';
         generalObs.value = data.obs_geral || '';
         
@@ -66,7 +65,6 @@ window.onload = () => {
             quoteValid.value = data.data_validade.split('T')[0];
         }
         
-        // Mapeia os itens (suporta nomes de campos da API ou do Objeto local)
         quoteCart = (data.items || data.itens || []).map(item => ({
             sku: item.sku,
             displayName: item.nome_produto || item.displayName,
@@ -81,58 +79,38 @@ window.onload = () => {
         renderQuoteSidebar();
         localStorage.removeItem('clonar_orcamento'); 
 
-        // Se for apenas para imprimir, dispara o botão automaticamente
         if (isModoImpressao) {
-            // Aguarda o DOM e as imagens carregarem no frame
             window.addEventListener('load', () => {
                 setTimeout(() => {
-                    const btn = document.getElementById('generatePdfBtn');
-                    if (btn) {
-                        console.log("Iniciando geração automática do PDF...");
-                        btn.click();
-                    }
-                }, 2000); // 2 segundos de margem de segurança para o render
+                    if (generatePdfBtn) generatePdfBtn.click();
+                }, 2000);
             });
             
-            // Caso o window.load já tenha passado (redundância)
             setTimeout(() => {
-                const btn = document.getElementById('generatePdfBtn');
-                if (btn && quoteCart.length > 0) {
-                    btn.click();
-                }
+                if (generatePdfBtn && quoteCart.length > 0) generatePdfBtn.click();
             }, 3500);
         }
     }
 };
 
-// 2. BUSCA DE PRODUTOS
+// 2. BUSCA DE PRODUTOS (Mantido original)
 async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : searchInput.value.trim();
-    
-    if (!isInitial && query === "") {
-        return fetchProducts(true);
-    }
+    if (!isInitial && query === "") return fetchProducts(true);
 
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
-    
     try {
         const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
         let products = await response.json();
-        
         products = products.filter(p => p.published !== false && p.visible !== false);
-        
-        if (isInitial) {
-            products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
-        }
-        
+        if (isInitial) products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         renderProducts(products);
     } catch (error) {
-        console.error(error);
         productsGrid.innerHTML = '<p>Erro ao conectar com a galeria.</p>';
     }
 }
 
-// 3. RENDERIZAÇÃO DE PRODUTOS
+// 3. RENDERIZAÇÃO DE PRODUTOS (Mantido original)
 function renderProducts(products) {
     productsGrid.innerHTML = '';
     products.forEach(p => {
@@ -162,25 +140,14 @@ function renderProducts(products) {
     });
 }
 
-// EVENTOS DE BUSCA
+// EVENTOS DE BUSCA (Mantido original)
 searchBtn.addEventListener('click', () => fetchProducts(false));
-searchInput.addEventListener('input', () => {
-    if (searchInput.value.trim() === "") fetchProducts(true);
-});
-searchInput.addEventListener('keypress', (e) => { 
-    if (e.key === 'Enter') fetchProducts(false); 
-});
+searchInput.addEventListener('input', () => { if (searchInput.value.trim() === "") fetchProducts(true); });
+searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') fetchProducts(false); });
 
-// --- LÓGICA DO CARRINHO ---
-
+// --- LÓGICA DO CARRINHO (Mantido original) ---
 function adicionarAoOrcamento(produto) {
-    const novoItem = {
-        ...produto,
-        tempId: Date.now(),
-        displayName: produto.name,
-        quantity: 1,
-        variation: ""
-    };
+    const novoItem = { ...produto, tempId: Date.now(), displayName: produto.name, quantity: 1, variation: "" };
     quoteCart.push(novoItem);
     renderQuoteSidebar();
 }
@@ -192,7 +159,6 @@ function renderQuoteSidebar() {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'item-quote-edit';
         itemDiv.style = "margin-bottom: 15px; padding: 10px; border: 1px solid #eee; border-radius: 4px; background: #fff;";
-        
         itemDiv.innerHTML = `
             <div class="edit-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                 <img src="${item.image}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 3px;">
@@ -226,26 +192,22 @@ function renderQuoteSidebar() {
 }
 
 window.atualizarDados = (index, campo, valor) => { 
-    if (campo === 'price' || campo === 'quantity') {
-        quoteCart[index][campo] = parseFloat(valor) || 0;
-    } else {
-        quoteCart[index][campo] = valor;
-    }
+    if (campo === 'price' || campo === 'quantity') quoteCart[index][campo] = parseFloat(valor) || 0;
+    else quoteCart[index][campo] = valor;
     renderQuoteSidebar(); 
 };
 
-window.removerItem = (index) => { 
-    quoteCart.splice(index, 1); 
-    renderQuoteSidebar(); 
-};
+window.removerItem = (index) => { quoteCart.splice(index, 1); renderQuoteSidebar(); };
 
 function atualizarDestaqueTotal() {
     const totalGeral = quoteCart.reduce((acc, item) => acc + ((parseFloat(item.price) || 0) * (parseInt(item.quantity) || 1)), 0);
     if (displayTotalGeral) displayTotalGeral.innerText = `R$ ${totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 }
 
+// --- SALVAMENTO ATUALIZADO COM DADOS DO VENDEDOR ---
 async function salvarNoBanco() {
     const totalGeral = quoteCart.reduce((acc, item) => acc + ((parseFloat(item.price) || 0) * (parseInt(item.quantity) || 1)), 0);
+    
     const payload = {
         cust_name: custName.value,
         cust_doc: custDoc.value,
@@ -254,8 +216,16 @@ async function salvarNoBanco() {
         seller_phone: sellerPhone.value,
         general_obs: generalObs.value,
         total_value: totalGeral,
-        items: quoteCart
+        items: quoteCart,
+        // Adicionando os novos campos para a tabela VENDEDOR_ORCAMENTO
+        dados_vendedor: {
+            idfuncionario: usuarioLogado.idfuncionario,
+            nomefuncionario: usuarioLogado.nomefuncionario,
+            categoria: usuarioLogado.categoria,
+            idfilial: usuarioLogado.idfilial
+        }
     };
+
     try {
         const response = await fetch('/api/salvar-orcamento', {
             method: 'POST',
@@ -263,25 +233,19 @@ async function salvarNoBanco() {
             body: JSON.stringify(payload)
         });
         const result = await response.json();
-        if (result.success) console.log("Orçamento salvo no banco!");
+        if (result.success) console.log("Orçamento salvo com sucesso!");
     } catch (error) { console.error("Erro ao salvar no banco:", error); }
 }
 
-// --- GERAÇÃO DO PDF ---
-
+// --- GERAÇÃO DO PDF (Com Filial no Cabeçalho) ---
 generatePdfBtn.addEventListener('click', async () => {
     if (quoteCart.length === 0) return alert("Selecione itens primeiro.");
-    
-    // SÓ SALVA SE NÃO FOR MODO DE IMPRESSÃO DE HISTÓRICO
-    if (!isModoImpressao) {
-        salvarNoBanco();
-    }
+    if (!isModoImpressao) salvarNoBanco();
 
     const element = document.createElement('div');
     const valorTotalOrcamento = quoteCart.reduce((acc, item) => acc + (parseFloat(item.price) * parseInt(item.quantity)), 0);
     const dataValidade = quoteValid.value ? new Date(quoteValid.value).toLocaleDateString('pt-BR') : 'A consultar';
     
-    // Carimbo de Status (Apenas se vier da lista)
     let carimboHtml = (isModoImpressao && statusParaImpressao) 
         ? `<div style="margin-top: 5px; padding: 3px 8px; border: 1.5px solid #1A3017; color: #1A3017; display: inline-block; font-weight: 900; font-size: 10px; text-transform: uppercase;">${statusParaImpressao}</div>`
         : "";
@@ -311,7 +275,7 @@ generatePdfBtn.addEventListener('click', async () => {
                 <img src="${LOGO_URL}" class="pdf-logo">
                 <div class="header-info">
                     <strong>ORÇAMENTO TERRAZI ${idParaImpressao ? '#' + idParaImpressao : ''}</strong><br>
-                    Emissão: ${new Date().toLocaleDateString('pt-BR')}<br>
+                    <strong>FILIAL: ${usuarioLogado.idfilial}</strong><br> Emissão: ${new Date().toLocaleDateString('pt-BR')}<br>
                     Validade: ${dataValidade}<br>
                     ${carimboHtml}
                 </div>
@@ -378,12 +342,7 @@ generatePdfBtn.addEventListener('click', async () => {
         margin: [20, 0, 20, 0],
         filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, // ESSENCIAL
-            logging: false, 
-            letterRendering: true 
-        },
+        html2canvas: { scale: 2, useCORS: true, logging: false, letterRendering: true },
         jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     }).from(element).save();
