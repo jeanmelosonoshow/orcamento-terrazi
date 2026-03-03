@@ -95,13 +95,23 @@ body {
     border-color: #1A3017;
 }
 
+#orcamentosGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Cria colunas automáticas */
+    gap: 20px;
+    padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
 /* Estilo dos Cards (Reforço) */
 .orcamento-card {
-    background: #fff;
-    border: 1px solid #f0f0f0;
-    border-radius: 6px;
-    padding: 25px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    width: 100%;
+    max-width: 400px; /* Opcional: define um limite para o card não esticar demais */
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .total-valor {
