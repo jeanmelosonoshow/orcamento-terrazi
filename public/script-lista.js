@@ -45,7 +45,7 @@ function renderizarCards(lista) {
                 <div class="total-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <span class="total-label" style="font-size: 0.8rem; color: #888; font-weight: 500;">TOTAL</span>
                     <span class="total-valor-bold" style="font-size: 1.25rem; font-weight: 700; color: #1A3017;">
-                        R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                        R$ ${parseFloat(o.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                     </span>
                 </div>
                 <div class="acoes-grid">
@@ -76,20 +76,32 @@ window.gerarImpressao = async (id, statusAtual) => {
     try {
         const response = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const o = await response.json();
-        const listaProdutos = o.items || o.itens;
+        
+        // Normalização dos itens para garantir que a lista seja lida corretamente
+        const listaProdutos = o.items || o.itens || [];
 
-        if (!o || !listaProdutos) return alert("Erro ao carregar detalhes.");
+        if (!o || listaProdutos.length === 0) {
+            return alert("Erro ao carregar detalhes ou orçamento vazio.");
+        }
 
         const element = document.createElement('div');
         const dataCriacao = o.data_criacao ? new Date(o.data_criacao).toLocaleDateString('pt-BR') : '---';
         const dataValidade = o.data_validade ? new Date(o.data_validade).toLocaleDateString('pt-BR') : 'A consultar';
         const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp"; 
 
-        // Função de Limpeza de Texto (Idêntica ao script.js)
+        // Recálculo de segurança do total
+        const valorTotalCalculado = listaProdutos.reduce((acc, item) => {
+            const p = parseFloat(item.preco_unitario || item.price || 0);
+            const q = parseInt(item.quantidade || item.quantity || 0);
+            return acc + (p * q);
+        }, 0);
+
+        const totalExibicao = parseFloat(o.valor_total || o.total_value || valorTotalCalculado);
+
         const limparProfundo = (txt) => {
             if (!txt) return "";
-            let limpo = txt.replace(/<\/?[^>]+(>|$)/g, ""); // Remove HTML
-            limpo = limpo.replace(/cada peça da casa terrazi[\s\S]*identidade brasileira/gi, ""); // Remove institucional repetido
+            let limpo = txt.replace(/<\/?[^>]+(>|$)/g, ""); 
+            limpo = limpo.replace(/cada peça da casa terrazi[\s\S]*identidade brasileira/gi, ""); 
             return limpo.trim();
         };
 
@@ -111,7 +123,7 @@ window.gerarImpressao = async (id, statusAtual) => {
                 .item-price-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                 .item-price-table td { font-size: 10px; padding: 6px; border: 1px solid #eee; text-align: center; font-weight: bold; }
                 .td-label { background: #fafafa; font-size: 8px; color: #888; text-transform: uppercase; }
-                .status-carimbo { margin-top: 8px; padding: 4px 8px; border: 1.5px solid #1A3017; color: #1A3017; display: inline-block; font-weight: 800; font-size: 10px; text-transform: uppercase; }
+                .status-carimbo { margin-top: 8px; padding: 4px 12px; border: 2px solid #1A3017; color: #1A3017; display: inline-block; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
             </style>
             <div class="pdf-body">
                 <div class="brand-sidebar"></div>
@@ -130,7 +142,6 @@ window.gerarImpressao = async (id, statusAtual) => {
                 </div>`;
 
         listaProdutos.forEach(item => {
-            // Tratamento das informações do produto (Lógica do script.js)
             let rawText = item.descricao_tecnica || item.description || item.descricao || "";
             let parts = rawText.split(/(características|medidas|dimensões|especificações)/i);
             let emocional = limparProfundo(parts[0]);
@@ -180,7 +191,7 @@ window.gerarImpressao = async (id, statusAtual) => {
         html += `
                 ${o.obs_geral ? `<div style="background: #f9f9f9; padding: 10px; border: 1px solid #eee; font-size: 10px; margin-top: 20px;"><strong>OBSERVAÇÕES:</strong><br>${o.obs_geral}</div>` : ''}
                 <div style="background: #1A3017; color: white; padding: 15px; text-align: right; border-radius: 4px; margin-top: 15px;">
-                    <span style="font-size: 18px; font-weight: bold;">TOTAL: R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                    <span style="font-size: 18px; font-weight: bold;">TOTAL: R$ ${totalExibicao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                 </div>
             </div>`;
 
@@ -194,8 +205,9 @@ window.gerarImpressao = async (id, statusAtual) => {
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
 
-        html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
-            window.open(pdf.output('bloburl'), '_blank');
+        // Gerar o PDF e abrir diretamente como Blob em nova aba
+        html2pdf().set(opt).from(element).toPdf().output('bloburl').then(function (pdfUrl) {
+            window.open(pdfUrl, '_blank');
         });
 
     } catch (error) {
@@ -204,7 +216,6 @@ window.gerarImpressao = async (id, statusAtual) => {
     }
 };
 
-// Funções de Status e Clonagem (Mantidas iguais)
 window.alterarStatus = async (id, novoStatus) => {
     if (!novoStatus) return;
     if (!confirm(`Deseja alterar para "${novoStatus}"?`)) { location.reload(); return; }
