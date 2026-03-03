@@ -1,10 +1,30 @@
 // script-lista.js
+const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+
+if (!usuarioLogado) {
+    window.location.href = 'login.html';
+}
 
 async function carregarHistorico() {
     const grid = document.getElementById('orcamentosGrid');
+    
+    // Captura filtros da tela se existirem
+    const buscaVendedor = document.getElementById('filterVendedor')?.value || '';
+    const buscaFilial = document.getElementById('filterFilial')?.value || '';
+
+    // Monta a URL com as permissões do usuário logado
+    const params = new URLSearchParams({
+        categoria: usuarioLogado.categoria,
+        idfuncionario: usuarioLogado.idfuncionario,
+        idfilial: usuarioLogado.idfilial,
+        buscaVendedor: buscaVendedor,
+        buscaFilial: buscaFilial
+    });
+
     try {
-        const response = await fetch('/api/listar-orcamentos');
+        const response = await fetch(`/api/listar-orcamentos?${params.toString()}`);
         const orcamentos = await response.json();
+        
         if (orcamentos.length === 0) {
             grid.innerHTML = '<div class="loader">Nenhum orçamento encontrado.</div>';
             return;
@@ -36,6 +56,7 @@ function renderizarCards(lista) {
             <div class="card-body">
                 <h3 class="cliente-nome">${o.cliente_nome || 'Consumidor'}</h3>
                 <p class="vendedor-info">Vendedor: <strong>${o.vendedor_nome || 'Geral'}</strong></p>
+                <p class="vendedor-info" style="font-size: 0.7rem; color: #666;">Filial: <strong>${o.id_filial || '---'}</strong></p>
                 <div class="status-badge">${o.status.toUpperCase()}</div>
             </div>
             <div class="card-footer">
@@ -71,20 +92,15 @@ function renderizarCards(lista) {
     });
 }
 
-// FUNÇÃO DE IMPRESSÃO COMPILADA E CORRIGIDA
+// Funções de apoio (Imprimir, Alterar Status, Clonar e Filtrar mantidas conforme original)
 window.gerarImpressao = async (id, statusAtual) => {
     try {
         const response = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const orcamento = await response.json();
-        
         if (!orcamento) return alert("Erro ao carregar dados.");
-
-        // Salva os dados no localStorage
         orcamento.status_atual = statusAtual;
         orcamento.id_impressao = id;
         localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
-        
-        // Criar iframe "invisível" mas renderizável
         const iframe = document.createElement('iframe');
         iframe.id = 'print-helper-frame';
         iframe.style.position = 'fixed';
@@ -92,22 +108,13 @@ window.gerarImpressao = async (id, statusAtual) => {
         iframe.style.right = '0';
         iframe.style.width = '1px';
         iframe.style.height = '1px';
-        iframe.style.opacity = '0.01'; // Quase invisível, mas existe para o browser
-        iframe.style.border = 'none';
-        
+        iframe.style.opacity = '0.01';
         iframe.src = 'index.html?modo=impressao';
         document.body.appendChild(iframe);
-
-        // Limpeza após o download
         setTimeout(() => {
-            if (document.getElementById('print-helper-frame')) {
-                document.body.removeChild(iframe);
-            }
-        }, 15000); // Tempo para garantir o processamento
-
-    } catch (error) {
-        console.error("Erro ao preparar impressão:", error);
-    }
+            if (document.getElementById('print-helper-frame')) document.body.removeChild(iframe);
+        }, 15000);
+    } catch (error) { console.error("Erro ao preparar impressão:", error); }
 };
 
 window.alterarStatus = async (id, novoStatus) => {
