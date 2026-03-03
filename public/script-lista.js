@@ -90,19 +90,18 @@ function renderizarCards(lista) {
 }
 
 // Nova Função de Impressão (Abre em nova aba com status atual)
-
 window.gerarImpressao = (id, statusAtual) => {
-    // AJUSTE DE ROTA: Verifique se sua rota correta é /api/gerar-pdf ou apenas /gerar-pdf
-    // Adicionamos o id, o status para o PDF e o modo de visualização
-    const url = `/api/gerar-pdf?id=${id}&status=${encodeURIComponent(statusAtual)}&view=true`;
+    // Aqui, use exatamente o mesmo caminho que o botão da sua index.html usa.
+    // Se na index ele chama "gerar-pdf", mantenha "gerar-pdf".
+    const url = `/api/gerar-pdf?id=${id}&status=${encodeURIComponent(statusAtual)}`;
     
-    // Abre em uma nova aba
-    const novaAba = window.open(url, '_blank');
-    
-    // Verificação de segurança caso o navegador bloqueie o pop-up
-    if (!novaAba) {
-        alert("O bloqueador de pop-ups impediu a abertura do PDF. Por favor, autorize este site.");
-    }
+    // Criamos um link temporário para abrir em nova aba
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
 window.alterarStatus = async (id, novoStatus) => {
