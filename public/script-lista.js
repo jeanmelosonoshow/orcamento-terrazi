@@ -32,12 +32,12 @@ function renderizarCards(lista) {
         // Define se o orçamento permite alteração de status
         const ehPendente = o.status === 'Pendente';
         
-        // Normaliza o status para classes CSS
+        // Normaliza o status para classes CSS (ex: "Gerou Venda" -> "gerou-venda")
         const statusClass = o.status.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s/g, '-');
         
         // Datas formatadas
         const dataCriacao = new Date(o.data_criacao).toLocaleDateString('pt-BR');
-        const dataValidade = new Date(o.data_validade).toLocaleDateString('pt-BR');
+        const dataValidade = o.data_validade ? new Date(o.data_validade).toLocaleDateString('pt-BR') : '---';
         
         const card = document.createElement('div');
         card.className = `orcamento-card status-${statusClass}`;
@@ -54,13 +54,13 @@ function renderizarCards(lista) {
             </div>
 
             <div class="card-footer">
-                <div class="validade-row" style="font-size: 0.7rem; color: #999; margin-bottom: 8px;">
-                    Validade: <strong>${dataValidade}</strong>
+                <div class="validade-row" style="font-size: 0.75rem; color: #999; margin-bottom: 8px; border-bottom: 1px solid #f5f5f5; padding-bottom: 5px;">
+                    Validade: <strong style="color: #444;">${dataValidade}</strong>
                 </div>
 
                 <div class="total-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <span class="total-label" style="font-size: 0.8rem; color: #888;">Total</span>
-                    <span class="total-valor-bold" style="font-size: 1.2rem; font-weight: 700; color: #1A3017;">
+                    <span class="total-label" style="font-size: 0.8rem; color: #888; font-weight: 500;">TOTAL</span>
+                    <span class="total-valor-bold" style="font-size: 1.25rem; font-weight: 700; color: #1A3017;">
                         R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                     </span>
                 </div>
@@ -72,7 +72,7 @@ function renderizarCards(lista) {
                             <option value="Gerou Venda">Gerou Venda</option>
                             <option value="Cancelado">Cancelado</option>
                         </select>
-                    ` : `<div class="status-fechado-msg">Status Finalizado</div>`}
+                    ` : `<div class="status-fechado-msg" style="text-align: center; font-size: 0.7rem; color: #999; padding: 8px; background: #f9f9f9; border-radius: 4px; font-style: italic;">Status Finalizado</div>`}
 
                     <button onclick="clonarOrcamento(${o.id})" class="btn-clonar" title="Clonar Orçamento">
                         REABRIR / CLONAR
@@ -126,9 +126,17 @@ window.clonarOrcamento = async (id) => {
 };
 
 window.filtrarCards = () => {
+    const statusSelect = document.getElementById('statusFilter');
     const termo = document.getElementById('filterInput').value.toLowerCase();
-    const status = document.getElementById('statusFilter').value;
+    const status = statusSelect.value;
     
+    // Feedback visual de cor no select de filtro principal
+    statusSelect.style.backgroundColor = "white";
+    if (status === "Pendente") statusSelect.style.backgroundColor = "#fff9db";
+    if (status === "Gerou Venda") statusSelect.style.backgroundColor = "#E8F5E9";
+    if (status === "Cancelado") statusSelect.style.backgroundColor = "#fff5f5";
+    if (status === "Expirado") statusSelect.style.backgroundColor = "#f1f3f5";
+
     const filtrados = window.todosOrcamentos.filter(o => {
         const bateNome = (o.cliente_nome || "").toLowerCase().includes(termo);
         const bateDoc = (o.cliente_doc || "").includes(termo);
