@@ -1,4 +1,4 @@
-// 0. VERIFICAÇÃO DE LOGIN E DADOS DO USUÁRIO
+// 0. VERIFICAÇÃO DE LOGIN
 const usuarioLogadoRaw = sessionStorage.getItem('usuarioLogado');
 if (!usuarioLogadoRaw) { window.location.href = 'login.html'; }
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
@@ -23,15 +23,12 @@ const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/com
 // 1. INICIALIZAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
     exibirUsuarioLogado();
-    
     if (sellerName) {
         sellerName.value = usuarioLogado.nomefuncionario;
         sellerName.readOnly = true;
     }
-
     fetchProducts(true);
 
-    // Lógica de clonagem
     const clonarData = localStorage.getItem('clonar_orcamento');
     if (clonarData) {
         const data = JSON.parse(clonarData);
@@ -40,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sellerPhone.value = data.vendedor_contato || '';
         generalObs.value = data.obs_geral || '';
         if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
-
         quoteCart = (data.items || []).map(item => ({
             ...item,
             displayName: item.nome_produto || item.displayName,
@@ -49,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             variation: item.variacao || item.variation || '',
             image: item.imagem_url || item.image,
             description: item.descricao_tecnica || item.description,
+            category: item.categoria || '',
             tempId: Date.now() + Math.random()
         }));
         renderQuoteSidebar();
@@ -56,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 2. BUSCA E RENDERIZAÇÃO NA VITRINE
+// 2. BUSCA
 async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : (searchInput?.value.trim() || "");
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
@@ -65,9 +62,7 @@ async function fetchProducts(isInitial = false) {
         let products = await response.json();
         if (isInitial) products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         renderProducts(products);
-    } catch (error) {
-        productsGrid.innerHTML = '<p>Erro ao carregar galeria.</p>';
-    }
+    } catch (error) { productsGrid.innerHTML = '<p>Erro ao carregar.</p>'; }
 }
 
 function renderProducts(products) {
@@ -87,9 +82,16 @@ function renderProducts(products) {
     });
 }
 
-// 3. LOGICA DO CARRINHO
+// 3. CARRINHO
 window.adicionarAoOrcamento = (produto) => {
-    quoteCart.push({ ...produto, tempId: Date.now(), displayName: produto.name, quantity: 1, variation: "" });
+    quoteCart.push({ 
+        ...produto, 
+        tempId: Date.now(), 
+        displayName: produto.name, 
+        quantity: 1, 
+        variation: "",
+        category: produto.category || "" 
+    });
     renderQuoteSidebar();
 };
 
@@ -124,28 +126,39 @@ function atualizarDestaqueTotal() {
     if (displayTotalGeral) displayTotalGeral.innerText = `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 }
 
-// 4. GERAÇÃO DE PDF COM TÉCNICA DE ONTEM (REGEX + LAYOUT PREMIUM)
+// 4. GERAÇÃO DE PDF + SALVAMENTO
 generatePdfBtn.addEventListener('click', async () => {
     if (quoteCart.length === 0) return alert("Selecione itens.");
 
-    // Salva no banco (ID do orçamento será gerado)
-    const res = await fetch('/api/salvar-orcamento', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            cust_name: custName.value,
-            cust_doc: custDoc.value,
-            valid_until: quoteValid.value,
-            seller_name: sellerName.value,
-            seller_phone: sellerPhone.value,
-            general_obs: generalObs.value,
-            total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
-            items: quoteCart,
-            dados_vendedor: { idfuncionario: usuarioLogado.idfuncionario, idfilial: usuarioLogado.idfilial }
-        })
-    });
-    const saveResult = await res.json();
-    const orcamentoID = saveResult.id || "---";
+    // Lógica para obter o Número do Pedido (Preview ou Banco)
+    let orcamentoID = "---";
+    try {
+        // Primeiro salvamos para garantir o ID real
+        const res = await fetch('/api/salvar-orcamento', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cust_name: custName.value,
+                cust_doc: custDoc.value,
+                valid_until: quoteValid.value,
+                seller_name: sellerName.value,
+                seller_phone: sellerPhone.value,
+                nome_funcionario: usuarioLogado.nomefuncionario, // Novo campo solicitado
+                general_obs: generalObs.value,
+                total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
+                items: quoteCart,
+                dados_vendedor: { idfuncionario: usuarioLogado.idfuncionario, idfilial: usuarioLogado.idfilial }
+            })
+        });
+        const saveResult = await res.json();
+        orcamentoID = saveResult.id;
+    } catch (e) {
+        console.error("Erro ao salvar, buscando último ID...");
+        // Fallback: Busca último ID existente e soma 1
+        const lastIdRes = await fetch('/api/get-last-id'); 
+        const lastData = await lastIdRes.json();
+        orcamentoID = (parseInt(lastData.lastId) || 0) + 1;
+    }
 
     const element = document.createElement('div');
     const dataValidade = quoteValid.value ? new Date(quoteValid.value + 'T00:00').toLocaleDateString('pt-BR') : 'A consultar';
@@ -155,45 +168,46 @@ generatePdfBtn.addEventListener('click', async () => {
         .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 30px 60px; position: relative; background: white; }
         .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: #1A3017; }
         .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
-        .order-id { font-size: 22px; font-weight: bold; color: #1A3017; }
+        .order-id { font-size: 24px; font-weight: bold; color: #1A3017; }
+        .header-meta { font-size: 10px; color: #666; line-height: 1.4; text-align: right; }
         .info-box { background: #f9f9f9; padding: 15px; border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px; border: 1px solid #eee; margin-bottom: 25px; }
         .product-block { width: 100%; page-break-inside: avoid; margin-bottom: 35px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
         .product-flex { display: flex; gap: 25px; }
         .col-left { width: 200px; flex-shrink: 0; }
         .col-right { flex: 1; }
         .img-main { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
-        .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; line-height: 1.4; }
-        .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0 0 5px 0; }
+        .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; }
+        .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
+        .variation-text { font-size: 11px; color: #1A3017; font-weight: bold; margin: 8px 0; }
+        .sku-text { font-size: 9px; color: #999; margin-bottom: 10px; display: block; }
         .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; }
         .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; }
         .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
-        .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; font-weight: normal; }
-        .institucional { font-size: 9px; color: #888; text-align: justify; margin-top: 30px; line-height: 1.4; border-top: 1px solid #eee; padding-top: 15px; }
+        .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
+        .institucional { font-size: 9px; color: #888; text-align: justify; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px; }
     </style>
     <div class="pdf-body">
         <div class="brand-sidebar"></div>
         <div class="pdf-header">
             <img src="${LOGO_URL}" style="height: 50px;">
-            <div style="text-align: right;">
+            <div class="header-meta">
                 <div class="order-id">ORÇAMENTO #${orcamentoID}</div>
-                <div style="font-size: 9px; color: #666;">Emissão: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}</div>
+                <strong>FILIAL: ${usuarioLogado.idfilial}</strong><br>
+                Emissão: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}
             </div>
         </div>
         <div class="info-box">
             <div><strong>CLIENTE:</strong><br>${custName.value || '---'}<br>DOC: ${custDoc.value || '---'}</div>
-            <div><strong>VENDEDOR:</strong><br>${sellerName.value}<br>CONTATO: ${sellerPhone.value || '---'}<br>FILIAL: ${usuarioLogado.idfilial}</div>
+            <div><strong>VENDEDOR:</strong><br>${sellerName.value}<br>CONTATO: ${sellerPhone.value || '---'}</div>
         </div>`;
 
     quoteCart.forEach(item => {
-        // REGEX E LIMPEZA DE ONTEM
         const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, "").replace(/cada peça da casa terrazi[\s\S]*identidade brasileira/gi, "").trim() : "";
-        
         let raw = item.description || "";
         let parts = raw.split(/(características|medidas|dimensões|especificações)/i);
         let emocional = limparTxt(parts[0]);
-        let tecnico = "";
-        let dimensoes = "";
+        let tecnico = ""; let dimensoes = "";
 
         for (let i = 1; i < parts.length; i += 2) {
             let label = parts[i].toLowerCase();
@@ -211,17 +225,13 @@ generatePdfBtn.addEventListener('click', async () => {
                 </div>
                 <div class="col-right">
                     <h2 class="prod-title">${item.displayName}</h2>
-                    <div style="font-size: 9px; color: #999; margin-bottom: 10px;">SKU: ${item.sku} ${item.variation ? `| VARIAÇÃO: ${item.variation}` : ''}</div>
                     <div class="emocional-text">${emocional}</div>
+                    ${item.variation ? `<div class="variation-text">VARIAÇÃO: ${item.variation}</div>` : ''}
+                    <span class="sku-text">SKU: ${item.sku}</span>
                     ${tecnico ? `<div class="specs-box"><strong>DETALHES TÉCNICOS:</strong><br>${tecnico}</div>` : ''}
-                    
                     <table class="price-table">
                         <tr><td class="label-cell">Qtd</td><td class="label-cell">Valor Unitário</td><td class="label-cell">Subtotal</td></tr>
-                        <tr>
-                            <td>${item.quantity}</td>
-                            <td>R$ ${item.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                            <td>R$ ${(item.quantity * item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                        </tr>
+                        <tr><td>${item.quantity}</td><td>R$ ${item.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td><td>R$ ${(item.quantity * item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td></tr>
                     </table>
                 </div>
             </div>
