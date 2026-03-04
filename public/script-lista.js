@@ -27,6 +27,35 @@ async function carregarHistorico() {
     }
 }
 
+// ADIÇÃO: Função de Filtragem (Busca e Status)
+function filtrarOrcamentos() {
+    const termo = document.getElementById('searchInput')?.value.toLowerCase() || "";
+    const filtroStatus = document.getElementById('statusFilter')?.value.toUpperCase() || "TODOS";
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const filtrados = window.todosOrcamentos.filter(o => {
+        // Lógica de Status (mesma da renderização)
+        let statusFinal = (o.status || 'PENDENTE').trim().toUpperCase();
+        if (o.data_validade || o.valid_until) {
+            const dataRaw = o.data_validade || o.valid_until;
+            const partes = dataRaw.split('T')[0].split('-');
+            const dataVal = new Date(partes[0], partes[1] - 1, partes[2]);
+            dataVal.setHours(0, 0, 0, 0);
+            if (dataVal < hoje && statusFinal === 'PENDENTE') statusFinal = 'EXPIRADO';
+        }
+
+        const bateTexto = (o.cliente_nome || "").toLowerCase().includes(termo) || 
+                         (o.id.toString()).includes(termo);
+        
+        const bateStatus = (filtroStatus === "TODOS") || (statusFinal === filtroStatus);
+
+        return bateTexto && bateStatus;
+    });
+
+    renderizarCards(filtrados);
+}
+
 function renderizarCards(lista) {
     const grid = document.getElementById('orcamentosGrid');
     const hoje = new Date();
@@ -57,7 +86,6 @@ function renderizarCards(lista) {
             badgeColor = "#1A3017"; badgeBg = "#E8F5E9"; 
         }
 
-        // Lógica de alteração de status (Select apenas se PENDENTE)
         let statusHtml = `
             <div class="badge-status" style="margin-top:10px; display:inline-block; padding:4px 12px; border-radius:12px; font-size:10px; font-weight:bold; text-transform:uppercase; color: ${badgeColor}; background-color: ${badgeBg};">
                 ${statusFinal}
@@ -95,16 +123,13 @@ function renderizarCards(lista) {
     });
 }
 
-// NOVA FUNÇÃO: Alterar Status via API
 window.alterarStatusOrcamento = async (select, id) => {
     const novoStatus = select.value;
     if (novoStatus === 'PENDENTE') return;
-
     if (!confirm(`Deseja alterar o status do orçamento #${id} para ${novoStatus}?`)) {
         select.value = 'PENDENTE';
         return;
     }
-
     select.disabled = true;
     try {
         const response = await fetch('/api/status-orcamento', {
@@ -112,7 +137,6 @@ window.alterarStatusOrcamento = async (select, id) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, status: novoStatus })
         });
-
         if (response.ok) {
             carregarHistorico();
         } else {
@@ -146,11 +170,9 @@ window.gerarImpressaoRapida = async (btn, id) => {
     const originalText = btn.innerText;
     btn.innerText = "AGUARDE...";
     btn.disabled = true;
-
     try {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const data = await res.json();
-        
         const element = document.createElement('div');
         const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00').toLocaleDateString('pt-BR') : 'A consultar';
         const dataEmissao = data.data_criacao ? new Date(data.data_criacao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
@@ -198,14 +220,12 @@ window.gerarImpressaoRapida = async (btn, id) => {
             let parts = raw.split(/(características|medidas|dimensões|especificações)/i);
             let emocional = limparTxt(parts[0]);
             let tecnico = ""; let dimensoes = "";
-
             for (let i = 1; i < parts.length; i += 2) {
                 let label = parts[i].toLowerCase();
                 let content = limparTxt(parts[i+1]);
                 if (label.includes("dimensões") || label.includes("medidas")) dimensoes += content + " ";
                 else tecnico += content + " ";
             }
-
             html += `
             <div class="product-block">
                 <div class="product-flex">
@@ -240,7 +260,6 @@ window.gerarImpressaoRapida = async (btn, id) => {
         </div>`;
 
         element.innerHTML = html;
-        
         const opt = {
             margin: [20, 0, 20, 0],
             filename: `Terrazi_Historico_${data.id}.pdf`,
@@ -253,7 +272,6 @@ window.gerarImpressaoRapida = async (btn, id) => {
             btn.innerText = originalText;
             btn.disabled = false;
         });
-
     } catch (e) {
         console.error(e);
         alert("Erro ao imprimir.");
@@ -281,4 +299,8 @@ function exibirUsuarioLogado() {
 document.addEventListener('DOMContentLoaded', () => {
     exibirUsuarioLogado();
     carregarHistorico();
+
+    // Eventos para busca e filtro
+    document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
+    document.getElementById('statusFilter')?.addEventListener('change', filtrarOrcamentos);
 });
