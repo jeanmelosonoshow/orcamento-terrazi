@@ -90,7 +90,7 @@ window.adicionarAoOrcamento = (produto) => {
         displayName: produto.name, 
         quantity: 1, 
         variation: "",
-        category: produto.category || "" 
+        category: produto.category || "Geral" 
     });
     renderQuoteSidebar();
 };
@@ -139,31 +139,36 @@ generatePdfBtn.addEventListener('click', async () => {
     let orcamentoID = "---";
     
     try {
-        // Salva no banco com os novos campos (categoria e nome_funcionario)
+        const payload = {
+            cust_name: custName.value,
+            cust_doc: custDoc.value,
+            valid_until: quoteValid.value,
+            seller_name: sellerName.value,
+            seller_phone: sellerPhone.value,
+            general_obs: generalObs.value,
+            total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
+            items: quoteCart.map(item => ({
+                ...item,
+                categoria: item.category || 'Geral' // Categoria do Produto
+            })),
+            // CORREÇÃO AQUI: Dados agrupados para a tabela vendedor_orcamento
+            dados_vendedor: { 
+                idfuncionario: usuarioLogado.idfuncionario, 
+                idfilial: usuarioLogado.idfilial,
+                nome_funcionario: usuarioLogado.nomefuncionario,
+                categoria: usuarioLogado.categoria || 'Vendas' 
+            }
+        };
+
         const res = await fetch('/api/salvar-orcamento', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                cust_name: custName.value,
-                cust_doc: custDoc.value,
-                valid_until: quoteValid.value,
-                seller_name: sellerName.value,
-                seller_phone: sellerPhone.value,
-                nome_funcionario: usuarioLogado.nomefuncionario,
-                general_obs: generalObs.value,
-                total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
-                items: quoteCart.map(item => ({
-                    ...item,
-                    categoria: item.category || 'Geral'
-                })),
-                dados_vendedor: { idfuncionario: usuarioLogado.idfuncionario, idfilial: usuarioLogado.idfilial }
-            })
+            body: JSON.stringify(payload)
         });
         
         const saveResult = await res.json();
         orcamentoID = saveResult.id || saveResult.insertId || saveResult.orcamentoId;
 
-        // Fallback caso a API não retorne o ID na hora
         if (!orcamentoID) {
             const lastIdRes = await fetch('/api/get-last-id'); 
             const lastData = await lastIdRes.json();
@@ -199,7 +204,6 @@ generatePdfBtn.addEventListener('click', async () => {
         .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
         .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
-        .institucional { font-size: 9px; color: #888; text-align: justify; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px; }
     </style>
     <div class="pdf-body">
         <div class="brand-sidebar"></div>
@@ -262,33 +266,20 @@ generatePdfBtn.addEventListener('click', async () => {
             <div style="background: #1A3017; color: white; padding: 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px;">
                 TOTAL GERAL: R$ ${displayTotalGeral.innerText}
             </div>
-            <div class="institucional">
-                CADA PEÇA DA CASA TERRAZI É FRUTO DO DESIGN BRASILEIRO, UNINDO O SABER ARTESANAL À SOFISTICAÇÃO CONTEMPORÂNEA. NOSSA CURADORIA CELEBRA A NOBREZA DA MADEIRA E A EXCLUSIVIDADE DOS MATERIAIS, TRANSFORMANDO AMBIENTES EM EXPERIÊNCIAS DE CONFORTO E IDENTIDADE BRASILEIRA.
-            </div>
         </div>
     </div>`;
 
     element.innerHTML = html;
     
-    // Configuração do download
-    const opt = {
+    html2pdf().set({
         margin: [20, 0, 20, 0],
         filename: `Terrazi_${custName.value || 'Orcamento'}_${orcamentoID}.pdf`,
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
-    };
-
-    // Gera o PDF e restaura o botão ao finalizar
-    html2pdf().set(opt).from(element).save().then(() => {
+    }).from(element).save().then(() => {
         generatePdfBtn.innerText = originalBtnText;
         generatePdfBtn.disabled = false;
         generatePdfBtn.style.opacity = "1";
-    }).catch(err => {
-        console.error("Erro ao gerar PDF:", err);
-        generatePdfBtn.innerText = originalBtnText;
-        generatePdfBtn.disabled = false;
-        generatePdfBtn.style.opacity = "1";
-        alert("Erro ao gerar PDF. Tente novamente.");
     });
 });
 
@@ -297,7 +288,7 @@ function exibirUsuarioLogado() {
     if (infoTopo) {
         infoTopo.innerHTML = `
             <div style="display:flex; align-items:center; gap:15px; width:100%; color: white; padding: 10px; font-size: 13px;">
-                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario} | <strong>Filial:</strong> ${usuarioLogado.idfilial} |  <strong>Categoria:</strong> ${usuarioLogado.categoria}</span>
+                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario} | <strong>Filial:</strong> ${usuarioLogado.idfilial} | <strong>Categoria:</strong> ${usuarioLogado.categoria || 'Geral'}</span>
                 <div style="flex-grow:1"></div>
                 <button onclick="fazerLogout()" style="background:#c0392b; color:white; border:none; padding:5px 12px; border-radius:4px; cursor:pointer;">SAIR</button>
             </div>`;
