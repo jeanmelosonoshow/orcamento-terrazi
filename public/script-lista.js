@@ -27,7 +27,7 @@ async function carregarHistorico() {
     }
 }
 
-// ADIÇÃO: Função de Filtragem (Busca e Status)
+// AJUSTADO: Filtragem agora inclui cliente_doc (CPF)
 function filtrarOrcamentos() {
     const termo = document.getElementById('searchInput')?.value.toLowerCase() || "";
     const filtroStatus = document.getElementById('statusFilter')?.value.toUpperCase() || "TODOS";
@@ -35,7 +35,7 @@ function filtrarOrcamentos() {
     hoje.setHours(0, 0, 0, 0);
 
     const filtrados = window.todosOrcamentos.filter(o => {
-        // Lógica de Status (mesma da renderização)
+        // Lógica de Status (Necessário para o filtro de EXPIRADO funcionar em tempo real)
         let statusFinal = (o.status || 'PENDENTE').trim().toUpperCase();
         if (o.data_validade || o.valid_until) {
             const dataRaw = o.data_validade || o.valid_until;
@@ -45,8 +45,14 @@ function filtrarOrcamentos() {
             if (dataVal < hoje && statusFinal === 'PENDENTE') statusFinal = 'EXPIRADO';
         }
 
-        const bateTexto = (o.cliente_nome || "").toLowerCase().includes(termo) || 
-                         (o.id.toString()).includes(termo);
+        // Busca por Nome, ID ou CPF/Documento
+        const nome = (o.cliente_nome || "").toLowerCase();
+        const cpf = (o.cliente_doc || "").toLowerCase();
+        const id = (o.id || "").toString();
+
+        const bateTexto = nome.includes(termo) || 
+                         cpf.includes(termo) || 
+                         id.includes(termo);
         
         const bateStatus = (filtroStatus === "TODOS") || (statusFinal === filtroStatus);
 
@@ -109,7 +115,8 @@ function renderizarCards(lista) {
             </div>
             <div class="card-body">
                 <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #1A3017;">${o.cliente_nome || 'Consumidor'}</h3>
-                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Vendedor: ${o.vendedor_nome}</p>
+                <p style="font-size: 12px; color: #666; margin-bottom: 2px;">Vendedor: ${o.vendedor_nome}</p>
+                ${o.cliente_doc ? `<p style="font-size: 11px; color: #888; margin-bottom: 10px;">CPF/CNPJ: ${o.cliente_doc}</p>` : ''}
                 <div class="total" style="font-size: 18px; font-weight: 700; color: #1A3017;">
                     R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </div>
