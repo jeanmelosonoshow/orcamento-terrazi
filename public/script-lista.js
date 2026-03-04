@@ -190,10 +190,8 @@ window.gerarImpressaoRapida = async (btn, id) => {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const data = await res.json();
         
-        // --- NOVA LÓGICA PARA O NOME DO ARQUIVO ---
         const nomeClienteFinanceiro = (data.cliente_nome || 'Consumidor').replace(/[/\\?%*:|"<>]/g, '-');
         const nomeArquivo = `Orcamento_${data.id}_${nomeClienteFinanceiro}.pdf`;
-        // ------------------------------------------
 
         const element = document.createElement('div');
         const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00').toLocaleDateString('pt-BR') : 'A consultar';
@@ -212,14 +210,15 @@ window.gerarImpressaoRapida = async (btn, id) => {
             .col-left { width: 180px; flex-shrink: 0; }
             .col-right { flex: 1; }
             .img-main { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
-            .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; }
+            .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; line-height: 1.3; }
             .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
-            .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; }
-            .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; }
+            .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; font-style: italic; }
+            .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; line-height: 1.4; }
             .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
             .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
             .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
             .total-destaque { background: #1A3017; color: white; padding: 15px 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px; margin-top: 10px; }
+            .inst-text { font-size: 9px; color: #555; line-height: 1.5; text-align: justify; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
             .footer-container { page-break-inside: avoid; margin-top: 20px; padding-bottom: 20px; }
         </style>
         <div class="pdf-body">
@@ -238,30 +237,44 @@ window.gerarImpressaoRapida = async (btn, id) => {
             </div>`;
 
         data.items.forEach(item => {
-            const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, "").replace(/cada peça da casa terrazi[\s\S]*identidade brasileira/gi, "").trim() : "";
+            const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, "").trim() : "";
             let raw = item.descricao_tecnica || item.description || "";
-            let parts = raw.split(/(características|medidas|dimensões|especificações)/i);
+            
+            let parts = raw.split(/(características|medidas|dimensões|especificações|técnico)/i);
             let emocional = limparTxt(parts[0]);
-            let tecnico = ""; let dimensoes = "";
+            let tecnico = ""; 
+            let dimensoes = "";
+
             for (let i = 1; i < parts.length; i += 2) {
                 let label = parts[i].toLowerCase();
                 let content = limparTxt(parts[i+1]);
-                if (label.includes("dimensões") || label.includes("medidas")) dimensoes += content + " ";
-                else tecnico += content + " ";
+                if (label.includes("dimensões") || label.includes("medidas")) {
+                    dimensoes += content + " ";
+                } else {
+                    tecnico += content + " ";
+                }
             }
+
             html += `
             <div class="product-block">
                 <div class="product-flex">
                     <div class="col-left">
                         <img src="${item.imagem_url || item.image}" class="img-main">
-                        ${dimensoes ? `<div class="dim-box"><strong>DIMENSÕES</strong><br>${dimensoes}</div>` : ''}
+                        ${dimensoes ? `
+                            <div class="dim-box">
+                                <strong>DIMENSÕES:</strong><br>${dimensoes}<br>
+                                
+                            </div>` : ''}
                     </div>
                     <div class="col-right">
                         <h2 class="prod-title">${item.nome_produto || item.displayName}</h2>
                         <div class="emocional-text">${emocional}</div>
+                        
+                        ${tecnico ? `<div class="specs-box"><strong>CARACTERÍSTICAS:</strong><br>${tecnico}</div>` : ''}
+                        
                         ${item.variacao ? `<div style="font-size:11px; font-weight:bold; color:#1A3017; margin:8px 0; text-transform:uppercase;">VARIAÇÃO: ${item.variacao}</div>` : ''}
                         <span style="font-size:9px; color:#999; display:block; margin-bottom:10px;">SKU: ${item.sku || '---'}</span>
-                        ${tecnico ? `<div class="specs-box"><strong>DETALHES TÉCNICOS:</strong><br>${tecnico}</div>` : ''}
+                        
                         <table class="price-table">
                             <tr><td class="label-cell">Qtd</td><td class="label-cell">Valor Unitário</td><td class="label-cell">Subtotal</td></tr>
                             <tr>
@@ -278,20 +291,25 @@ window.gerarImpressaoRapida = async (btn, id) => {
         html += `
             <div class="footer-container">
                 ${data.obs_geral ? `<div style="font-size: 10px; background: #fdfdfd; padding: 10px; border: 1px solid #eee; margin-bottom: 5px;"><strong>OBSERVAÇÕES:</strong><br>${data.obs_geral}</div>` : ''}
+                
                 <div class="total-destaque">TOTAL GERAL: R$ ${parseFloat(data.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+
+                <div class="inst-text">
+                    <p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p>
+                    <p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>
+                </div>
             </div>
         </div>`;
 
         element.innerHTML = html;
         const opt = {
             margin: [30, 0, 30, 0],
-            filename: nomeArquivo, // Usando a variável definida acima
+            filename: nomeArquivo,
             html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         };
 
-        html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
-            window.open(pdf.output('bloburl'), '_blank');
+        html2pdf().set(opt).from(element).save().then(function () {
             btn.innerText = originalText;
             btn.disabled = false;
         });
