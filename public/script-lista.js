@@ -227,7 +227,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
                 <img src="${LOGO_URL}" style="height: 50px;">
                 <div class="header-meta">
                     <div class="order-id">ORÇAMENTO #${data.id}</div>
-                    <strong style="color: #1A3017;">UNIDADE: ${data.idfilial || usuarioLogado.idfilial}</strong><br>
+                    <strong style="color: #1A3017;">FILIAL: ${data.idfilial || usuarioLogado.idfilial}</strong><br>
                     Emissão: ${dataEmissao} | Validade: ${dataValidade}
                 </div>
             </div>
