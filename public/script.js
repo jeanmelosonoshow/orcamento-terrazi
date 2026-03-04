@@ -20,7 +20,7 @@ const displayTotalGeral = document.getElementById('displayTotalGeral');
 let quoteCart = [];
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
-// 1. INICIALIZAÇÃO
+// 1. INICIALIZAÇÃO E EVENTOS
 document.addEventListener('DOMContentLoaded', () => {
     exibirUsuarioLogado();
     if (sellerName) {
@@ -28,6 +28,15 @@ document.addEventListener('DOMContentLoaded', () => {
         sellerName.readOnly = true;
     }
     fetchProducts(true);
+
+    // Eventos de Busca
+    if (searchBtn) searchBtn.addEventListener('click', () => fetchProducts(false));
+    if (searchInput) {
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') fetchProducts(false);
+            if (searchInput.value.trim() === "") fetchProducts(true); // Volta ao inicial se limpar
+        });
+    }
 
     const clonarData = localStorage.getItem('clonar_orcamento');
     if (clonarData) {
@@ -130,7 +139,6 @@ function atualizarDestaqueTotal() {
 generatePdfBtn.addEventListener('click', async () => {
     if (quoteCart.length === 0) return alert("Selecione itens.");
 
-    // FEEDBACK VISUAL: Início do processamento
     const originalBtnText = generatePdfBtn.innerText;
     generatePdfBtn.innerText = "GERANDO PDF, AGUARDE...";
     generatePdfBtn.disabled = true;
@@ -145,18 +153,20 @@ generatePdfBtn.addEventListener('click', async () => {
             valid_until: quoteValid.value,
             seller_name: sellerName.value,
             seller_phone: sellerPhone.value,
+            // CORREÇÃO: Enviando explicitamente para o backend
+            nome_funcionario: usuarioLogado.nomefuncionario,
+            categoria: usuarioLogado.categoria || 'Geral',
             general_obs: generalObs.value,
             total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
             items: quoteCart.map(item => ({
                 ...item,
-                categoria: item.category || 'Geral' // Categoria do Produto
+                categoria: item.category || 'Geral'
             })),
-            // CORREÇÃO AQUI: Dados agrupados para a tabela vendedor_orcamento
             dados_vendedor: { 
                 idfuncionario: usuarioLogado.idfuncionario, 
                 idfilial: usuarioLogado.idfilial,
                 nome_funcionario: usuarioLogado.nomefuncionario,
-                categoria: usuarioLogado.categoria || 'Vendas' 
+                categoria: usuarioLogado.categoria || 'Geral' 
             }
         };
 
