@@ -297,7 +297,7 @@ function exibirUsuarioLogado() {
     if (infoTopo) {
         infoTopo.innerHTML = `
             <div style="display:flex; align-items:center; gap:15px; width:100%; color: white; padding: 10px; font-size: 13px;">
-                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario} | <strong>Filial:</strong> ${usuarioLogado.idfilial}</span>
+                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario} | <strong>Filial:</strong> ${usuarioLogado.idfilial} |  <strong>Categoria:</strong> ${usuarioLogado.categoria}</span>
                 <div style="flex-grow:1"></div>
                 <button onclick="fazerLogout()" style="background:#c0392b; color:white; border:none; padding:5px 12px; border-radius:4px; cursor:pointer;">SAIR</button>
             </div>`;
