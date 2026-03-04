@@ -49,7 +49,7 @@ export default async function handler(req, res) {
       `, [
         orcamentoId,
         v.idfuncionario,
-        v.nomefuncionario,
+        v.nome_funcionario,
         v.categoria,
         v.idfilial
       ]);
