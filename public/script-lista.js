@@ -67,8 +67,8 @@ function renderizarCards(lista) {
             statusHtml = `
                 <select onchange="alterarStatusOrcamento(this, ${o.id})" style="margin-top:10px; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; border: 1px solid #856404; background: #fff3cd; color: #856404; cursor:pointer;">
                     <option value="PENDENTE" selected>PENDENTE</option>
-                    <option value="VENDIDO">MARCAR VENDIDO</option>
-                    <option value="CANCELADO">CANCELAR</option>
+                    <option value="GEROU VENDA">GEROU VENDA</option>
+                    <option value="CANCELADO">CANCELADO</option>
                 </select>`;
         }
 
