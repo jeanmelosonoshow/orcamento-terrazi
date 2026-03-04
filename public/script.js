@@ -221,7 +221,7 @@ generatePdfBtn.addEventListener('click', async () => {
             <img src="${LOGO_URL}" style="height: 50px;">
             <div class="header-meta">
                 <div class="order-id">ORÇAMENTO #${orcamentoID}</div>
-                <strong style="color: #1A3017;">UNIDADE: ${usuarioLogado.idfilial}</strong><br>
+                <strong style="color: #1A3017;">FILIAL: ${usuarioLogado.idfilial}</strong><br>
                 Emissão: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}
             </div>
         </div>
