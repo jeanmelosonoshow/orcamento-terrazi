@@ -189,13 +189,18 @@ window.gerarImpressaoRapida = async (btn, id) => {
     try {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const data = await res.json();
+        
+        // --- NOVA LÓGICA PARA O NOME DO ARQUIVO ---
+        const nomeClienteFinanceiro = (data.cliente_nome || 'Consumidor').replace(/[/\\?%*:|"<>]/g, '-');
+        const nomeArquivo = `Orcamento_${data.id}_${nomeClienteFinanceiro}.pdf`;
+        // ------------------------------------------
+
         const element = document.createElement('div');
         const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00').toLocaleDateString('pt-BR') : 'A consultar';
         const dataEmissao = data.data_criacao ? new Date(data.data_criacao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 
         let html = `
         <style>
-            /* Ajuste de largura para 520pt para evitar cortes laterais e padding inferior maior */
             .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 60px 60px; position: relative; background: white; width: 520pt; box-sizing: border-box; }
             .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: #1A3017; }
             .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
@@ -214,11 +219,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
             .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
             .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
             .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
-            
-            /* Melhoria na barra de total */
             .total-destaque { background: #1A3017; color: white; padding: 15px 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px; margin-top: 10px; }
-            
-            /* Container para forçar que OBS e TOTAL fiquem na mesma página */
             .footer-container { page-break-inside: avoid; margin-top: 20px; padding-bottom: 20px; }
         </style>
         <div class="pdf-body">
@@ -283,8 +284,8 @@ window.gerarImpressaoRapida = async (btn, id) => {
 
         element.innerHTML = html;
         const opt = {
-            margin: [30, 0, 30, 0], // Margens maiores para evitar o corte
-            filename: `Terrazi_Historico_${data.id}.pdf`,
+            margin: [30, 0, 30, 0],
+            filename: nomeArquivo, // Usando a variável definida acima
             html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         };
