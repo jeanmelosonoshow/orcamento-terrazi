@@ -4,6 +4,7 @@ if (!usuarioLogado) { window.location.href = 'login.html'; }
 window.todosOrcamentos = []; 
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
+// 1. CARREGAMENTO INICIAL
 async function carregarHistorico() {
     const grid = document.getElementById('orcamentosGrid');
     const params = new URLSearchParams({
@@ -27,11 +28,11 @@ async function carregarHistorico() {
     }
 }
 
+// 2. RENDERIZAÇÃO DOS CARDS
 function renderizarCards(lista) {
     const grid = document.getElementById('orcamentosGrid');
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0); 
-    
     grid.innerHTML = '';
 
     lista.forEach(o => {
@@ -47,29 +48,16 @@ function renderizarCards(lista) {
         }
         
         let statusFinal = (o.status || 'Pendente').trim().toUpperCase();
-        if (dataValidade && dataValidade < hoje && statusFinal === 'PENDENTE') {
-            statusFinal = 'EXPIRADO';
-        }
+        if (dataValidade && dataValidade < hoje && statusFinal === 'PENDENTE') statusFinal = 'EXPIRADO';
 
-        let badgeColor = "#856404"; 
-        let badgeBg = "#fff3cd";    
-        
-        if (statusFinal === 'EXPIRADO' || statusFinal === 'CANCELADO') {
-            badgeColor = "#721c24"; 
-            badgeBg = "#f8d7da";    
-        } else if (statusFinal === 'GEROU VENDA' || statusFinal === 'VENDIDO' || statusFinal === 'FECHADO') {
-            badgeColor = "#1A3017"; 
-            badgeBg = "#E8F5E9";    
-        }
+        let badgeColor = "#856404"; let badgeBg = "#fff3cd"; 
+        if (statusFinal === 'EXPIRADO' || statusFinal === 'CANCELADO') { badgeColor = "#721c24"; badgeBg = "#f8d7da"; }
+        else if (['GEROU VENDA', 'VENDIDO', 'FECHADO'].includes(statusFinal)) { badgeColor = "#1A3017"; badgeBg = "#E8F5E9"; }
 
         const card = document.createElement('div');
         card.className = `orcamento-card`; 
-        
         card.innerHTML = `
-            <div class="card-header">
-                <span>#${o.id}</span> 
-                <span style="font-size:11px; font-weight:600;">Validade: ${dataExibicao}</span>
-            </div>
+            <div class="card-header"><span>#${o.id}</span><span style="font-size:11px; font-weight:600;">Validade: ${dataExibicao}</span></div>
             <div class="card-body">
                 <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #1A3017;">${o.cliente_nome || 'Consumidor'}</h3>
                 <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Vendedor: ${o.vendedor_nome}</p>
@@ -81,121 +69,107 @@ function renderizarCards(lista) {
                 </div>
             </div>
             <div class="card-footer" style="display:flex; gap:8px; padding: 12px; background: #f9f9f9; border-top: 1px solid #eee;">
-                <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})" 
-                    style="flex:1; background:#1A3017; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:600; transition: 0.3s;">REABRIR</button>
-                <button class="btn-imprimir" onclick="gerarImpressaoRapida(this, ${o.id})" 
-                    style="flex:1; background:white; color:#1A3017; border:1px solid #1A3017; padding:8px; border-radius:4px; cursor:pointer; font-weight:600; transition: 0.3s;">IMPRIMIR</button>
+                <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})" style="flex:1; background:#1A3017; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">REABRIR</button>
+                <button class="btn-imprimir" onclick="gerarImpressaoRapida(this, ${o.id})" style="flex:1; background:white; color:#1A3017; border:1px solid #1A3017; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">IMPRIMIR</button>
             </div>`;
         grid.appendChild(card);
     });
 }
 
-// 1. REABRIR COM ANIMAÇÃO
+// 3. LOGICA DE REABRIR (CLONAR)
 window.clonagemRapida = async (btn, id) => {
     const originalText = btn.innerText;
-    btn.innerText = "CARREGANDO...";
+    btn.innerText = "REABRINDO...";
     btn.disabled = true;
-    btn.style.opacity = "0.7";
-
     try {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
-        const orcamento = await res.json();
-        localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
+        const data = await res.json();
+        localStorage.setItem('clonar_orcamento', JSON.stringify(data));
         window.location.href = 'index.html';
     } catch (e) {
         alert("Erro ao reabrir.");
         btn.innerText = originalText;
         btn.disabled = false;
-        btn.style.opacity = "1";
     }
 };
 
-// 2. IMPRIMIR INVISÍVEL E ABRIR EM NOVA ABA
+// 4. IMPRESSÃO ROBUSTA (MONTAGE INVISÍVEL)
 window.gerarImpressaoRapida = async (btn, id) => {
     const originalText = btn.innerText;
-    btn.innerText = "AGUARDE...";
+    btn.innerText = "MONTANDO PDF...";
     btn.disabled = true;
-    btn.style.background = "#eee";
 
     try {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const data = await res.json();
         
+        if (!data || !data.items) throw new Error("Dados inválidos");
+
         const element = document.createElement('div');
-        const dataValidade = data.data_validade ? new Date(data.data_validade).toLocaleDateString('pt-BR') : 'A consultar';
+        // Garantir que o container esteja fora da visão mas acessível para renderização
+        element.style.position = 'absolute';
+        element.style.left = '-9999px';
+        element.style.width = '800px'; 
+
+        const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00:00').toLocaleDateString('pt-BR') : 'A consultar';
         const dataEmissao = data.data_criacao ? new Date(data.data_criacao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+        const valorTotalFormatado = parseFloat(data.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2});
 
         let html = `
         <style>
-            .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 30px 60px; position: relative; background: white; }
+            .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 30px 60px; background: white; }
             .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: #1A3017; }
             .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
             .order-id { font-size: 24px; font-weight: bold; color: #1A3017; }
-            .header-meta { font-size: 10px; color: #666; line-height: 1.4; text-align: right; }
+            .header-meta { font-size: 10px; color: #666; text-align: right; }
             .info-box { background: #f9f9f9; padding: 15px; border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px; border: 1px solid #eee; margin-bottom: 25px; }
-            .product-block { width: 100%; page-break-inside: avoid; margin-bottom: 35px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
+            .product-block { width: 100%; page-break-inside: avoid; margin-bottom: 30px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
             .product-flex { display: flex; gap: 25px; }
-            .col-left { width: 200px; flex-shrink: 0; }
+            .col-left { width: 180px; flex-shrink: 0; }
             .col-right { flex: 1; }
-            .img-main { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
-            .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; }
-            .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
-            .variation-text { font-size: 11px; color: #1A3017; font-weight: bold; margin: 8px 0; text-transform: uppercase; }
-            .sku-text { font-size: 9px; color: #999; margin-bottom: 10px; display: block; }
-            .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; }
-            .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; }
-            .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
+            .img-main { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; }
+            .prod-title { font-size: 16px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
+            .emocional-text { font-size: 10px; line-height: 1.4; color: #444; margin: 10px 0; text-align: justify; }
+            .price-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            .price-table td { border: 1px solid #eee; padding: 6px; text-align: center; font-size: 11px; font-weight: bold; }
             .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
+            .total-destaque { background: #1A3017; color: white; padding: 15px; text-align: right; font-size: 18px; font-weight: bold; border-radius: 4px; margin-top: 20px; }
         </style>
         <div class="pdf-body">
             <div class="brand-sidebar"></div>
             <div class="pdf-header">
-                <img src="${LOGO_URL}" style="height: 50px;">
+                <img src="${LOGO_URL}" style="height: 45px;">
                 <div class="header-meta">
                     <div class="order-id">ORÇAMENTO #${data.id}</div>
-                    <strong style="color: #1A3017;">UNIDADE: ${data.idfilial || usuarioLogado.idfilial}</strong><br>
+                    <strong>UNIDADE: ${data.idfilial || 'Matriz'}</strong><br>
                     Emissão: ${dataEmissao} | Validade: ${dataValidade}
                 </div>
             </div>
             <div class="info-box">
-                <div><strong>CLIENTE:</strong><br>${data.cliente_nome || '---'}<br>DOC: ${data.cliente_doc || '---'}</div>
+                <div><strong>CLIENTE:</strong><br>${data.cliente_nome || 'Consumidor'}<br>DOC: ${data.cliente_doc || '---'}</div>
                 <div><strong>VENDEDOR:</strong><br>${data.vendedor_nome}<br>CONTATO: ${data.vendedor_contato || '---'}</div>
             </div>`;
 
         data.items.forEach(item => {
-            const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, "").trim() : "";
-            let raw = item.descricao_tecnica || "";
-            let parts = raw.split(/(características|medidas|dimensões|especificações)/i);
-            let emocional = limparTxt(parts[0]);
-            let tecnico = ""; let dimensoes = "";
-
-            for (let i = 1; i < parts.length; i += 2) {
-                let label = parts[i].toLowerCase();
-                let content = limparTxt(parts[i+1]);
-                if (label.includes("dimensões") || label.includes("medidas")) dimensoes += content + " ";
-                else tecnico += content + " ";
-            }
+            const imgUrl = item.imagem_url || item.image || '';
+            const nomeProd = item.nome_produto || item.displayName || 'Produto';
+            const desc = item.descricao_tecnica || item.description || '';
+            const preco = parseFloat(item.preco_unitario || item.price || 0);
+            const qtd = parseInt(item.quantidade || item.quantity || 1);
 
             html += `
             <div class="product-block">
                 <div class="product-flex">
-                    <div class="col-left">
-                        <img src="${item.imagem_url}" class="img-main">
-                        ${dimensoes ? `<div class="dim-box"><strong>DIMENSÕES</strong><br>${dimensoes}</div>` : ''}
-                    </div>
+                    <div class="col-left"><img src="${imgUrl}" class="img-main"></div>
                     <div class="col-right">
-                        <h2 class="prod-title">${item.nome_produto}</h2>
-                        <div class="emocional-text">${emocional}</div>
-                        ${item.variacao ? `<div class="variation-text">VARIAÇÃO: ${item.variacao}</div>` : ''}
-                        <span class="sku-text">SKU: ${item.sku || '---'}</span>
-                        ${tecnico ? `<div class="specs-box"><strong>DETALHES TÉCNICOS:</strong><br>${tecnico}</div>` : ''}
+                        <h2 class="prod-title">${nomeProd}</h2>
+                        <div class="emocional-text">${desc.split(/(características|medidas|dimensões)/i)[0]}</div>
                         <table class="price-table">
                             <tr><td class="label-cell">Qtd</td><td class="label-cell">Valor Unitário</td><td class="label-cell">Subtotal</td></tr>
                             <tr>
-                                <td>${item.quantidade}</td>
-                                <td>R$ ${parseFloat(item.preco_unitario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                                <td>R$ ${(item.quantidade * item.preco_unitario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                <td>${qtd}</td>
+                                <td>R$ ${preco.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                <td>R$ ${(qtd * preco).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                             </tr>
                         </table>
                     </div>
@@ -205,78 +179,46 @@ window.gerarImpressaoRapida = async (btn, id) => {
 
         html += `
             <div style="page-break-inside: avoid;">
-                ${data.obs_geral ? `<div style="font-size: 10px; background: #fdfdfd; padding: 10px; border: 1px solid #eee; margin-bottom: 15px;"><strong>OBSERVAÇÕES:</strong><br>${data.obs_geral}</div>` : ''}
-                <div style="background: #1A3017; color: white; padding: 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px;">
-                    TOTAL GERAL: R$ ${parseFloat(data.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                </div>
+                ${data.obs_geral ? `<div style="font-size: 9px; padding: 10px; border: 1px solid #eee; margin-bottom: 10px;"><strong>OBSERVAÇÕES:</strong><br>${data.obs_geral}</div>` : ''}
+                <div class="total-destaque">TOTAL GERAL: R$ ${valorTotalFormatado}</div>
             </div>
         </div>`;
 
         element.innerHTML = html;
+        document.body.appendChild(element); // Adiciona temporariamente para o html2pdf capturar imagens
 
         const opt = {
-            margin: [20, 0, 20, 0],
-            filename: `Terrazi_Orcamento_${data.id}.pdf`,
-            html2canvas: { scale: 2, useCORS: true },
+            margin: [10, 0, 10, 0],
+            filename: `Terrazi_${data.id}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         };
 
-        // Gera o Blob e abre em nova aba
+        // Gera o PDF e abre em nova aba
         const pdfWorker = html2pdf().set(opt).from(element);
         const pdfBlob = await pdfWorker.output('blob');
         const url = URL.createObjectURL(pdfBlob);
         window.open(url, '_blank');
 
-        // Restaura botão
+        // Limpeza
+        document.body.removeChild(element);
         btn.innerText = originalText;
         btn.disabled = false;
-        btn.style.background = "white";
 
     } catch (e) {
-        console.error(e);
-        alert("Erro ao gerar impressão.");
+        console.error("Erro na impressão:", e);
+        alert("Erro ao processar PDF. Verifique os dados.");
         btn.innerText = originalText;
         btn.disabled = false;
     }
 };
 
-window.filtrarCards = () => {
-    const termo = document.getElementById('filterInput').value.toLowerCase().trim();
-    const status = document.getElementById('statusFilter').value;
-
-    if (termo === "" && status === "") {
-        renderizarCards(window.todosOrcamentos);
-        return;
-    }
-
-    const filtrados = window.todosOrcamentos.filter(o => {
-        const nomeCliente = (o.cliente_nome || "").toLowerCase();
-        const docCliente = (o.cliente_doc || "").toLowerCase();
-        const bateTexto = nomeCliente.includes(termo) || docCliente.includes(termo);
-        const bateStatus = status === "" || o.status === status;
-        return bateTexto && bateStatus;
-    });
-
-    renderizarCards(filtrados);
-};
-
+// 5. AUXILIARES
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
 
-function exibirUsuarioLogado() {
-    const infoTopo = document.getElementById('user-info-topo');
-    if (infoTopo && usuarioLogado) {
-        infoTopo.innerHTML = `
-            <div style="display:flex; align-items:center; gap:15px; width:100%;">
-                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario} | </span>
-                <span><strong>Filial:</strong> ${usuarioLogado.idfilial} | </span>
-                <span><strong>Categoria:</strong> ${usuarioLogado.categoria}  </span>
-                <div style="flex-grow:1"></div>
-                <button onclick="fazerLogout()" style="background:#c0392b; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">SAIR</button>
-            </div>`;
-    }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    exibirUsuarioLogado();
     carregarHistorico();
+    const infoTopo = document.getElementById('user-info-topo');
+    if (infoTopo) infoTopo.innerHTML = `<div style="color:white; font-size:12px; padding:10px;">Vendedor: ${usuarioLogado.nomefuncionario} | Filial: ${usuarioLogado.idfilial} <button onclick="fazerLogout()" style="margin-left:20px;">SAIR</button></div>`;
 });
