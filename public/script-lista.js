@@ -31,7 +31,6 @@ function renderizarCards(lista) {
     const grid = document.getElementById('orcamentosGrid');
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0); 
-    
     grid.innerHTML = '';
 
     lista.forEach(o => {
@@ -51,20 +50,15 @@ function renderizarCards(lista) {
             statusFinal = 'EXPIRADO';
         }
 
-        let badgeColor = "#856404"; 
-        let badgeBg = "#fff3cd";    
-        
+        let badgeColor = "#856404"; let badgeBg = "#fff3cd"; 
         if (statusFinal === 'EXPIRADO' || statusFinal === 'CANCELADO') {
-            badgeColor = "#721c24"; 
-            badgeBg = "#f8d7da";    
+            badgeColor = "#721c24"; badgeBg = "#f8d7da"; 
         } else if (statusFinal === 'GEROU VENDA' || statusFinal === 'VENDIDO' || statusFinal === 'FECHADO') {
-            badgeColor = "#1A3017"; 
-            badgeBg = "#E8F5E9";    
+            badgeColor = "#1A3017"; badgeBg = "#E8F5E9"; 
         }
 
         const card = document.createElement('div');
         card.className = `orcamento-card status-${statusFinal.toLowerCase().replace(/\s+/g, '-')}`; 
-        
         card.innerHTML = `
             <div class="card-header">
                 <span>#${o.id}</span> 
@@ -81,41 +75,17 @@ function renderizarCards(lista) {
                 </div>
             </div>
             <div class="card-footer" style="display:flex; gap:8px; padding: 12px; background: #f9f9f9; border-top: 1px solid #eee;">
-                <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})" 
-                    style="flex:1; background:#1A3017; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">REABRIR</button>
-                <button class="btn-imprimir" onclick="gerarImpressaoRapida(this, ${o.id})" 
-                    style="flex:1; background:white; color:#1A3017; border:1px solid #1A3017; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">IMPRIMIR</button>
+                <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})" style="flex:1; background:#1A3017; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">REABRIR</button>
+                <button class="btn-imprimir" onclick="gerarImpressaoRapida(this, ${o.id})" style="flex:1; background:white; color:#1A3017; border:1px solid #1A3017; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">IMPRIMIR</button>
             </div>`;
         grid.appendChild(card);
     });
 }
 
-window.filtrarCards = () => {
-    const termo = document.getElementById('filterInput').value.toLowerCase().trim();
-    const status = document.getElementById('statusFilter').value;
-
-    if (termo === "" && status === "") {
-        renderizarCards(window.todosOrcamentos);
-        return;
-    }
-
-    const filtrados = window.todosOrcamentos.filter(o => {
-        const nomeCliente = (o.cliente_nome || "").toLowerCase();
-        const docCliente = (o.cliente_doc || "").toLowerCase();
-        const bateTexto = nomeCliente.includes(termo) || docCliente.includes(termo);
-        const bateStatus = status === "" || o.status === status;
-        return bateTexto && bateStatus;
-    });
-
-    renderizarCards(filtrados);
-};
-
-// 1. REABRIR (Redireciona para o index para edição)
 window.clonagemRapida = async (btn, id) => {
     const originalText = btn.innerText;
     btn.innerText = "AGUARDE...";
     btn.disabled = true;
-
     try {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const orcamento = await res.json();
@@ -128,7 +98,6 @@ window.clonagemRapida = async (btn, id) => {
     }
 };
 
-// 2. IMPRIMIR (Abre em nova aba usando a estrutura de "visualização" do sistema)
 window.gerarImpressaoRapida = async (btn, id) => {
     const originalText = btn.innerText;
     btn.innerText = "AGUARDE...";
@@ -138,95 +107,118 @@ window.gerarImpressaoRapida = async (btn, id) => {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const data = await res.json();
         
-        // Simula o carregamento no localStorage para a página de impressão ler
-        localStorage.setItem('impressao_temp', JSON.stringify(data));
-        
-        // Abre uma nova janela que você deve criar (ex: imprimir.html) 
-        // ou redireciona para uma rota que gere o PDF com a mesma lógica do index
-        // Para ser imediato sem criar arquivo novo, vamos usar a técnica do Blob no código abaixo:
-        
-        imprimirViaLayoutOriginal(data);
+        // Elemento invisível para o html2pdf capturar
+        const element = document.createElement('div');
+        const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00').toLocaleDateString('pt-BR') : 'A consultar';
+        const dataEmissao = data.data_criacao ? new Date(data.data_criacao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 
-        btn.innerText = originalText;
-        btn.disabled = false;
+        let html = `
+        <style>
+            .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 30px 60px; position: relative; background: white; width: 500pt; }
+            .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: #1A3017; }
+            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
+            .order-id { font-size: 24px; font-weight: bold; color: #1A3017; }
+            .header-meta { font-size: 10px; color: #666; text-align: right; }
+            .info-box { background: #f9f9f9; padding: 15px; border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px; border: 1px solid #eee; margin-bottom: 25px; }
+            .product-block { width: 100%; page-break-inside: avoid; margin-bottom: 35px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
+            .product-flex { display: flex; gap: 25px; }
+            .col-left { width: 200px; flex-shrink: 0; }
+            .col-right { flex: 1; }
+            .img-main { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
+            .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; }
+            .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
+            .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; }
+            .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; }
+            .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
+            .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
+            .total-destaque { background: #1A3017; color: white; padding: 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px; }
+        </style>
+        <div class="pdf-body">
+            <div class="brand-sidebar"></div>
+            <div class="pdf-header">
+                <img src="${LOGO_URL}" style="height: 50px;">
+                <div class="header-meta">
+                    <div class="order-id">ORÇAMENTO #${data.id}</div>
+                    <strong style="color: #1A3017;">UNIDADE: ${data.idfilial || usuarioLogado.idfilial}</strong><br>
+                    Emissão: ${dataEmissao} | Validade: ${dataValidade}
+                </div>
+            </div>
+            <div class="info-box">
+                <div><strong>CLIENTE:</strong><br>${data.cliente_nome || 'Consumidor'}<br>DOC: ${data.cliente_doc || '---'}</div>
+                <div><strong>VENDEDOR:</strong><br>${data.vendedor_nome}<br>CONTATO: ${data.vendedor_contato || '---'}</div>
+            </div>`;
+
+        data.items.forEach(item => {
+            const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, "").replace(/cada peça da casa terrazi[\s\S]*identidade brasileira/gi, "").trim() : "";
+            let raw = item.descricao_tecnica || item.description || "";
+            let parts = raw.split(/(características|medidas|dimensões|especificações)/i);
+            let emocional = limparTxt(parts[0]);
+            let tecnico = ""; let dimensoes = "";
+
+            for (let i = 1; i < parts.length; i += 2) {
+                let label = parts[i].toLowerCase();
+                let content = limparTxt(parts[i+1]);
+                if (label.includes("dimensões") || label.includes("medidas")) dimensoes += content + " ";
+                else tecnico += content + " ";
+            }
+
+            html += `
+            <div class="product-block">
+                <div class="product-flex">
+                    <div class="col-left">
+                        <img src="${item.imagem_url || item.image}" class="img-main">
+                        ${dimensoes ? `<div class="dim-box"><strong>DIMENSÕES</strong><br>${dimensoes}</div>` : ''}
+                    </div>
+                    <div class="col-right">
+                        <h2 class="prod-title">${item.nome_produto || item.displayName}</h2>
+                        <div class="emocional-text">${emocional}</div>
+                        ${item.variacao ? `<div style="font-size:11px; font-weight:bold; color:#1A3017; margin:8px 0; text-transform:uppercase;">VARIAÇÃO: ${item.variacao}</div>` : ''}
+                        <span style="font-size:9px; color:#999; display:block; margin-bottom:10px;">SKU: ${item.sku || '---'}</span>
+                        ${tecnico ? `<div class="specs-box"><strong>DETALHES TÉCNICOS:</strong><br>${tecnico}</div>` : ''}
+                        <table class="price-table">
+                            <tr><td class="label-cell">Qtd</td><td class="label-cell">Valor Unitário</td><td class="label-cell">Subtotal</td></tr>
+                            <tr>
+                                <td>${item.quantidade}</td>
+                                <td>R$ ${parseFloat(item.preco_unitario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                <td>R$ ${(item.quantidade * item.preco_unitario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        html += `
+            <div style="page-break-inside: avoid;">
+                ${data.obs_geral ? `<div style="font-size: 10px; background: #fdfdfd; padding: 10px; border: 1px solid #eee; margin-bottom: 15px;"><strong>OBSERVAÇÕES:</strong><br>${data.obs_geral}</div>` : ''}
+                <div class="total-destaque">TOTAL GERAL: R$ ${parseFloat(data.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+            </div>
+        </div>`;
+
+        element.innerHTML = html;
+        
+        const opt = {
+            margin: [20, 0, 20, 0],
+            filename: `Terrazi_Historico_${data.id}.pdf`,
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+        };
+
+        // Gerar o PDF e abrir em nova aba
+        html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
+            window.open(pdf.output('bloburl'), '_blank');
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+
     } catch (e) {
         console.error(e);
-        alert("Erro ao carregar dados para impressão.");
+        alert("Erro ao imprimir.");
         btn.innerText = originalText;
         btn.disabled = false;
     }
 };
-
-// Esta função garante que o layout seja exatamente o que você quer (com totalizador e itens)
-function imprimirViaLayoutOriginal(data) {
-    const win = window.open('', '_blank');
-    
-    // Pegamos a lógica de tratamento de dados para garantir que nada venha em branco
-    const totalGeral = parseFloat(data.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-    const dataEmissao = data.data_criacao ? new Date(data.data_criacao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-    const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00:00').toLocaleDateString('pt-BR') : 'A consultar';
-
-    let itensHtml = '';
-    data.items.forEach(item => {
-        const subtotal = (parseFloat(item.quantidade) * parseFloat(item.preco_unitario)).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        itensHtml += `
-            <div style="display: flex; gap: 20px; border-bottom: 1px solid #eee; padding: 15px 0; page-break-inside: avoid;">
-                <img src="${item.imagem_url || ''}" style="width: 150px; height: 150px; object-fit: cover; border-radius: 4px;">
-                <div style="flex: 1;">
-                    <h2 style="margin: 0; color: #1A3017; font-size: 16px; text-transform: uppercase;">${item.nome_produto}</h2>
-                    <p style="font-size: 11px; color: #555; margin: 10px 0;">${item.descricao_tecnica || ''}</p>
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                        <tr style="background: #fafafa; font-size: 9px; color: #999; text-transform: uppercase;">
-                            <th style="padding: 5px; border: 1px solid #eee;">Qtd</th>
-                            <th style="padding: 5px; border: 1px solid #eee;">Unitário</th>
-                            <th style="padding: 5px; border: 1px solid #eee;">Subtotal</th>
-                        </tr>
-                        <tr style="font-weight: bold; text-align: center; font-size: 12px;">
-                            <td style="padding: 8px; border: 1px solid #eee;">${item.quantidade}</td>
-                            <td style="padding: 8px; border: 1px solid #eee;">R$ ${parseFloat(item.preco_unitario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                            <td style="padding: 8px; border: 1px solid #eee;">R$ ${subtotal}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>`;
-    });
-
-    win.document.write(`
-        <html>
-        <head>
-            <title>Orçamento #${data.id}</title>
-            <style>
-                body { font-family: sans-serif; margin: 0; padding: 40px; color: #333; }
-                .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #1A3017; padding-bottom: 10px; }
-                .total-box { background: #1A3017; color: white; padding: 20px; text-align: right; font-size: 24px; font-weight: bold; border-radius: 4px; margin-top: 20px; }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <img src="${LOGO_URL}" style="height: 60px;">
-                <div style="text-align: right;">
-                    <h1 style="margin:0; color: #1A3017;">ORÇAMENTO #${data.id}</h1>
-                    <p style="margin:0; font-size: 12px;">Emissão: ${dataEmissao} | Validade: ${dataValidade}</p>
-                </div>
-            </div>
-            <div style="display: flex; justify-content: space-between; background: #f9f9f9; padding: 15px; margin: 20px 0; font-size: 12px; border-radius: 4px;">
-                <div><strong>CLIENTE:</strong> ${data.cliente_nome || '---'}<br><strong>DOC:</strong> ${data.cliente_doc || '---'}</div>
-                <div style="text-align: right;"><strong>VENDEDOR:</strong> ${data.vendedor_nome}<br><strong>FILIAL:</strong> ${data.idfilial}</div>
-            </div>
-            ${itensHtml}
-            <div class="total-box">TOTAL GERAL: R$ ${totalGeral}</div>
-            <script>
-                // Pequeno delay para carregar imagens antes de chamar o print
-                window.onload = () => { 
-                    window.print(); 
-                    // win.close(); // Opcional: fechar a aba após imprimir
-                };
-            </script>
-        </body>
-        </html>
-    `);
-    win.document.close();
-}
 
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
 
@@ -240,8 +232,7 @@ function exibirUsuarioLogado() {
                 <span><strong>Categoria:</strong> ${usuarioLogado.categoria}  </span>
                 <div style="flex-grow:1"></div>
                 <button onclick="fazerLogout()" style="background:#c0392b; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">SAIR</button>
-            </div>
-        `;
+            </div>`;
     }
 }
 
