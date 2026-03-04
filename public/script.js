@@ -153,7 +153,6 @@ generatePdfBtn.addEventListener('click', async () => {
             valid_until: quoteValid.value,
             seller_name: sellerName.value,
             seller_phone: sellerPhone.value,
-            // CORREÇÃO: Enviando explicitamente para o backend
             nome_funcionario: usuarioLogado.nomefuncionario,
             categoria: usuarioLogado.categoria || 'Geral',
             general_obs: generalObs.value,
@@ -205,15 +204,16 @@ generatePdfBtn.addEventListener('click', async () => {
         .col-left { width: 200px; flex-shrink: 0; }
         .col-right { flex: 1; }
         .img-main { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
-        .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; }
+        .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; line-height: 1.3; }
         .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
         .variation-text { font-size: 11px; color: #1A3017; font-weight: bold; margin: 8px 0; text-transform: uppercase; }
         .sku-text { font-size: 9px; color: #999; margin-bottom: 10px; display: block; }
-        .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; }
-        .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; }
+        .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; font-style: italic; }
+        .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; line-height: 1.4; }
         .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
         .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
+        .inst-text { font-size: 9px; color: #555; line-height: 1.5; text-align: justify; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
     </style>
     <div class="pdf-body">
         <div class="brand-sidebar"></div>
@@ -231,17 +231,24 @@ generatePdfBtn.addEventListener('click', async () => {
         </div>`;
 
     quoteCart.forEach(item => {
-        const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, "").replace(/cada peça da casa terrazi[\s\S]*identidade brasileira/gi, "").trim() : "";
+        const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, "").trim() : "";
+        
+        // Regex aprimorada para identificar blocos
         let raw = item.description || "";
-        let parts = raw.split(/(características|medidas|dimensões|especificações)/i);
+        let parts = raw.split(/(características|medidas|dimensões|especificações|técnico)/i);
+        
         let emocional = limparTxt(parts[0]);
-        let tecnico = ""; let dimensoes = "";
+        let tecnico = ""; 
+        let dimensoes = "";
 
         for (let i = 1; i < parts.length; i += 2) {
             let label = parts[i].toLowerCase();
             let content = limparTxt(parts[i+1]);
-            if (label.includes("dimensões") || label.includes("medidas")) dimensoes += content + " ";
-            else tecnico += content + " ";
+            if (label.includes("dimensões") || label.includes("medidas")) {
+                dimensoes += content + " ";
+            } else {
+                tecnico += content + " ";
+            }
         }
 
         html += `
@@ -249,14 +256,21 @@ generatePdfBtn.addEventListener('click', async () => {
             <div class="product-flex">
                 <div class="col-left">
                     <img src="${item.image}" class="img-main">
-                    ${dimensoes ? `<div class="dim-box"><strong>DIMENSÕES</strong><br>${dimensoes}</div>` : ''}
+                    ${dimensoes ? `
+                        <div class="dim-box">
+                            <strong>DIMENSÕES:</strong><br>${dimensoes}<br>
+                            
+                        </div>` : ''}
                 </div>
                 <div class="col-right">
                     <h2 class="prod-title">${item.displayName}</h2>
                     <div class="emocional-text">${emocional}</div>
+                    
+                    ${tecnico ? `<div class="specs-box"><strong>CARACTERÍSTICAS:</strong><br>${tecnico}</div>` : ''}
+                    
                     ${item.variation ? `<div class="variation-text">VARIAÇÃO: ${item.variation}</div>` : ''}
                     <span class="sku-text">SKU: ${item.sku}</span>
-                    ${tecnico ? `<div class="specs-box"><strong>DETALHES TÉCNICOS:</strong><br>${tecnico}</div>` : ''}
+                    
                     <table class="price-table">
                         <tr><td class="label-cell">Qtd</td><td class="label-cell">Valor Unitário</td><td class="label-cell">Subtotal</td></tr>
                         <tr>
@@ -273,8 +287,14 @@ generatePdfBtn.addEventListener('click', async () => {
     html += `
         <div style="page-break-inside: avoid;">
             ${generalObs.value ? `<div style="font-size: 10px; background: #fdfdfd; padding: 10px; border: 1px solid #eee; margin-bottom: 15px;"><strong>OBSERVAÇÕES:</strong><br>${generalObs.value}</div>` : ''}
+            
             <div style="background: #1A3017; color: white; padding: 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px;">
                 TOTAL GERAL: R$ ${displayTotalGeral.innerText}
+            </div>
+
+            <div class="inst-text">
+                <p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p>
+                <p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>
             </div>
         </div>
     </div>`;
