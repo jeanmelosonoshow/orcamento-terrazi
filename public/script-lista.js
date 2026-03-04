@@ -57,6 +57,21 @@ function renderizarCards(lista) {
             badgeColor = "#1A3017"; badgeBg = "#E8F5E9"; 
         }
 
+        // Lógica de alteração de status (Select apenas se PENDENTE)
+        let statusHtml = `
+            <div class="badge-status" style="margin-top:10px; display:inline-block; padding:4px 12px; border-radius:12px; font-size:10px; font-weight:bold; text-transform:uppercase; color: ${badgeColor}; background-color: ${badgeBg};">
+                ${statusFinal}
+            </div>`;
+
+        if (statusFinal === 'PENDENTE') {
+            statusHtml = `
+                <select onchange="alterarStatusOrcamento(this, ${o.id})" style="margin-top:10px; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; border: 1px solid #856404; background: #fff3cd; color: #856404; cursor:pointer;">
+                    <option value="PENDENTE" selected>PENDENTE</option>
+                    <option value="VENDIDO">MARCAR VENDIDO</option>
+                    <option value="CANCELADO">CANCELAR</option>
+                </select>`;
+        }
+
         const card = document.createElement('div');
         card.className = `orcamento-card status-${statusFinal.toLowerCase().replace(/\s+/g, '-')}`; 
         card.innerHTML = `
@@ -70,9 +85,7 @@ function renderizarCards(lista) {
                 <div class="total" style="font-size: 18px; font-weight: 700; color: #1A3017;">
                     R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </div>
-                <div class="badge-status" style="margin-top:10px; display:inline-block; padding:4px 12px; border-radius:12px; font-size:10px; font-weight:bold; text-transform:uppercase; color: ${badgeColor}; background-color: ${badgeBg};">
-                    ${statusFinal}
-                </div>
+                ${statusHtml}
             </div>
             <div class="card-footer" style="display:flex; gap:8px; padding: 12px; background: #f9f9f9; border-top: 1px solid #eee;">
                 <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})" style="flex:1; background:#1A3017; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">REABRIR</button>
@@ -81,6 +94,37 @@ function renderizarCards(lista) {
         grid.appendChild(card);
     });
 }
+
+// NOVA FUNÇÃO: Alterar Status via API
+window.alterarStatusOrcamento = async (select, id) => {
+    const novoStatus = select.value;
+    if (novoStatus === 'PENDENTE') return;
+
+    if (!confirm(`Deseja alterar o status do orçamento #${id} para ${novoStatus}?`)) {
+        select.value = 'PENDENTE';
+        return;
+    }
+
+    select.disabled = true;
+    try {
+        const response = await fetch('/api/status-orcamento', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status: novoStatus })
+        });
+
+        if (response.ok) {
+            carregarHistorico();
+        } else {
+            const err = await response.json();
+            alert("Erro: " + (err.error || "Não foi possível alterar."));
+            carregarHistorico();
+        }
+    } catch (e) {
+        alert("Erro na conexão com o servidor.");
+        select.disabled = false;
+    }
+};
 
 window.clonagemRapida = async (btn, id) => {
     const originalText = btn.innerText;
@@ -107,7 +151,6 @@ window.gerarImpressaoRapida = async (btn, id) => {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const data = await res.json();
         
-        // Elemento invisível para o html2pdf capturar
         const element = document.createElement('div');
         const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00').toLocaleDateString('pt-BR') : 'A consultar';
         const dataEmissao = data.data_criacao ? new Date(data.data_criacao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
@@ -205,7 +248,6 @@ window.gerarImpressaoRapida = async (btn, id) => {
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         };
 
-        // Gerar o PDF e abrir em nova aba
         html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
             window.open(pdf.output('bloburl'), '_blank');
             btn.innerText = originalText;
