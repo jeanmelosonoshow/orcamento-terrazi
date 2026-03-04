@@ -195,17 +195,18 @@ window.gerarImpressaoRapida = async (btn, id) => {
 
         let html = `
         <style>
-            .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 30px 60px; position: relative; background: white; width: 500pt; }
+            /* Ajuste de largura para 520pt para evitar cortes laterais e padding inferior maior */
+            .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 60px 60px; position: relative; background: white; width: 520pt; box-sizing: border-box; }
             .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: #1A3017; }
             .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
             .order-id { font-size: 24px; font-weight: bold; color: #1A3017; }
             .header-meta { font-size: 10px; color: #666; text-align: right; }
             .info-box { background: #f9f9f9; padding: 15px; border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px; border: 1px solid #eee; margin-bottom: 25px; }
-            .product-block { width: 100%; page-break-inside: avoid; margin-bottom: 35px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
+            .product-block { width: 100%; page-break-inside: avoid; margin-bottom: 30px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
             .product-flex { display: flex; gap: 25px; }
-            .col-left { width: 200px; flex-shrink: 0; }
+            .col-left { width: 180px; flex-shrink: 0; }
             .col-right { flex: 1; }
-            .img-main { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
+            .img-main { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
             .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; }
             .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
             .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; }
@@ -213,7 +214,12 @@ window.gerarImpressaoRapida = async (btn, id) => {
             .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
             .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
             .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
-            .total-destaque { background: #1A3017; color: white; padding: 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px; }
+            
+            /* Melhoria na barra de total */
+            .total-destaque { background: #1A3017; color: white; padding: 15px 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px; margin-top: 10px; }
+            
+            /* Container para forçar que OBS e TOTAL fiquem na mesma página */
+            .footer-container { page-break-inside: avoid; margin-top: 20px; padding-bottom: 20px; }
         </style>
         <div class="pdf-body">
             <div class="brand-sidebar"></div>
@@ -269,17 +275,17 @@ window.gerarImpressaoRapida = async (btn, id) => {
         });
 
         html += `
-            <div style="page-break-inside: avoid;">
-                ${data.obs_geral ? `<div style="font-size: 10px; background: #fdfdfd; padding: 10px; border: 1px solid #eee; margin-bottom: 15px;"><strong>OBSERVAÇÕES:</strong><br>${data.obs_geral}</div>` : ''}
+            <div class="footer-container">
+                ${data.obs_geral ? `<div style="font-size: 10px; background: #fdfdfd; padding: 10px; border: 1px solid #eee; margin-bottom: 5px;"><strong>OBSERVAÇÕES:</strong><br>${data.obs_geral}</div>` : ''}
                 <div class="total-destaque">TOTAL GERAL: R$ ${parseFloat(data.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
             </div>
         </div>`;
 
         element.innerHTML = html;
         const opt = {
-            margin: [20, 0, 20, 0],
+            margin: [30, 0, 30, 0], // Margens maiores para evitar o corte
             filename: `Terrazi_Historico_${data.id}.pdf`,
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         };
 
