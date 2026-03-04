@@ -130,10 +130,16 @@ function atualizarDestaqueTotal() {
 generatePdfBtn.addEventListener('click', async () => {
     if (quoteCart.length === 0) return alert("Selecione itens.");
 
-    // Lógica para obter o Número do Pedido (Preview ou Banco)
+    // FEEDBACK VISUAL: Início do processamento
+    const originalBtnText = generatePdfBtn.innerText;
+    generatePdfBtn.innerText = "GERANDO PDF, AGUARDE...";
+    generatePdfBtn.disabled = true;
+    generatePdfBtn.style.opacity = "0.7";
+
     let orcamentoID = "---";
+    
     try {
-        // Primeiro salvamos para garantir o ID real
+        // Salva no banco com os novos campos (categoria e nome_funcionario)
         const res = await fetch('/api/salvar-orcamento', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -143,21 +149,29 @@ generatePdfBtn.addEventListener('click', async () => {
                 valid_until: quoteValid.value,
                 seller_name: sellerName.value,
                 seller_phone: sellerPhone.value,
-                nome_funcionario: usuarioLogado.nomefuncionario, // Novo campo solicitado
+                nome_funcionario: usuarioLogado.nomefuncionario,
                 general_obs: generalObs.value,
                 total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
-                items: quoteCart,
+                items: quoteCart.map(item => ({
+                    ...item,
+                    categoria: item.category || 'Geral'
+                })),
                 dados_vendedor: { idfuncionario: usuarioLogado.idfuncionario, idfilial: usuarioLogado.idfilial }
             })
         });
+        
         const saveResult = await res.json();
-        orcamentoID = saveResult.id;
+        orcamentoID = saveResult.id || saveResult.insertId || saveResult.orcamentoId;
+
+        // Fallback caso a API não retorne o ID na hora
+        if (!orcamentoID) {
+            const lastIdRes = await fetch('/api/get-last-id'); 
+            const lastData = await lastIdRes.json();
+            orcamentoID = (parseInt(lastData.lastId) || 0) + 1;
+        }
     } catch (e) {
-        console.error("Erro ao salvar, buscando último ID...");
-        // Fallback: Busca último ID existente e soma 1
-        const lastIdRes = await fetch('/api/get-last-id'); 
-        const lastData = await lastIdRes.json();
-        orcamentoID = (parseInt(lastData.lastId) || 0) + 1;
+        console.error("Erro no salvamento:", e);
+        orcamentoID = "REF-" + Date.now().toString().slice(-6);
     }
 
     const element = document.createElement('div');
@@ -178,7 +192,7 @@ generatePdfBtn.addEventListener('click', async () => {
         .img-main { width: 200px; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
         .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; }
         .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
-        .variation-text { font-size: 11px; color: #1A3017; font-weight: bold; margin: 8px 0; }
+        .variation-text { font-size: 11px; color: #1A3017; font-weight: bold; margin: 8px 0; text-transform: uppercase; }
         .sku-text { font-size: 9px; color: #999; margin-bottom: 10px; display: block; }
         .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; }
         .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; }
@@ -193,7 +207,7 @@ generatePdfBtn.addEventListener('click', async () => {
             <img src="${LOGO_URL}" style="height: 50px;">
             <div class="header-meta">
                 <div class="order-id">ORÇAMENTO #${orcamentoID}</div>
-                <strong>FILIAL: ${usuarioLogado.idfilial}</strong><br>
+                <strong style="color: #1A3017;">UNIDADE: ${usuarioLogado.idfilial}</strong><br>
                 Emissão: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}
             </div>
         </div>
@@ -231,7 +245,11 @@ generatePdfBtn.addEventListener('click', async () => {
                     ${tecnico ? `<div class="specs-box"><strong>DETALHES TÉCNICOS:</strong><br>${tecnico}</div>` : ''}
                     <table class="price-table">
                         <tr><td class="label-cell">Qtd</td><td class="label-cell">Valor Unitário</td><td class="label-cell">Subtotal</td></tr>
-                        <tr><td>${item.quantity}</td><td>R$ ${item.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td><td>R$ ${(item.quantity * item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td></tr>
+                        <tr>
+                            <td>${item.quantity}</td>
+                            <td>R$ ${item.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                            <td>R$ ${(item.quantity * item.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                        </tr>
                     </table>
                 </div>
             </div>
@@ -251,12 +269,27 @@ generatePdfBtn.addEventListener('click', async () => {
     </div>`;
 
     element.innerHTML = html;
-    html2pdf().set({
+    
+    // Configuração do download
+    const opt = {
         margin: [20, 0, 20, 0],
-        filename: `Terrazi_${custName.value || 'Orcamento'}.pdf`,
+        filename: `Terrazi_${custName.value || 'Orcamento'}_${orcamentoID}.pdf`,
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
-    }).from(element).save();
+    };
+
+    // Gera o PDF e restaura o botão ao finalizar
+    html2pdf().set(opt).from(element).save().then(() => {
+        generatePdfBtn.innerText = originalBtnText;
+        generatePdfBtn.disabled = false;
+        generatePdfBtn.style.opacity = "1";
+    }).catch(err => {
+        console.error("Erro ao gerar PDF:", err);
+        generatePdfBtn.innerText = originalBtnText;
+        generatePdfBtn.disabled = false;
+        generatePdfBtn.style.opacity = "1";
+        alert("Erro ao gerar PDF. Tente novamente.");
+    });
 });
 
 function exibirUsuarioLogado() {
