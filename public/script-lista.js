@@ -27,15 +27,17 @@ async function carregarHistorico() {
     }
 }
 
-// AJUSTADO: Filtragem agora inclui cliente_doc (CPF)
+// FUNÇÃO DE FILTRAGEM CORRIGIDA
 function filtrarOrcamentos() {
-    const termo = document.getElementById('searchInput')?.value.toLowerCase() || "";
+    // Captura o termo de busca e remove espaços extras
+    const termo = (document.getElementById('searchInput')?.value || "").toLowerCase().trim();
     const filtroStatus = document.getElementById('statusFilter')?.value.toUpperCase() || "TODOS";
+    
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
     const filtrados = window.todosOrcamentos.filter(o => {
-        // Lógica de Status (Necessário para o filtro de EXPIRADO funcionar em tempo real)
+        // 1. Lógica de Status (Calcula EXPIRADO em tempo real)
         let statusFinal = (o.status || 'PENDENTE').trim().toUpperCase();
         if (o.data_validade || o.valid_until) {
             const dataRaw = o.data_validade || o.valid_until;
@@ -45,15 +47,21 @@ function filtrarOrcamentos() {
             if (dataVal < hoje && statusFinal === 'PENDENTE') statusFinal = 'EXPIRADO';
         }
 
-        // Busca por Nome, ID ou CPF/Documento
-        const nome = (o.cliente_nome || "").toLowerCase();
-        const cpf = (o.cliente_doc || "").toLowerCase();
-        const id = (o.id || "").toString();
-
-        const bateTexto = nome.includes(termo) || 
-                         cpf.includes(termo) || 
-                         id.includes(termo);
+        // 2. Lógica de busca por texto (Nome, ID ou CPF)
+        // Criamos uma string única com os dados do orçamento para facilitar a busca
+        const nomeCliente = (o.cliente_nome || o.nome_cliente || "").toLowerCase();
+        const documento = (o.cliente_doc || o.cpf || o.cnpj || "").toString().toLowerCase().replace(/[^\d]/g, ''); // Apenas números do CPF
+        const idOrcamento = (o.id || "").toString();
         
+        // Se o usuário digitou apenas números, tentamos bater com CPF limpo ou ID
+        const termoLimpo = termo.replace(/[^\d]/g, '');
+        
+        const bateTexto = termo === "" || 
+                         nomeCliente.includes(termo) || 
+                         idOrcamento.includes(termo) || 
+                         (termoLimpo !== "" && documento.includes(termoLimpo));
+        
+        // 3. Lógica de filtro por status dropdown
         const bateStatus = (filtroStatus === "TODOS") || (statusFinal === filtroStatus);
 
         return bateTexto && bateStatus;
@@ -130,6 +138,7 @@ function renderizarCards(lista) {
     });
 }
 
+// Funções de ação (Status, Clone, Impressão) permanecem iguais...
 window.alterarStatusOrcamento = async (select, id) => {
     const novoStatus = select.value;
     if (novoStatus === 'PENDENTE') return;
