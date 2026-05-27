@@ -148,8 +148,44 @@ function atualizarDestaqueTotal() {
 }
 
 // 4. GERAÇÃO DE PDF + SALVAMENTO
+const WHATSAPP_MESSAGE = 'Obrigado por Escolher a Casa Terrazi';
+
 generatePdfBtn.addEventListener('click', async () => {
-    if (quoteCart.length === 0) return alert("Selecione itens.");
+    if (!validarDadosObrigatorios()) return;
+
+    const acao = await abrirDialogoAcaoPdf();
+    if (!acao) return;
+
+    const originalBtnText = generatePdfBtn.innerText;
+    generatePdfBtn.innerText = acao === 'whatsapp' ? 'PREPARANDO WHATSAPP...' : 'GERANDO PDF, AGUARDE...';
+    generatePdfBtn.disabled = true;
+    generatePdfBtn.style.opacity = '0.7';
+
+    try {
+        const orcamentoID = await salvarOrcamento();
+        const { element, filename } = montarDocumentoPdf(orcamentoID);
+        const pdfBlob = await gerarPdfBlob(element);
+
+        if (acao === 'whatsapp') {
+            await enviarPdfWhatsApp(pdfBlob, filename);
+        } else {
+            baixarPdf(pdfBlob, filename);
+        }
+    } catch (error) {
+        console.error('Erro ao gerar orçamento:', error);
+        alert(error.message || 'Erro ao gerar o orçamento. Tente novamente.');
+    } finally {
+        generatePdfBtn.innerText = originalBtnText;
+        generatePdfBtn.disabled = false;
+        generatePdfBtn.style.opacity = '1';
+    }
+});
+
+function validarDadosObrigatorios() {
+    if (quoteCart.length === 0) {
+        alert('Selecione itens.');
+        return false;
+    }
 
     const camposObrigatorios = [
         { el: custName, msg: 'Preencha o nome do cliente.' },
@@ -161,61 +197,92 @@ generatePdfBtn.addEventListener('click', async () => {
     if (campoPendente) {
         alert(campoPendente.msg);
         campoPendente.el?.focus();
-        return;
+        return false;
     }
 
-    const originalBtnText = generatePdfBtn.innerText;
-    generatePdfBtn.innerText = "GERANDO PDF, AGUARDE...";
-    generatePdfBtn.disabled = true;
-    generatePdfBtn.style.opacity = "0.7";
+    return true;
+}
 
-    let orcamentoID = "---";
-    
-    try {
-        const payload = {
-            cust_name: custName.value,
-            cust_doc: custDoc.value,
-            cust_phone: custPhone.value,
-            valid_until: quoteValid.value,
-            seller_name: sellerName.value,
-            seller_phone: sellerPhone.value,
-            nome_funcionario: usuarioLogado.nomefuncionario,
-            categoria: usuarioLogado.categoria || 'Geral',
-            general_obs: generalObs.value,
-            total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
-            items: quoteCart.map(item => ({
-                ...item,
-                categoria: item.category || 'Geral'
-            })),
-            dados_vendedor: { 
-                idfuncionario: usuarioLogado.idfuncionario, 
-                idfilial: usuarioLogado.idfilial,
-                nome_funcionario: usuarioLogado.nomefuncionario,
-                categoria: usuarioLogado.categoria || 'Geral' 
-            }
+function abrirDialogoAcaoPdf() {
+    const dialog = document.getElementById('pdfActionDialog');
+    if (!dialog) return Promise.resolve('download');
+
+    dialog.hidden = false;
+    dialog.classList.add('is-open');
+    document.body.classList.add('modal-open');
+
+    return new Promise(resolve => {
+        const fechar = (acao = null) => {
+            dialog.classList.remove('is-open');
+            document.body.classList.remove('modal-open');
+            setTimeout(() => { dialog.hidden = true; }, 180);
+            dialog.removeEventListener('click', cliqueFora);
+            document.removeEventListener('keydown', fecharComEsc);
+            resolve(acao);
         };
 
+        const cliqueFora = (event) => {
+            if (event.target === dialog) fechar(null);
+        };
+
+        const fecharComEsc = (event) => {
+            if (event.key === 'Escape') fechar(null);
+        };
+
+        dialog.querySelector('[data-pdf-action="download"]').onclick = () => fechar('download');
+        dialog.querySelector('[data-pdf-action="whatsapp"]').onclick = () => fechar('whatsapp');
+        dialog.querySelector('[data-pdf-action="cancel"]').onclick = () => fechar(null);
+        dialog.addEventListener('click', cliqueFora);
+        document.addEventListener('keydown', fecharComEsc);
+    });
+}
+
+async function salvarOrcamento() {
+    const payload = {
+        cust_name: custName.value,
+        cust_doc: custDoc.value,
+        cust_phone: custPhone.value,
+        valid_until: quoteValid.value,
+        seller_name: sellerName.value,
+        seller_phone: sellerPhone.value,
+        nome_funcionario: usuarioLogado.nomefuncionario,
+        categoria: usuarioLogado.categoria || 'Geral',
+        general_obs: generalObs.value,
+        total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
+        items: quoteCart.map(item => ({
+            ...item,
+            categoria: item.category || 'Geral'
+        })),
+        dados_vendedor: { 
+            idfuncionario: usuarioLogado.idfuncionario, 
+            idfilial: usuarioLogado.idfilial,
+            nome_funcionario: usuarioLogado.nomefuncionario,
+            categoria: usuarioLogado.categoria || 'Geral' 
+        }
+    };
+
+    try {
         const res = await fetch('/api/salvar-orcamento', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
         const saveResult = await res.json();
-        orcamentoID = saveResult.id || saveResult.insertId || saveResult.orcamentoId;
 
-        if (!orcamentoID) {
-            const lastIdRes = await fetch('/api/get-last-id'); 
-            const lastData = await lastIdRes.json();
-            orcamentoID = (parseInt(lastData.lastId) || 0) + 1;
+        if (!res.ok) {
+            throw new Error(saveResult.error || 'Erro ao salvar orçamento.');
         }
-    } catch (e) {
-        console.error("Erro no salvamento:", e);
-        orcamentoID = "REF-" + Date.now().toString().slice(-6);
-    }
 
+        return saveResult.id || saveResult.insertId || saveResult.orcamentoId || `REF-${Date.now().toString().slice(-6)}`;
+    } catch (error) {
+        console.error('Erro no salvamento:', error);
+        return `REF-${Date.now().toString().slice(-6)}`;
+    }
+}
+
+function montarDocumentoPdf(orcamentoID) {
     const element = document.createElement('div');
-    const dataValidade = quoteValid.value ? new Date(quoteValid.value + 'T00:00').toLocaleDateString('pt-BR') : 'A consultar';
+    const dataValidade = new Date(quoteValid.value + 'T00:00').toLocaleDateString('pt-BR');
 
     let html = `
     <style>
@@ -257,23 +324,20 @@ generatePdfBtn.addEventListener('click', async () => {
         </div>`;
 
     quoteCart.forEach(item => {
-        const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, "").trim() : "";
-        
-        // Regex aprimorada para identificar blocos
-        let raw = item.description || "";
+        const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, '').trim() : '';
+        let raw = item.description || '';
         let parts = raw.split(/(características|medidas|dimensões|especificações|técnico)/i);
-        
         let emocional = limparTxt(parts[0]);
-        let tecnico = ""; 
-        let dimensoes = "";
+        let tecnico = ''; 
+        let dimensoes = '';
 
         for (let i = 1; i < parts.length; i += 2) {
             let label = parts[i].toLowerCase();
-            let content = limparTxt(parts[i+1]);
-            if (label.includes("dimensões") || label.includes("medidas")) {
-                dimensoes += content + " ";
+            let content = limparTxt(parts[i + 1]);
+            if (label.includes('dimensões') || label.includes('medidas')) {
+                dimensoes += content + ' ';
             } else {
-                tecnico += content + " ";
+                tecnico += content + ' ';
             }
         }
 
@@ -285,18 +349,14 @@ generatePdfBtn.addEventListener('click', async () => {
                     ${dimensoes ? `
                         <div class="dim-box">
                             <strong>DIMENSÕES:</strong><br>${dimensoes}<br>
-                            
                         </div>` : ''}
                 </div>
                 <div class="col-right">
                     <h2 class="prod-title">${item.displayName}</h2>
                     <div class="emocional-text">${emocional}</div>
-                    
                     ${tecnico ? `<div class="specs-box"><strong>CARACTERÍSTICAS:</strong><br>${tecnico}</div>` : ''}
-                    
                     ${item.variation ? `<div class="variation-text">VARIAÇÃO: ${item.variation}</div>` : ''}
                     <span class="sku-text">SKU: ${item.sku}</span>
-                    
                     <table class="price-table">
                         <tr><td class="label-cell">Qtd</td><td class="label-cell">Valor Unitário</td><td class="label-cell">Subtotal</td></tr>
                         <tr>
@@ -313,11 +373,9 @@ generatePdfBtn.addEventListener('click', async () => {
     html += `
         <div style="page-break-inside: avoid;">
             ${generalObs.value ? `<div style="font-size: 10px; background: #fdfdfd; padding: 10px; border: 1px solid #eee; margin-bottom: 15px;"><strong>OBSERVAÇÕES:</strong><br>${generalObs.value}</div>` : ''}
-            
             <div style="background: #1A3017; color: white; padding: 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px;">
                 TOTAL GERAL: R$ ${displayTotalGeral.innerText}
             </div>
-
             <div class="inst-text">
                 <p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p>
                 <p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>
@@ -326,18 +384,66 @@ generatePdfBtn.addEventListener('click', async () => {
     </div>`;
 
     element.innerHTML = html;
-    
-    html2pdf().set({
+    return {
+        element,
+        filename: `Terrazi_${sanitizarNomeArquivo(custName.value || 'Orcamento')}_${orcamentoID}.pdf`
+    };
+}
+
+function gerarPdfBlob(element) {
+    return html2pdf().set({
         margin: [20, 0, 20, 0],
-        filename: `Terrazi_${custName.value || 'Orcamento'}_${orcamentoID}.pdf`,
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
-    }).from(element).save().then(() => {
-        generatePdfBtn.innerText = originalBtnText;
-        generatePdfBtn.disabled = false;
-        generatePdfBtn.style.opacity = "1";
-    });
-});
+    }).from(element).outputPdf('blob');
+}
+
+function baixarPdf(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function enviarPdfWhatsApp(blob, filename) {
+    const file = new File([blob], filename, { type: 'application/pdf' });
+    const shareData = {
+        files: [file],
+        text: WHATSAPP_MESSAGE,
+        title: filename
+    };
+
+    if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        await navigator.share(shareData);
+        return;
+    }
+
+    baixarPdf(blob, filename);
+    abrirWhatsAppComTexto();
+}
+
+function abrirWhatsAppComTexto() {
+    const telefone = normalizarTelefoneWhatsApp(custPhone.value);
+    const texto = encodeURIComponent(WHATSAPP_MESSAGE);
+    const url = telefone ? `https://wa.me/${telefone}?text=${texto}` : `https://wa.me/?text=${texto}`;
+    window.open(url, '_blank', 'noopener');
+}
+
+function normalizarTelefoneWhatsApp(valor) {
+    const apenasDigitos = (valor || '').replace(/\D/g, '');
+    if (!apenasDigitos) return '';
+    if (apenasDigitos.startsWith('55')) return apenasDigitos;
+    if (apenasDigitos.length === 10 || apenasDigitos.length === 11) return `55${apenasDigitos}`;
+    return apenasDigitos;
+}
+
+function sanitizarNomeArquivo(valor) {
+    return valor.replace(/[\/\\?%*:|"<>]/g, '-').trim() || 'Orcamento';
+}
 
 function exibirUsuarioLogado() {
     const infoTopo = document.getElementById('user-info-topo');
@@ -351,3 +457,4 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+

@@ -119,7 +119,20 @@
         </aside>
     </main>
 
+    <div id="pdfActionDialog" class="pdf-action-dialog" hidden>
+        <div class="pdf-action-card" role="dialog" aria-modal="true" aria-labelledby="pdfActionTitle">
+            <button class="pdf-action-close" type="button" data-pdf-action="cancel" aria-label="Fechar">&times;</button>
+            <h2 id="pdfActionTitle">Como deseja continuar?</h2>
+            <p>Escolha se deseja baixar o orçamento ou compartilhar o PDF pelo WhatsApp.</p>
+            <div class="pdf-action-buttons">
+                <button type="button" class="pdf-action-secondary" data-pdf-action="download">Gerar o PDF</button>
+                <button type="button" class="pdf-action-primary" data-pdf-action="whatsapp">Enviar PDF no WhatsApp</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
+
