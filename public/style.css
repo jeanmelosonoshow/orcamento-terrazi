@@ -6,10 +6,14 @@
     --cinza-suave: #F9F9F9;
     --texto: #333;
     --borda: #E0E0E0;
-    --premium-gold: #c5a059; /* Cor auxiliar para detalhes premium se necessário */
+    --premium-gold: #c5a059;
 }
 
 * { box-sizing: border-box; }
+
+html {
+    min-width: 320px;
+}
 
 body {
     font-family: 'Inter', sans-serif;
@@ -18,33 +22,65 @@ body {
     margin: 0;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    min-height: 100vh;
+}
+
+body, input, button, textarea, select {
+    font-size: 16px;
+}
+
+img {
+    max-width: 100%;
+}
+
+#top-bar-user {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px !important;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#user-info-topo {
+    min-width: 0;
 }
 
 /* --- CABEÇALHO --- */
 header {
-    padding: 15px 5%;
+    padding: 16px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
     border-bottom: 1px solid var(--borda);
     background: white;
 }
 
 #brand-logo {
-    height: 45px;
+    height: 40px;
     width: auto;
     display: block;
+    margin: 0 auto;
 }
 
 .search-container {
     display: flex;
+    flex-direction: column;
     gap: 10px;
-    width: 60%;
+    width: 100%;
+}
+
+.header-actions {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 10px !important;
+    width: 100%;
 }
 
 /* --- INTERFACE DE BUSCA E BOTÕES --- */
-input[type="text"], input[type="number"], input[type="date"], select {
+input[type="text"], input[type="number"], input[type="date"], select, textarea {
+    width: 100%;
+    min-width: 0;
     padding: 10px;
     border: 1px solid var(--borda);
     border-radius: 4px;
@@ -67,6 +103,7 @@ button {
     background-color: var(--verde-escuro);
     color: white;
     padding: 10px 25px;
+    min-height: 44px;
 }
 
 .btn-primary:hover, #searchBtn:hover {
@@ -74,25 +111,29 @@ button {
     transform: translateY(-1px);
 }
 
+.btn-history {
+    justify-content: center;
+    min-height: 44px;
+}
+
 /* --- LAYOUT PRINCIPAL --- */
 main {
-    display: grid;
-    grid-template-columns: 1fr 380px; /* Sidebar levemente maior para conforto */
+    display: block;
     flex: 1;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* --- VITRINE DE PRODUTOS --- */
 .results-section {
-    padding: 25px;
-    overflow-y: auto;
+    padding: 16px;
+    overflow: visible;
     background-color: var(--cinza-suave);
 }
 
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+    gap: 14px;
 }
 
 .product-card {
@@ -110,7 +151,7 @@ main {
 
 .product-card img {
     width: 100%;
-    height: 180px;
+    height: clamp(140px, 42vw, 180px);
     object-fit: contain;
     margin-bottom: 12px;
 }
@@ -118,7 +159,7 @@ main {
 .product-card h4 {
     font-size: 14px;
     margin: 0 0 8px 0;
-    height: 2.8em;
+    min-height: 2.8em;
     overflow: hidden;
     color: var(--verde-escuro);
 }
@@ -132,24 +173,23 @@ main {
 
 /* --- SIDEBAR DE ORÇAMENTO --- */
 .quote-sidebar {
-    border-left: 1px solid var(--borda);
-    padding: 20px;
+    border-top: 1px solid var(--borda);
+    padding: 16px;
     display: flex;
     flex-direction: column;
     background: white;
-    overflow-y: auto;
+    overflow: visible;
 }
 
 .quote-items {
-    flex: 1;
+    flex: 0 1 auto;
     margin-bottom: 20px;
 }
 
-/* Card de Item Selecionado (Onde corrigimos o estouro) */
 .item-quote-edit {
     background: #fff;
     border: 1px solid #e0e0e0;
-    border-left: 4px solid var(--verde-escuro); /* Detalhe premium */
+    border-left: 4px solid var(--verde-escuro);
     border-radius: 6px;
     padding: 12px;
     margin-bottom: 12px;
@@ -161,8 +201,8 @@ main {
 
 .item-controls-grid {
     display: grid;
-    grid-template-columns: 70px 1fr; /* Qtde fixa e pequena, Preço ocupa o resto */
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 10px;
 }
 
 .item-controls-grid input {
@@ -175,8 +215,7 @@ main {
 
 /* --- FOOTER FIXO NA SIDEBAR --- */
 .quote-footer {
-    position: sticky;
-    bottom: -20px;
+    position: static;
     background: white;
     padding: 15px 0;
     border-top: 2px solid var(--verde-claro);
@@ -195,9 +234,9 @@ main {
 /* --- TELA DE LISTA / HISTÓRICO --- */
 .orcamentos-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-    padding: 20px 0;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 16px;
+    padding: 16px 0;
 }
 
 .orcamento-card {
@@ -213,6 +252,8 @@ main {
     background: #f8f9fa;
     padding: 10px 15px;
     display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
     justify-content: space-between;
     font-size: 12px;
     font-weight: 600;
@@ -225,11 +266,11 @@ main {
     padding: 12px;
     background: #fdfdfd;
     display: flex;
+    flex-direction: column;
     gap: 10px;
     border-top: 1px solid #eee;
 }
 
-/* Status Badges */
 .badge-status {
     display: inline-block;
     padding: 4px 8px;
@@ -243,7 +284,6 @@ main {
 .status-expirado .badge-status { background: #f8d7da; color: #721c24; }
 .status-gerou-venda .badge-status { background: var(--verde-claro); color: var(--verde-escuro); }
 
-/* Botões de Ação na Lista */
 .btn-reabrir {
     flex: 1;
     background: var(--verde-escuro);
@@ -263,10 +303,81 @@ main {
 
 .btn-imprimir:hover { background: var(--verde-claro); }
 
-/* --- UTILITÁRIOS --- */
 .loader {
     text-align: center;
     padding: 40px;
     color: var(--verde-escuro);
     font-weight: 600;
+}
+
+@media (min-width: 560px) {
+    header {
+        padding: 18px 5%;
+    }
+
+    .search-container {
+        flex-direction: row;
+    }
+
+    .header-actions {
+        grid-template-columns: auto auto;
+        width: auto;
+    }
+
+    .item-controls-grid {
+        grid-template-columns: 70px 1fr;
+    }
+
+    .card-footer {
+        flex-direction: row;
+    }
+}
+
+@media (min-width: 900px) {
+    body {
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #brand-logo {
+        height: 45px;
+        margin: 0;
+    }
+
+    .search-container {
+        width: min(65%, 850px);
+    }
+
+    main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+        overflow: hidden;
+    }
+
+    .results-section {
+        padding: 25px;
+        overflow-y: auto;
+    }
+
+    .quote-sidebar {
+        border-top: 0;
+        border-left: 1px solid var(--borda);
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .quote-items {
+        flex: 1;
+    }
+
+    .quote-footer {
+        position: sticky;
+        bottom: -20px;
+    }
 }
