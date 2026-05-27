@@ -132,8 +132,15 @@ main {
 
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(170px, 72vw);
+    grid-template-rows: repeat(3, auto);
     gap: 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 8px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
 }
 
 .product-card {
@@ -145,6 +152,7 @@ main {
     flex-direction: column;
     justify-content: space-between;
     transition: transform 0.2s;
+    scroll-snap-align: start;
 }
 
 .product-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
@@ -169,6 +177,18 @@ main {
     font-size: 16px;
     color: var(--texto);
     margin: 8px 0;
+}
+
+.product-card .stock {
+    margin: 6px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--verde-medio);
+}
+
+.product-card .stock-unavailable {
+    color: #c0392b;
+    text-transform: uppercase;
 }
 
 /* --- SIDEBAR DE ORÇAMENTO --- */
@@ -330,6 +350,19 @@ main {
 
     .card-footer {
         flex-direction: row;
+    }
+}
+
+
+@media (min-width: 700px) {
+    .products-grid {
+        grid-auto-flow: row;
+        grid-auto-columns: initial;
+        grid-template-rows: none;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        overflow: visible;
+        padding-bottom: 0;
+        scroll-snap-type: none;
     }
 }
 

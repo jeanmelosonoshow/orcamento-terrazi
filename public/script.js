@@ -78,12 +78,22 @@ function renderProducts(products) {
     productsGrid.innerHTML = '';
     products.forEach(p => {
         const card = document.createElement('div');
+        const stockValue = Number(p.stock);
+        const hasNumericStock = Number.isFinite(stockValue);
+        const isOutOfStock = hasNumericStock && stockValue <= 0;
+        const stockText = isOutOfStock
+            ? 'Consulte disponibilidade'
+            : hasNumericStock
+                ? `Estoque: ${stockValue}`
+                : `Estoque: ${p.stock || 'Sob consulta'}`;
+
         card.className = 'product-card';
         card.innerHTML = `
             <img src="${p.image}" alt="${p.name}">
             <div class="card-info">
                 <h4>${p.name}</h4>
                 <p class="sku">SKU: ${p.sku}</p>
+                <p class="stock ${isOutOfStock ? 'stock-unavailable' : ''}">${stockText}</p>
                 <p class="price">R$ ${parseFloat(p.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                 <button class="btn-primary" onclick='adicionarAoOrcamento(${JSON.stringify(p).replace(/'/g, "&apos;")})'>ADICIONAR</button>
             </div>`;
