@@ -124,7 +124,8 @@ function renderizarCards(lista) {
             <div class="card-body">
                 <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #1A3017;">${o.cliente_nome || 'Consumidor'}</h3>
                 <p style="font-size: 12px; color: #666; margin-bottom: 2px;">Vendedor: ${o.vendedor_nome}</p>
-                ${o.cliente_doc ? `<p style="font-size: 11px; color: #888; margin-bottom: 10px;">CPF/CNPJ: ${o.cliente_doc}</p>` : ''}
+                ${o.cliente_doc ? `<p style="font-size: 11px; color: #888; margin-bottom: 2px;">CPF/CNPJ: ${o.cliente_doc}</p>` : ''}
+                ${o.telefone_cliente ? `<p style="font-size: 11px; color: #888; margin-bottom: 10px;">Telefone: ${o.telefone_cliente}</p>` : ''}
                 <div class="total" style="font-size: 18px; font-weight: 700; color: #1A3017;">
                     R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </div>
@@ -232,7 +233,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
                 </div>
             </div>
             <div class="info-box">
-                <div><strong>CLIENTE:</strong><br>${data.cliente_nome || 'Consumidor'}<br>DOC: ${data.cliente_doc || '---'}</div>
+                <div><strong>CLIENTE:</strong><br>${data.cliente_nome || 'Consumidor'}<br>DOC: ${data.cliente_doc || '---'}<br>TEL: ${data.telefone_cliente || '---'}</div>
                 <div><strong>VENDEDOR:</strong><br>${data.vendedor_nome}<br>CONTATO: ${data.vendedor_contato || '---'}</div>
             </div>`;
 

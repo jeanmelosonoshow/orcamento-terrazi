@@ -11,6 +11,7 @@ const quoteItemsContainer = document.getElementById('quoteItems');
 const generatePdfBtn = document.getElementById('generatePdfBtn');
 const custName = document.getElementById('custName');
 const custDoc = document.getElementById('custDoc');
+const custPhone = document.getElementById('custPhone');
 const quoteValid = document.getElementById('quoteValid');
 const sellerName = document.getElementById('sellerName');
 const sellerPhone = document.getElementById('sellerPhone');
@@ -43,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = JSON.parse(clonarData);
         custName.value = data.cliente_nome || '';
         custDoc.value = data.cliente_doc || '';
+        if (custPhone) custPhone.value = data.telefone_cliente || '';
         sellerPhone.value = data.vendedor_contato || '';
         generalObs.value = data.obs_geral || '';
         if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
@@ -149,6 +151,19 @@ function atualizarDestaqueTotal() {
 generatePdfBtn.addEventListener('click', async () => {
     if (quoteCart.length === 0) return alert("Selecione itens.");
 
+    const camposObrigatorios = [
+        { el: custName, msg: 'Preencha o nome do cliente.' },
+        { el: custPhone, msg: 'Preencha o telefone do cliente.' },
+        { el: quoteValid, msg: 'Preencha a data de validade do orçamento.' }
+    ];
+
+    const campoPendente = camposObrigatorios.find(campo => !campo.el || !campo.el.value.trim());
+    if (campoPendente) {
+        alert(campoPendente.msg);
+        campoPendente.el?.focus();
+        return;
+    }
+
     const originalBtnText = generatePdfBtn.innerText;
     generatePdfBtn.innerText = "GERANDO PDF, AGUARDE...";
     generatePdfBtn.disabled = true;
@@ -160,6 +175,7 @@ generatePdfBtn.addEventListener('click', async () => {
         const payload = {
             cust_name: custName.value,
             cust_doc: custDoc.value,
+            cust_phone: custPhone.value,
             valid_until: quoteValid.value,
             seller_name: sellerName.value,
             seller_phone: sellerPhone.value,
@@ -236,7 +252,7 @@ generatePdfBtn.addEventListener('click', async () => {
             </div>
         </div>
         <div class="info-box">
-            <div><strong>CLIENTE:</strong><br>${custName.value || '---'}<br>DOC: ${custDoc.value || '---'}</div>
+            <div><strong>CLIENTE:</strong><br>${custName.value || '---'}<br>DOC: ${custDoc.value || '---'}<br>TEL: ${custPhone.value || '---'}</div>
             <div><strong>VENDEDOR:</strong><br>${sellerName.value}<br>CONTATO: ${sellerPhone.value || '---'}</div>
         </div>`;
 

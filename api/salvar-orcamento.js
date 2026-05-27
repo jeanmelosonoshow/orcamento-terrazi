@@ -7,6 +7,10 @@ export default async function handler(req, res) {
   const orcamento = req.body;
 
   try {
+    if (!orcamento.cust_name || !orcamento.cust_phone || !orcamento.valid_until) {
+      return res.status(400).json({ error: 'Nome do cliente, telefone do cliente e validade são obrigatórios.' });
+    }
+
     await client.query('BEGIN');
 
     // 1. Insere o cabeçalho do orçamento
@@ -15,17 +19,19 @@ export default async function handler(req, res) {
         data_validade, 
         cliente_nome, 
         cliente_doc, 
+        telefone_cliente,
         vendedor_nome, 
         vendedor_contato, 
         obs_geral, 
         valor_total, 
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `, [
       orcamento.valid_until && orcamento.valid_until !== "" ? orcamento.valid_until : null,
       orcamento.cust_name || 'Consumidor', 
       orcamento.cust_doc || '',
+      orcamento.cust_phone || '',
       orcamento.seller_name || '', 
       orcamento.seller_phone || '', 
       orcamento.general_obs || '',

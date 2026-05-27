@@ -78,7 +78,7 @@ header {
 }
 
 /* --- INTERFACE DE BUSCA E BOTÕES --- */
-input[type="text"], input[type="number"], input[type="date"], select, textarea {
+input[type="text"], input[type="tel"], input[type="number"], input[type="date"], select, textarea {
     width: 100%;
     min-width: 0;
     padding: 10px;

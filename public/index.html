@@ -83,11 +83,12 @@
         <aside class="quote-sidebar">
             <h3>Dados do Orçamento</h3>
             <div class="customer-info" style="display: grid; gap: 8px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
-                <input type="text" id="custName" placeholder="Nome do Cliente" style="font-size: 12px; padding: 8px;">
+                <input type="text" id="custName" placeholder="Nome do Cliente" required style="font-size: 12px; padding: 8px;">
                 <input type="text" id="custDoc" placeholder="CPF / CNPJ" style="font-size: 12px; padding: 8px;">
+                <input type="tel" id="custPhone" placeholder="Telefone do Cliente" required style="font-size: 12px; padding: 8px;">
                 <div style="display:flex; gap:5px; align-items:center;">
                     <label style="font-size: 10px; color: #666;">Validade:</label>
-                    <input type="date" id="quoteValid" style="font-size: 12px; padding: 5px; flex:1;">
+                    <input type="date" id="quoteValid" required style="font-size: 12px; padding: 5px; flex:1;">
                 </div>
                 <input type="text" id="sellerName" placeholder="Nome do Vendedor" readonly style="font-size: 12px; padding: 8px; background-color: #f9f9f9; cursor: not-allowed;">
                 <input type="text" id="sellerPhone" placeholder="Telefone Vendedor" style="font-size: 12px; padding: 8px;">
