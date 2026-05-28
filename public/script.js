@@ -390,12 +390,49 @@ function montarDocumentoPdf(orcamentoID) {
     };
 }
 
-function gerarPdfBlob(element) {
-    return html2pdf().set({
-        margin: [20, 0, 20, 0],
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
-    }).from(element).outputPdf('blob');
+async function gerarPdfBlob(element) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pdf-render-wrapper';
+    wrapper.appendChild(element);
+    document.body.appendChild(wrapper);
+
+    try {
+        await esperarImagensDoPdf(element);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        return await html2pdf().set({
+            margin: [20, 0, 20, 0],
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: 794,
+                windowHeight: Math.max(1123, element.scrollHeight || 1123)
+            },
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+        }).from(element).outputPdf('blob');
+    } finally {
+        wrapper.remove();
+    }
+}
+
+function esperarImagensDoPdf(element) {
+    const imagens = Array.from(element.querySelectorAll('img'));
+    if (imagens.length === 0) return Promise.resolve();
+
+    return Promise.all(imagens.map(img => new Promise(resolve => {
+        img.crossOrigin = 'anonymous';
+        if (img.complete && img.naturalWidth > 0) {
+            resolve();
+            return;
+        }
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 2500);
+    })));
 }
 
 function baixarPdf(blob, filename) {
@@ -419,6 +456,7 @@ async function enviarPdfWhatsApp(blob, filename) {
 
     if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
         await navigator.share(shareData);
+        abrirWhatsAppComTexto();
         return;
     }
 
@@ -457,5 +495,8 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
+
+
 
 
