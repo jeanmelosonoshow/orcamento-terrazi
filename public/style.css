@@ -516,3 +516,15 @@ body.modal-open {
         grid-template-columns: 1fr 1fr;
     }
 }
+
+.pdf-render-wrapper {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 794px;
+    min-height: 1123px;
+    background: #fff;
+    opacity: 0.01;
+    pointer-events: none;
+    z-index: -1;
+}
