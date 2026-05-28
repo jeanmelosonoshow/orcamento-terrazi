@@ -480,39 +480,43 @@ function montarDocumentoPdf(orcamentoID) {
 }
 
 async function gerarPdfBlob(element) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'pdf-render-wrapper';
-    wrapper.style.position = 'fixed';
-    wrapper.style.left = '0';
-    wrapper.style.top = '0';
-    wrapper.style.width = '520pt';
-    wrapper.style.background = '#ffffff';
-    wrapper.style.pointerEvents = 'none';
-    wrapper.style.zIndex = '2147483647';
+    const opcoesPdf = {
+        margin: [30, 0, 30, 0],
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        },
+        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+    };
 
     element.style.width = '520pt';
     element.style.maxWidth = '520pt';
+
+    if (window.matchMedia('(min-width: 900px)').matches) {
+        return await html2pdf().set(opcoesPdf).from(element).outputPdf('blob');
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pdf-render-wrapper';
+    wrapper.style.position = 'absolute';
+    wrapper.style.left = '0';
+    wrapper.style.top = `${window.scrollY + window.innerHeight + 200}px`;
+    wrapper.style.width = '520pt';
+    wrapper.style.background = '#ffffff';
+    wrapper.style.pointerEvents = 'none';
+    wrapper.style.zIndex = '0';
+
     wrapper.appendChild(element);
     document.body.appendChild(wrapper);
 
     try {
         await esperarImagensDoPdf(element);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-        return await html2pdf().set({
-            margin: [30, 0, 30, 0],
-            html2canvas: {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                scrollX: 0,
-                scrollY: 0
-            },
-            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'] }
-        }).from(element).outputPdf('blob');
+        return await html2pdf().set(opcoesPdf).from(element).outputPdf('blob');
     } finally {
         wrapper.remove();
     }
