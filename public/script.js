@@ -168,6 +168,7 @@ generatePdfBtn.addEventListener('click', async () => {
 
     try {
         const orcamentoID = await salvarOrcamento();
+                marcarOrcamentoGerado(orcamentoID);
         const { element, filename } = montarDocumentoPdf(orcamentoID);
         const pdfBlob = await gerarPdfBlob(element);
 
@@ -180,7 +181,7 @@ generatePdfBtn.addEventListener('click', async () => {
         console.error('Erro ao gerar orçamento:', error);
         alert(error.message || 'Erro ao gerar o orçamento. Tente novamente.');
     } finally {
-        generatePdfBtn.innerText = originalBtnText;
+        generatePdfBtn.innerText = currentOrcamentoId ? `GERAR ORÇAMENTO PDF #${currentOrcamentoId}` : originalBtnText;
         generatePdfBtn.disabled = false;
         generatePdfBtn.style.opacity = '1';
     }
@@ -570,6 +571,8 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
+
 
 
 

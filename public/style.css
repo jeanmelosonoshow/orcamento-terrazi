@@ -518,13 +518,14 @@ body.modal-open {
 }
 
 .pdf-render-wrapper {
-    position: fixed;
-    left: -10000px;
-    top: 0;
+    position: absolute;
+    left: 0;
+    top: calc(100vh + 200px);
     width: 794px;
     min-height: 1123px;
     background: #fff;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;
 }
+
 
