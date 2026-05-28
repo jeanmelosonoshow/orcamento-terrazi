@@ -303,11 +303,13 @@ window.gerarImpressaoRapida = async (btn, id) => {
         </div>`;
 
         element.innerHTML = html;
+        const isMobile = window.matchMedia('(max-width: 899px)').matches;
         const opt = {
-            margin: [30, 0, 30, 0],
+            margin: isMobile ? [0, 0, 12, 0] : [30, 0, 30, 0],
             filename: nomeArquivo,
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
         };
 
         html2pdf().set(opt).from(element).save().then(function () {
@@ -346,3 +348,4 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
     document.getElementById('statusFilter')?.addEventListener('change', filtrarOrcamentos);
 });
+

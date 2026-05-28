@@ -511,14 +511,12 @@ async function gerarPdfBlob(element) {
     wrapper.style.left = '0';
     wrapper.style.top = '0';
     wrapper.style.width = '794px';
-    wrapper.style.minHeight = '1123px';
     wrapper.style.background = '#ffffff';
     wrapper.style.pointerEvents = 'none';
     wrapper.style.zIndex = '0';
 
     element.style.width = '794px';
     element.style.maxWidth = '794px';
-    element.style.minHeight = '1123px';
     wrapper.appendChild(element);
     document.body.appendChild(wrapper);
 
@@ -526,9 +524,9 @@ async function gerarPdfBlob(element) {
         await esperarImagensDoPdf(element);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-        const alturaRender = Math.max(1123, element.scrollHeight || wrapper.scrollHeight || 1123);
+        const alturaRender = Math.max(900, element.scrollHeight || wrapper.scrollHeight || 900);
         return await html2pdf().set({
-            margin: [20, 0, 20, 0],
+            margin: [0, 0, 12, 0],
             html2canvas: {
                 scale: 2,
                 useCORS: true,
@@ -624,4 +622,6 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
+
 
