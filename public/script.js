@@ -375,7 +375,7 @@ function montarDocumentoPdf(orcamentoID) {
 
     let html = `
     <style>
-        .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 30px 60px; position: relative; background: white; }
+        .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; width: 794px; min-height: 1123px; box-sizing: border-box; padding: 40px 40px 30px 60px; position: relative; background: white; }
         .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: #1A3017; }
         .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
         .order-id { font-size: 24px; font-weight: bold; color: #1A3017; }
@@ -482,6 +482,18 @@ function montarDocumentoPdf(orcamentoID) {
 async function gerarPdfBlob(element) {
     const wrapper = document.createElement('div');
     wrapper.className = 'pdf-render-wrapper';
+    wrapper.style.position = 'fixed';
+    wrapper.style.left = '0';
+    wrapper.style.top = '0';
+    wrapper.style.width = '794px';
+    wrapper.style.minHeight = '1123px';
+    wrapper.style.background = '#ffffff';
+    wrapper.style.pointerEvents = 'none';
+    wrapper.style.zIndex = '-1';
+    wrapper.style.opacity = '1';
+
+    element.style.width = '794px';
+    element.style.maxWidth = '794px';
     wrapper.appendChild(element);
     document.body.appendChild(wrapper);
 
@@ -498,10 +510,12 @@ async function gerarPdfBlob(element) {
                 backgroundColor: '#ffffff',
                 scrollX: 0,
                 scrollY: 0,
+                width: 794,
                 windowWidth: 794,
                 windowHeight: Math.max(1123, element.scrollHeight || 1123)
             },
-            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
         }).from(element).outputPdf('blob');
     } finally {
         wrapper.remove();
@@ -584,14 +598,4 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
-
-
-
-
-
-
-
-
-
-
 
