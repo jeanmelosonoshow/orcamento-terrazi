@@ -5,6 +5,7 @@ window.todosOrcamentos = [];
 let orcamentosFiltrados = [];
 let paginaAtual = 1;
 const ITENS_POR_PAGINA = 15;
+const statusSelecionadosFiltro = new Set(['PENDENTE', 'EXPIRADO']);
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
 async function carregarHistorico() {
@@ -57,9 +58,59 @@ function obterStatusExibicao(orcamento) {
 }
 
 function obterStatusSelecionados() {
-    const select = document.getElementById('statusFilter');
-    const selecionados = Array.from(select?.selectedOptions || []).map(option => option.value.toUpperCase());
-    return selecionados.length ? selecionados : ['PENDENTE', 'EXPIRADO'];
+    return Array.from(statusSelecionadosFiltro);
+}
+
+function atualizarResumoStatus() {
+    const summary = document.getElementById('statusFilterSummary');
+    if (!summary) return;
+    const selecionados = obterStatusSelecionados();
+    summary.textContent = selecionados.length ? selecionados.join(', ') : 'Selecione status';
+
+    document.querySelectorAll('[data-status-option]').forEach(option => {
+        const status = option.dataset.statusOption;
+        const ativo = statusSelecionadosFiltro.has(status);
+        option.classList.toggle('is-selected', ativo);
+    });
+}
+
+function inicializarFiltroStatus() {
+    const filtro = document.getElementById('statusFilter');
+    const toggle = document.getElementById('statusFilterToggle');
+    const menu = document.getElementById('statusFilterMenu');
+    if (!filtro || !toggle || !menu) return;
+
+    const fecharMenu = () => {
+        menu.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+        filtro.classList.remove('is-open');
+    };
+
+    toggle.addEventListener('click', () => {
+        const abrir = menu.hidden;
+        menu.hidden = !abrir;
+        toggle.setAttribute('aria-expanded', String(abrir));
+        filtro.classList.toggle('is-open', abrir);
+    });
+
+    document.querySelectorAll('[data-status-option]').forEach(option => {
+        option.addEventListener('click', () => {
+            const status = option.dataset.statusOption;
+            if (statusSelecionadosFiltro.has(status)) {
+                statusSelecionadosFiltro.delete(status);
+            } else {
+                statusSelecionadosFiltro.add(status);
+            }
+            atualizarResumoStatus();
+            filtrarOrcamentos();
+        });
+    });
+
+    document.addEventListener('click', event => {
+        if (!filtro.contains(event.target)) fecharMenu();
+    });
+
+    atualizarResumoStatus();
 }
 
 function filtrarOrcamentos() {
@@ -387,8 +438,9 @@ document.addEventListener('DOMContentLoaded', () => {
     carregarHistorico();
 
     // Eventos para busca e filtro
+    inicializarFiltroStatus();
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
-    document.getElementById('statusFilter')?.addEventListener('change', filtrarOrcamentos);
 });
+
 
 

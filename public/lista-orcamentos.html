@@ -33,14 +33,28 @@
             <div class="input-wrapper">
                 <input type="text" id="searchInput" placeholder="Filtrar por nome, CPF ou número...">
             </div>
-            <div class="select-wrapper">
-                <label for="statusFilter">Status</label>
-                <select id="statusFilter" multiple size="4" aria-label="Filtrar por status">
-                    <option value="PENDENTE" selected>PENDENTE</option>
-                    <option value="EXPIRADO" selected>EXPIRADO</option>
-                    <option value="GEROU VENDA">GEROU VENDA</option>
-                    <option value="CANCELADO">CANCELADO</option>
-                </select>
+            <div class="select-wrapper status-filter-wrapper">
+                <label>Status</label>
+                <div class="status-filter" id="statusFilter">
+                    <button type="button" class="status-filter-toggle" id="statusFilterToggle" aria-expanded="false">
+                        <span id="statusFilterSummary">PENDENTE, EXPIRADO</span>
+                        <span class="status-filter-arrow">▾</span>
+                    </button>
+                    <div class="status-filter-menu" id="statusFilterMenu" hidden>
+                        <button type="button" class="status-filter-option is-selected" data-status-option="PENDENTE">
+                            <span class="status-check">✓</span><span>PENDENTE</span>
+                        </button>
+                        <button type="button" class="status-filter-option is-selected" data-status-option="EXPIRADO">
+                            <span class="status-check">✓</span><span>EXPIRADO</span>
+                        </button>
+                        <button type="button" class="status-filter-option" data-status-option="GEROU VENDA">
+                            <span class="status-check">✓</span><span>GEROU VENDA</span>
+                        </button>
+                        <button type="button" class="status-filter-option" data-status-option="CANCELADO">
+                            <span class="status-check">✓</span><span>CANCELADO</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -53,4 +67,5 @@
     <script src="script-lista.js"></script>
 </body>
 </html>
+
 
