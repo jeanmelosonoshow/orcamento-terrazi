@@ -473,242 +473,53 @@ function montarDocumentoPdf(orcamentoID) {
     </div>`;
 
     element.innerHTML = html;
-    element.pdfData = {
-        orcamentoID,
-        dataValidade,
-        dataEmissao: new Date().toLocaleDateString('pt-BR'),
-        filial: usuarioLogado.idfilial,
-        clienteNome: custName.value || '---',
-        clienteDoc: custDoc.value || '---',
-        clienteTelefone: custPhone.value || '---',
-        vendedorNome: sellerName.value || '---',
-        vendedorContato: sellerPhone.value || '---',
-        obsGeral: generalObs.value || '',
-        totalGeral: displayTotalGeral.innerText,
-        itens: quoteCart.map(item => ({ ...item }))
-    };    return {
+    return {
         element,
         filename: `Terrazi_${sanitizarNomeArquivo(custName.value || 'Orcamento')}_${orcamentoID}.pdf`
     };
 }
 
 async function gerarPdfBlob(element) {
-    if (element.pdfData) return gerarPdfA4Programatico(element.pdfData);
-
-    return html2pdf().set({
+    const opcoesPdf = {
         margin: [30, 0, 30, 0],
-        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
-        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
-    }).from(element).outputPdf('blob');
-}
-
-async function gerarPdfA4Programatico(dados) {
-    const jsPDFConstructor = window.jspdf && window.jspdf.jsPDF;
-    if (!jsPDFConstructor) throw new Error('Biblioteca jsPDF indisponivel.');
-
-    const pdf = new jsPDFConstructor({ unit: 'pt', format: 'a4', orientation: 'portrait' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 36;
-    const verde = [26, 48, 23];
-    const cinzaTexto = [68, 68, 68];
-    let y = 50;
-
-    const limparTxt = (texto) => (texto || '').replace(/<\/p>/gi, '\n').replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+(>|$)/g, '').replace(/&nbsp;/g, ' ').replace(/\s+\n/g, '\n').trim();
-    const formatarMoeda = (valor) => Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-
-    const novaPagina = () => {
-        pdf.addPage();
-        y = 42;
-        desenharCabecalho(false);
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        },
+        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
     };
 
-    const garantirEspaco = (altura) => {
-        if (y + altura > pageHeight - 50) novaPagina();
-    };
+    element.style.width = '520pt';
+    element.style.maxWidth = '520pt';
 
-    const textoQuebrado = (texto, x, largura, tamanho = 10, estilo = 'normal', cor = cinzaTexto, linha = 1.35) => {
-        pdf.setFont('helvetica', estilo);
-        pdf.setFontSize(tamanho);
-        pdf.setTextColor(...cor);
-        const linhas = pdf.splitTextToSize(texto || '', largura);
-        pdf.text(linhas, x, y, { lineHeightFactor: linha });
-        y += linhas.length * tamanho * linha;
-        return linhas.length;
-    };
-
-    const desenharCabecalho = (comDadosCliente = true) => {
-        pdf.setFillColor(...verde);
-        pdf.rect(0, 0, 8, pageHeight, 'F');
-
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(24);
-        pdf.setTextColor(...verde);
-        pdf.text(`ORCAMENTO #${dados.orcamentoID}`, margin, y);
-
-        pdf.setFontSize(10);
-        pdf.text(`FILIAL: ${dados.filial || '---'}`, pageWidth - margin, y - 2, { align: 'right' });
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(`Emissao: ${dados.dataEmissao} | Validade: ${dados.dataValidade}`, pageWidth - margin, y + 14, { align: 'right' });
-
-        y += 28;
-        pdf.setDrawColor(...verde);
-        pdf.setLineWidth(1.5);
-        pdf.line(margin, y, pageWidth - margin, y);
-        y += 20;
-
-        if (!comDadosCliente) return;
-
-        pdf.setFillColor(249, 249, 249);
-        pdf.setDrawColor(235, 235, 235);
-        pdf.roundedRect(margin, y, pageWidth - (margin * 2), 58, 4, 4, 'FD');
-        pdf.setFontSize(9);
-        pdf.setTextColor(30, 30, 30);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('CLIENTE:', margin + 14, y + 16);
-        pdf.text('VENDEDOR:', pageWidth / 2 + 8, y + 16);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(`${dados.clienteNome}`, margin + 14, y + 30);
-        pdf.text(`DOC: ${dados.clienteDoc}`, margin + 14, y + 43);
-        pdf.text(`TEL: ${dados.clienteTelefone}`, margin + 120, y + 43);
-        pdf.text(`${dados.vendedorNome}`, pageWidth / 2 + 8, y + 30);
-        pdf.text(`CONTATO: ${dados.vendedorContato}`, pageWidth / 2 + 8, y + 43);
-        y += 82;
-    };
-
-    desenharCabecalho(true);
-
-    for (const item of dados.itens) {
-        garantirEspaco(210);
-        const inicioBloco = y;
-        const xImg = margin;
-        const imgSize = 132;
-        const xTexto = margin + imgSize + 20;
-        const larguraTexto = pageWidth - xTexto - margin;
-
-        const imagem = await carregarImagemPdf(item.image);
-        if (imagem) {
-            try { pdf.addImage(imagem, 'JPEG', xImg, y, imgSize, imgSize); } catch (e) { /* imagem opcional */ }
-        } else {
-            pdf.setDrawColor(235, 235, 235);
-            pdf.setFillColor(250, 250, 250);
-            pdf.rect(xImg, y, imgSize, imgSize, 'FD');
-        }
-
-        if (item.description) {
-            const raw = item.description || '';
-            const parts = raw.split(/(características|medidas|dimensões|especificações|técnico)/i);
-            item.textoEmocional = limparTxt(parts[0]);
-            item.textoTecnico = limparTxt(parts.slice(1).join(' '));
-        }
-
-        let yTexto = y;
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(15);
-        pdf.setTextColor(...verde);
-        pdf.text(pdf.splitTextToSize((item.displayName || item.name || '').toUpperCase(), larguraTexto), xTexto, yTexto);
-        yTexto += 32;
-
-        pdf.setFont('helvetica', 'italic');
-        pdf.setFontSize(9.5);
-        pdf.setTextColor(...cinzaTexto);
-        const emocional = pdf.splitTextToSize(item.textoEmocional || '', larguraTexto);
-        pdf.text(emocional.slice(0, 8), xTexto, yTexto, { lineHeightFactor: 1.35 });
-        yTexto += Math.min(emocional.length, 8) * 13;
-
-        if (item.variation) {
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(9);
-            pdf.setTextColor(...verde);
-            pdf.text(`VARIACAO: ${item.variation}`, xTexto, yTexto + 4);
-            yTexto += 18;
-        }
-
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8);
-        pdf.setTextColor(120, 120, 120);
-        pdf.text(`SKU: ${item.sku || '---'}`, xTexto, yTexto);
-
-        const tableY = Math.max(inicioBloco + imgSize + 18, yTexto + 16);
-        const tableX = xTexto;
-        const tableW = larguraTexto;
-        pdf.setDrawColor(230, 230, 230);
-        pdf.setFillColor(250, 250, 250);
-        pdf.rect(tableX, tableY, tableW, 22, 'FD');
-        pdf.rect(tableX, tableY + 22, tableW, 26);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8);
-        pdf.setTextColor(150, 150, 150);
-        pdf.text('QTD', tableX + 22, tableY + 14);
-        pdf.text('VALOR UNITARIO', tableX + tableW / 2, tableY + 14, { align: 'center' });
-        pdf.text('SUBTOTAL', tableX + tableW - 28, tableY + 14, { align: 'right' });
-        pdf.setFontSize(10);
-        pdf.setTextColor(30, 30, 30);
-        pdf.text(String(item.quantity || 0), tableX + 24, tableY + 39);
-        pdf.text(`R$ ${formatarMoeda(item.price)}`, tableX + tableW / 2, tableY + 39, { align: 'center' });
-        pdf.text(`R$ ${formatarMoeda((item.quantity || 0) * (item.price || 0))}`, tableX + tableW - 28, tableY + 39, { align: 'right' });
-
-        y = tableY + 70;
-        pdf.setDrawColor(240, 240, 240);
-        pdf.line(margin, y, pageWidth - margin, y);
-        y += 25;
+    if (window.matchMedia('(min-width: 900px)').matches) {
+        return await html2pdf().set(opcoesPdf).from(element).outputPdf('blob');
     }
 
-    garantirEspaco(150);
-    if (dados.obsGeral) {
-        pdf.setFillColor(253, 253, 253);
-        pdf.setDrawColor(235, 235, 235);
-        pdf.rect(margin, y, pageWidth - margin * 2, 48, 'FD');
-        y += 15;
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
-        pdf.setTextColor(30, 30, 30);
-        pdf.text('OBSERVACOES:', margin + 10, y);
-        y += 13;
-        textoQuebrado(limparTxt(dados.obsGeral), margin + 10, pageWidth - margin * 2 - 20, 9);
-        y += 12;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pdf-render-wrapper';
+    wrapper.style.position = 'absolute';
+    wrapper.style.left = '0';
+    wrapper.style.top = `${window.scrollY + window.innerHeight + 200}px`;
+    wrapper.style.width = '520pt';
+    wrapper.style.background = '#ffffff';
+    wrapper.style.pointerEvents = 'none';
+    wrapper.style.zIndex = '0';
+
+    wrapper.appendChild(element);
+    document.body.appendChild(wrapper);
+
+    try {
+        await esperarImagensDoPdf(element);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return await html2pdf().set(opcoesPdf).from(element).outputPdf('blob');
+    } finally {
+        wrapper.remove();
     }
-
-    pdf.setFillColor(...verde);
-    pdf.roundedRect(margin, y, pageWidth - margin * 2, 44, 4, 4, 'F');
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(18);
-    pdf.setTextColor(255, 255, 255);
-    pdf.text(`TOTAL GERAL: ${dados.totalGeral}`, pageWidth - margin - 14, y + 28, { align: 'right' });
-    y += 68;
-
-    pdf.setTextColor(85, 85, 85);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    textoQuebrado('INFORMACOES ADICIONAIS: itens decorativos que aparecem na ambientacao nao acompanham a compra. Cada peca da Casa Terrazi e fruto do design brasileiro, criada e produzida integralmente no Brasil.', margin, pageWidth - margin * 2, 8);
-
-    return pdf.output('blob');
-}
-
-function carregarImagemPdf(src) {
-    if (!src) return Promise.resolve(null);
-    return new Promise(resolve => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.naturalWidth || img.width;
-                canvas.height = img.naturalHeight || img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0);
-                resolve(canvas.toDataURL('image/jpeg', 0.85));
-            } catch (e) {
-                resolve(null);
-            }
-        };
-        img.onerror = () => resolve(null);
-        img.src = src;
-        setTimeout(() => resolve(null), 2500);
-    });
 }
 
 function esperarImagensDoPdf(element) {
@@ -787,5 +598,4 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
-
 
