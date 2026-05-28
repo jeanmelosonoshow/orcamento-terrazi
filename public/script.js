@@ -490,10 +490,10 @@ async function gerarPdfBlob(element) {
     wrapper.style.background = '#ffffff';
     wrapper.style.pointerEvents = 'none';
     wrapper.style.zIndex = '-1';
-    wrapper.style.opacity = '1';
 
     element.style.width = '794px';
     element.style.maxWidth = '794px';
+    element.style.minHeight = '1123px';
     wrapper.appendChild(element);
     document.body.appendChild(wrapper);
 
@@ -501,22 +501,43 @@ async function gerarPdfBlob(element) {
         await esperarImagensDoPdf(element);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-        return await html2pdf().set({
-            margin: [20, 0, 20, 0],
-            html2canvas: {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                scrollX: 0,
-                scrollY: 0,
-                width: 794,
-                windowWidth: 794,
-                windowHeight: Math.max(1123, element.scrollHeight || 1123)
-            },
-            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'] }
-        }).from(element).outputPdf('blob');
+        const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0,
+            width: 794,
+            height: Math.max(1123, element.scrollHeight || 1123),
+            windowWidth: 794,
+            windowHeight: Math.max(1123, element.scrollHeight || 1123)
+        });
+
+        const jsPDFConstructor = window.jspdf && window.jspdf.jsPDF;
+        if (!jsPDFConstructor) throw new Error('Biblioteca jsPDF indisponivel.');
+
+        const pdf = new jsPDFConstructor({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const marginX = 20;
+        const marginY = 20;
+        const imgWidth = pageWidth - (marginX * 2);
+        const imgHeight = canvas.height * imgWidth / canvas.width;
+        const pageContentHeight = pageHeight - (marginY * 2);
+        const imgData = canvas.toDataURL('image/png');
+
+        let renderedHeight = 0;
+        let page = 0;
+
+        while (renderedHeight < imgHeight) {
+            if (page > 0) pdf.addPage();
+            pdf.addImage(imgData, 'PNG', marginX, marginY - renderedHeight, imgWidth, imgHeight);
+            renderedHeight += pageContentHeight;
+            page += 1;
+        }
+
+        return pdf.output('blob');
     } finally {
         wrapper.remove();
     }
@@ -598,4 +619,5 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
 
