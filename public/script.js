@@ -494,48 +494,60 @@ async function gerarDownloadPdf(element, filename) {
     baixarPdf(pdfBlob, filename);
 }
 async function gerarPdfBlob(element) {
-    const opcoesPdf = {
-        margin: [30, 0, 30, 0],
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            logging: false,
-            backgroundColor: '#ffffff'
-        },
-        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
-
-    element.style.width = '520pt';
-    element.style.maxWidth = '520pt';
-
     if (window.matchMedia('(min-width: 900px)').matches) {
-        return await html2pdf().set(opcoesPdf).from(element).outputPdf('blob');
+        element.style.width = '520pt';
+        element.style.maxWidth = '520pt';
+        return await html2pdf().set({
+            margin: [30, 0, 30, 0],
+            html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, backgroundColor: '#ffffff' },
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
+        }).from(element).outputPdf('blob');
     }
 
     const wrapper = document.createElement('div');
     wrapper.className = 'pdf-render-wrapper';
     wrapper.style.position = 'absolute';
     wrapper.style.left = '0';
-    wrapper.style.top = `${window.scrollY + window.innerHeight + 200}px`;
-    wrapper.style.width = '520pt';
+    wrapper.style.top = '0';
+    wrapper.style.width = '794px';
+    wrapper.style.minHeight = '1123px';
     wrapper.style.background = '#ffffff';
     wrapper.style.pointerEvents = 'none';
     wrapper.style.zIndex = '0';
 
+    element.style.width = '794px';
+    element.style.maxWidth = '794px';
+    element.style.minHeight = '1123px';
     wrapper.appendChild(element);
     document.body.appendChild(wrapper);
 
     try {
         await esperarImagensDoPdf(element);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        return await html2pdf().set(opcoesPdf).from(element).outputPdf('blob');
+
+        const alturaRender = Math.max(1123, element.scrollHeight || wrapper.scrollHeight || 1123);
+        return await html2pdf().set({
+            margin: [20, 0, 20, 0],
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                scrollX: 0,
+                scrollY: 0,
+                width: 794,
+                windowWidth: 794,
+                windowHeight: alturaRender
+            },
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
+        }).from(element).outputPdf('blob');
     } finally {
         wrapper.remove();
     }
 }
-
 function esperarImagensDoPdf(element) {
     const imagens = Array.from(element.querySelectorAll('img'));
     if (imagens.length === 0) return Promise.resolve();
@@ -612,5 +624,4 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
-
 
