@@ -40,7 +40,6 @@ export default async function handler(req, res) {
         WHERE id = $9
       `, [...dadosCabecalho, orcamentoId]);
 
-      await client.query('DELETE FROM itens_orcamento WHERE orcamento_id = $1', [orcamentoId]);
       await client.query('DELETE FROM vendedor_orcamento WHERE id_orcamento = $1', [orcamentoId]);
     } else {
       const resultOrcamento = await client.query(`
@@ -81,33 +80,72 @@ export default async function handler(req, res) {
       ]);
     }
 
-    // 3. Insere os itens vinculados
-    for (const item of orcamento.items) {
-      await client.query(`
+    // 3. Sincroniza os itens vinculados
+    const idsMantidos = [];
+    const itensSalvos = [];
+
+    for (const item of orcamento.items || []) {
+      const dadosItem = [
+        item.sku || 'N/A',
+        item.displayName || item.nome_produto || 'Produto sem nome',
+        item.variation || item.variacao || '',
+        parseInt(item.quantity || item.quantidade) || 1,
+        parseFloat(item.price || item.preco_unitario) || 0,
+        item.image || item.imagem_url || '',
+        item.description || item.descricao_tecnica || ''
+      ];
+
+      const itemOrcamentoId = parseInt(item.item_orcamento_id, 10) || null;
+
+      if (orcamentoId && itemOrcamentoId) {
+        const atualizado = await client.query(`
+          UPDATE itens_orcamento SET
+            sku = $1,
+            nome_produto = $2,
+            variacao = $3,
+            quantidade = $4,
+            preco_unitario = $5,
+            imagem_url = $6,
+            descricao_tecnica = $7
+          WHERE id = $8 AND orcamento_id = $9
+          RETURNING id
+        `, [...dadosItem, itemOrcamentoId, orcamentoId]);
+
+        if (atualizado.rows.length > 0) {
+          idsMantidos.push(atualizado.rows[0].id);
+          itensSalvos.push({ tempId: item.tempId || null, item_orcamento_id: atualizado.rows[0].id });
+          continue;
+        }
+      }
+
+      const inserido = await client.query(`
         INSERT INTO itens_orcamento (
-          orcamento_id, 
-          sku, 
-          nome_produto, 
-          variacao, 
-          quantidade, 
-          preco_unitario, 
-          imagem_url, 
+          orcamento_id,
+          sku,
+          nome_produto,
+          variacao,
+          quantidade,
+          preco_unitario,
+          imagem_url,
           descricao_tecnica
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [
-        orcamentoId, 
-        item.sku || 'N/A', 
-        item.displayName || 'Produto sem nome', 
-        item.variation || '',
-        parseInt(item.quantity) || 1, 
-        parseFloat(item.price) || 0, 
-        item.image || '', 
-        item.description || ''
-      ]);
+        RETURNING id
+      `, [orcamentoId, ...dadosItem]);
+
+      idsMantidos.push(inserido.rows[0].id);
+      itensSalvos.push({ tempId: item.tempId || null, item_orcamento_id: inserido.rows[0].id });
+    }
+
+    if (parseInt(orcamento.orcamento_id, 10)) {
+      if (idsMantidos.length > 0) {
+        await client.query('DELETE FROM itens_orcamento WHERE orcamento_id = $1 AND NOT (id = ANY($2::int[]))', [orcamentoId, idsMantidos]);
+      } else {
+        await client.query('DELETE FROM itens_orcamento WHERE orcamento_id = $1', [orcamentoId]);
+      }
     }
 
     await client.query('COMMIT');
-    res.status(200).json({ success: true, orcamentoId });
+    res.status(200).json({ success: true, orcamentoId, items: itensSalvos });
 
   } catch (error) {
     await client.query('ROLLBACK');

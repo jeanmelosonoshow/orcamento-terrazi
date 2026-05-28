@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentOrcamentoId) generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${currentOrcamentoId}`;
         quoteCart = (data.items || []).map(item => ({
             ...item,
+            item_orcamento_id: item.item_orcamento_id || item.id || null,
             displayName: item.nome_produto || item.displayName,
             price: parseFloat(item.preco_unitario || item.price),
             quantity: parseInt(item.quantidade || item.quantity),
@@ -113,6 +114,8 @@ window.adicionarAoOrcamento = (produto) => {
     quoteCart.push({ 
         ...produto, 
         tempId: Date.now(), 
+        item_orcamento_id: null,
+        product_id: produto.id || null,
         displayName: produto.name, 
         quantity: 1, 
         variation: "",
@@ -327,6 +330,7 @@ async function salvarOrcamento() {
         total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
         items: quoteCart.map(item => ({
             ...item,
+            item_orcamento_id: item.item_orcamento_id || null,
             categoria: item.category || 'Geral'
         })),
         dados_vendedor: { 
@@ -349,11 +353,20 @@ async function salvarOrcamento() {
             throw new Error(saveResult.error || 'Erro ao salvar orçamento.');
         }
 
+        atualizarIdsItensSalvos(saveResult.items || []);
+
         return saveResult.id || saveResult.insertId || saveResult.orcamentoId || `REF-${Date.now().toString().slice(-6)}`;
     } catch (error) {
         console.error('Erro no salvamento:', error);
         return `REF-${Date.now().toString().slice(-6)}`;
     }
+}
+
+function atualizarIdsItensSalvos(itensSalvos) {
+    itensSalvos.forEach(itemSalvo => {
+        const itemCarrinho = quoteCart.find(item => String(item.tempId) === String(itemSalvo.tempId));
+        if (itemCarrinho) itemCarrinho.item_orcamento_id = itemSalvo.item_orcamento_id;
+    });
 }
 
 function montarDocumentoPdf(orcamentoID) {
@@ -571,6 +584,7 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
 
 
 
