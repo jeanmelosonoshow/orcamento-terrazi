@@ -225,25 +225,25 @@ input[type="text"], #statusFilter {
 
 .btn-clonar:hover { background-color: var(--verde-medio); }
 
-#statusFilter option[value="Pendente"] {
+#statusFilter option[value="PENDENTE"] {
     background-color: #fff9db;
     color: #a17500;
     font-weight: bold;
 }
 
-#statusFilter option[value="Gerou Venda"] {
+#statusFilter option[value="GEROU VENDA"] {
     background-color: var(--verde-claro);
     color: var(--verde-medio);
     font-weight: bold;
 }
 
-#statusFilter option[value="Cancelado"] {
+#statusFilter option[value="CANCELADO"] {
     background-color: #fff5f5;
     color: #e74c3c;
     font-weight: bold;
 }
 
-#statusFilter option[value="Expirado"] {
+#statusFilter option[value="EXPIRADO"] {
     background-color: #f1f3f5;
     color: #6c757d;
     font-weight: bold;
@@ -357,3 +357,55 @@ input[type="text"], #statusFilter {
         padding: 20px;
     }
 }
+
+.select-wrapper label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    text-transform: uppercase;
+}
+
+#statusFilter[multiple] {
+    min-height: 118px;
+    padding: 8px;
+}
+
+#statusFilter[multiple] option {
+    padding: 8px 10px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+.pagination-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 28px 0 8px;
+}
+
+.pagination-btn {
+    border: 1px solid var(--verde-escuro);
+    background: #fff;
+    color: var(--verde-escuro);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.pagination-summary {
+    font-size: 0.82rem;
+    color: #666;
+    text-align: center;
+}
+

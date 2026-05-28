@@ -1,7 +1,10 @@
 const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
 if (!usuarioLogado) { window.location.href = 'login.html'; }
 
-window.todosOrcamentos = []; 
+window.todosOrcamentos = [];
+let orcamentosFiltrados = [];
+let paginaAtual = 1;
+const ITENS_POR_PAGINA = 15;
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
 async function carregarHistorico() {
@@ -27,77 +30,115 @@ async function carregarHistorico() {
     }
 }
 
-// FUNÇÃO DE FILTRAGEM CORRIGIDA
-function filtrarOrcamentos() {
-    // Captura o termo de busca e remove espaços extras
-    const termo = (document.getElementById('searchInput')?.value || "").toLowerCase().trim();
-    const filtroStatus = document.getElementById('statusFilter')?.value.toUpperCase() || "TODOS";
-    
+function obterDataValidade(orcamento) {
+    const dataRaw = orcamento.data_validade || orcamento.valid_until;
+    if (!dataRaw) return null;
+
+    const partes = dataRaw.split('T')[0].split('-');
+    if (partes.length !== 3) return null;
+
+    const dataValidade = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+    dataValidade.setHours(0, 0, 0, 0);
+    return dataValidade;
+}
+
+function obterStatusExibicao(orcamento) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
-    const filtrados = window.todosOrcamentos.filter(o => {
-        // 1. Lógica de Status (Calcula EXPIRADO em tempo real)
-        let statusFinal = (o.status || 'PENDENTE').trim().toUpperCase();
-        if (o.data_validade || o.valid_until) {
-            const dataRaw = o.data_validade || o.valid_until;
-            const partes = dataRaw.split('T')[0].split('-');
-            const dataVal = new Date(partes[0], partes[1] - 1, partes[2]);
-            dataVal.setHours(0, 0, 0, 0);
-            if (dataVal < hoje && statusFinal === 'PENDENTE') statusFinal = 'EXPIRADO';
-        }
+    let statusFinal = (orcamento.status || 'PENDENTE').trim().toUpperCase();
+    const dataValidade = obterDataValidade(orcamento);
 
-        // 2. Lógica de busca por texto (Nome, ID ou CPF)
-        // Criamos uma string única com os dados do orçamento para facilitar a busca
-        const nomeCliente = (o.cliente_nome || o.nome_cliente || "").toLowerCase();
-        const documento = (o.cliente_doc || o.cpf || o.cnpj || "").toString().toLowerCase().replace(/[^\d]/g, ''); // Apenas números do CPF
-        const idOrcamento = (o.id || "").toString();
-        
-        // Se o usuário digitou apenas números, tentamos bater com CPF limpo ou ID
+    if (dataValidade && dataValidade < hoje && statusFinal === 'PENDENTE') {
+        statusFinal = 'EXPIRADO';
+    }
+
+    return statusFinal;
+}
+
+function obterStatusSelecionados() {
+    const select = document.getElementById('statusFilter');
+    const selecionados = Array.from(select?.selectedOptions || []).map(option => option.value.toUpperCase());
+    return selecionados.length ? selecionados : ['PENDENTE', 'EXPIRADO'];
+}
+
+function filtrarOrcamentos() {
+    const termo = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+    const statusSelecionados = obterStatusSelecionados();
+
+    orcamentosFiltrados = window.todosOrcamentos.filter(o => {
+        const statusFinal = obterStatusExibicao(o);
+        const nomeCliente = (o.cliente_nome || o.nome_cliente || '').toLowerCase();
+        const documento = (o.cliente_doc || o.cpf || o.cnpj || '').toString().toLowerCase().replace(/[^\d]/g, '');
+        const idOrcamento = (o.id || '').toString();
         const termoLimpo = termo.replace(/[^\d]/g, '');
-        
-        const bateTexto = termo === "" || 
-                         nomeCliente.includes(termo) || 
-                         idOrcamento.includes(termo) || 
-                         (termoLimpo !== "" && documento.includes(termoLimpo));
-        
-        // 3. Lógica de filtro por status dropdown
-        const bateStatus = (filtroStatus === "TODOS") || (statusFinal === filtroStatus);
 
-        return bateTexto && bateStatus;
+        const bateTexto = termo === '' ||
+            nomeCliente.includes(termo) ||
+            idOrcamento.includes(termo) ||
+            (termoLimpo !== '' && documento.includes(termoLimpo));
+
+        return bateTexto && statusSelecionados.includes(statusFinal);
     });
 
-    renderizarCards(filtrados);
+    paginaAtual = 1;
+    renderizarPaginaAtual();
 }
+
+function renderizarPaginaAtual() {
+    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+    const fim = inicio + ITENS_POR_PAGINA;
+    renderizarCards(orcamentosFiltrados.slice(inicio, fim));
+    renderizarPaginacao();
+}
+
+function renderizarPaginacao() {
+    const container = document.getElementById('paginationControls');
+    if (!container) return;
+
+    const totalPaginas = Math.ceil(orcamentosFiltrados.length / ITENS_POR_PAGINA);
+    if (totalPaginas <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA + 1;
+    const fim = Math.min(paginaAtual * ITENS_POR_PAGINA, orcamentosFiltrados.length);
+
+    container.innerHTML = `
+        <button type="button" class="pagination-btn" onclick="mudarPagina(${paginaAtual - 1})" ${paginaAtual === 1 ? 'disabled' : ''}>ANTERIOR</button>
+        <span class="pagination-summary">${inicio}-${fim} de ${orcamentosFiltrados.length} | Página ${paginaAtual} de ${totalPaginas}</span>
+        <button type="button" class="pagination-btn" onclick="mudarPagina(${paginaAtual + 1})" ${paginaAtual === totalPaginas ? 'disabled' : ''}>PRÓXIMA</button>
+    `;
+}
+
+window.mudarPagina = (novaPagina) => {
+    const totalPaginas = Math.ceil(orcamentosFiltrados.length / ITENS_POR_PAGINA);
+    if (novaPagina < 1 || novaPagina > totalPaginas) return;
+    paginaAtual = novaPagina;
+    renderizarPaginaAtual();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
 function renderizarCards(lista) {
     const grid = document.getElementById('orcamentosGrid');
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); 
     grid.innerHTML = '';
 
-    lista.forEach(o => {
-        let dataExibicao = "Sem data";
-        let dataValidade = null;
-        
-        if (o.data_validade || o.valid_until) {
-            const dataRaw = o.data_validade || o.valid_until;
-            const partes = dataRaw.split('T')[0].split('-'); 
-            dataValidade = new Date(partes[0], partes[1] - 1, partes[2]);
-            dataValidade.setHours(0, 0, 0, 0);
-            dataExibicao = dataValidade.toLocaleDateString('pt-BR');
-        }
-        
-        let statusFinal = (o.status || 'Pendente').trim().toUpperCase();
-        if (dataValidade && dataValidade < hoje && statusFinal === 'PENDENTE') {
-            statusFinal = 'EXPIRADO';
-        }
+    if (!lista.length) {
+        grid.innerHTML = '<p>Nenhum orçamento encontrado para os filtros selecionados.</p>';
+        return;
+    }
 
-        let badgeColor = "#856404"; let badgeBg = "#fff3cd"; 
+    lista.forEach(o => {
+        const dataValidade = obterDataValidade(o);
+        const dataExibicao = dataValidade ? dataValidade.toLocaleDateString('pt-BR') : 'Sem data';
+        const statusFinal = obterStatusExibicao(o);
+
+        let badgeColor = '#856404'; let badgeBg = '#fff3cd';
         if (statusFinal === 'EXPIRADO' || statusFinal === 'CANCELADO') {
-            badgeColor = "#721c24"; badgeBg = "#f8d7da"; 
+            badgeColor = '#721c24'; badgeBg = '#f8d7da';
         } else if (statusFinal === 'GEROU VENDA' || statusFinal === 'VENDIDO' || statusFinal === 'FECHADO') {
-            badgeColor = "#1A3017"; badgeBg = "#E8F5E9"; 
+            badgeColor = '#1A3017'; badgeBg = '#E8F5E9';
         }
 
         let statusHtml = `
@@ -115,10 +156,10 @@ function renderizarCards(lista) {
         }
 
         const card = document.createElement('div');
-        card.className = `orcamento-card status-${statusFinal.toLowerCase().replace(/\s+/g, '-')}`; 
+        card.className = `orcamento-card status-${statusFinal.toLowerCase().replace(/\s+/g, '-')}`;
         card.innerHTML = `
             <div class="card-header">
-                <span>#${o.id}</span> 
+                <span>#${o.id}</span>
                 <span style="font-size:11px; font-weight:600;">Validade: ${dataExibicao}</span>
             </div>
             <div class="card-body">
@@ -139,6 +180,7 @@ function renderizarCards(lista) {
     });
 }
 
+window.filtrarCards = filtrarOrcamentos;
 // Funções de ação (Status, Clone, Impressão) permanecem iguais...
 window.alterarStatusOrcamento = async (select, id) => {
     const novoStatus = select.value;
@@ -348,4 +390,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
     document.getElementById('statusFilter')?.addEventListener('change', filtrarOrcamentos);
 });
+
 

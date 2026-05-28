@@ -31,15 +31,15 @@
     <main class="container">
         <div class="filters-bar">
             <div class="input-wrapper">
-                <input type="text" id="searchInput" placeholder="Filtrar por nome ou CPF..." onkeyup="filtrarCards()">
+                <input type="text" id="searchInput" placeholder="Filtrar por nome, CPF ou número...">
             </div>
             <div class="select-wrapper">
-                <select id="statusFilter" onchange="filtrarCards()">
-                    <option value="">TODOS OS STATUS</option>
-                    <option value="Pendente">PENDENTE</option>
-                    <option value="Gerou Venda">GEROU VENDA</option>
-                    <option value="Cancelado">CANCELADO</option>
-                    <option value="Expirado">EXPIRADO</option>
+                <label for="statusFilter">Status</label>
+                <select id="statusFilter" multiple size="4" aria-label="Filtrar por status">
+                    <option value="PENDENTE" selected>PENDENTE</option>
+                    <option value="EXPIRADO" selected>EXPIRADO</option>
+                    <option value="GEROU VENDA">GEROU VENDA</option>
+                    <option value="CANCELADO">CANCELADO</option>
                 </select>
             </div>
         </div>
@@ -47,8 +47,10 @@
         <div id="orcamentosGrid" class="orcamentos-grid">
             <div class="loader">Buscando na base de dados...</div>
         </div>
+        <div id="paginationControls" class="pagination-controls" aria-label="Paginação de orçamentos"></div>
     </main>
 
     <script src="script-lista.js"></script>
 </body>
 </html>
+
