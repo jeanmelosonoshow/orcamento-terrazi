@@ -25,7 +25,7 @@ async function carregarHistorico() {
             return;
         }
         window.todosOrcamentos = orcamentos;
-        renderizarCards(orcamentos);
+        filtrarOrcamentos();
     } catch (error) {
         grid.innerHTML = '<p style="color:red;">Erro ao carregar histórico.</p>';
     }
@@ -441,6 +441,4 @@ document.addEventListener('DOMContentLoaded', () => {
     inicializarFiltroStatus();
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
 });
-
-
 
