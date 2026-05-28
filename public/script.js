@@ -173,12 +173,12 @@ generatePdfBtn.addEventListener('click', async () => {
         const orcamentoID = await salvarOrcamento();
                 marcarOrcamentoGerado(orcamentoID);
         const { element, filename } = montarDocumentoPdf(orcamentoID);
-        const pdfBlob = await gerarPdfBlob(element);
 
         if (acao === 'whatsapp') {
+            const pdfBlob = await gerarPdfBlob(element);
             await enviarPdfWhatsApp(pdfBlob, filename);
         } else {
-            baixarPdf(pdfBlob, filename);
+            await gerarDownloadPdf(element, filename);
         }
     } catch (error) {
         console.error('Erro ao gerar orçamento:', error);
@@ -479,6 +479,20 @@ function montarDocumentoPdf(orcamentoID) {
     };
 }
 
+async function gerarDownloadPdf(element, filename) {
+    if (window.matchMedia('(min-width: 900px)').matches) {
+        await html2pdf().set({
+            margin: [30, 0, 30, 0],
+            filename,
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+        }).from(element).save();
+        return;
+    }
+
+    const pdfBlob = await gerarPdfBlob(element);
+    baixarPdf(pdfBlob, filename);
+}
 async function gerarPdfBlob(element) {
     const opcoesPdf = {
         margin: [30, 0, 30, 0],
@@ -598,4 +612,5 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
 
