@@ -435,10 +435,8 @@ function exibirUsuarioLogado() {
 
 document.addEventListener('DOMContentLoaded', () => {
     exibirUsuarioLogado();
-    carregarHistorico();
-
-    // Eventos para busca e filtro
     inicializarFiltroStatus();
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
+    carregarHistorico();
 });
 
