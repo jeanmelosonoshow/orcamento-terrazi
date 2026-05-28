@@ -13,33 +13,53 @@ export default async function handler(req, res) {
 
     await client.query('BEGIN');
 
-    // 1. Insere o cabeçalho do orçamento
-    const resultOrcamento = await client.query(`
-      INSERT INTO orcamentos (
-        data_validade, 
-        cliente_nome, 
-        cliente_doc, 
-        telefone_cliente,
-        vendedor_nome, 
-        vendedor_contato, 
-        obs_geral, 
-        valor_total, 
-        status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id
-    `, [
+    const dadosCabecalho = [
       orcamento.valid_until && orcamento.valid_until !== "" ? orcamento.valid_until : null,
-      orcamento.cust_name || 'Consumidor', 
+      orcamento.cust_name || 'Consumidor',
       orcamento.cust_doc || '',
       orcamento.cust_phone || '',
-      orcamento.seller_name || '', 
-      orcamento.seller_phone || '', 
+      orcamento.seller_name || '',
+      orcamento.seller_phone || '',
       orcamento.general_obs || '',
-      parseFloat(orcamento.total_value) || 0,
-      'Pendente'
-    ]);
+      parseFloat(orcamento.total_value) || 0
+    ];
 
-    const orcamentoId = resultOrcamento.rows[0].id;
+    let orcamentoId = parseInt(orcamento.orcamento_id, 10) || null;
+
+    if (orcamentoId) {
+      await client.query(`
+        UPDATE orcamentos SET
+          data_validade = $1,
+          cliente_nome = $2,
+          cliente_doc = $3,
+          telefone_cliente = $4,
+          vendedor_nome = $5,
+          vendedor_contato = $6,
+          obs_geral = $7,
+          valor_total = $8
+        WHERE id = $9
+      `, [...dadosCabecalho, orcamentoId]);
+
+      await client.query('DELETE FROM itens_orcamento WHERE orcamento_id = $1', [orcamentoId]);
+      await client.query('DELETE FROM vendedor_orcamento WHERE id_orcamento = $1', [orcamentoId]);
+    } else {
+      const resultOrcamento = await client.query(`
+        INSERT INTO orcamentos (
+          data_validade,
+          cliente_nome,
+          cliente_doc,
+          telefone_cliente,
+          vendedor_nome,
+          vendedor_contato,
+          obs_geral,
+          valor_total,
+          status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id
+      `, [...dadosCabecalho, 'Pendente']);
+
+      orcamentoId = resultOrcamento.rows[0].id;
+    }
 
     // 2. Vínculo na tabela VENDEDOR_ORCAMENTO
     const v = orcamento.dados_vendedor; 

@@ -131,6 +131,20 @@
         </div>
     </div>
 
+
+
+    <div id="existingBudgetDialog" class="pdf-action-dialog" hidden>
+        <div class="pdf-action-card" role="dialog" aria-modal="true" aria-labelledby="existingBudgetTitle">
+            <button class="pdf-action-close" type="button" data-existing-action="cancel" aria-label="Fechar">&times;</button>
+            <h2 id="existingBudgetTitle">Orçamento já gerado</h2>
+            <p>Já existe o orçamento <strong>#<span data-existing-budget-id></span></strong> gerado para esse cliente.</p>
+            <div class="pdf-action-buttons">
+                <button type="button" class="pdf-action-secondary" data-existing-action="new">Novo orçamento</button>
+                <button type="button" class="pdf-action-primary" data-existing-action="update">Imprimir / Atualizar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="script.js"></script>
 </body>

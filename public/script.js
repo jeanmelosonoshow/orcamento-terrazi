@@ -19,6 +19,8 @@ const generalObs = document.getElementById('generalObs');
 const displayTotalGeral = document.getElementById('displayTotalGeral');
 
 let quoteCart = [];
+let currentOrcamentoId = null;
+let currentCustomerKey = '';
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
 // 1. INICIALIZAÇÃO E EVENTOS
@@ -48,6 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
         sellerPhone.value = data.vendedor_contato || '';
         generalObs.value = data.obs_geral || '';
         if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
+        currentOrcamentoId = data.id || null;
+        currentCustomerKey = currentOrcamentoId ? obterChaveCliente() : '';
+        if (currentOrcamentoId) generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${currentOrcamentoId}`;
         quoteCart = (data.items || []).map(item => ({
             ...item,
             displayName: item.nome_produto || item.displayName,
@@ -203,6 +208,75 @@ function validarDadosObrigatorios() {
     return true;
 }
 
+function obterChaveCliente() {
+    return (custName.value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function marcarOrcamentoGerado(orcamentoId) {
+    currentOrcamentoId = orcamentoId;
+    currentCustomerKey = obterChaveCliente();
+    generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${orcamentoId}`;
+}
+
+async function avaliarOrcamentoExistente() {
+    if (!currentOrcamentoId || currentCustomerKey !== obterChaveCliente()) return 'continue';
+    return abrirDialogoOrcamentoExistente(currentOrcamentoId);
+}
+
+function abrirDialogoOrcamentoExistente(orcamentoId) {
+    const dialog = document.getElementById('existingBudgetDialog');
+    if (!dialog) {
+        return Promise.resolve(confirm(`Já existe o orçamento ${orcamentoId} gerado para esse cliente. Deseja atualizar/imprimir novamente?`) ? 'update' : 'cancel');
+    }
+
+    const numero = dialog.querySelector('[data-existing-budget-id]');
+    if (numero) numero.textContent = orcamentoId;
+
+    dialog.hidden = false;
+    dialog.classList.add('is-open');
+    document.body.classList.add('modal-open');
+
+    return new Promise(resolve => {
+        const fechar = (acao = 'cancel') => {
+            dialog.classList.remove('is-open');
+            document.body.classList.remove('modal-open');
+            setTimeout(() => { dialog.hidden = true; }, 180);
+            dialog.removeEventListener('click', cliqueFora);
+            document.removeEventListener('keydown', fecharComEsc);
+            resolve(acao);
+        };
+
+        const cliqueFora = (event) => {
+            if (event.target === dialog) fechar('cancel');
+        };
+
+        const fecharComEsc = (event) => {
+            if (event.key === 'Escape') fechar('cancel');
+        };
+
+        dialog.querySelector('[data-existing-action="update"]').onclick = () => fechar('update');
+        dialog.querySelector('[data-existing-action="new"]').onclick = () => fechar('new');
+        dialog.querySelector('[data-existing-action="cancel"]').onclick = () => fechar('cancel');
+        dialog.addEventListener('click', cliqueFora);
+        document.addEventListener('keydown', fecharComEsc);
+    });
+}
+
+function limparFormularioOrcamento() {
+    custName.value = '';
+    custDoc.value = '';
+    custPhone.value = '';
+    quoteValid.value = '';
+    sellerPhone.value = '';
+    generalObs.value = '';
+    quoteCart = [];
+    currentOrcamentoId = null;
+    currentCustomerKey = '';
+    generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
+    renderQuoteSidebar();
+    custName.focus();
+}
+
 function abrirDialogoAcaoPdf() {
     const dialog = document.getElementById('pdfActionDialog');
     if (!dialog) return Promise.resolve('download');
@@ -239,6 +313,7 @@ function abrirDialogoAcaoPdf() {
 
 async function salvarOrcamento() {
     const payload = {
+        orcamento_id: currentOrcamentoId && currentCustomerKey === obterChaveCliente() ? currentOrcamentoId : null,
         cust_name: custName.value,
         cust_doc: custDoc.value,
         cust_phone: custPhone.value,
@@ -495,6 +570,9 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
+
+
 
 
 
