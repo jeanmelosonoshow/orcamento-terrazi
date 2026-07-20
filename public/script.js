@@ -246,11 +246,11 @@ function renderCamposProdutoPersonalizado(item, index) {
 
     return `
             <div class="custom-product-fields" style="display:grid; gap:6px; margin-top:2px;">
-                <label style="font-size:10px; font-weight:bold; color:#1A3017;">DV</label>
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Descrição</label>
                 <textarea placeholder="Descrição vendedor" onchange="atualizarDados(${index}, 'customSellerDescription', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customSellerDescription || '')}</textarea>
-                <label style="font-size:10px; font-weight:bold; color:#1A3017;">C</label>
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Características</label>
                 <textarea placeholder="Características" onchange="atualizarDados(${index}, 'customCharacteristics', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customCharacteristics || '')}</textarea>
-                <label style="font-size:10px; font-weight:bold; color:#1A3017;">DM</label>
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Dimensão</label>
                 <textarea placeholder="Dimensão" onchange="atualizarDados(${index}, 'customDimensions', this.value)" style="width:100%; min-height:44px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customDimensions || '')}</textarea>
             </div>`;
 }
