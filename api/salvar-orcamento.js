@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
   const CUSTOM_PRODUCT_SKU = 'PERS';
   const CUSTOM_PRODUCT_LEGACY_SKU = 'PERSONALIZADO';
+  const CUSTOM_PRODUCT_IMAGE_URL = 'https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0';
   const CUSTOM_PRODUCT_IMAGE_KEY = 'PERS_IMG';
   const CUSTOM_PRODUCT_LEGACY_IMAGE_KEY = 'CUSTOM_PRODUCT_IMAGE';
   const limitarTexto = (valor, limite) => String(valor || '').trim().slice(0, limite);
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
   };
   const normalizarImagemItem = (item) => {
     const imagem = item?.imagem_url || item?.image || item?.image_url || '';
-    if (ehItemPersonalizado(item) || [CUSTOM_PRODUCT_IMAGE_KEY, CUSTOM_PRODUCT_LEGACY_IMAGE_KEY].includes(imagem)) return CUSTOM_PRODUCT_IMAGE_KEY;
+    if ([CUSTOM_PRODUCT_IMAGE_KEY, CUSTOM_PRODUCT_LEGACY_IMAGE_KEY].includes(imagem)) return CUSTOM_PRODUCT_IMAGE_URL;
     return imagem;
   };
   const normalizarItem = (item) => ({

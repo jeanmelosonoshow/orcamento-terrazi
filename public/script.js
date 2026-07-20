@@ -45,7 +45,7 @@ function obterImagemItem(item) {
 }
 
 function obterImagemParaSalvar(item) {
-    return ehProdutoPersonalizado(item) ? CUSTOM_PRODUCT_IMAGE_KEY : (item.image || item.imagem_url || '');
+    return obterImagemItem(item);
 }
 function escaparHtml(valor) {
     return String(valor || '')
