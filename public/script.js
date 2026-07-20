@@ -317,19 +317,29 @@ const WHATSAPP_MESSAGE = 'Obrigado por Escolher a Casa Terrazi';
 generatePdfBtn.addEventListener('click', async () => {
     if (!validarDadosObrigatorios()) return;
 
+    const decisaoOrcamento = await avaliarOrcamentoExistente();
+    if (decisaoOrcamento === 'cancel') return;
 
+    if (decisaoOrcamento === 'update') currentCustomerKey = obterChaveCliente();
+    const estadoAnterior = decisaoOrcamento === 'new' ? prepararNovoOrcamentoAPartirDoAtual() : null;
 
     const acao = await abrirDialogoAcaoPdf();
-    if (!acao) return;
+    if (!acao) {
+        if (estadoAnterior) restaurarOrcamentoAnterior(estadoAnterior);
+        return;
+    }
 
     const originalBtnText = generatePdfBtn.innerText;
     generatePdfBtn.innerText = acao === 'whatsapp' ? 'PREPARANDO WHATSAPP...' : 'GERANDO PDF, AGUARDE...';
     generatePdfBtn.disabled = true;
     generatePdfBtn.style.opacity = '0.7';
 
+    let gerouComSucesso = false;
+
     try {
         const orcamentoID = await salvarOrcamento();
-                marcarOrcamentoGerado(orcamentoID);
+        gerouComSucesso = true;
+        marcarOrcamentoGerado(orcamentoID);
         const { element, filename } = montarDocumentoPdf(orcamentoID);
 
         if (acao === 'whatsapp') {
@@ -339,6 +349,7 @@ generatePdfBtn.addEventListener('click', async () => {
             await gerarDownloadPdf(element, filename);
         }
     } catch (error) {
+        if (estadoAnterior && !gerouComSucesso) restaurarOrcamentoAnterior(estadoAnterior);
         console.error('Erro ao gerar orçamento:', error);
         alert(error.message || 'Erro ao gerar o orçamento. Tente novamente.');
     } finally {
@@ -347,7 +358,6 @@ generatePdfBtn.addEventListener('click', async () => {
         generatePdfBtn.style.opacity = '1';
     }
 });
-
 function validarDadosObrigatorios() {
     if (quoteCart.length === 0) {
         alert('Selecione itens.');
@@ -405,19 +415,46 @@ function marcarOrcamentoGerado(orcamentoId) {
     generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${orcamentoId}`;
 }
 
+function prepararNovoOrcamentoAPartirDoAtual() {
+    const estadoAnterior = {
+        currentOrcamentoId,
+        currentCustomerKey,
+        itemIds: quoteCart.map(item => item.item_orcamento_id || null)
+    };
+
+    currentOrcamentoId = null;
+    currentCustomerKey = '';
+    quoteCart.forEach(item => { item.item_orcamento_id = null; });
+    generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
+    return estadoAnterior;
+}
+
+function restaurarOrcamentoAnterior(estadoAnterior) {
+    currentOrcamentoId = estadoAnterior.currentOrcamentoId;
+    currentCustomerKey = estadoAnterior.currentCustomerKey;
+    quoteCart.forEach((item, index) => {
+        item.item_orcamento_id = estadoAnterior.itemIds[index] || null;
+    });
+    if (currentOrcamentoId) generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${currentOrcamentoId}`;
+}
 async function avaliarOrcamentoExistente() {
-    if (!currentOrcamentoId || currentCustomerKey !== obterChaveCliente()) return 'continue';
+    if (!currentOrcamentoId) return 'continue';
     return abrirDialogoOrcamentoExistente(currentOrcamentoId);
 }
 
 function abrirDialogoOrcamentoExistente(orcamentoId) {
     const dialog = document.getElementById('existingBudgetDialog');
     if (!dialog) {
-        return Promise.resolve(confirm(`Já existe o orçamento ${orcamentoId} gerado para esse cliente. Deseja atualizar/imprimir novamente?`) ? 'update' : 'cancel');
+        return Promise.resolve(confirm(`Já existe o orçamento #${orcamentoId} carregado. Clique em OK para atualizar/imprimir este orçamento, ou Cancelar para não continuar.`) ? 'update' : 'cancel');
     }
 
     const numero = dialog.querySelector('[data-existing-budget-id]');
     if (numero) numero.textContent = orcamentoId;
+
+    const botaoNovo = dialog.querySelector('[data-existing-action="new"]');
+    const botaoAtualizar = dialog.querySelector('[data-existing-action="update"]');
+    if (botaoNovo) botaoNovo.textContent = 'Gerar novo orçamento (novo ID)';
+    if (botaoAtualizar) botaoAtualizar.textContent = `Atualizar / Imprimir Orçamento #${orcamentoId}`;
 
     dialog.hidden = false;
     dialog.classList.add('is-open');
