@@ -53,6 +53,12 @@ function obterImagemPdf(item) {
     if (!imagem || imagem.startsWith('data:') || imagem.startsWith('/') || imagem.startsWith('./')) return imagem;
     return '/api/image-proxy?url=' + encodeURIComponent(imagem);
 }
+
+function limparDimensoesPdf(texto) {
+    return String(texto || '')
+        .split(/cada\s+pe[cç]a\s+da\s+casa\s+terrazi/i)[0]
+        .trim();
+}
 function escaparHtml(valor) {
     return String(valor || '')
         .replace(/&/g, '&amp;')
@@ -623,6 +629,8 @@ function montarDocumentoPdf(orcamentoID) {
                 tecnico += content + ' ';
             }
         }
+
+        dimensoes = limparDimensoesPdf(dimensoes);
 
         html += `
         <div class="product-block">

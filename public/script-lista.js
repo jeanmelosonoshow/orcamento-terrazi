@@ -36,6 +36,12 @@ function esperarImagensDoPdf(element) {
     })));
 }
 
+
+function limparDimensoesPdf(texto) {
+    return String(texto || '')
+        .split(/cada\s+pe[cç]a\s+da\s+casa\s+terrazi/i)[0]
+        .trim();
+}
 async function carregarHistorico() {
     const grid = document.getElementById('orcamentosGrid');
     const params = new URLSearchParams({
@@ -376,6 +382,8 @@ window.gerarImpressaoRapida = async (btn, id) => {
                     tecnico += content + " ";
                 }
             }
+
+            dimensoes = limparDimensoesPdf(dimensoes);
 
             html += `
             <div class="product-block">
