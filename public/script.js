@@ -486,6 +486,18 @@ function abrirDialogoAcaoPdf() {
     });
 }
 
+async function confirmarOrcamentoPersistido(orcamentoId) {
+    const res = await fetch(`/api/detalhe-orcamento?id=${encodeURIComponent(orcamentoId)}&t=${Date.now()}`, {
+        cache: 'no-store'
+    });
+    const resultado = await res.json().catch(() => ({}));
+
+    if (!res.ok || !resultado.id) {
+        throw new Error(resultado.details || resultado.error || `O orçamento #${orcamentoId} não foi confirmado no banco.`);
+    }
+
+    return resultado;
+}
 async function salvarOrcamento() {
     const payload = {
         orcamento_id: currentOrcamentoId && currentCustomerKey === obterChaveCliente() ? currentOrcamentoId : null,
@@ -530,6 +542,7 @@ async function salvarOrcamento() {
 
         const orcamentoSalvoId = saveResult.orcamentoId;
         if (!orcamentoSalvoId) throw new Error('O banco não retornou o número do orçamento salvo.');
+        await confirmarOrcamentoPersistido(orcamentoSalvoId);
         return orcamentoSalvoId;
     } catch (error) {
         console.error('Erro no salvamento:', error);

@@ -177,6 +177,12 @@ export default async function handler(req, res) {
     }
 
     await client.query('COMMIT');
+
+    const confirmacao = await client.query('SELECT id FROM orcamentos WHERE id = $1', [orcamentoId]);
+    if (confirmacao.rows.length === 0) {
+      return res.status(500).json({ error: 'Orçamento não confirmado no banco após salvamento.' });
+    }
+
     res.status(200).json({ success: true, orcamentoId, items: itensSalvos });
 
   } catch (error) {
