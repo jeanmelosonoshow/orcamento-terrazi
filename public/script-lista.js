@@ -7,6 +7,13 @@ let paginaAtual = 1;
 const ITENS_POR_PAGINA = 15;
 const statusSelecionadosFiltro = new Set(['PENDENTE', 'EXPIRADO']);
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
+const CUSTOM_PRODUCT_IMAGE_KEY = "CUSTOM_PRODUCT_IMAGE";
+
+function obterImagemItem(item) {
+    const imagem = item?.imagem_url || item?.image || '';
+    return imagem === CUSTOM_PRODUCT_IMAGE_KEY ? CUSTOM_PRODUCT_IMAGE_URL : imagem;
+}
 
 async function carregarHistorico() {
     const grid = document.getElementById('orcamentosGrid');
@@ -353,7 +360,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
             <div class="product-block">
                 <div class="product-flex">
                     <div class="col-left">
-                        <img src="${item.imagem_url || item.image}" class="img-main">
+                        <img src="${obterImagemItem(item)}" class="img-main">
                         ${dimensoes ? `
                             <div class="dim-box">
                                 <strong>DIMENSÕES:</strong><br>${dimensoes}<br>
@@ -439,4 +446,3 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
     carregarHistorico();
 });
-
