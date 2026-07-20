@@ -426,7 +426,7 @@ function renderCamposProdutoPersonalizado(item, index) {
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Imagem</label>
                 <button type="button" onclick="abrirDialogoImagemProdutoPersonalizado(${index})" ondragover="permitirArrastarImagemProdutoPersonalizado(event)" ondrop="receberImagemProdutoPersonalizado(event, ${index})" style="display:grid; grid-template-columns:64px 1fr; gap:10px; align-items:center; width:100%; min-height:78px; padding:8px; border:1px dashed #b9c9b8; border-radius:6px; background:#fbfdfb; cursor:pointer; text-align:left;">
                     <img src="${escaparHtml(imagemAtual)}" alt="Imagem do item personalizado" style="width:64px; height:60px; object-fit:cover; border-radius:4px; background:#f1f1f1;">
-                    <span style="font-size:11px; line-height:1.35; color:#496246;">Arraste uma imagem URL ou clique para inserir URL</span>
+                    <span style="font-size:11px; line-height:1.35; color:#496246;">Arraste uma imagem da web ou clique para inserir URL</span>
                 </button>
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Descrição</label>
                 <textarea placeholder="Descrição vendedor" onchange="atualizarDados(${index}, 'customSellerDescription', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customSellerDescription || '')}</textarea>
