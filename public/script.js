@@ -108,6 +108,72 @@ window.atualizarImagemProdutoPersonalizado = (index, valor) => {
     definirImagemProdutoPersonalizado(index, url);
 };
 
+function obterDialogoImagemProdutoPersonalizado() {
+    let dialog = document.getElementById('customImageDialog');
+    if (dialog) return dialog;
+
+    dialog = document.createElement('div');
+    dialog.id = 'customImageDialog';
+    dialog.className = 'pdf-action-dialog';
+    dialog.hidden = true;
+    dialog.innerHTML = `
+        <div class="pdf-action-card" role="dialog" aria-modal="true" aria-labelledby="customImageTitle">
+            <button class="pdf-action-close" type="button" data-custom-image-action="cancel" aria-label="Fechar">&times;</button>
+            <h2 id="customImageTitle">Imagem do item</h2>
+            <p>Cole a URL da imagem que deseja usar no produto personalizado.</p>
+            <input type="url" data-custom-image-url placeholder="https://..." style="width:100%; font-size:13px; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:14px;">
+            <div class="pdf-action-buttons">
+                <button type="button" class="pdf-action-secondary" data-custom-image-action="cancel">Cancelar</button>
+                <button type="button" class="pdf-action-primary" data-custom-image-action="save">Salvar imagem</button>
+            </div>
+        </div>`;
+    document.body.appendChild(dialog);
+    return dialog;
+}
+
+window.abrirDialogoImagemProdutoPersonalizado = (index) => {
+    const item = quoteCart[index];
+    if (!item || !ehProdutoPersonalizado(item)) return;
+
+    const dialog = obterDialogoImagemProdutoPersonalizado();
+    const input = dialog.querySelector('[data-custom-image-url]');
+    const salvar = dialog.querySelector('[data-custom-image-action="save"]');
+    const cancelar = dialog.querySelectorAll('[data-custom-image-action="cancel"]');
+
+    input.value = obterImagemItem(item) || '';
+    dialog.hidden = false;
+    dialog.classList.add('is-open');
+    document.body.classList.add('modal-open');
+    setTimeout(() => input.focus(), 60);
+
+    const fechar = () => {
+        dialog.classList.remove('is-open');
+        document.body.classList.remove('modal-open');
+        setTimeout(() => { dialog.hidden = true; }, 180);
+        salvar.onclick = null;
+        cancelar.forEach(btn => { btn.onclick = null; });
+        input.onkeydown = null;
+    };
+
+    const confirmar = () => {
+        const valor = input.value.trim();
+        const url = normalizarUrlImagem(valor);
+        if (!url && valor) {
+            alert('Informe uma URL de imagem válida, começando com http:// ou https://.');
+            input.focus();
+            return;
+        }
+        definirImagemProdutoPersonalizado(index, url);
+        fechar();
+    };
+
+    salvar.onclick = confirmar;
+    cancelar.forEach(btn => { btn.onclick = fechar; });
+    input.onkeydown = (event) => {
+        if (event.key === 'Enter') confirmar();
+        if (event.key === 'Escape') fechar();
+    };
+};
 window.permitirArrastarImagemProdutoPersonalizado = (event) => {
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
@@ -353,11 +419,15 @@ function ajustarAlturaItensOrcamento() {
 }
 function renderCamposProdutoPersonalizado(item, index) {
     if (!ehProdutoPersonalizado(item)) return '';
+    const imagemAtual = obterImagemItem(item);
 
     return `
-            <div class="custom-product-fields" ondragover="permitirArrastarImagemProdutoPersonalizado(event)" ondrop="receberImagemProdutoPersonalizado(event, ${index})" style="display:grid; gap:6px; margin-top:2px;">
-                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Imagem (URL)</label>
-                <input type="url" placeholder="Cole ou arraste uma URL de imagem" value="${escaparHtml(obterImagemItem(item))}" onchange="atualizarImagemProdutoPersonalizado(${index}, this.value)" ondragover="permitirArrastarImagemProdutoPersonalizado(event)" ondrop="receberImagemProdutoPersonalizado(event, ${index})" style="width:100%; font-size:10px; padding:7px; border:1px dashed #cfd8cf; background:#fbfdfb;">
+            <div class="custom-product-fields" style="display:grid; gap:6px; margin-top:2px;">
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Imagem</label>
+                <button type="button" onclick="abrirDialogoImagemProdutoPersonalizado(${index})" ondragover="permitirArrastarImagemProdutoPersonalizado(event)" ondrop="receberImagemProdutoPersonalizado(event, ${index})" style="display:grid; grid-template-columns:64px 1fr; gap:10px; align-items:center; width:100%; min-height:78px; padding:8px; border:1px dashed #b9c9b8; border-radius:6px; background:#fbfdfb; cursor:pointer; text-align:left;">
+                    <img src="${escaparHtml(imagemAtual)}" alt="Imagem do item personalizado" style="width:64px; height:60px; object-fit:cover; border-radius:4px; background:#f1f1f1;">
+                    <span style="font-size:11px; line-height:1.35; color:#496246;">Arraste uma imagem URL ou clique para inserir URL</span>
+                </button>
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Descrição</label>
                 <textarea placeholder="Descrição vendedor" onchange="atualizarDados(${index}, 'customSellerDescription', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customSellerDescription || '')}</textarea>
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Características</label>
@@ -365,7 +435,8 @@ function renderCamposProdutoPersonalizado(item, index) {
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Dimensão</label>
                 <textarea placeholder="Dimensão" onchange="atualizarDados(${index}, 'customDimensions', this.value)" style="width:100%; min-height:44px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customDimensions || '')}</textarea>
             </div>`;
-}function renderQuoteSidebar() {
+}
+function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
     quoteCart.forEach((item, index) => {
         const itemDiv = document.createElement('div');
