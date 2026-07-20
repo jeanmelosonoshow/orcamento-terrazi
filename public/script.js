@@ -72,6 +72,23 @@ function ehProdutoPersonalizado(item) {
     return Boolean(item?.isCustomProduct) || [CUSTOM_PRODUCT_SKU, CUSTOM_PRODUCT_LEGACY_SKU].includes(String(item?.sku || '').toUpperCase());
 }
 
+function extrairCamposProdutoPersonalizado(item) {
+    const texto = String(item.descricao_tecnica || item.description || '')
+        .replace(/<\/?[^>]+>/g, '')
+        .replace(/\r\n/g, '\n')
+        .trim();
+
+    const primeiraSecao = texto.search(/(?:^|\n)\s*(?:caracter[ií]sticas|dimens[oõ]es|medidas)\s*:/i);
+    const descricao = primeiraSecao >= 0 ? texto.slice(0, primeiraSecao).trim() : texto;
+    const caracteristicas = texto.match(/(?:^|\n)\s*caracter[ií]sticas\s*:\s*([\s\S]*?)(?=(?:\n\s*(?:dimens[oõ]es|medidas)\s*:)|$)/i)?.[1]?.trim() || '';
+    const dimensoes = limparDimensoesPdf(texto.match(/(?:^|\n)\s*(?:dimens[oõ]es|medidas)\s*:\s*([\s\S]*)$/i)?.[1] || '');
+
+    return {
+        customSellerDescription: item.customSellerDescription || descricao,
+        customCharacteristics: item.customCharacteristics || caracteristicas,
+        customDimensions: item.customDimensions || dimensoes
+    };
+}
 function montarDescricaoProdutoPersonalizado(item) {
     return [
         item.customSellerDescription || '',
@@ -164,22 +181,27 @@ document.addEventListener('DOMContentLoaded', () => {
         currentOrcamentoId = data.id || null;
         currentCustomerKey = currentOrcamentoId ? obterChaveCliente() : '';
         if (currentOrcamentoId) generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${currentOrcamentoId}`;
-        quoteCart = (data.items || []).map(item => ({
-            ...item,
-            item_orcamento_id: item.item_orcamento_id || item.id || null,
-            displayName: item.nome_produto || item.displayName,
-            price: parseFloat(item.preco_unitario || item.price),
-            quantity: parseInt(item.quantidade || item.quantity),
-            variation: item.variacao || item.variation || '',
-            image: obterImagemItem(item),
-            description: item.descricao_tecnica || item.description,
-            customSellerDescription: item.customSellerDescription || '',
-            customCharacteristics: item.customCharacteristics || '',
-            customDimensions: item.customDimensions || '',
-            isCustomProduct: ehProdutoPersonalizado(item),
-            category: item.categoria || '',
-            tempId: Date.now() + Math.random()
-        }));
+        quoteCart = (data.items || []).map(item => {
+            const isCustomProduct = ehProdutoPersonalizado(item);
+            const camposPersonalizados = isCustomProduct ? extrairCamposProdutoPersonalizado(item) : {};
+
+            return {
+                ...item,
+                item_orcamento_id: item.item_orcamento_id || item.id || null,
+                displayName: item.nome_produto || item.displayName,
+                price: parseFloat(item.preco_unitario || item.price),
+                quantity: parseInt(item.quantidade || item.quantity),
+                variation: item.variacao || item.variation || '',
+                image: obterImagemItem(item),
+                description: item.descricao_tecnica || item.description,
+                customSellerDescription: camposPersonalizados.customSellerDescription || '',
+                customCharacteristics: camposPersonalizados.customCharacteristics || '',
+                customDimensions: camposPersonalizados.customDimensions || '',
+                isCustomProduct,
+                category: item.categoria || '',
+                tempId: Date.now() + Math.random()
+            };
+        });
         renderQuoteSidebar();
         localStorage.removeItem('clonar_orcamento');
     }
