@@ -396,7 +396,7 @@ main {
 
     main {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+        grid-template-columns: minmax(0, 1fr) minmax(420px, 500px);
         overflow: hidden;
     }
 
@@ -408,7 +408,7 @@ main {
     .quote-sidebar {
         border-top: 0;
         border-left: 1px solid var(--borda);
-        padding: 20px;
+        padding: 24px;
         overflow-y: auto;
         min-height: 0;
     }
