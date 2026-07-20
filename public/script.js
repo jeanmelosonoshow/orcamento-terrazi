@@ -22,7 +22,45 @@ let quoteCart = [];
 let currentOrcamentoId = null;
 let currentCustomerKey = '';
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
+const CUSTOM_PRODUCT_SKU = "PERSONALIZADO";
+const CUSTOM_PRODUCT = {
+    id: "produto-personalizado",
+    sku: CUSTOM_PRODUCT_SKU,
+    name: "Produto Personalizado",
+    image: CUSTOM_PRODUCT_IMAGE_URL,
+    price: 0,
+    stock: "Item manual",
+    category: "Personalizado",
+    description: "",
+    isCustomProduct: true
+};
 
+function escaparHtml(valor) {
+    return String(valor || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function ehProdutoPersonalizado(item) {
+    return Boolean(item?.isCustomProduct) || String(item?.sku || '').toUpperCase() === CUSTOM_PRODUCT_SKU;
+}
+
+function montarDescricaoProdutoPersonalizado(item) {
+    return [
+        item.customSellerDescription || '',
+        item.customCharacteristics ? `Características: ${item.customCharacteristics}` : '',
+        item.customDimensions ? `Dimensões: ${item.customDimensions}` : ''
+    ].filter(Boolean).join('\n\n');
+}
+
+function obterDescricaoItem(item) {
+    if (!ehProdutoPersonalizado(item)) return item.description || '';
+    return montarDescricaoProdutoPersonalizado(item) || item.description || '';
+}
 function obterApenasDigitos(valor, limite = Infinity) {
     return (valor || '').replace(/\D/g, '').slice(0, limite);
 }
@@ -112,6 +150,10 @@ document.addEventListener('DOMContentLoaded', () => {
             variation: item.variacao || item.variation || '',
             image: item.imagem_url || item.image,
             description: item.descricao_tecnica || item.description,
+            customSellerDescription: item.customSellerDescription || '',
+            customCharacteristics: item.customCharacteristics || '',
+            customDimensions: item.customDimensions || '',
+            isCustomProduct: item.isCustomProduct || String(item.sku || '').toUpperCase() === CUSTOM_PRODUCT_SKU,
             category: item.categoria || '',
             tempId: Date.now() + Math.random()
         }));
@@ -134,7 +176,8 @@ async function fetchProducts(isInitial = false) {
 
 function renderProducts(products) {
     productsGrid.innerHTML = '';
-    products.forEach(p => {
+    const productsWithCustom = [CUSTOM_PRODUCT, ...products];
+    productsWithCustom.forEach(p => {
         const card = document.createElement('div');
         const stockValue = Number(p.stock);
         const hasNumericStock = Number.isFinite(stockValue);
@@ -169,6 +212,11 @@ window.adicionarAoOrcamento = (produto) => {
         displayName: produto.name, 
         quantity: 1, 
         variation: "",
+        description: produto.description || "",
+        customSellerDescription: produto.customSellerDescription || "",
+        customCharacteristics: produto.customCharacteristics || "",
+        customDimensions: produto.customDimensions || "",
+        isCustomProduct: Boolean(produto.isCustomProduct),
         category: produto.category || "Geral" 
     });
     renderQuoteSidebar();
@@ -193,6 +241,19 @@ function ajustarAlturaItensOrcamento() {
     quoteItemsContainer.style.setProperty('--quote-items-max-height', `${Math.ceil(alturaMaxima)}px`);
     quoteItemsContainer.classList.add('is-scrollable');
 }
+function renderCamposProdutoPersonalizado(item, index) {
+    if (!ehProdutoPersonalizado(item)) return '';
+
+    return `
+            <div class="custom-product-fields" style="display:grid; gap:6px; margin-top:2px;">
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">DV</label>
+                <textarea placeholder="Descrição vendedor" onchange="atualizarDados(${index}, 'customSellerDescription', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customSellerDescription || '')}</textarea>
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">C</label>
+                <textarea placeholder="Características" onchange="atualizarDados(${index}, 'customCharacteristics', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customCharacteristics || '')}</textarea>
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">DM</label>
+                <textarea placeholder="Dimensão" onchange="atualizarDados(${index}, 'customDimensions', this.value)" style="width:100%; min-height:44px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customDimensions || '')}</textarea>
+            </div>`;
+}
 function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
     quoteCart.forEach((item, index) => {
@@ -204,7 +265,8 @@ function renderQuoteSidebar() {
                 <input type="text" value="${item.displayName}" onchange="atualizarDados(${index}, 'displayName', this.value)" style="flex:1; font-weight:bold; border:none; background:transparent; font-size:12px;">
                 <button onclick="removerItem(${index})" style="background:none; border:none; color:red; cursor:pointer;">&times;</button>
             </div>
-            <input type="text" placeholder="Variação..." value="${item.variation || ''}" onchange="atualizarDados(${index}, 'variation', this.value)" style="width:100%; font-size:10px; margin-bottom:5px; border:1px solid #eee;">
+            <input type="text" placeholder="Variação..." value="${escaparHtml(item.variation || '')}" onchange="atualizarDados(${index}, 'variation', this.value)" style="width:100%; font-size:10px; margin-bottom:5px; border:1px solid #eee;">
+            ${renderCamposProdutoPersonalizado(item, index)}
             <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px;">
                 <input type="number" value="${item.quantity}" onchange="atualizarDados(${index}, 'quantity', this.value)" style="width:100%;">
                 <input type="number" step="0.01" value="${item.price}" onchange="atualizarDados(${index}, 'price', this.value)" style="width:100%; font-weight:bold;">
@@ -217,6 +279,7 @@ function renderQuoteSidebar() {
 
 window.atualizarDados = (index, campo, valor) => {
     quoteCart[index][campo] = (campo === 'price' || campo === 'quantity') ? parseFloat(valor) : valor;
+    if (ehProdutoPersonalizado(quoteCart[index])) quoteCart[index].description = obterDescricaoItem(quoteCart[index]);
     atualizarDestaqueTotal();
 };
 window.removerItem = (index) => { quoteCart.splice(index, 1); renderQuoteSidebar(); };
@@ -425,6 +488,7 @@ async function salvarOrcamento() {
         total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
         items: quoteCart.map(item => ({
             ...item,
+            description: obterDescricaoItem(item),
             item_orcamento_id: item.item_orcamento_id || null,
             categoria: item.category || 'Geral'
         })),
@@ -509,7 +573,7 @@ function montarDocumentoPdf(orcamentoID) {
 
     quoteCart.forEach(item => {
         const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, '').trim() : '';
-        let raw = item.description || '';
+        let raw = obterDescricaoItem(item);
         let parts = raw.split(/(características|medidas|dimensões|especificações|técnico)/i);
         let emocional = limparTxt(parts[0]);
         let tecnico = ''; 
