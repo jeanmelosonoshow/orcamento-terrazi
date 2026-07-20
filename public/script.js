@@ -54,6 +54,71 @@ function obterImagemPdf(item) {
     return '/api/image-proxy?url=' + encodeURIComponent(imagem);
 }
 
+function normalizarUrlImagem(valor) {
+    const url = String(valor || '').trim();
+    if (!url) return '';
+
+    try {
+        const parsed = new URL(url);
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.toString() : '';
+    } catch (error) {
+        return '';
+    }
+}
+
+function extrairUrlImagemHtml(html) {
+    const match = String(html || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+    return match ? match[1] : '';
+}
+
+function obterUrlImagemArrastada(event) {
+    const dataTransfer = event.dataTransfer;
+    if (!dataTransfer) return '';
+
+    if (dataTransfer.files && dataTransfer.files.length > 0) {
+        alert('Por enquanto, use apenas URL de imagem. Arquivo local ainda não é permitido.');
+        return '';
+    }
+
+    return normalizarUrlImagem(
+        dataTransfer.getData('text/uri-list') ||
+        extrairUrlImagemHtml(dataTransfer.getData('text/html')) ||
+        dataTransfer.getData('text/plain')
+    );
+}
+
+function definirImagemProdutoPersonalizado(index, url) {
+    const item = quoteCart[index];
+    if (!item || !ehProdutoPersonalizado(item)) return;
+
+    const imagem = url || CUSTOM_PRODUCT_IMAGE_URL;
+    item.image = imagem;
+    item.imagem_url = imagem;
+    renderQuoteSidebar();
+}
+
+window.atualizarImagemProdutoPersonalizado = (index, valor) => {
+    const url = normalizarUrlImagem(valor);
+    if (!url && String(valor || '').trim()) {
+        alert('Informe uma URL de imagem válida, começando com http:// ou https://.');
+        renderQuoteSidebar();
+        return;
+    }
+
+    definirImagemProdutoPersonalizado(index, url);
+};
+
+window.permitirArrastarImagemProdutoPersonalizado = (event) => {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+};
+
+window.receberImagemProdutoPersonalizado = (event, index) => {
+    event.preventDefault();
+    const url = obterUrlImagemArrastada(event);
+    if (!url) return;
+    definirImagemProdutoPersonalizado(index, url);
+};
 function limparDimensoesPdf(texto) {
     return String(texto || '')
         .split(/cada\s+pe[cç]a\s+da\s+casa\s+terrazi/i)[0]
@@ -290,7 +355,9 @@ function renderCamposProdutoPersonalizado(item, index) {
     if (!ehProdutoPersonalizado(item)) return '';
 
     return `
-            <div class="custom-product-fields" style="display:grid; gap:6px; margin-top:2px;">
+            <div class="custom-product-fields" ondragover="permitirArrastarImagemProdutoPersonalizado(event)" ondrop="receberImagemProdutoPersonalizado(event, ${index})" style="display:grid; gap:6px; margin-top:2px;">
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Imagem (URL)</label>
+                <input type="url" placeholder="Cole ou arraste uma URL de imagem" value="${escaparHtml(obterImagemItem(item))}" onchange="atualizarImagemProdutoPersonalizado(${index}, this.value)" ondragover="permitirArrastarImagemProdutoPersonalizado(event)" ondrop="receberImagemProdutoPersonalizado(event, ${index})" style="width:100%; font-size:10px; padding:7px; border:1px dashed #cfd8cf; background:#fbfdfb;">
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Descrição</label>
                 <textarea placeholder="Descrição vendedor" onchange="atualizarDados(${index}, 'customSellerDescription', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customSellerDescription || '')}</textarea>
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Características</label>
@@ -298,8 +365,7 @@ function renderCamposProdutoPersonalizado(item, index) {
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Dimensão</label>
                 <textarea placeholder="Dimensão" onchange="atualizarDados(${index}, 'customDimensions', this.value)" style="width:100%; min-height:44px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customDimensions || '')}</textarea>
             </div>`;
-}
-function renderQuoteSidebar() {
+}function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
     quoteCart.forEach((item, index) => {
         const itemDiv = document.createElement('div');
