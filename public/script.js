@@ -23,8 +23,58 @@ let currentOrcamentoId = null;
 let currentCustomerKey = '';
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 
+function obterApenasDigitos(valor, limite = Infinity) {
+    return (valor || '').replace(/\D/g, '').slice(0, limite);
+}
+
+function formatarCpfCnpj(valor) {
+    const digitos = obterApenasDigitos(valor, 14);
+
+    if (digitos.length <= 11) {
+        return digitos
+            .replace(/^(\d{3})(\d)/, '$1.$2')
+            .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+            .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d{1,2}).*/, '$1.$2.$3-$4');
+    }
+
+    return digitos
+        .replace(/^(\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+        .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d{1,2}).*/, '$1.$2.$3/$4-$5');
+}
+
+function formatarTelefone(valor) {
+    const digitos = obterApenasDigitos(valor, 11);
+
+    if (digitos.length <= 10) {
+        return digitos
+            .replace(/^(\d{2})(\d)/, '($1) $2')
+            .replace(/^(\(\d{2}\) \d{4})(\d{1,4}).*/, '$1-$2');
+    }
+
+    return digitos
+        .replace(/^(\d{2})(\d)/, '($1) $2')
+        .replace(/^(\(\d{2}\) \d)(\d{4})(\d{1,4}).*/, '$1 $2-$3');
+}
+
+function aplicarMascara(input, formatador) {
+    if (!input) return;
+
+    input.value = formatador(input.value);
+    input.addEventListener('input', () => {
+        input.value = formatador(input.value);
+    });
+}
+
+function configurarMascarasFormulario() {
+    aplicarMascara(custDoc, formatarCpfCnpj);
+    aplicarMascara(custPhone, formatarTelefone);
+    aplicarMascara(sellerPhone, formatarTelefone);
+}
 // 1. INICIALIZAÇÃO E EVENTOS
 document.addEventListener('DOMContentLoaded', () => {
+    configurarMascarasFormulario();
     exibirUsuarioLogado();
     if (sellerName) {
         sellerName.value = usuarioLogado.nomefuncionario;
@@ -45,9 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (clonarData) {
         const data = JSON.parse(clonarData);
         custName.value = data.cliente_nome || '';
-        custDoc.value = data.cliente_doc || '';
-        if (custPhone) custPhone.value = data.telefone_cliente || '';
-        sellerPhone.value = data.vendedor_contato || '';
+        custDoc.value = formatarCpfCnpj(data.cliente_doc || '');
+        if (custPhone) custPhone.value = formatarTelefone(data.telefone_cliente || '');
+        sellerPhone.value = formatarTelefone(data.vendedor_contato || '');
         generalObs.value = data.obs_geral || '';
         if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
         currentOrcamentoId = data.id || null;
@@ -218,6 +268,7 @@ function validarDadosObrigatorios() {
 
     const camposObrigatorios = [
         { el: custName, msg: 'Preencha o nome do cliente.' },
+        { el: custDoc, msg: 'Preencha o CPF ou CNPJ do cliente.' },
         { el: custPhone, msg: 'Preencha o telefone do cliente.' },
         { el: quoteValid, msg: 'Preencha a data de validade do orçamento.' }
     ];
@@ -229,9 +280,33 @@ function validarDadosObrigatorios() {
         return false;
     }
 
+    const digitosDocumento = obterApenasDigitos(custDoc.value);
+    if (![11, 14].includes(digitosDocumento.length)) {
+        alert('Informe um CPF com 11 dígitos ou CNPJ com 14 dígitos.');
+        custDoc.focus();
+        return false;
+    }
+
+    const digitosTelefoneCliente = obterApenasDigitos(custPhone.value);
+    if (![10, 11].includes(digitosTelefoneCliente.length)) {
+        alert('Informe um telefone do cliente com DDD e 10 ou 11 dígitos.');
+        custPhone.focus();
+        return false;
+    }
+
+    const digitosTelefoneVendedor = obterApenasDigitos(sellerPhone.value);
+    if (digitosTelefoneVendedor.length > 0 && ![10, 11].includes(digitosTelefoneVendedor.length)) {
+        alert('Informe um telefone do vendedor com DDD e 10 ou 11 dígitos.');
+        sellerPhone.focus();
+        return false;
+    }
+
+    custDoc.value = formatarCpfCnpj(custDoc.value);
+    custPhone.value = formatarTelefone(custPhone.value);
+    sellerPhone.value = formatarTelefone(sellerPhone.value);
+
     return true;
 }
-
 function obterChaveCliente() {
     return (custName.value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
@@ -642,5 +717,3 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
-
-
