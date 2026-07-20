@@ -515,14 +515,19 @@ function limparFormularioOrcamento() {
     quoteValid.value = '';
     sellerPhone.value = '';
     generalObs.value = '';
+    if (sellerName) sellerName.value = usuarioLogado.nomefuncionario;
+
     quoteCart = [];
     currentOrcamentoId = null;
     currentCustomerKey = '';
+    localStorage.removeItem('clonar_orcamento');
+
     generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
     renderQuoteSidebar();
     custName.focus();
 }
 
+window.limparOrcamento = limparFormularioOrcamento;
 function abrirDialogoAcaoPdf() {
     const dialog = document.getElementById('pdfActionDialog');
     if (!dialog) return Promise.resolve('download');
