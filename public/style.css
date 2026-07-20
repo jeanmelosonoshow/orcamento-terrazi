@@ -202,8 +202,15 @@ main {
 }
 
 .quote-items {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
+    max-height: var(--quote-items-max-height, none);
+    overflow-y: auto;
     margin-bottom: 20px;
+    scrollbar-gutter: stable;
+}
+
+.quote-items.is-scrollable {
+    padding-right: 6px;
 }
 
 .item-quote-edit {
@@ -403,15 +410,13 @@ main {
         border-left: 1px solid var(--borda);
         padding: 20px;
         overflow-y: auto;
+        min-height: 0;
     }
-
     .quote-items {
-        flex: 1;
+        flex: 0 0 auto;
     }
-
     .quote-footer {
-        position: sticky;
-        bottom: -20px;
+        position: static;
     }
 }
 
@@ -527,5 +532,4 @@ body.modal-open {
     pointer-events: none;
     z-index: 0;
 }
-
 

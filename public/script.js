@@ -124,6 +124,25 @@ window.adicionarAoOrcamento = (produto) => {
     renderQuoteSidebar();
 };
 
+function ajustarAlturaItensOrcamento() {
+    const maxVisibleItems = 4;
+    const itensRenderizados = Array.from(quoteItemsContainer.querySelectorAll('.item-quote-edit'));
+
+    if (itensRenderizados.length <= maxVisibleItems) {
+        quoteItemsContainer.style.removeProperty('--quote-items-max-height');
+        quoteItemsContainer.classList.remove('is-scrollable');
+        return;
+    }
+
+    const alturaMaxima = itensRenderizados.slice(0, maxVisibleItems).reduce((total, item) => {
+        const styles = window.getComputedStyle(item);
+        const marginBottom = parseFloat(styles.marginBottom) || 0;
+        return total + item.offsetHeight + marginBottom;
+    }, 0);
+
+    quoteItemsContainer.style.setProperty('--quote-items-max-height', `${Math.ceil(alturaMaxima)}px`);
+    quoteItemsContainer.classList.add('is-scrollable');
+}
 function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
     quoteCart.forEach((item, index) => {
@@ -142,6 +161,7 @@ function renderQuoteSidebar() {
             </div>`;
         quoteItemsContainer.appendChild(itemDiv);
     });
+    ajustarAlturaItensOrcamento();
     atualizarDestaqueTotal();
 }
 
@@ -622,6 +642,5 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
-
 
 
