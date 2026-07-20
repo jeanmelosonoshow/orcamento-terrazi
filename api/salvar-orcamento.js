@@ -5,6 +5,7 @@ export default async function handler(req, res) {
 
   const client = await db.connect();
   const orcamento = req.body;
+  const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
 
   try {
     if (!orcamento.cust_name || !orcamento.cust_phone || !orcamento.valid_until) {
@@ -16,10 +17,10 @@ export default async function handler(req, res) {
     const dadosCabecalho = [
       orcamento.valid_until && orcamento.valid_until !== "" ? orcamento.valid_until : null,
       orcamento.cust_name || 'Consumidor',
-      orcamento.cust_doc || '',
-      orcamento.cust_phone || '',
+      apenasDigitos(orcamento.cust_doc),
+      apenasDigitos(orcamento.cust_phone),
       orcamento.seller_name || '',
-      orcamento.seller_phone || '',
+      apenasDigitos(orcamento.seller_phone),
       orcamento.general_obs || '',
       parseFloat(orcamento.total_value) || 0
     ];
@@ -91,7 +92,7 @@ export default async function handler(req, res) {
         item.variation || item.variacao || '',
         parseInt(item.quantity || item.quantidade) || 1,
         parseFloat(item.price || item.preco_unitario) || 0,
-        item.image || item.imagem_url || '',
+        item.imagem_url || item.image || item.image_url || '',
         item.description || item.descricao_tecnica || ''
       ];
 

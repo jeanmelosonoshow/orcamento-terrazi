@@ -477,11 +477,11 @@ async function salvarOrcamento() {
     const payload = {
         orcamento_id: currentOrcamentoId && currentCustomerKey === obterChaveCliente() ? currentOrcamentoId : null,
         cust_name: custName.value,
-        cust_doc: custDoc.value,
-        cust_phone: custPhone.value,
+        cust_doc: obterApenasDigitos(custDoc.value),
+        cust_phone: obterApenasDigitos(custPhone.value),
         valid_until: quoteValid.value,
         seller_name: sellerName.value,
-        seller_phone: sellerPhone.value,
+        seller_phone: obterApenasDigitos(sellerPhone.value),
         nome_funcionario: usuarioLogado.nomefuncionario,
         categoria: usuarioLogado.categoria || 'Geral',
         general_obs: generalObs.value,
@@ -489,6 +489,7 @@ async function salvarOrcamento() {
         items: quoteCart.map(item => ({
             ...item,
             description: obterDescricaoItem(item),
+            imagem_url: item.image || item.imagem_url || '',
             item_orcamento_id: item.item_orcamento_id || null,
             categoria: item.category || 'Geral'
         })),
@@ -514,10 +515,12 @@ async function salvarOrcamento() {
 
         atualizarIdsItensSalvos(saveResult.items || []);
 
-        return saveResult.id || saveResult.insertId || saveResult.orcamentoId || `REF-${Date.now().toString().slice(-6)}`;
+        const orcamentoSalvoId = saveResult.id || saveResult.insertId || saveResult.orcamentoId;
+        if (!orcamentoSalvoId) throw new Error('O banco não retornou o número do orçamento salvo.');
+        return orcamentoSalvoId;
     } catch (error) {
         console.error('Erro no salvamento:', error);
-        return `REF-${Date.now().toString().slice(-6)}`;
+        throw error;
     }
 }
 
