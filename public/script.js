@@ -23,8 +23,10 @@ let currentOrcamentoId = null;
 let currentCustomerKey = '';
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
-const CUSTOM_PRODUCT_SKU = "PERSONALIZADO";
-const CUSTOM_PRODUCT_IMAGE_KEY = "CUSTOM_PRODUCT_IMAGE";
+const CUSTOM_PRODUCT_SKU = "PERS";
+const CUSTOM_PRODUCT_LEGACY_SKU = "PERSONALIZADO";
+const CUSTOM_PRODUCT_IMAGE_KEY = "PERS_IMG";
+const CUSTOM_PRODUCT_LEGACY_IMAGE_KEY = "CUSTOM_PRODUCT_IMAGE";
 const CUSTOM_PRODUCT = {
     id: "produto-personalizado",
     sku: CUSTOM_PRODUCT_SKU,
@@ -39,7 +41,7 @@ const CUSTOM_PRODUCT = {
 
 function obterImagemItem(item) {
     const imagem = item?.imagem_url || item?.image || '';
-    return imagem === CUSTOM_PRODUCT_IMAGE_KEY ? CUSTOM_PRODUCT_IMAGE_URL : imagem;
+    return [CUSTOM_PRODUCT_IMAGE_KEY, CUSTOM_PRODUCT_LEGACY_IMAGE_KEY].includes(imagem) ? CUSTOM_PRODUCT_IMAGE_URL : imagem;
 }
 
 function obterImagemParaSalvar(item) {
@@ -55,7 +57,7 @@ function escaparHtml(valor) {
 }
 
 function ehProdutoPersonalizado(item) {
-    return Boolean(item?.isCustomProduct) || String(item?.sku || '').toUpperCase() === CUSTOM_PRODUCT_SKU;
+    return Boolean(item?.isCustomProduct) || [CUSTOM_PRODUCT_SKU, CUSTOM_PRODUCT_LEGACY_SKU].includes(String(item?.sku || '').toUpperCase());
 }
 
 function montarDescricaoProdutoPersonalizado(item) {
@@ -162,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             customSellerDescription: item.customSellerDescription || '',
             customCharacteristics: item.customCharacteristics || '',
             customDimensions: item.customDimensions || '',
-            isCustomProduct: item.isCustomProduct || String(item.sku || '').toUpperCase() === CUSTOM_PRODUCT_SKU,
+            isCustomProduct: ehProdutoPersonalizado(item),
             category: item.categoria || '',
             tempId: Date.now() + Math.random()
         }));
@@ -521,7 +523,7 @@ async function salvarOrcamento() {
         const saveResult = await res.json();
 
         if (!res.ok) {
-            throw new Error(saveResult.error || 'Erro ao salvar orçamento.');
+            throw new Error(saveResult.details || saveResult.error || 'Erro ao salvar orçamento.');
         }
 
         atualizarIdsItensSalvos(saveResult.items || []);
