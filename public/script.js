@@ -47,6 +47,12 @@ function obterImagemItem(item) {
 function obterImagemParaSalvar(item) {
     return obterImagemItem(item);
 }
+
+function obterImagemPdf(item) {
+    const imagem = obterImagemItem(item);
+    if (!imagem || imagem.startsWith('data:') || imagem.startsWith('/') || imagem.startsWith('./')) return imagem;
+    return '/api/image-proxy?url=' + encodeURIComponent(imagem);
+}
 function escaparHtml(valor) {
     return String(valor || '')
         .replace(/&/g, '&amp;')
@@ -622,7 +628,7 @@ function montarDocumentoPdf(orcamentoID) {
         <div class="product-block">
             <div class="product-flex">
                 <div class="col-left">
-                    <img src="${obterImagemItem(item)}" class="img-main">
+                    <img src="${obterImagemPdf(item)}" class="img-main">
                     ${dimensoes ? `
                         <div class="dim-box">
                             <strong>DIMENSÕES:</strong><br>${dimensoes}<br>
@@ -669,10 +675,11 @@ function montarDocumentoPdf(orcamentoID) {
 
 async function gerarDownloadPdf(element, filename) {
     if (window.matchMedia('(min-width: 900px)').matches) {
+        await esperarImagensDoPdf(element);
         await html2pdf().set({
             margin: [30, 0, 30, 0],
             filename,
-            html2canvas: { scale: 2, useCORS: true, logging: false },
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         }).from(element).save();
         return;

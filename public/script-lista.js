@@ -15,6 +15,26 @@ function obterImagemItem(item) {
     const imagem = item?.imagem_url || item?.image || '';
     return [CUSTOM_PRODUCT_IMAGE_KEY, CUSTOM_PRODUCT_LEGACY_IMAGE_KEY].includes(imagem) ? CUSTOM_PRODUCT_IMAGE_URL : imagem;
 }
+function obterImagemPdf(item) {
+    const imagem = obterImagemItem(item);
+    if (!imagem || imagem.startsWith('data:') || imagem.startsWith('/') || imagem.startsWith('./')) return imagem;
+    return '/api/image-proxy?url=' + encodeURIComponent(imagem);
+}
+
+function esperarImagensDoPdf(element) {
+    const imagens = Array.from(element.querySelectorAll('img'));
+    if (imagens.length === 0) return Promise.resolve();
+
+    return Promise.all(imagens.map(img => new Promise(resolve => {
+        if (img.complete && img.naturalWidth > 0) {
+            resolve();
+            return;
+        }
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 2500);
+    })));
+}
 
 async function carregarHistorico() {
     const grid = document.getElementById('orcamentosGrid');
@@ -361,7 +381,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
             <div class="product-block">
                 <div class="product-flex">
                     <div class="col-left">
-                        <img src="${obterImagemItem(item)}" class="img-main">
+                        <img src="${obterImagemPdf(item)}" class="img-main">
                         ${dimensoes ? `
                             <div class="dim-box">
                                 <strong>DIMENSÕES:</strong><br>${dimensoes}<br>
@@ -413,7 +433,9 @@ window.gerarImpressaoRapida = async (btn, id) => {
             pagebreak: { mode: ['css', 'legacy'] }
         };
 
-        html2pdf().set(opt).from(element).save().then(function () {
+        esperarImagensDoPdf(element).then(function () {
+            return html2pdf().set(opt).from(element).save();
+        }).then(function () {
             btn.innerText = originalText;
             btn.disabled = false;
         });
