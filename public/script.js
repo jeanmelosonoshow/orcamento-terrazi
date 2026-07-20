@@ -294,6 +294,10 @@ const WHATSAPP_MESSAGE = 'Obrigado por Escolher a Casa Terrazi';
 generatePdfBtn.addEventListener('click', async () => {
     if (!validarDadosObrigatorios()) return;
 
+    const acaoOrcamentoExistente = await avaliarOrcamentoExistente();
+    if (acaoOrcamentoExistente === 'cancel') return;
+    if (acaoOrcamentoExistente === 'new') prepararNovoOrcamentoAPartirDoAtual();
+
     const acao = await abrirDialogoAcaoPdf();
     if (!acao) return;
 
@@ -380,6 +384,14 @@ function marcarOrcamentoGerado(orcamentoId) {
     generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${orcamentoId}`;
 }
 
+function prepararNovoOrcamentoAPartirDoAtual() {
+    currentOrcamentoId = null;
+    currentCustomerKey = '';
+    generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
+    quoteCart.forEach(item => {
+        item.item_orcamento_id = null;
+    });
+}
 async function avaliarOrcamentoExistente() {
     if (!currentOrcamentoId || currentCustomerKey !== obterChaveCliente()) return 'continue';
     return abrirDialogoOrcamentoExistente(currentOrcamentoId);
