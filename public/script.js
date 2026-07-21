@@ -3,7 +3,24 @@ const usuarioLogadoRaw = sessionStorage.getItem('usuarioLogado');
 if (!usuarioLogadoRaw) { window.location.href = 'login.html'; }
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
 const ORCAMENTO_CONFIG = window.ORCAMENTO_CONFIG || {};
-const PRODUCT_ENDPOINT = ORCAMENTO_CONFIG.productEndpoint || '/api/get-products';
+
+function obterTemaSalvoOrcamento() {
+    try {
+        const saved = JSON.parse(sessionStorage.getItem('crmTemaFilial') || 'null');
+        return saved?.themeName || '';
+    } catch (error) {
+        return '';
+    }
+}
+
+function obterTemaAtualOrcamento() {
+    return ORCAMENTO_CONFIG.themeName || window.crmCurrentThemeName || document.body.dataset.theme || obterTemaSalvoOrcamento();
+}
+
+function obterEndpointProdutos() {
+    if (ORCAMENTO_CONFIG.productEndpoint) return ORCAMENTO_CONFIG.productEndpoint;
+    return obterTemaAtualOrcamento() === 'sonoshow' ? '/api/get-vtex-products' : '/api/get-products';
+}
 
 // Seletores
 const searchInput = document.getElementById('searchInput');
@@ -356,7 +373,8 @@ async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : (searchInput?.value.trim() || "");
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
     try {
-        const response = await fetch(`/api/get-products?q=${encodeURIComponent(query)}`);
+        if (window.crmThemeReady) await window.crmThemeReady;
+        const response = await fetch(`${obterEndpointProdutos()}?q=${encodeURIComponent(query)}`);
         let products = await response.json();
         if (isInitial) products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         renderProducts(products);
@@ -1047,6 +1065,11 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
+
+
+
+
 
 
 
