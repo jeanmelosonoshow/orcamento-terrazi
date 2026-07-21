@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terrazi | Gerador de Orçamentos</title>
+    <title>Sono Show | Gerador de Orçamentos</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@300;500&display=swap" rel="stylesheet">
     <style>
@@ -62,7 +62,7 @@
 
     <header>
         <div class="logo">
-            <img src="https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp" alt="Terrazi" id="brand-logo">
+            <img src="https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp" alt="Sono Show" id="brand-logo">
         </div>
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Pesquise por SKU ou nome do produto...">
@@ -144,9 +144,21 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        window.ORCAMENTO_CONFIG = {
+            themeName: 'sonoshow',
+            productEndpoint: '/api/get-vtex-products',
+            brandName: 'Sono Show Móveis',
+            pdfFilePrefix: 'SonoShow',
+            whatsappMessage: 'Obrigado por escolher a Sono Show Móveis',
+            additionalInfoHtml: '<p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p>'
+        };
+    </script>
     <script src="theme-loader.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
+
+
 
 

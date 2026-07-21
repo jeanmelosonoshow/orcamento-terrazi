@@ -5,17 +5,45 @@ if (!usuarioLogadoRaw) {
 
 const usuarioLogado = JSON.parse(usuarioLogadoRaw || '{}');
 const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
+const filialId = String(usuarioLogado.idfilial || '').trim().toUpperCase();
 const filial = usuarioLogado.idfilial ? `Filial: ${usuarioLogado.idfilial}` : 'Casa Terrazi';
 const categoria = usuarioLogado.categoria || 'Vendedor';
 
-document.getElementById('crmUserName').textContent = nome;
-document.getElementById('crmUserMeta').textContent = `${filial} · ${categoria}`;
-document.getElementById('crmUserRole').textContent = categoria;
+const crmUserName = document.getElementById('crmUserName');
+const crmUserMeta = document.getElementById('crmUserMeta');
+const crmUserRole = document.getElementById('crmUserRole');
+if (crmUserName) crmUserName.textContent = nome;
+if (crmUserMeta) crmUserMeta.textContent = `${filial} · ${categoria}`;
+if (crmUserRole) crmUserRole.textContent = categoria;
 
 window.fazerLogout = () => {
     sessionStorage.clear();
     window.location.href = 'login.html';
 };
+
+const budgetFrame = document.querySelector('[data-budget-frame]');
+async function definirPaginaOrcamento() {
+    if (!budgetFrame) return;
+    let budgetPage = 'index.html';
+
+    try {
+        const response = await fetch('filial-themes.json', { cache: 'no-store' });
+        if (response.ok) {
+            const config = await response.json();
+            const themeName = config.branches?.[filialId] || config.defaultTheme || 'casaterrazi';
+            budgetPage = config.budgetPages?.[themeName] || config.themes?.[themeName]?.budgetPage || budgetPage;
+        }
+    } catch (error) {
+        budgetPage = 'index.html';
+    }
+
+    if (!budgetFrame.src.endsWith(budgetPage)) {
+        budgetFrame.src = budgetPage;
+    }
+}
+
+definirPaginaOrcamento();
+
 const viewLinks = Array.from(document.querySelectorAll('[data-crm-view-link]'));
 const views = Array.from(document.querySelectorAll('[data-crm-view]'));
 
@@ -63,6 +91,7 @@ window.addEventListener('hashchange', () => {
 });
 
 ativarView(obterViewPorHash(window.location.hash || '#visao-geral'), window.location.hash || '#visao-geral');
+
 const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
 if (sidebarToggle) {
     sidebarToggle.addEventListener('click', () => {

@@ -39,7 +39,12 @@
         "sidebarStart": "#0B2D5C",
         "sidebarEnd": "#061B38",
         "accent": "#F2B705"
-      }
+      },
+      "logoUrl": "https://sonoshowmoveis.vtexassets.com/assets/vtex.file-manager-graphql/images/9c25daff-344c-4bbf-9adf-054dba3b5137___c25ce75d1124b3ba71eebaaf2a2527e2.png"
     }
+  },
+  "budgetPages": {
+    "casaterrazi": "index.html",
+    "sonoshow": "index-sonoshow.html"
   }
 }

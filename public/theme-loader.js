@@ -1,5 +1,6 @@
 (function () {
     const STORAGE_KEY = 'crmTemaFilial';
+    const forcedThemeName = window.ORCAMENTO_CONFIG?.themeName || document.body.dataset.themeName || '';
 
     function getUsuarioLogado() {
         try {
@@ -38,9 +39,10 @@
             (cssVars[key] || []).forEach(cssVar => document.documentElement.style.setProperty(cssVar, value));
         });
 
-        if (theme.logoUrl) {
+        const configuredLogo = window.ORCAMENTO_CONFIG?.logoUrl || theme.logoUrl;
+        if (configuredLogo) {
             document.querySelectorAll('[data-brand-logo], #brand-logo, .crm-brand img').forEach(img => {
-                img.src = theme.logoUrl;
+                img.src = configuredLogo;
             });
         }
     }
@@ -48,7 +50,7 @@
     function aplicarTemaSalvo() {
         try {
             const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
-            if (saved?.theme) aplicarTema(saved.themeName, saved.theme);
+            if (saved?.theme && (!forcedThemeName || saved.themeName === forcedThemeName)) aplicarTema(saved.themeName, saved.theme);
         } catch (error) {
             sessionStorage.removeItem(STORAGE_KEY);
         }
@@ -61,7 +63,7 @@
         .then(config => {
             if (!config) return;
             const branchTheme = filial ? config.branches?.[filial] : null;
-            const themeName = branchTheme || config.defaultTheme || 'casaterrazi';
+            const themeName = forcedThemeName || branchTheme || config.defaultTheme || 'casaterrazi';
             aplicarTema(themeName, config.themes?.[themeName]);
         })
         .catch(() => aplicarTemaSalvo());

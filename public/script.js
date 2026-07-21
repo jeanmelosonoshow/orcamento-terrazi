@@ -2,6 +2,8 @@
 const usuarioLogadoRaw = sessionStorage.getItem('usuarioLogado');
 if (!usuarioLogadoRaw) { window.location.href = 'login.html'; }
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
+const ORCAMENTO_CONFIG = window.ORCAMENTO_CONFIG || {};
+const PRODUCT_ENDPOINT = ORCAMENTO_CONFIG.productEndpoint || '/api/get-products';
 
 // Seletores
 const searchInput = document.getElementById('searchInput');
@@ -21,7 +23,7 @@ const displayTotalGeral = document.getElementById('displayTotalGeral');
 let quoteCart = [];
 let currentOrcamentoId = null;
 let currentCustomerKey = '';
-const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const LOGO_URL = ORCAMENTO_CONFIG.logoUrl || "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
 const CUSTOM_PRODUCT_SKU = "PERS";
 const CUSTOM_PRODUCT_LEGACY_SKU = "PERSONALIZADO";
@@ -482,7 +484,8 @@ function atualizarDestaqueTotal() {
 }
 
 // 4. GERAÇÃO DE PDF + SALVAMENTO
-const WHATSAPP_MESSAGE = 'Obrigado por Escolher a Casa Terrazi';
+const WHATSAPP_MESSAGE = ORCAMENTO_CONFIG.whatsappMessage || 'Obrigado por Escolher a Casa Terrazi';
+const ADDITIONAL_INFO_HTML = ORCAMENTO_CONFIG.additionalInfoHtml || '<p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p><p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>';
 
 generatePdfBtn.addEventListener('click', async () => {
     if (!validarDadosObrigatorios()) return;
@@ -781,16 +784,24 @@ function atualizarIdsItensSalvos(itensSalvos) {
     });
 }
 
+function obterCorTema(nome, fallback) {
+    const valor = getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+    return valor || fallback;
+}
+
 function montarDocumentoPdf(orcamentoID) {
     const element = document.createElement('div');
     const dataValidade = new Date(quoteValid.value + 'T00:00').toLocaleDateString('pt-BR');
+    const corPrimaria = obterCorTema('--verde-escuro', '#1A3017');
+    const corSuave = obterCorTema('--verde-claro', '#F4F9F4');
+    const nomeMarcaArquivo = ORCAMENTO_CONFIG.pdfFilePrefix || 'Terrazi';
 
     let html = `
     <style>
         .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 60px 60px; position: relative; background: white; width: 520pt; box-sizing: border-box; }
-        .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: #1A3017; }
-        .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
-        .order-id { font-size: 24px; font-weight: bold; color: #1A3017; }
+        .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: ${corPrimaria}; }
+        .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid ${corPrimaria}; padding-bottom: 10px; margin-bottom: 20px; }
+        .order-id { font-size: 24px; font-weight: bold; color: ${corPrimaria}; }
         .header-meta { font-size: 10px; color: #666; line-height: 1.4; text-align: right; }
         .info-box { background: #f9f9f9; padding: 15px; border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px; border: 1px solid #eee; margin-bottom: 25px; }
         .product-block { width: 100%; page-break-inside: avoid; margin-bottom: 35px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
@@ -798,9 +809,9 @@ function montarDocumentoPdf(orcamentoID) {
         .col-left { width: 180px; flex-shrink: 0; }
         .col-right { flex: 1; }
         .img-main { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
-        .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; line-height: 1.3; }
-        .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
-        .variation-text { font-size: 11px; color: #1A3017; font-weight: bold; margin: 8px 0; text-transform: uppercase; }
+        .dim-box { font-size: 9px; color: ${corPrimaria}; background: ${corSuave}; padding: 10px; border-radius: 4px; line-height: 1.3; }
+        .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: ${corPrimaria}; margin: 0; }
+        .variation-text { font-size: 11px; color: ${corPrimaria}; font-weight: bold; margin: 8px 0; text-transform: uppercase; }
         .sku-text { font-size: 9px; color: #999; margin-bottom: 10px; display: block; }
         .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; font-style: italic; }
         .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; line-height: 1.4; }
@@ -815,7 +826,7 @@ function montarDocumentoPdf(orcamentoID) {
             <img src="${LOGO_URL}" style="height: 50px;">
             <div class="header-meta">
                 <div class="order-id">ORÇAMENTO #${orcamentoID}</div>
-                <strong style="color: #1A3017;">FILIAL: ${usuarioLogado.idfilial}</strong><br>
+                <strong style="color: ${corPrimaria};">FILIAL: ${usuarioLogado.idfilial}</strong><br>
                 Emissão: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}
             </div>
         </div>
@@ -876,12 +887,11 @@ function montarDocumentoPdf(orcamentoID) {
     html += `
         <div style="page-break-inside: avoid;">
             ${generalObs.value ? `<div style="font-size: 10px; background: #fdfdfd; padding: 10px; border: 1px solid #eee; margin-bottom: 15px;"><strong>OBSERVAÇÕES:</strong><br>${generalObs.value}</div>` : ''}
-            <div style="background: #1A3017; color: white; padding: 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px;">
+            <div style="background: ${corPrimaria}; color: white; padding: 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px;">
                 TOTAL GERAL: R$ ${displayTotalGeral.innerText}
             </div>
             <div class="inst-text">
-                <p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p>
-                <p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>
+                ${ADDITIONAL_INFO_HTML}
             </div>
         </div>
     </div>`;
@@ -889,7 +899,7 @@ function montarDocumentoPdf(orcamentoID) {
     element.innerHTML = html;
     return {
         element,
-        filename: `Terrazi_${sanitizarNomeArquivo(custName.value || 'Orcamento')}_${orcamentoID}.pdf`
+        filename: `${nomeMarcaArquivo}_${sanitizarNomeArquivo(custName.value || 'Orcamento')}_${orcamentoID}.pdf`
     };
 }
 
@@ -1037,3 +1047,6 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
+
+
