@@ -408,7 +408,9 @@ function renderProducts(products) {
         const card = document.createElement('div');
         const stockValue = Number(p.stock);
         const hasNumericStock = Number.isFinite(stockValue);
-        const isOutOfStock = hasNumericStock && stockValue <= 0;
+        const stockLabel = String(p.stock || '').trim();
+        const isUnavailableLabel = /consulte disponibilidade/i.test(stockLabel);
+        const isOutOfStock = isUnavailableLabel || (hasNumericStock && stockValue <= 0);
         const stockText = isOutOfStock
             ? 'Consulte disponibilidade'
             : hasNumericStock
