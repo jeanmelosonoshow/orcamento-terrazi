@@ -75,16 +75,20 @@ function obterUrlImagemArrastada(event) {
     const dataTransfer = event.dataTransfer;
     if (!dataTransfer) return '';
 
+    const url = normalizarUrlImagem(
+        dataTransfer.getData('text/uri-list') ||
+        extrairUrlImagemHtml(dataTransfer.getData('text/html')) ||
+        dataTransfer.getData('text/plain')
+    );
+
+    if (url) return url;
+
     if (dataTransfer.files && dataTransfer.files.length > 0) {
         alert('Por enquanto, use apenas URL de imagem. Arquivo local ainda não é permitido.');
         return '';
     }
 
-    return normalizarUrlImagem(
-        dataTransfer.getData('text/uri-list') ||
-        extrairUrlImagemHtml(dataTransfer.getData('text/html')) ||
-        dataTransfer.getData('text/plain')
-    );
+    return '';
 }
 
 function definirImagemProdutoPersonalizado(index, url) {
