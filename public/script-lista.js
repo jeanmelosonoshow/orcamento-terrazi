@@ -7,7 +7,41 @@ let paginaAtual = 1;
 const ITENS_POR_PAGINA = 15;
 const statusSelecionadosFiltro = new Set(['PENDENTE', 'EXPIRADO']);
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
+const CUSTOM_PRODUCT_IMAGE_KEY = "PERS_IMG";
+const CUSTOM_PRODUCT_LEGACY_IMAGE_KEY = "CUSTOM_PRODUCT_IMAGE";
 
+function obterImagemItem(item) {
+    const imagem = item?.imagem_url || item?.image || '';
+    return [CUSTOM_PRODUCT_IMAGE_KEY, CUSTOM_PRODUCT_LEGACY_IMAGE_KEY].includes(imagem) ? CUSTOM_PRODUCT_IMAGE_URL : imagem;
+}
+function obterImagemPdf(item) {
+    const imagem = obterImagemItem(item);
+    if (!imagem || imagem.startsWith('data:') || imagem.startsWith('/') || imagem.startsWith('./')) return imagem;
+    return '/api/image-proxy?url=' + encodeURIComponent(imagem);
+}
+
+function esperarImagensDoPdf(element) {
+    const imagens = Array.from(element.querySelectorAll('img'));
+    if (imagens.length === 0) return Promise.resolve();
+
+    return Promise.all(imagens.map(img => new Promise(resolve => {
+        if (img.complete && img.naturalWidth > 0) {
+            resolve();
+            return;
+        }
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 2500);
+    })));
+}
+
+
+function limparDimensoesPdf(texto) {
+    return String(texto || '')
+        .split(/cada\s+pe[cç]a\s+da\s+casa\s+terrazi/i)[0]
+        .trim();
+}
 async function carregarHistorico() {
     const grid = document.getElementById('orcamentosGrid');
     const params = new URLSearchParams({
@@ -349,11 +383,13 @@ window.gerarImpressaoRapida = async (btn, id) => {
                 }
             }
 
+            dimensoes = limparDimensoesPdf(dimensoes);
+
             html += `
             <div class="product-block">
                 <div class="product-flex">
                     <div class="col-left">
-                        <img src="${item.imagem_url || item.image}" class="img-main">
+                        <img src="${obterImagemPdf(item)}" class="img-main">
                         ${dimensoes ? `
                             <div class="dim-box">
                                 <strong>DIMENSÕES:</strong><br>${dimensoes}<br>
@@ -405,7 +441,9 @@ window.gerarImpressaoRapida = async (btn, id) => {
             pagebreak: { mode: ['css', 'legacy'] }
         };
 
-        html2pdf().set(opt).from(element).save().then(function () {
+        esperarImagensDoPdf(element).then(function () {
+            return html2pdf().set(opt).from(element).save();
+        }).then(function () {
             btn.innerText = originalText;
             btn.disabled = false;
         });
@@ -439,4 +477,3 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
     carregarHistorico();
 });
-

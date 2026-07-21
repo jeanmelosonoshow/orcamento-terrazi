@@ -6,21 +6,51 @@ export default async function handler(req, res) {
   const client = await db.connect();
   const orcamento = req.body;
   const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
+  const CUSTOM_PRODUCT_SKU = 'PERS';
+  const CUSTOM_PRODUCT_LEGACY_SKU = 'PERSONALIZADO';
+  const CUSTOM_PRODUCT_IMAGE_URL = 'https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0';
+  const CUSTOM_PRODUCT_IMAGE_KEY = 'PERS_IMG';
+  const CUSTOM_PRODUCT_LEGACY_IMAGE_KEY = 'CUSTOM_PRODUCT_IMAGE';
+  const limitarTexto = (valor, limite) => String(valor || '').trim().slice(0, limite);
+  const ehItemPersonalizado = (item) => {
+    const sku = String(item?.sku || '').toUpperCase();
+    const nome = String(item?.displayName || item?.nome_produto || '').trim().toUpperCase();
+    return Boolean(item?.isCustomProduct) || [CUSTOM_PRODUCT_SKU, CUSTOM_PRODUCT_LEGACY_SKU].includes(sku) || nome === 'PRODUTO PERSONALIZADO';
+  };
+  const normalizarImagemItem = (item) => {
+    const imagem = item?.imagem_url || item?.image || item?.image_url || '';
+    if ([CUSTOM_PRODUCT_IMAGE_KEY, CUSTOM_PRODUCT_LEGACY_IMAGE_KEY].includes(imagem)) return CUSTOM_PRODUCT_IMAGE_URL;
+    return imagem;
+  };
+  const normalizarItem = (item) => ({
+    sku: ehItemPersonalizado(item) ? CUSTOM_PRODUCT_SKU : limitarTexto(item.sku || 'N/A', 50),
+    nome_produto: limitarTexto(item.displayName || item.nome_produto || 'Produto sem nome', 255),
+    variacao: limitarTexto(item.variation || item.variacao || '', 255),
+    quantidade: parseInt(item.quantity || item.quantidade, 10) || 1,
+    preco_unitario: parseFloat(item.price || item.preco_unitario) || 0,
+    imagem_url: limitarTexto(normalizarImagemItem(item), 500),
+    descricao_tecnica: String(item.description || item.descricao_tecnica || '')
+  });
 
   try {
     if (!orcamento.cust_name || !orcamento.cust_phone || !orcamento.valid_until) {
       return res.status(400).json({ error: 'Nome do cliente, telefone do cliente e validade são obrigatórios.' });
     }
 
+    const itensNormalizados = (orcamento.items || []).map(normalizarItem);
+    if (itensNormalizados.length === 0) {
+      return res.status(400).json({ error: 'Selecione ao menos um item para salvar o orçamento.' });
+    }
+
     await client.query('BEGIN');
 
     const dadosCabecalho = [
       orcamento.valid_until && orcamento.valid_until !== "" ? orcamento.valid_until : null,
-      orcamento.cust_name || 'Consumidor',
-      apenasDigitos(orcamento.cust_doc),
-      apenasDigitos(orcamento.cust_phone),
-      orcamento.seller_name || '',
-      apenasDigitos(orcamento.seller_phone),
+      limitarTexto(orcamento.cust_name || 'Consumidor', 255),
+      limitarTexto(apenasDigitos(orcamento.cust_doc), 20),
+      limitarTexto(apenasDigitos(orcamento.cust_phone), 15),
+      limitarTexto(orcamento.seller_name || '', 100),
+      limitarTexto(apenasDigitos(orcamento.seller_phone), 20),
       orcamento.general_obs || '',
       parseFloat(orcamento.total_value) || 0
     ];
@@ -74,10 +104,10 @@ export default async function handler(req, res) {
         ) VALUES ($1, $2, $3, $4, $5)
       `, [
         orcamentoId,
-        v.idfuncionario,
-        v.nome_funcionario,
-        v.categoria,
-        v.idfilial
+        parseInt(v.idfuncionario, 10) || null,
+        limitarTexto(v.nome_funcionario || '', 255),
+        limitarTexto(v.categoria || '', 5),
+        limitarTexto(v.idfilial || '', 2)
       ]);
     }
 
@@ -85,15 +115,17 @@ export default async function handler(req, res) {
     const idsMantidos = [];
     const itensSalvos = [];
 
-    for (const item of orcamento.items || []) {
+    for (let itemIndex = 0; itemIndex < itensNormalizados.length; itemIndex += 1) {
+      const item = orcamento.items[itemIndex] || {};
+      const itemNormalizado = itensNormalizados[itemIndex];
       const dadosItem = [
-        item.sku || 'N/A',
-        item.displayName || item.nome_produto || 'Produto sem nome',
-        item.variation || item.variacao || '',
-        parseInt(item.quantity || item.quantidade) || 1,
-        parseFloat(item.price || item.preco_unitario) || 0,
-        item.imagem_url || item.image || item.image_url || '',
-        item.description || item.descricao_tecnica || ''
+        itemNormalizado.sku,
+        itemNormalizado.nome_produto,
+        itemNormalizado.variacao,
+        itemNormalizado.quantidade,
+        itemNormalizado.preco_unitario,
+        itemNormalizado.imagem_url,
+        itemNormalizado.descricao_tecnica
       ];
 
       const itemOrcamentoId = parseInt(item.item_orcamento_id, 10) || null;
@@ -146,6 +178,12 @@ export default async function handler(req, res) {
     }
 
     await client.query('COMMIT');
+
+    const confirmacao = await client.query('SELECT id FROM orcamentos WHERE id = $1', [orcamentoId]);
+    if (confirmacao.rows.length === 0) {
+      return res.status(500).json({ error: 'Orçamento não confirmado no banco após salvamento.' });
+    }
+
     res.status(200).json({ success: true, orcamentoId, items: itensSalvos });
 
   } catch (error) {

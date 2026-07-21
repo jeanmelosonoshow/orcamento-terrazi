@@ -22,7 +22,227 @@ let quoteCart = [];
 let currentOrcamentoId = null;
 let currentCustomerKey = '';
 const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
+const CUSTOM_PRODUCT_SKU = "PERS";
+const CUSTOM_PRODUCT_LEGACY_SKU = "PERSONALIZADO";
+const CUSTOM_PRODUCT_IMAGE_KEY = "PERS_IMG";
+const CUSTOM_PRODUCT_LEGACY_IMAGE_KEY = "CUSTOM_PRODUCT_IMAGE";
+const CUSTOM_PRODUCT = {
+    id: "produto-personalizado",
+    sku: CUSTOM_PRODUCT_SKU,
+    name: "Produto Personalizado",
+    image: CUSTOM_PRODUCT_IMAGE_URL,
+    price: 0,
+    stock: "Item manual",
+    category: "Personalizado",
+    description: "",
+    isCustomProduct: true
+};
 
+function obterImagemItem(item) {
+    const imagem = item?.imagem_url || item?.image || '';
+    return [CUSTOM_PRODUCT_IMAGE_KEY, CUSTOM_PRODUCT_LEGACY_IMAGE_KEY].includes(imagem) ? CUSTOM_PRODUCT_IMAGE_URL : imagem;
+}
+
+function obterImagemParaSalvar(item) {
+    return obterImagemItem(item);
+}
+
+function obterImagemPdf(item) {
+    const imagem = obterImagemItem(item);
+    if (!imagem || imagem.startsWith('data:') || imagem.startsWith('/') || imagem.startsWith('./')) return imagem;
+    return '/api/image-proxy?url=' + encodeURIComponent(imagem);
+}
+
+function normalizarUrlImagem(valor) {
+    const url = String(valor || '').trim();
+    if (!url) return '';
+
+    try {
+        const parsed = new URL(url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+
+        const imgUrl = parsed.searchParams.get('imgurl');
+        if (parsed.hostname.includes('google.') && imgUrl) {
+            return normalizarUrlImagem(imgUrl);
+        }
+
+        return parsed.toString();
+    } catch (error) {
+        return '';
+    }
+}
+
+function extrairUrlImagemHtml(html) {
+    const match = String(html || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+    return match ? match[1] : '';
+}
+
+function obterUrlImagemArrastada(event) {
+    const dataTransfer = event.dataTransfer;
+    if (!dataTransfer) return '';
+
+    const url = normalizarUrlImagem(
+        dataTransfer.getData('text/uri-list') ||
+        extrairUrlImagemHtml(dataTransfer.getData('text/html')) ||
+        dataTransfer.getData('text/plain')
+    );
+
+    if (url) return url;
+
+    if (dataTransfer.files && dataTransfer.files.length > 0) {
+        alert('Por enquanto, use apenas URL de imagem. Arquivo local ainda não é permitido.');
+        return '';
+    }
+
+    return '';
+}
+
+function definirImagemProdutoPersonalizado(index, url) {
+    const item = quoteCart[index];
+    if (!item || !ehProdutoPersonalizado(item)) return;
+
+    const imagem = url || CUSTOM_PRODUCT_IMAGE_URL;
+    item.image = imagem;
+    item.imagem_url = imagem;
+    renderQuoteSidebar();
+}
+
+window.atualizarImagemProdutoPersonalizado = (index, valor) => {
+    const url = normalizarUrlImagem(valor);
+    if (!url && String(valor || '').trim()) {
+        alert('Informe uma URL de imagem válida, começando com http:// ou https://.');
+        renderQuoteSidebar();
+        return;
+    }
+
+    definirImagemProdutoPersonalizado(index, url);
+};
+
+function obterDialogoImagemProdutoPersonalizado() {
+    let dialog = document.getElementById('customImageDialog');
+    if (dialog) return dialog;
+
+    dialog = document.createElement('div');
+    dialog.id = 'customImageDialog';
+    dialog.className = 'pdf-action-dialog';
+    dialog.hidden = true;
+    dialog.innerHTML = `
+        <div class="pdf-action-card" role="dialog" aria-modal="true" aria-labelledby="customImageTitle">
+            <button class="pdf-action-close" type="button" data-custom-image-action="cancel" aria-label="Fechar">&times;</button>
+            <h2 id="customImageTitle">Imagem do item</h2>
+            <p>Cole a URL da imagem que deseja usar no produto personalizado.</p>
+            <input type="url" data-custom-image-url placeholder="https://..." style="width:100%; font-size:13px; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:14px;">
+            <div class="pdf-action-buttons">
+                <button type="button" class="pdf-action-secondary" data-custom-image-action="cancel">Cancelar</button>
+                <button type="button" class="pdf-action-primary" data-custom-image-action="save">Salvar imagem</button>
+            </div>
+        </div>`;
+    document.body.appendChild(dialog);
+    return dialog;
+}
+
+window.abrirDialogoImagemProdutoPersonalizado = (index) => {
+    const item = quoteCart[index];
+    if (!item || !ehProdutoPersonalizado(item)) return;
+
+    const dialog = obterDialogoImagemProdutoPersonalizado();
+    const input = dialog.querySelector('[data-custom-image-url]');
+    const salvar = dialog.querySelector('[data-custom-image-action="save"]');
+    const cancelar = dialog.querySelectorAll('[data-custom-image-action="cancel"]');
+
+    input.value = obterImagemItem(item) || '';
+    dialog.hidden = false;
+    dialog.classList.add('is-open');
+    document.body.classList.add('modal-open');
+    setTimeout(() => input.focus(), 60);
+
+    const fechar = () => {
+        dialog.classList.remove('is-open');
+        document.body.classList.remove('modal-open');
+        setTimeout(() => { dialog.hidden = true; }, 180);
+        salvar.onclick = null;
+        cancelar.forEach(btn => { btn.onclick = null; });
+        input.onkeydown = null;
+    };
+
+    const confirmar = () => {
+        const valor = input.value.trim();
+        const url = normalizarUrlImagem(valor);
+        if (!url && valor) {
+            alert('Informe uma URL de imagem válida, começando com http:// ou https://.');
+            input.focus();
+            return;
+        }
+        definirImagemProdutoPersonalizado(index, url);
+        fechar();
+    };
+
+    salvar.onclick = confirmar;
+    cancelar.forEach(btn => { btn.onclick = fechar; });
+    input.onkeydown = (event) => {
+        if (event.key === 'Enter') confirmar();
+        if (event.key === 'Escape') fechar();
+    };
+};
+window.permitirArrastarImagemProdutoPersonalizado = (event) => {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+};
+
+window.receberImagemProdutoPersonalizado = (event, index) => {
+    event.preventDefault();
+    const url = obterUrlImagemArrastada(event);
+    if (!url) return;
+    definirImagemProdutoPersonalizado(index, url);
+};
+function limparDimensoesPdf(texto) {
+    return String(texto || '')
+        .split(/cada\s+pe[cç]a\s+da\s+casa\s+terrazi/i)[0]
+        .trim();
+}
+function escaparHtml(valor) {
+    return String(valor || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function ehProdutoPersonalizado(item) {
+    return Boolean(item?.isCustomProduct) || [CUSTOM_PRODUCT_SKU, CUSTOM_PRODUCT_LEGACY_SKU].includes(String(item?.sku || '').toUpperCase());
+}
+
+function extrairCamposProdutoPersonalizado(item) {
+    const texto = String(item.descricao_tecnica || item.description || '')
+        .replace(/<\/?[^>]+>/g, '')
+        .replace(/\r\n/g, '\n')
+        .trim();
+
+    const primeiraSecao = texto.search(/(?:^|\n)\s*(?:caracter[ií]sticas|dimens[oõ]es|medidas)\s*:/i);
+    const descricao = primeiraSecao >= 0 ? texto.slice(0, primeiraSecao).trim() : texto;
+    const caracteristicas = texto.match(/(?:^|\n)\s*caracter[ií]sticas\s*:\s*([\s\S]*?)(?=(?:\n\s*(?:dimens[oõ]es|medidas)\s*:)|$)/i)?.[1]?.trim() || '';
+    const dimensoes = limparDimensoesPdf(texto.match(/(?:^|\n)\s*(?:dimens[oõ]es|medidas)\s*:\s*([\s\S]*)$/i)?.[1] || '');
+
+    return {
+        customSellerDescription: item.customSellerDescription || descricao,
+        customCharacteristics: item.customCharacteristics || caracteristicas,
+        customDimensions: item.customDimensions || dimensoes
+    };
+}
+function montarDescricaoProdutoPersonalizado(item) {
+    return [
+        item.customSellerDescription || '',
+        item.customCharacteristics ? `Características: ${item.customCharacteristics}` : '',
+        item.customDimensions ? `Dimensões: ${item.customDimensions}` : ''
+    ].filter(Boolean).join('\n\n');
+}
+
+function obterDescricaoItem(item) {
+    if (!ehProdutoPersonalizado(item)) return item.description || '';
+    return montarDescricaoProdutoPersonalizado(item) || item.description || '';
+}
 function obterApenasDigitos(valor, limite = Infinity) {
     return (valor || '').replace(/\D/g, '').slice(0, limite);
 }
@@ -103,18 +323,27 @@ document.addEventListener('DOMContentLoaded', () => {
         currentOrcamentoId = data.id || null;
         currentCustomerKey = currentOrcamentoId ? obterChaveCliente() : '';
         if (currentOrcamentoId) generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${currentOrcamentoId}`;
-        quoteCart = (data.items || []).map(item => ({
-            ...item,
-            item_orcamento_id: item.item_orcamento_id || item.id || null,
-            displayName: item.nome_produto || item.displayName,
-            price: parseFloat(item.preco_unitario || item.price),
-            quantity: parseInt(item.quantidade || item.quantity),
-            variation: item.variacao || item.variation || '',
-            image: item.imagem_url || item.image,
-            description: item.descricao_tecnica || item.description,
-            category: item.categoria || '',
-            tempId: Date.now() + Math.random()
-        }));
+        quoteCart = (data.items || []).map(item => {
+            const isCustomProduct = ehProdutoPersonalizado(item);
+            const camposPersonalizados = isCustomProduct ? extrairCamposProdutoPersonalizado(item) : {};
+
+            return {
+                ...item,
+                item_orcamento_id: item.item_orcamento_id || item.id || null,
+                displayName: item.nome_produto || item.displayName,
+                price: parseFloat(item.preco_unitario || item.price),
+                quantity: parseInt(item.quantidade || item.quantity),
+                variation: item.variacao || item.variation || '',
+                image: obterImagemItem(item),
+                description: item.descricao_tecnica || item.description,
+                customSellerDescription: camposPersonalizados.customSellerDescription || '',
+                customCharacteristics: camposPersonalizados.customCharacteristics || '',
+                customDimensions: camposPersonalizados.customDimensions || '',
+                isCustomProduct,
+                category: item.categoria || '',
+                tempId: Date.now() + Math.random()
+            };
+        });
         renderQuoteSidebar();
         localStorage.removeItem('clonar_orcamento');
     }
@@ -134,7 +363,8 @@ async function fetchProducts(isInitial = false) {
 
 function renderProducts(products) {
     productsGrid.innerHTML = '';
-    products.forEach(p => {
+    const productsWithCustom = [CUSTOM_PRODUCT, ...products];
+    productsWithCustom.forEach(p => {
         const card = document.createElement('div');
         const stockValue = Number(p.stock);
         const hasNumericStock = Number.isFinite(stockValue);
@@ -169,6 +399,11 @@ window.adicionarAoOrcamento = (produto) => {
         displayName: produto.name, 
         quantity: 1, 
         variation: "",
+        description: produto.description || "",
+        customSellerDescription: produto.customSellerDescription || "",
+        customCharacteristics: produto.customCharacteristics || "",
+        customDimensions: produto.customDimensions || "",
+        isCustomProduct: Boolean(produto.isCustomProduct),
         category: produto.category || "Geral" 
     });
     renderQuoteSidebar();
@@ -193,6 +428,25 @@ function ajustarAlturaItensOrcamento() {
     quoteItemsContainer.style.setProperty('--quote-items-max-height', `${Math.ceil(alturaMaxima)}px`);
     quoteItemsContainer.classList.add('is-scrollable');
 }
+function renderCamposProdutoPersonalizado(item, index) {
+    if (!ehProdutoPersonalizado(item)) return '';
+    const imagemAtual = obterImagemItem(item);
+
+    return `
+            <div class="custom-product-fields" style="display:grid; gap:6px; margin-top:2px;">
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Imagem</label>
+                <button type="button" onclick="abrirDialogoImagemProdutoPersonalizado(${index})" ondragover="permitirArrastarImagemProdutoPersonalizado(event)" ondrop="receberImagemProdutoPersonalizado(event, ${index})" style="display:grid; grid-template-columns:64px 1fr; gap:10px; align-items:center; width:100%; min-height:78px; padding:8px; border:1px dashed #b9c9b8; border-radius:6px; background:#fbfdfb; cursor:pointer; text-align:left;">
+                    <img src="${escaparHtml(imagemAtual)}" alt="Imagem do item personalizado" style="width:64px; height:60px; object-fit:cover; border-radius:4px; background:#f1f1f1;">
+                    <span style="font-size:11px; line-height:1.35; color:#496246;">Arraste uma imagem da web ou clique para inserir URL</span>
+                </button>
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Descrição</label>
+                <textarea placeholder="Descrição vendedor" onchange="atualizarDados(${index}, 'customSellerDescription', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customSellerDescription || '')}</textarea>
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Características</label>
+                <textarea placeholder="Características" onchange="atualizarDados(${index}, 'customCharacteristics', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customCharacteristics || '')}</textarea>
+                <label style="font-size:10px; font-weight:bold; color:#1A3017;">Dimensão</label>
+                <textarea placeholder="Dimensão" onchange="atualizarDados(${index}, 'customDimensions', this.value)" style="width:100%; min-height:44px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customDimensions || '')}</textarea>
+            </div>`;
+}
 function renderQuoteSidebar() {
     quoteItemsContainer.innerHTML = '';
     quoteCart.forEach((item, index) => {
@@ -200,11 +454,12 @@ function renderQuoteSidebar() {
         itemDiv.className = 'item-quote-edit';
         itemDiv.innerHTML = `
             <div style="display:flex; gap:10px; align-items:center; margin-bottom:5px;">
-                <img src="${item.image}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">
+                <img src="${obterImagemItem(item)}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">
                 <input type="text" value="${item.displayName}" onchange="atualizarDados(${index}, 'displayName', this.value)" style="flex:1; font-weight:bold; border:none; background:transparent; font-size:12px;">
                 <button onclick="removerItem(${index})" style="background:none; border:none; color:red; cursor:pointer;">&times;</button>
             </div>
-            <input type="text" placeholder="Variação..." value="${item.variation || ''}" onchange="atualizarDados(${index}, 'variation', this.value)" style="width:100%; font-size:10px; margin-bottom:5px; border:1px solid #eee;">
+            <input type="text" placeholder="Variação..." value="${escaparHtml(item.variation || '')}" onchange="atualizarDados(${index}, 'variation', this.value)" style="width:100%; font-size:10px; margin-bottom:5px; border:1px solid #eee;">
+            ${renderCamposProdutoPersonalizado(item, index)}
             <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px;">
                 <input type="number" value="${item.quantity}" onchange="atualizarDados(${index}, 'quantity', this.value)" style="width:100%;">
                 <input type="number" step="0.01" value="${item.price}" onchange="atualizarDados(${index}, 'price', this.value)" style="width:100%; font-weight:bold;">
@@ -217,6 +472,7 @@ function renderQuoteSidebar() {
 
 window.atualizarDados = (index, campo, valor) => {
     quoteCart[index][campo] = (campo === 'price' || campo === 'quantity') ? parseFloat(valor) : valor;
+    if (ehProdutoPersonalizado(quoteCart[index])) quoteCart[index].description = obterDescricaoItem(quoteCart[index]);
     atualizarDestaqueTotal();
 };
 window.removerItem = (index) => { quoteCart.splice(index, 1); renderQuoteSidebar(); };
@@ -231,17 +487,29 @@ const WHATSAPP_MESSAGE = 'Obrigado por Escolher a Casa Terrazi';
 generatePdfBtn.addEventListener('click', async () => {
     if (!validarDadosObrigatorios()) return;
 
+    const decisaoOrcamento = await avaliarOrcamentoExistente();
+    if (decisaoOrcamento === 'cancel') return;
+
+    if (decisaoOrcamento === 'update') currentCustomerKey = obterChaveCliente();
+    const estadoAnterior = decisaoOrcamento === 'new' ? prepararNovoOrcamentoAPartirDoAtual() : null;
+
     const acao = await abrirDialogoAcaoPdf();
-    if (!acao) return;
+    if (!acao) {
+        if (estadoAnterior) restaurarOrcamentoAnterior(estadoAnterior);
+        return;
+    }
 
     const originalBtnText = generatePdfBtn.innerText;
     generatePdfBtn.innerText = acao === 'whatsapp' ? 'PREPARANDO WHATSAPP...' : 'GERANDO PDF, AGUARDE...';
     generatePdfBtn.disabled = true;
     generatePdfBtn.style.opacity = '0.7';
 
+    let gerouComSucesso = false;
+
     try {
         const orcamentoID = await salvarOrcamento();
-                marcarOrcamentoGerado(orcamentoID);
+        gerouComSucesso = true;
+        marcarOrcamentoGerado(orcamentoID);
         const { element, filename } = montarDocumentoPdf(orcamentoID);
 
         if (acao === 'whatsapp') {
@@ -251,6 +519,7 @@ generatePdfBtn.addEventListener('click', async () => {
             await gerarDownloadPdf(element, filename);
         }
     } catch (error) {
+        if (estadoAnterior && !gerouComSucesso) restaurarOrcamentoAnterior(estadoAnterior);
         console.error('Erro ao gerar orçamento:', error);
         alert(error.message || 'Erro ao gerar o orçamento. Tente novamente.');
     } finally {
@@ -259,7 +528,6 @@ generatePdfBtn.addEventListener('click', async () => {
         generatePdfBtn.style.opacity = '1';
     }
 });
-
 function validarDadosObrigatorios() {
     if (quoteCart.length === 0) {
         alert('Selecione itens.');
@@ -317,19 +585,46 @@ function marcarOrcamentoGerado(orcamentoId) {
     generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${orcamentoId}`;
 }
 
+function prepararNovoOrcamentoAPartirDoAtual() {
+    const estadoAnterior = {
+        currentOrcamentoId,
+        currentCustomerKey,
+        itemIds: quoteCart.map(item => item.item_orcamento_id || null)
+    };
+
+    currentOrcamentoId = null;
+    currentCustomerKey = '';
+    quoteCart.forEach(item => { item.item_orcamento_id = null; });
+    generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
+    return estadoAnterior;
+}
+
+function restaurarOrcamentoAnterior(estadoAnterior) {
+    currentOrcamentoId = estadoAnterior.currentOrcamentoId;
+    currentCustomerKey = estadoAnterior.currentCustomerKey;
+    quoteCart.forEach((item, index) => {
+        item.item_orcamento_id = estadoAnterior.itemIds[index] || null;
+    });
+    if (currentOrcamentoId) generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${currentOrcamentoId}`;
+}
 async function avaliarOrcamentoExistente() {
-    if (!currentOrcamentoId || currentCustomerKey !== obterChaveCliente()) return 'continue';
+    if (!currentOrcamentoId) return 'continue';
     return abrirDialogoOrcamentoExistente(currentOrcamentoId);
 }
 
 function abrirDialogoOrcamentoExistente(orcamentoId) {
     const dialog = document.getElementById('existingBudgetDialog');
     if (!dialog) {
-        return Promise.resolve(confirm(`Já existe o orçamento ${orcamentoId} gerado para esse cliente. Deseja atualizar/imprimir novamente?`) ? 'update' : 'cancel');
+        return Promise.resolve(confirm(`Já existe o orçamento #${orcamentoId} carregado. Clique em OK para atualizar/imprimir este orçamento, ou Cancelar para não continuar.`) ? 'update' : 'cancel');
     }
 
     const numero = dialog.querySelector('[data-existing-budget-id]');
     if (numero) numero.textContent = orcamentoId;
+
+    const botaoNovo = dialog.querySelector('[data-existing-action="new"]');
+    const botaoAtualizar = dialog.querySelector('[data-existing-action="update"]');
+    if (botaoNovo) botaoNovo.textContent = 'Gerar novo orçamento (novo ID)';
+    if (botaoAtualizar) botaoAtualizar.textContent = `Atualizar / Imprimir Orçamento #${orcamentoId}`;
 
     dialog.hidden = false;
     dialog.classList.add('is-open');
@@ -368,14 +663,19 @@ function limparFormularioOrcamento() {
     quoteValid.value = '';
     sellerPhone.value = '';
     generalObs.value = '';
+    if (sellerName) sellerName.value = usuarioLogado.nomefuncionario;
+
     quoteCart = [];
     currentOrcamentoId = null;
     currentCustomerKey = '';
+    localStorage.removeItem('clonar_orcamento');
+
     generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
     renderQuoteSidebar();
     custName.focus();
 }
 
+window.limparOrcamento = limparFormularioOrcamento;
 function abrirDialogoAcaoPdf() {
     const dialog = document.getElementById('pdfActionDialog');
     if (!dialog) return Promise.resolve('download');
@@ -410,6 +710,18 @@ function abrirDialogoAcaoPdf() {
     });
 }
 
+async function confirmarOrcamentoPersistido(orcamentoId) {
+    const res = await fetch(`/api/detalhe-orcamento?id=${encodeURIComponent(orcamentoId)}&t=${Date.now()}`, {
+        cache: 'no-store'
+    });
+    const resultado = await res.json().catch(() => ({}));
+
+    if (!res.ok || !resultado.id) {
+        throw new Error(resultado.details || resultado.error || `O orçamento #${orcamentoId} não foi confirmado no banco.`);
+    }
+
+    return resultado;
+}
 async function salvarOrcamento() {
     const payload = {
         orcamento_id: currentOrcamentoId && currentCustomerKey === obterChaveCliente() ? currentOrcamentoId : null,
@@ -425,7 +737,8 @@ async function salvarOrcamento() {
         total_value: quoteCart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
         items: quoteCart.map(item => ({
             ...item,
-            imagem_url: item.image || item.imagem_url || '',
+            description: obterDescricaoItem(item),
+            imagem_url: obterImagemParaSalvar(item),
             item_orcamento_id: item.item_orcamento_id || null,
             categoria: item.category || 'Geral'
         })),
@@ -446,13 +759,14 @@ async function salvarOrcamento() {
         const saveResult = await res.json();
 
         if (!res.ok) {
-            throw new Error(saveResult.error || 'Erro ao salvar orçamento.');
+            throw new Error(saveResult.details || saveResult.error || 'Erro ao salvar orçamento.');
         }
 
         atualizarIdsItensSalvos(saveResult.items || []);
 
-        const orcamentoSalvoId = saveResult.id || saveResult.insertId || saveResult.orcamentoId;
+        const orcamentoSalvoId = saveResult.orcamentoId;
         if (!orcamentoSalvoId) throw new Error('O banco não retornou o número do orçamento salvo.');
+        await confirmarOrcamentoPersistido(orcamentoSalvoId);
         return orcamentoSalvoId;
     } catch (error) {
         console.error('Erro no salvamento:', error);
@@ -512,7 +826,7 @@ function montarDocumentoPdf(orcamentoID) {
 
     quoteCart.forEach(item => {
         const limparTxt = (t) => t ? t.replace(/<\/?[^>]+(>|$)/g, '').trim() : '';
-        let raw = item.description || '';
+        let raw = obterDescricaoItem(item);
         let parts = raw.split(/(características|medidas|dimensões|especificações|técnico)/i);
         let emocional = limparTxt(parts[0]);
         let tecnico = ''; 
@@ -528,11 +842,13 @@ function montarDocumentoPdf(orcamentoID) {
             }
         }
 
+        dimensoes = limparDimensoesPdf(dimensoes);
+
         html += `
         <div class="product-block">
             <div class="product-flex">
                 <div class="col-left">
-                    <img src="${item.image}" class="img-main">
+                    <img src="${obterImagemPdf(item)}" class="img-main">
                     ${dimensoes ? `
                         <div class="dim-box">
                             <strong>DIMENSÕES:</strong><br>${dimensoes}<br>
@@ -579,10 +895,11 @@ function montarDocumentoPdf(orcamentoID) {
 
 async function gerarDownloadPdf(element, filename) {
     if (window.matchMedia('(min-width: 900px)').matches) {
+        await esperarImagensDoPdf(element);
         await html2pdf().set({
             margin: [30, 0, 30, 0],
             filename,
-            html2canvas: { scale: 2, useCORS: true, logging: false },
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
             jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         }).from(element).save();
         return;
