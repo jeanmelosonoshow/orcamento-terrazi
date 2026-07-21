@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Configuração faltando: SONOSHOW_VTEX_ACCOUNT_NAME não definido na Vercel.' });
   }
 
-  const params = new URLSearchParams({ _from: '0', _to: '99' });
+  const params = new URLSearchParams({ _from: '0', _to: '49' });
   if (q.trim()) params.set('ft', q.trim());
   if (salesChannel) params.set('sc', salesChannel);
 
@@ -90,5 +90,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erro interno ao buscar produtos VTEX', message: error.message, accountName, environment });
   }
 }
+
 
 
