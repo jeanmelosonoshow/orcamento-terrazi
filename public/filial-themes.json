@@ -1,0 +1,45 @@
+{
+  "defaultTheme": "casaterrazi",
+  "branches": {
+    "CD": "casaterrazi"
+  },
+  "themes": {
+    "casaterrazi": {
+      "label": "Casa Terrazi",
+      "logoUrl": "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp",
+      "colors": {
+        "verdeEscuro": "#1A3017",
+        "verdeMedio": "#2D5A27",
+        "verdeClaro": "#E8F5E9",
+        "fundo": "#F4EFE6",
+        "painel": "#FFFEFA",
+        "linha": "#E4D8C8",
+        "texto": "#2B2925",
+        "muted": "#7D746A",
+        "madeira": "#B98B5F",
+        "dourado": "#C5A47E",
+        "sidebarStart": "#172414",
+        "sidebarEnd": "#241C16",
+        "accent": "#B66A42"
+      }
+    },
+    "sonoshow": {
+      "label": "Sono Show Móveis",
+      "colors": {
+        "verdeEscuro": "#123C7C",
+        "verdeMedio": "#1D5EA8",
+        "verdeClaro": "#E9F2FF",
+        "fundo": "#F5F7FB",
+        "painel": "#FFFFFF",
+        "linha": "#DCE5F2",
+        "texto": "#1D2733",
+        "muted": "#667085",
+        "madeira": "#F2B705",
+        "dourado": "#FFD24A",
+        "sidebarStart": "#0B2D5C",
+        "sidebarEnd": "#061B38",
+        "accent": "#F2B705"
+      }
+    }
+  }
+}
