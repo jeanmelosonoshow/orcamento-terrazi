@@ -41,8 +41,16 @@ export default async function handler(req, res) {
   const { searchParams } = new URL(req.url, `https://${req.headers.host}`);
   const q = searchParams.get('q') || '';
 
-  const accountName = process.env.VTEX_ACCOUNT_NAME;
-  const environment = process.env.VTEX_ENVIRONMENT || 'vtexcommercestable';
+  const rawAccountName = process.env.VTEX_ACCOUNT_NAME || '';
+  const environment = String(process.env.VTEX_ENVIRONMENT || 'vtexcommercestable').trim().replace(/^\.+|\.+$/g, '');
+  const accountName = rawAccountName
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\.myvtex\.com(?:\.br)?$/i, '')
+    .replace(/\.vtexcommercestable\.com\.br$/i, '')
+    .replace(/\.vtexcommercebeta\.com\.br$/i, '')
+    .split('/')[0]
+    .split('.')[0];
   const appKey = process.env.VTEX_APP_KEY;
   const appToken = process.env.VTEX_APP_TOKEN;
   const salesChannel = process.env.VTEX_SALES_CHANNEL || '';
@@ -69,7 +77,7 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const details = await response.text();
       console.error(`Erro da VTEX: ${response.status} - ${details}`);
-      return res.status(response.status).json({ error: 'Erro na VTEX', details });
+      return res.status(response.status).json({ error: 'Erro na VTEX', details, accountName, environment });
     }
 
     const data = await response.json();
@@ -79,6 +87,7 @@ export default async function handler(req, res) {
     return res.status(200).json(products);
   } catch (error) {
     console.error('Erro ao buscar produtos VTEX:', error);
-    return res.status(500).json({ error: 'Erro interno ao buscar produtos VTEX', message: error.message });
+    return res.status(500).json({ error: 'Erro interno ao buscar produtos VTEX', message: error.message, accountName, environment });
   }
 }
+

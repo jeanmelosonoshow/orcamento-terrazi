@@ -369,16 +369,36 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. BUSCA
+function formatarErroProdutos(error) {
+    const mensagem = error?.message || 'Erro ao carregar produtos.';
+    return escaparHtml(mensagem.length > 220 ? `${mensagem.slice(0, 220)}...` : mensagem);
+}
+
 async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : (searchInput?.value.trim() || "");
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
     try {
         if (window.crmThemeReady) await window.crmThemeReady;
-        const response = await fetch(`${obterEndpointProdutos()}?q=${encodeURIComponent(query)}`);
-        let products = await response.json();
+        const endpoint = obterEndpointProdutos();
+        const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`);
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok) {
+            const detail = payload?.details || payload?.message || payload?.error || `Status ${response.status}`;
+            throw new Error(`${payload?.error || 'Erro ao buscar produtos'}: ${detail}`);
+        }
+
+        if (!Array.isArray(payload)) {
+            throw new Error('A API de produtos não retornou uma lista válida.');
+        }
+
+        let products = payload;
         if (isInitial) products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
         renderProducts(products);
-    } catch (error) { productsGrid.innerHTML = '<p>Erro ao carregar.</p>'; }
+    } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+        productsGrid.innerHTML = `<p class="loader">Erro ao carregar.<br><small>${formatarErroProdutos(error)}</small></p>`;
+    }
 }
 
 function renderProducts(products) {
