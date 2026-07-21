@@ -73,6 +73,18 @@ async function consultarJson(url, headers) {
   return { ok: true, data: await response.json() };
 }
 
+async function resolverSkuIdPorReferencia({ baseUrl, headers, refId }) {
+  const referencia = String(refId || '').trim();
+  if (!referencia) return '';
+
+  const url = `${baseUrl}/api/catalog_system/pvt/sku/stockkeepingunitidbyrefid/${encodeURIComponent(referencia)}`;
+  const result = await consultarJson(url, headers);
+  if (!result.ok) return '';
+
+  if (typeof result.data === 'number' || typeof result.data === 'string') return String(result.data);
+  return String(result.data?.Id || result.data?.id || result.data?.SkuId || result.data?.skuId || '');
+}
+
 async function buscarEstoqueWarehouse({ baseUrl, headers, skuId, warehouseId }) {
   if (!skuId || !warehouseId) return 0;
 
@@ -159,7 +171,8 @@ export default async function handler(req, res) {
     const products = Array.isArray(data)
       ? await Promise.all(data.map(async produto => {
           const item = selecionarItemProduto(produto, q);
-          const skuId = obterSkuId(item, produto);
+          const skuReferencia = obterSkuReferencia(item, produto);
+          const skuId = obterSkuId(item, produto) || await resolverSkuIdPorReferencia({ baseUrl, headers, refId: skuReferencia });
           const estoqueWarehouse = await buscarEstoqueWarehouse({ baseUrl, headers, skuId, warehouseId });
           return mapearProdutoVtex(produto, item, estoqueWarehouse);
         }))
@@ -172,3 +185,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erro interno ao buscar produtos VTEX', message: error.message, accountName, environment });
   }
 }
+
