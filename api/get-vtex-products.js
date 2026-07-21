@@ -41,8 +41,8 @@ export default async function handler(req, res) {
   const { searchParams } = new URL(req.url, `https://${req.headers.host}`);
   const q = searchParams.get('q') || '';
 
-  const rawAccountName = process.env.VTEX_ACCOUNT_NAME || '';
-  const environment = String(process.env.VTEX_ENVIRONMENT || 'vtexcommercestable').trim().replace(/^\.+|\.+$/g, '');
+  const rawAccountName = process.env.SONOSHOW_VTEX_ACCOUNT_NAME || process.env.VTEX_ACCOUNT_NAME || '';
+  const environment = String(process.env.SONOSHOW_VTEX_ENVIRONMENT || process.env.VTEX_ENVIRONMENT || 'vtexcommercestable').trim().replace(/^\.+|\.+$/g, '');
   const accountName = rawAccountName
     .trim()
     .replace(/^https?:\/\//i, '')
@@ -51,12 +51,12 @@ export default async function handler(req, res) {
     .replace(/\.vtexcommercebeta\.com\.br$/i, '')
     .split('/')[0]
     .split('.')[0];
-  const appKey = process.env.VTEX_APP_KEY;
-  const appToken = process.env.VTEX_APP_TOKEN;
-  const salesChannel = process.env.VTEX_SALES_CHANNEL || '';
+  const appKey = process.env.SONOSHOW_VTEX_APP_KEY || process.env.VTEX_APP_KEY;
+  const appToken = process.env.SONOSHOW_VTEX_APP_TOKEN || process.env.VTEX_APP_TOKEN;
+  const salesChannel = process.env.SONOSHOW_VTEX_SALES_CHANNEL || process.env.VTEX_SALES_CHANNEL || '';
 
   if (!accountName) {
-    return res.status(500).json({ error: 'Configuração faltando: VTEX_ACCOUNT_NAME não definido na Vercel.' });
+    return res.status(500).json({ error: 'Configuração faltando: SONOSHOW_VTEX_ACCOUNT_NAME não definido na Vercel.' });
   }
 
   const params = new URLSearchParams({ _from: '0', _to: '99' });
@@ -90,4 +90,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erro interno ao buscar produtos VTEX', message: error.message, accountName, environment });
   }
 }
+
 
