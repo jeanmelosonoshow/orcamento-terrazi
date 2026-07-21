@@ -204,18 +204,14 @@ body {
     display: none !important;
 }
 
-.crm-module-header {
-    margin-bottom: 14px;
-}
-
 .crm-budget-view {
-    min-height: calc(100vh - 44px);
+    min-height: 100vh;
 }
 
 .crm-budget-frame-wrap {
     overflow: hidden;
     min-height: 720px;
-    height: calc(100vh - 190px);
+    height: calc(100vh - 68px);
     border: 1px solid var(--linha);
     border-radius: 8px;
     background: #fff;
@@ -229,6 +225,21 @@ body {
     border: 0;
     background: #fff;
 }
+
+.crm-sidebar-toggle {
+    display: none;
+}
+
+body.crm-budget-mode .crm-main {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+body.crm-budget-mode .crm-budget-frame-wrap {
+    height: calc(100vh - 24px);
+    min-height: 0;
+    border-radius: 6px;
+}
 @media (min-width: 760px) {
     body {
         display: grid;
@@ -239,6 +250,51 @@ body {
         min-height: 100vh;
         position: sticky;
         top: 0;
+    }
+
+
+    .crm-sidebar {
+        transition: transform 0.2s ease, opacity 0.2s ease;
+        z-index: 20;
+    }
+
+    .crm-sidebar-toggle {
+        display: grid;
+        place-items: center;
+        position: fixed;
+        left: 245px;
+        top: 50%;
+        z-index: 30;
+        width: 30px;
+        height: 54px;
+        border: 1px solid rgba(197,164,126,0.35);
+        border-left: 0;
+        border-radius: 0 999px 999px 0;
+        background: #172414;
+        color: #fff;
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+        transition: left 0.2s ease, background 0.2s ease;
+    }
+
+    .crm-sidebar-toggle:hover {
+        background: #2D5A27;
+    }
+
+    body.crm-sidebar-collapsed {
+        grid-template-columns: 0 minmax(0, 1fr);
+    }
+
+    body.crm-sidebar-collapsed .crm-sidebar {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    body.crm-sidebar-collapsed .crm-sidebar-toggle {
+        left: 0;
     }
 
     .crm-main { padding: 34px; overflow: auto; max-height: 100vh; }

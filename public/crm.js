@@ -24,6 +24,8 @@ function obterViewPorHash(hash) {
 }
 
 function ativarView(viewName, hash = window.location.hash || '#visao-geral') {
+    document.body.classList.toggle('crm-budget-mode', viewName === 'orcamentos');
+
     views.forEach(view => {
         view.hidden = view.dataset.crmView !== viewName;
     });
@@ -61,3 +63,12 @@ window.addEventListener('hashchange', () => {
 });
 
 ativarView(obterViewPorHash(window.location.hash || '#visao-geral'), window.location.hash || '#visao-geral');
+const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', () => {
+        const collapsed = document.body.classList.toggle('crm-sidebar-collapsed');
+        sidebarToggle.textContent = collapsed ? '›' : '‹';
+        sidebarToggle.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Esconder menu');
+        sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+    });
+}
