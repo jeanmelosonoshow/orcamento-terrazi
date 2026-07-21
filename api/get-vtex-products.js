@@ -13,37 +13,79 @@ function obterPreco(item) {
   return Number(offer.Price || offer.ListPrice || 0);
 }
 
+function obterSkuReferencia(item, produto) {
+  return item?.referenceId?.[0]?.Value || item?.itemId || produto?.productReference || produto?.productId || 'S/ SKU';
+}
+
 function obterSkuId(item, produto) {
   return item?.itemId || produto?.productId || '';
 }
 
-function obterQuantidadeDisponivelWarehouse(inventory, warehouseId) {
-  const balance = Array.isArray(inventory?.balance) ? inventory.balance : [];
-  const estoque = balance.find(item => String(item?.warehouseId || '').trim() === warehouseId);
-  if (!estoque) return 0;
-  if (estoque.hasUnlimitedQuantity) return Number.POSITIVE_INFINITY;
+function selecionarItemProduto(produto, termoBusca = '') {
+  const items = Array.isArray(produto?.items) ? produto.items : [];
+  if (items.length === 0) return {};
 
-  const total = Number(estoque.totalQuantity || 0);
-  const reserved = Number(estoque.reservedQuantity || 0);
+  const termo = String(termoBusca || '').trim().toLowerCase();
+  if (!termo) return items[0];
+
+  return items.find(item => {
+    const refId = String(item?.referenceId?.[0]?.Value || '').toLowerCase();
+    const itemId = String(item?.itemId || '').toLowerCase();
+    const name = String(item?.name || item?.nameComplete || '').toLowerCase();
+    return refId === termo || itemId === termo || refId.includes(termo) || itemId.includes(termo) || name.includes(termo);
+  }) || items[0];
+}
+
+function lerQuantidadeEstoque(estoque) {
+  if (!estoque) return 0;
+  if (estoque.hasUnlimitedQuantity || estoque.unlimitedQuantity) return Number.POSITIVE_INFINITY;
+
+  const available = estoque.availableQuantity ?? estoque.available ?? estoque.quantityAvailable;
+  if (Number.isFinite(Number(available))) return Math.max(0, Number(available));
+
+  const total = Number(estoque.totalQuantity ?? estoque.quantity ?? estoque.total ?? 0);
+  const reserved = Number(estoque.reservedQuantity ?? estoque.reserved ?? 0);
   return Math.max(0, total - reserved);
+}
+
+function obterQuantidadeDisponivelWarehouse(inventory, warehouseId) {
+  const targetWarehouse = String(warehouseId || '').trim().toLowerCase();
+  const balance = Array.isArray(inventory?.balance)
+    ? inventory.balance
+    : Array.isArray(inventory)
+      ? inventory
+      : [];
+
+  if (balance.length === 0 && inventory && typeof inventory === 'object') {
+    return lerQuantidadeEstoque(inventory);
+  }
+
+  const estoque = balance.find(item => String(item?.warehouseId || item?.warehouseID || item?.id || '').trim().toLowerCase() === targetWarehouse);
+  return lerQuantidadeEstoque(estoque);
+}
+
+async function consultarJson(url, headers) {
+  const response = await fetch(url, { method: 'GET', headers });
+  if (!response.ok) {
+    const details = await response.text();
+    return { ok: false, status: response.status, details };
+  }
+  return { ok: true, data: await response.json() };
 }
 
 async function buscarEstoqueWarehouse({ baseUrl, headers, skuId, warehouseId }) {
   if (!skuId || !warehouseId) return 0;
 
-  const response = await fetch(`${baseUrl}/api/logistics/pvt/inventory/skus/${encodeURIComponent(skuId)}`, {
-    method: 'GET',
-    headers
-  });
+  const warehouseUrl = `${baseUrl}/api/logistics/pvt/inventory/items/${encodeURIComponent(skuId)}/warehouses/${encodeURIComponent(warehouseId)}`;
+  const warehouseResult = await consultarJson(warehouseUrl, headers);
+  if (warehouseResult.ok) return obterQuantidadeDisponivelWarehouse(warehouseResult.data, warehouseId);
 
-  if (!response.ok) {
-    const details = await response.text();
-    console.error(`Erro ao buscar estoque VTEX do SKU ${skuId}: ${response.status} - ${details}`);
-    return 0;
-  }
+  const skuUrl = `${baseUrl}/api/logistics/pvt/inventory/skus/${encodeURIComponent(skuId)}`;
+  const skuResult = await consultarJson(skuUrl, headers);
+  if (skuResult.ok) return obterQuantidadeDisponivelWarehouse(skuResult.data, warehouseId);
 
-  const inventory = await response.json();
-  return obterQuantidadeDisponivelWarehouse(inventory, warehouseId);
+  console.error(`Erro ao buscar estoque VTEX do SKU ${skuId}: warehouse ${warehouseResult.status} - ${warehouseResult.details}; sku ${skuResult.status} - ${skuResult.details}`);
+  return 0;
 }
 
 function formatarEstoqueFdc(quantity) {
@@ -51,15 +93,14 @@ function formatarEstoqueFdc(quantity) {
   return quantity > 0 ? quantity : 'Consulte disponibilidade';
 }
 
-function mapearProdutoVtex(produto, estoqueWarehouse = 0) {
-  const item = produto.items?.[0] || {};
-  const sku = item.referenceId?.[0]?.Value || item.itemId || produto.productReference || produto.productId || 'S/ SKU';
-  const image = item.images?.[0]?.imageUrl || produto.items?.flatMap(i => i.images || [])?.[0]?.imageUrl || 'https://via.placeholder.com/300';
+function mapearProdutoVtex(produto, item, estoqueWarehouse = 0) {
+  const sku = obterSkuReferencia(item, produto);
+  const image = item?.images?.[0]?.imageUrl || produto.items?.flatMap(i => i.images || [])?.[0]?.imageUrl || 'https://via.placeholder.com/300';
 
   return {
-    id: produto.productId || item.itemId || sku,
+    id: produto.productId || item?.itemId || sku,
     sku,
-    name: produto.productName || item.nameComplete || item.name || 'Produto sem nome',
+    name: produto.productName || item?.nameComplete || item?.name || 'Produto sem nome',
     description: limparHtml(produto.description || produto.metaTagDescription || ''),
     price: obterPreco(item),
     stock: formatarEstoqueFdc(estoqueWarehouse),
@@ -117,10 +158,10 @@ export default async function handler(req, res) {
     const data = await response.json();
     const products = Array.isArray(data)
       ? await Promise.all(data.map(async produto => {
-          const item = produto.items?.[0] || {};
+          const item = selecionarItemProduto(produto, q);
           const skuId = obterSkuId(item, produto);
           const estoqueWarehouse = await buscarEstoqueWarehouse({ baseUrl, headers, skuId, warehouseId });
-          return mapearProdutoVtex(produto, estoqueWarehouse);
+          return mapearProdutoVtex(produto, item, estoqueWarehouse);
         }))
       : [];
 
