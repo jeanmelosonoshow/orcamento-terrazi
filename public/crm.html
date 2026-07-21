@@ -15,13 +15,13 @@
         </div>
 
         <nav class="crm-menu" aria-label="Menu principal">
-            <a class="is-active" href="crm.html">Visão Geral</a>
-            <a href="#clientes">Carteira de Clientes</a>
-            <a href="index.html">Orçamentos</a>
-            <a href="#funil">Funil de Orçamentos</a>
-            <a href="#fechamento">Ficha de Fechamento</a>
-            <a href="#arquitetos">Arquitetos &amp; RT</a>
-            <a href="#reativacao">Reativação</a>
+            <a class="is-active" href="#visao-geral" data-crm-view-link="visao-geral">Visão Geral</a>
+            <a href="#clientes" data-crm-view-link="visao-geral">Carteira de Clientes</a>
+            <a href="#orcamentos" data-crm-view-link="orcamentos">Orçamentos</a>
+            <a href="#funil" data-crm-view-link="visao-geral">Funil de Orçamentos</a>
+            <a href="#fechamento" data-crm-view-link="visao-geral">Ficha de Fechamento</a>
+            <a href="#arquitetos" data-crm-view-link="visao-geral">Arquitetos &amp; RT</a>
+            <a href="#reativacao" data-crm-view-link="visao-geral">Reativação</a>
         </nav>
 
         <div class="crm-access">
@@ -31,98 +31,113 @@
     </aside>
 
     <main class="crm-main">
-        <header class="crm-header">
-            <div>
-                <span class="crm-eyebrow">Painel comercial</span>
-                <h1>Visão Geral</h1>
-                <p>Indicadores comerciais, alertas e atalhos para os módulos do CRM Casa Terrazi.</p>
-            </div>
-            <div class="crm-user-box">
-                <span id="crmUserName">Usuário</span>
-                <small id="crmUserMeta">Casa Terrazi</small>
-                <button type="button" onclick="fazerLogout()">Sair</button>
-            </div>
-        </header>
+        <section class="crm-view" data-crm-view="visao-geral">
+            <header class="crm-header">
+                <div>
+                    <span class="crm-eyebrow">Painel comercial</span>
+                    <h1>Visão Geral</h1>
+                    <p>Indicadores comerciais, alertas e atalhos para os módulos do CRM Casa Terrazi.</p>
+                </div>
+                <div class="crm-user-box">
+                    <span id="crmUserName">Usuário</span>
+                    <small id="crmUserMeta">Casa Terrazi</small>
+                    <button type="button" onclick="fazerLogout()">Sair</button>
+                </div>
+            </header>
 
-        <section class="crm-kpis" aria-label="Indicadores principais">
-            <article class="crm-kpi crm-kpi-featured">
-                <span>Faturamento do mês</span>
-                <strong>Em breve</strong>
-                <small>Integração Firebird</small>
-            </article>
-            <article class="crm-kpi">
-                <span>Orçamentos abertos</span>
-                <strong>Postgres</strong>
-                <small>Base do orçamento atual</small>
-            </article>
-            <article class="crm-kpi">
-                <span>Taxa de conversão</span>
-                <strong>Em breve</strong>
-                <small>Orçamento x venda</small>
-            </article>
-            <article class="crm-kpi">
-                <span>Ticket médio</span>
-                <strong>Em breve</strong>
-                <small>Vendas Firebird</small>
-            </article>
-        </section>
+            <section class="crm-kpis" aria-label="Indicadores principais">
+                <article class="crm-kpi crm-kpi-featured">
+                    <span>Faturamento do mês</span>
+                    <strong>Em breve</strong>
+                    <small>Integração Firebird</small>
+                </article>
+                <article class="crm-kpi">
+                    <span>Orçamentos abertos</span>
+                    <strong>Postgres</strong>
+                    <small>Base do orçamento atual</small>
+                </article>
+                <article class="crm-kpi">
+                    <span>Taxa de conversão</span>
+                    <strong>Em breve</strong>
+                    <small>Orçamento x venda</small>
+                </article>
+                <article class="crm-kpi">
+                    <span>Ticket médio</span>
+                    <strong>Em breve</strong>
+                    <small>Vendas Firebird</small>
+                </article>
+            </section>
 
-        <section class="crm-grid">
-            <article class="crm-panel crm-panel-large">
-                <div class="crm-panel-head">
-                    <div>
-                        <span class="crm-eyebrow">Evolução</span>
-                        <h2>Comercial</h2>
+            <section class="crm-grid">
+                <article class="crm-panel crm-panel-large">
+                    <div class="crm-panel-head">
+                        <div>
+                            <span class="crm-eyebrow">Evolução</span>
+                            <h2>Comercial</h2>
+                        </div>
+                        <a href="#orcamentos" data-crm-view-link="orcamentos">Abrir orçamentos</a>
                     </div>
-                    <a href="index.html">Abrir orçamentos</a>
-                </div>
-                <div class="crm-chart-placeholder">
-                    <span></span><span></span><span></span><span></span><span></span><span></span>
-                </div>
-            </article>
+                    <div class="crm-chart-placeholder">
+                        <span></span><span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                </article>
 
-            <article class="crm-panel">
-                <span class="crm-eyebrow">Atenção</span>
-                <h2>Próximas prioridades</h2>
-                <ul class="crm-alert-list">
-                    <li>Conectar consultas Firebird de vendas.</li>
-                    <li>Unificar clientes com orçamentos do Postgres.</li>
-                    <li>Definir etapas do funil comercial.</li>
-                </ul>
-            </article>
+                <article class="crm-panel">
+                    <span class="crm-eyebrow">Atenção</span>
+                    <h2>Próximas prioridades</h2>
+                    <ul class="crm-alert-list">
+                        <li>Conectar consultas Firebird de vendas.</li>
+                        <li>Unificar clientes com orçamentos do Postgres.</li>
+                        <li>Definir etapas do funil comercial.</li>
+                    </ul>
+                </article>
+            </section>
+
+            <section class="crm-modules" aria-label="Módulos do CRM">
+                <a class="crm-module" id="clientes" href="#clientes">
+                    <span>01</span>
+                    <strong>Carteira de Clientes</strong>
+                    <small>Clientes, responsáveis, status e redistribuição.</small>
+                </a>
+                <a class="crm-module" href="#orcamentos" data-crm-view-link="orcamentos">
+                    <span>02</span>
+                    <strong>Orçamentos</strong>
+                    <small>Gerador atual integrado como módulo do CRM.</small>
+                </a>
+                <a class="crm-module" id="funil" href="#funil">
+                    <span>03</span>
+                    <strong>Funil de Orçamentos</strong>
+                    <small>Pipeline por etapa, alertas e valor em negociação.</small>
+                </a>
+                <a class="crm-module" id="fechamento" href="#fechamento">
+                    <span>04</span>
+                    <strong>Ficha de Fechamento</strong>
+                    <small>Venda, pagamento, acesso e dados de entrega.</small>
+                </a>
+                <a class="crm-module" id="arquitetos" href="#arquitetos">
+                    <span>05</span>
+                    <strong>Arquitetos &amp; RT</strong>
+                    <small>Parceiros, indicações e comissões.</small>
+                </a>
+                <a class="crm-module" id="reativacao" href="#reativacao">
+                    <span>06</span>
+                    <strong>Reativação</strong>
+                    <small>Clientes dormentes e fila de follow-up.</small>
+                </a>
+            </section>
         </section>
 
-        <section class="crm-modules" aria-label="Módulos do CRM">
-            <a class="crm-module" id="clientes" href="#clientes">
-                <span>01</span>
-                <strong>Carteira de Clientes</strong>
-                <small>Clientes, responsáveis, status e redistribuição.</small>
-            </a>
-            <a class="crm-module" href="index.html">
-                <span>02</span>
-                <strong>Orçamentos</strong>
-                <small>Gerador atual integrado como módulo do CRM.</small>
-            </a>
-            <a class="crm-module" id="funil" href="#funil">
-                <span>03</span>
-                <strong>Funil de Orçamentos</strong>
-                <small>Pipeline por etapa, alertas e valor em negociação.</small>
-            </a>
-            <a class="crm-module" id="fechamento" href="#fechamento">
-                <span>04</span>
-                <strong>Ficha de Fechamento</strong>
-                <small>Venda, pagamento, acesso e dados de entrega.</small>
-            </a>
-            <a class="crm-module" id="arquitetos" href="#arquitetos">
-                <span>05</span>
-                <strong>Arquitetos &amp; RT</strong>
-                <small>Parceiros, indicações e comissões.</small>
-            </a>
-            <a class="crm-module" id="reativacao" href="#reativacao">
-                <span>06</span>
-                <strong>Reativação</strong>
-                <small>Clientes dormentes e fila de follow-up.</small>
-            </a>
+        <section class="crm-view crm-budget-view" data-crm-view="orcamentos" hidden>
+            <header class="crm-header crm-module-header">
+                <div>
+                    <span class="crm-eyebrow">Módulo integrado</span>
+                    <h1>Orçamentos</h1>
+                    <p>Gerador de orçamentos Casa Terrazi carregado dentro do CRM, preservando as funções atuais.</p>
+                </div>
+            </header>
+            <div class="crm-budget-frame-wrap">
+                <iframe class="crm-budget-frame" src="index.html" title="Gerador de Orçamentos Casa Terrazi"></iframe>
+            </div>
         </section>
     </main>
 
