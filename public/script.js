@@ -60,7 +60,14 @@ function normalizarUrlImagem(valor) {
 
     try {
         const parsed = new URL(url);
-        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.toString() : '';
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+
+        const imgUrl = parsed.searchParams.get('imgurl');
+        if (parsed.hostname.includes('google.') && imgUrl) {
+            return normalizarUrlImagem(imgUrl);
+        }
+
+        return parsed.toString();
     } catch (error) {
         return '';
     }
