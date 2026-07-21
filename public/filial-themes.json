@@ -1,7 +1,10 @@
 {
   "defaultTheme": "casaterrazi",
   "branches": {
-    "CD": "casaterrazi"
+    "20": "casaterrazi",
+    "26": "casaterrazi",
+    "29": "casaterrazi",
+    "CD": "sonoshow"
   },
   "themes": {
     "casaterrazi": {
