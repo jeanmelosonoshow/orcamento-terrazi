@@ -60,7 +60,11 @@ function obterQuantidadeDisponivelWarehouse(inventory, warehouseId) {
     return lerQuantidadeEstoque(inventory);
   }
 
-  const estoque = balance.find(item => String(item?.warehouseId || item?.warehouseID || item?.id || '').trim().toLowerCase() === targetWarehouse);
+  const estoque = balance.find(item => {
+    const id = String(item?.warehouseId || item?.warehouseID || item?.id || '').trim().toLowerCase();
+    const name = String(item?.warehouseName || item?.name || '').trim().toLowerCase();
+    return id === targetWarehouse || name === targetWarehouse;
+  });
   return lerQuantidadeEstoque(estoque);
 }
 
@@ -185,4 +189,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erro interno ao buscar produtos VTEX', message: error.message, accountName, environment });
   }
 }
+
 
