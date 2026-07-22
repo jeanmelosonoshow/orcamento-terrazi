@@ -11,11 +11,11 @@
             --sono-gold: #F2B705;
             --terrazi-green: #1A3017;
             --terrazi-gold: #C5A47E;
-            --glass: rgba(255,255,255,0.84);
-            --glass-strong: rgba(255,255,255,0.94);
+            --glass: rgba(255,255,255,0.70);
+            --glass-strong: rgba(255,255,255,0.86);
             --text-color: #172033;
             --muted: #667085;
-            --line: rgba(255,255,255,0.34);
+            --line: rgba(255,255,255,0.58);
         }
 
         * { box-sizing: border-box; }
@@ -26,7 +26,7 @@
             margin: 0;
             font-family: 'Helvetica', Arial, sans-serif;
             color: var(--text-color);
-            background: #101820;
+            background: #eef2f3;
             overflow-x: hidden;
         }
 
@@ -35,7 +35,7 @@
             min-height: 100vh;
             display: grid;
             place-items: center;
-            padding: 28px 14px;
+            padding: 32px 16px;
             isolation: isolate;
         }
 
@@ -44,10 +44,10 @@
             position: fixed;
             inset: 0;
             z-index: -3;
-            background-image: url('https://source.unsplash.com/e0oJLc5FYsg/2200x1400');
+            background-image: url('https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=2400&q=86');
             background-size: cover;
             background-position: center;
-            transform: scale(1.02);
+            transform: scale(1.01);
         }
 
         .login-page::after {
@@ -56,48 +56,67 @@
             inset: 0;
             z-index: -2;
             background:
-                linear-gradient(90deg, rgba(6,27,56,0.84) 0%, rgba(6,27,56,0.62) 42%, rgba(26,48,23,0.28) 100%),
-                radial-gradient(circle at 82% 18%, rgba(242,183,5,0.28), transparent 30%),
-                radial-gradient(circle at 12% 86%, rgba(197,164,126,0.18), transparent 34%);
+                linear-gradient(90deg, rgba(248,250,252,0.72) 0%, rgba(248,250,252,0.28) 46%, rgba(6,27,56,0.20) 100%),
+                radial-gradient(circle at 18% 20%, rgba(255,255,255,0.62), transparent 28%),
+                radial-gradient(circle at 86% 14%, rgba(242,183,5,0.18), transparent 26%),
+                linear-gradient(180deg, rgba(10,20,32,0.14), rgba(10,20,32,0.32));
         }
 
         .login-shell {
-            width: min(100%, 1080px);
-            min-height: min(720px, calc(100vh - 56px));
+            width: min(100%, 1160px);
+            min-height: min(700px, calc(100vh - 64px));
             display: grid;
             grid-template-columns: 1fr;
             border: 1px solid var(--line);
-            border-radius: 18px;
+            border-radius: 26px;
             overflow: hidden;
-            box-shadow: 0 30px 90px rgba(0,0,0,0.36);
-            backdrop-filter: blur(18px);
+            box-shadow: 0 34px 90px rgba(15,23,42,0.22);
+            backdrop-filter: blur(22px);
+            background: rgba(255,255,255,0.22);
         }
 
         .brand-panel {
             position: relative;
-            min-height: 420px;
+            min-height: 430px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             padding: 26px;
-            color: #fff;
+            color: var(--sono-deep);
             background:
-                linear-gradient(135deg, rgba(6,27,56,0.78), rgba(26,48,23,0.56)),
-                rgba(6,27,56,0.34);
+                linear-gradient(135deg, rgba(255,255,255,0.76), rgba(255,255,255,0.42)),
+                rgba(255,255,255,0.28);
         }
 
         .brand-panel::before {
             content: "";
             position: absolute;
             inset: 18px;
-            border: 1px solid rgba(255,255,255,0.14);
-            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.48);
+            border-radius: 20px;
             pointer-events: none;
+        }
+
+        .brand-panel::after {
+            content: "";
+            position: absolute;
+            right: 26px;
+            bottom: 26px;
+            width: min(42%, 270px);
+            aspect-ratio: 1.18;
+            border-radius: 26px;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.56)),
+                url('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=82');
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 22px 54px rgba(15,23,42,0.18);
+            opacity: 0.94;
         }
 
         .brand-logos {
             position: relative;
-            z-index: 1;
+            z-index: 2;
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
@@ -111,9 +130,9 @@
             place-items: center;
             padding: 10px 16px;
             background: rgba(255,255,255,0.94);
-            border: 1px solid rgba(255,255,255,0.55);
-            border-radius: 12px;
-            box-shadow: 0 14px 34px rgba(0,0,0,0.16);
+            border: 1px solid rgba(255,255,255,0.72);
+            border-radius: 14px;
+            box-shadow: 0 14px 34px rgba(15,23,42,0.10);
         }
 
         .brand-logo-card img {
@@ -124,15 +143,15 @@
 
         .brand-copy {
             position: relative;
-            z-index: 1;
-            max-width: 690px;
+            z-index: 2;
+            max-width: 640px;
             padding-top: 42px;
         }
 
         .brand-copy small {
             display: block;
             margin-bottom: 14px;
-            color: var(--sono-gold);
+            color: #B48000;
             font-size: 0.76rem;
             font-weight: 800;
             letter-spacing: 0.16em;
@@ -141,23 +160,24 @@
 
         .brand-copy h1 {
             margin: 0;
-            font-size: clamp(2.35rem, 8vw, 5.25rem);
-            line-height: 0.94;
+            color: #0A2448;
+            font-size: clamp(2.45rem, 7vw, 5rem);
+            line-height: 0.96;
             letter-spacing: 0;
             text-wrap: balance;
         }
 
         .brand-copy p {
-            width: min(100%, 600px);
+            width: min(100%, 560px);
             margin: 22px 0 0;
-            color: rgba(255,255,255,0.84);
+            color: #3f4f63;
             font-size: 1rem;
             line-height: 1.6;
         }
 
         .brand-metrics {
             position: relative;
-            z-index: 1;
+            z-index: 2;
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
@@ -167,21 +187,22 @@
         .brand-metric {
             min-height: 74px;
             padding: 14px;
-            border: 1px solid rgba(255,255,255,0.16);
-            border-radius: 12px;
-            background: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.66);
+            border-radius: 16px;
+            background: rgba(255,255,255,0.58);
+            box-shadow: 0 14px 28px rgba(15,23,42,0.08);
         }
 
         .brand-metric strong {
             display: block;
+            color: #0A2448;
             font-size: 0.95rem;
-            color: #fff;
         }
 
         .brand-metric span {
             display: block;
             margin-top: 5px;
-            color: rgba(255,255,255,0.68);
+            color: #5f6c7b;
             font-size: 0.76rem;
             line-height: 1.35;
         }
@@ -192,6 +213,7 @@
             justify-content: center;
             padding: 28px 20px;
             background: var(--glass-strong);
+            border-left: 1px solid rgba(255,255,255,0.62);
         }
 
         .login-card-eyebrow {
@@ -268,13 +290,13 @@
             cursor: pointer;
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            box-shadow: 0 16px 32px rgba(18,60,124,0.26);
+            box-shadow: 0 16px 32px rgba(18,60,124,0.20);
             transition: transform 0.18s ease, box-shadow 0.18s ease;
         }
 
         button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 20px 42px rgba(18,60,124,0.32);
+            box-shadow: 0 20px 42px rgba(18,60,124,0.26);
         }
 
         #message {
@@ -297,11 +319,11 @@
             .login-page { padding: 38px 24px; }
 
             .login-shell {
-                grid-template-columns: minmax(0, 1.38fr) minmax(360px, 0.62fr);
+                grid-template-columns: minmax(0, 1.42fr) minmax(370px, 0.58fr);
             }
 
             .brand-panel {
-                min-height: 680px;
+                min-height: 660px;
                 padding: 48px;
             }
 
@@ -311,13 +333,15 @@
         }
 
         @media (max-width: 560px) {
-            .brand-metrics {
-                grid-template-columns: 1fr;
-            }
+            .login-page { padding: 18px 10px; }
 
-            .brand-panel {
-                min-height: auto;
-            }
+            .login-shell { border-radius: 18px; }
+
+            .brand-metrics { grid-template-columns: 1fr; }
+
+            .brand-panel { min-height: auto; }
+
+            .brand-panel::after { display: none; }
         }
     </style>
 </head>
