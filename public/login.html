@@ -3,155 +3,256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | Casa Terrazi</title>
+    <title>Gestão de Clientes | Grupo Sono Show e Casa Terrazi</title>
     <style>
         :root {
-            --primary-color: #1A3017;
-            --accent-color: #C5A47E;
-            --bg-color: #f4f4f4;
+            --sono-blue: #123C7C;
+            --sono-deep: #082553;
+            --sono-gold: #F2B705;
+            --terrazi-green: #1A3017;
+            --terrazi-gold: #C5A47E;
+            --bg-color: #F4F6F8;
+            --text-color: #1F2933;
+            --muted: #667085;
+            --line: #DCE3EA;
         }
 
-        * {
-            box-sizing: border-box;
-        }
-
-        html {
-            min-width: 320px;
-        }
+        * { box-sizing: border-box; }
+        html { min-width: 320px; }
 
         body {
-            font-family: 'Helvetica', Arial, sans-serif;
-            background-color: var(--bg-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px 14px;
+            padding: 24px 14px;
+            display: grid;
+            place-items: center;
+            font-family: 'Helvetica', Arial, sans-serif;
+            color: var(--text-color);
+            background:
+                linear-gradient(135deg, rgba(18,60,124,0.10), rgba(26,48,23,0.08)),
+                var(--bg-color);
+        }
+
+        .login-shell {
+            width: min(100%, 920px);
+            display: grid;
+            grid-template-columns: 1fr;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            box-shadow: 0 18px 45px rgba(18, 32, 48, 0.14);
+            overflow: hidden;
+        }
+
+        .brand-panel {
+            padding: 30px 22px;
+            background: linear-gradient(135deg, var(--sono-deep), var(--terrazi-green));
+            color: #fff;
+        }
+
+        .brand-logos {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 28px;
+        }
+
+        .brand-logo-card {
+            min-height: 76px;
+            display: grid;
+            place-items: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.96);
+            border-radius: 8px;
+        }
+
+        .brand-logo-card img {
+            max-width: 100%;
+            max-height: 54px;
+            object-fit: contain;
+        }
+
+        .brand-panel small {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--sono-gold);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .brand-panel h1 {
+            margin: 0;
+            max-width: 620px;
+            font-size: clamp(2rem, 7vw, 3.8rem);
+            line-height: 0.98;
+            letter-spacing: 0;
+        }
+
+        .brand-panel p {
+            margin: 18px 0 0;
+            max-width: 580px;
+            color: rgba(255,255,255,0.78);
+            line-height: 1.55;
+            font-size: 0.98rem;
         }
 
         .login-container {
-            background: white;
-            padding: 28px 18px;
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
+            padding: 28px 20px;
+            background: #fff;
         }
 
-        .logo {
-            width: min(180px, 70vw);
-            height: auto;
-            margin-bottom: 26px;
-        }
-
-        h2 {
-            color: var(--primary-color);
-            margin: 0 0 20px;
-            font-size: clamp(1.15rem, 6vw, 1.5rem);
-            font-weight: 300;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .login-container h2 {
+            margin: 0 0 8px;
+            color: var(--sono-blue);
+            font-size: 1.35rem;
             line-height: 1.2;
+        }
+
+        .login-container > p {
+            margin: 0 0 24px;
+            color: var(--muted);
+            line-height: 1.45;
+            font-size: 0.92rem;
         }
 
         .form-group {
             text-align: left;
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
 
         label {
             display: block;
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 0.74rem;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
 
         input {
             width: 100%;
+            min-height: 46px;
             padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+            border: 1px solid var(--line);
+            border-radius: 5px;
             font-size: 16px;
         }
 
         input:focus {
             outline: none;
-            border-color: var(--primary-color);
+            border-color: var(--sono-blue);
+            box-shadow: 0 0 0 3px rgba(18,60,124,0.12);
         }
 
         button {
             width: 100%;
-            min-height: 46px;
+            min-height: 48px;
+            margin-top: 4px;
             padding: 14px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: bold;
+            background: var(--sono-blue);
+            color: #fff;
+            border: 0;
+            border-radius: 5px;
+            font-size: 0.88rem;
+            font-weight: 800;
             cursor: pointer;
-            transition: background 0.3s;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.04em;
+            transition: background 0.2s, transform 0.2s;
         }
 
         button:hover {
-            background-color: #2a4a25;
+            background: var(--sono-deep);
+            transform: translateY(-1px);
         }
 
         #message {
-            margin-top: 15px;
-            font-size: 14px;
+            min-height: 22px;
+            margin-top: 14px;
             color: #d9534f;
-            min-height: 20px;
+            font-size: 0.88rem;
         }
 
         .footer-text {
-            margin-top: 26px;
-            font-size: 11px;
-            color: #999;
-            line-height: 1.4;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.45;
         }
 
-        @media (min-width: 480px) {
-            body {
-                padding: 32px 20px;
+        @media (min-width: 780px) {
+            body { padding: 36px 20px; }
+
+            .login-shell {
+                grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+            }
+
+            .brand-panel {
+                min-height: 560px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding: 48px;
+            }
+
+            .brand-logos {
+                max-width: 420px;
             }
 
             .login-container {
-                padding: 40px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding: 46px 38px;
             }
         }
     </style>
 </head>
 <body>
 
-<div class="login-container">
-    <img src="https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp" alt="Casa Terrazi" class="logo">
-    
-    <h2>Acesso Restrito</h2>
-    
-    <div class="form-group">
-        <label for="usuario">Usuário / ID</label>
-        <input type="text" id="usuario" placeholder="Digite seu usuário">
-    </div>
+<div class="login-shell">
+    <section class="brand-panel" aria-label="Marcas do grupo">
+        <div class="brand-logos">
+            <div class="brand-logo-card">
+                <img src="https://sonoshowmoveis.vtexassets.com/assets/vtex.file-manager-graphql/images/9c25daff-344c-4bbf-9adf-054dba3b5137___c25ce75d1124b3ba71eebaaf2a2527e2.png" alt="Sono Show Móveis">
+            </div>
+            <div class="brand-logo-card">
+                <img src="https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp" alt="Casa Terrazi">
+            </div>
+        </div>
+        <small>Portal comercial integrado</small>
+        <h1>Gestão de Clientes Grupo Sono Show e Casa Terrazi</h1>
+        <p>CRM, orçamento e relacionamento comercial em uma única plataforma para as duas marcas.</p>
+    </section>
 
-    <div class="form-group">
-        <label for="senha">Senha</label>
-        <input type="password" id="senha" placeholder="••••••••">
-    </div>
+    <main class="login-container">
+        <h2>Acesse sua conta</h2>
+        <p>Use seu usuário e senha para entrar na plataforma.</p>
 
-    <button onclick="realizarLogin()">Entrar no Sistema</button>
+        <div class="form-group">
+            <label for="usuario">Usuário / ID</label>
+            <input type="text" id="usuario" placeholder="Digite seu usuário" autocomplete="username">
+        </div>
 
-    <div id="message"></div>
+        <div class="form-group">
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password">
+        </div>
 
-    <div class="footer-text">
-        Exclusivo para Vendedores e Gerentes Casa Terrazi
-    </div>
+        <button onclick="realizarLogin()">Entrar na plataforma</button>
+
+        <div id="message"></div>
+
+        <div class="footer-text">
+            Acesso exclusivo para equipes autorizadas do Grupo Sono Show e Casa Terrazi.
+        </div>
+    </main>
 </div>
 
 <script>
@@ -178,10 +279,7 @@
             const result = await response.json();
 
             if (response.ok && result.idfuncionario) {
-                // SALVA A SESSÃO (Isso alimenta o script.js e script-lista.js)
                 sessionStorage.setItem('usuarioLogado', JSON.stringify(result));
-                
-                // Redireciona para a tela principal
                 window.location.href = 'crm.html';
             } else {
                 msgDiv.style.color = "#d9534f";
@@ -193,7 +291,6 @@
         }
     }
 
-    // Permitir login ao apertar Enter
     document.addEventListener('keypress', (e) => {
         if(e.key === 'Enter') realizarLogin();
     });
