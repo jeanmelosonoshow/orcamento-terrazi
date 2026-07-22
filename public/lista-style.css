@@ -15,7 +15,7 @@ html {
 
 body {
     font-family: 'Inter', sans-serif;
-    background-color: #FFF;
+    background-color: var(--fundo, #FFF);
     color: var(--texto);
     margin: 0;
     display: block !important;
@@ -28,6 +28,13 @@ body, input, button, select {
 }
 
 #top-bar-user {
+    background: var(--verde-escuro);
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: sans-serif;
+    font-size: 13px;
     flex-wrap: wrap;
     gap: 6px;
     padding: 8px 12px !important;
@@ -44,7 +51,7 @@ body, input, button, select {
     padding: 16px;
     display: flex;
     border-bottom: 1px solid var(--borda);
-    background: white;
+    background: var(--painel, white);
 }
 
 .header-content {
@@ -147,7 +154,7 @@ input[type="text"], #statusFilter {
 
 /* CARD PREMIUM */
 .orcamento-card {
-    background: white;
+    background: var(--painel, white);
     border: 1px solid var(--borda);
     border-radius: 8px;
     padding: 16px;
@@ -389,7 +396,7 @@ input[type="text"], #statusFilter {
 
 .pagination-btn {
     border: 1px solid var(--verde-escuro);
-    background: #fff;
+    background: var(--painel, #fff);
     color: var(--verde-escuro);
     border-radius: 4px;
     padding: 10px 14px;
@@ -424,7 +431,7 @@ input[type="text"], #statusFilter {
     padding: 12px 42px 12px 14px;
     border: 1px solid var(--borda);
     border-radius: 4px;
-    background: #fff;
+    background: var(--painel, #fff);
     color: var(--texto);
     font: inherit;
     text-align: left;
@@ -451,7 +458,7 @@ input[type="text"], #statusFilter {
     left: 0;
     right: 0;
     z-index: 30;
-    background: #fff;
+    background: var(--painel, #fff);
     border: 1px solid var(--borda);
     border-radius: 4px;
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);

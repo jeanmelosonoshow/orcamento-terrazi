@@ -24,6 +24,20 @@ function obterLogoPdfLista(idfilial) {
 function obterInformacoesAdicionaisPdfLista(idfilial) {
     return obterTemaListaPorFilial(idfilial) === 'sonoshow' ? BASE_ADDITIONAL_INFO_HTML : CASA_TERRAZI_ADDITIONAL_INFO_HTML;
 }
+function obterPaginaOrcamentoLista(idfilial) {
+    return obterTemaListaPorFilial(idfilial) === 'sonoshow' ? 'index-sonoshow.html' : 'index.html';
+}
+function obterNomeMarcaLista(idfilial) {
+    return obterTemaListaPorFilial(idfilial) === 'sonoshow' ? 'Sono Show Móveis' : 'Casa Terrazi';
+}
+function aplicarTemaHistorico() {
+    const nomeMarca = document.body.dataset.brandName || obterNomeMarcaLista(usuarioLogado.idfilial);
+    document.title = `Histórico de Orçamentos | ${nomeMarca}`;
+    const logo = document.querySelector('[data-brand-logo]');
+    if (logo) logo.alt = `Logo ${nomeMarca}`;
+    const novoLink = document.getElementById('novoOrcamentoLink');
+    if (novoLink) novoLink.href = obterPaginaOrcamentoLista(usuarioLogado.idfilial);
+}
 const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
 const CUSTOM_PRODUCT_IMAGE_KEY = "PERS_IMG";
 const CUSTOM_PRODUCT_LEGACY_IMAGE_KEY = "CUSTOM_PRODUCT_IMAGE";
@@ -266,18 +280,18 @@ function renderizarCards(lista) {
                 <span style="font-size:11px; font-weight:600;">Validade: ${dataExibicao}</span>
             </div>
             <div class="card-body">
-                <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #1A3017;">${o.cliente_nome || 'Consumidor'}</h3>
+                <h3 style="margin: 0 0 5px 0; font-size: 16px; color: var(--verde-escuro);">${o.cliente_nome || 'Consumidor'}</h3>
                 <p style="font-size: 12px; color: #666; margin-bottom: 2px;">Vendedor: ${o.vendedor_nome}</p>
                 ${o.cliente_doc ? `<p style="font-size: 11px; color: #888; margin-bottom: 2px;">CPF/CNPJ: ${o.cliente_doc}</p>` : ''}
                 ${o.telefone_cliente ? `<p style="font-size: 11px; color: #888; margin-bottom: 10px;">Telefone: ${o.telefone_cliente}</p>` : ''}
-                <div class="total" style="font-size: 18px; font-weight: 700; color: #1A3017;">
+                <div class="total" style="font-size: 18px; font-weight: 700; color: var(--verde-escuro);">
                     R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </div>
                 ${statusHtml}
             </div>
             <div class="card-footer" style="display:flex; gap:8px; padding: 12px; background: #f9f9f9; border-top: 1px solid #eee;">
-                <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})" style="flex:1; background:#1A3017; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">REABRIR</button>
-                <button class="btn-imprimir" onclick="gerarImpressaoRapida(this, ${o.id})" style="flex:1; background:white; color:#1A3017; border:1px solid #1A3017; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">IMPRIMIR</button>
+                <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})" style="flex:1; background:var(--verde-escuro); color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">REABRIR</button>
+                <button class="btn-imprimir" onclick="gerarImpressaoRapida(this, ${o.id})" style="flex:1; background:white; color:var(--verde-escuro); border:1px solid var(--verde-escuro); padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">IMPRIMIR</button>
             </div>`;
         grid.appendChild(card);
     });
@@ -320,7 +334,7 @@ window.clonagemRapida = async (btn, id) => {
         const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
         const orcamento = await res.json();
         localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
-        window.location.href = 'index.html';
+        window.location.href = obterPaginaOrcamentoLista(orcamento.idfilial || usuarioLogado.idfilial);
     } catch (e) {
         alert("Erro ao reabrir.");
         btn.innerText = originalText;
@@ -343,13 +357,16 @@ window.gerarImpressaoRapida = async (btn, id) => {
         const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00').toLocaleDateString('pt-BR') : 'A consultar';
         const dataEmissao = data.data_criacao ? new Date(data.data_criacao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
         const idFilialPdf = data.idfilial || usuarioLogado.idfilial;
+        const temaPdf = obterTemaListaPorFilial(idFilialPdf);
+        const corPrimariaPdf = temaPdf === 'sonoshow' ? '#123C7C' : '#1A3017';
+        const corSuavePdf = temaPdf === 'sonoshow' ? '#E9F2FF' : '#F4F9F4';
 
         let html = `
         <style>
             .pdf-body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; padding: 40px 40px 60px 60px; position: relative; background: white; width: 520pt; box-sizing: border-box; }
-            .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: #1A3017; }
-            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3017; padding-bottom: 10px; margin-bottom: 20px; }
-            .order-id { font-size: 24px; font-weight: bold; color: #1A3017; }
+            .brand-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: ${corPrimariaPdf}; }
+            .pdf-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid ${corPrimariaPdf}; padding-bottom: 10px; margin-bottom: 20px; }
+            .order-id { font-size: 24px; font-weight: bold; color: ${corPrimariaPdf}; }
             .header-meta { font-size: 10px; color: #666; text-align: right; }
             .info-box { background: #f9f9f9; padding: 15px; border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px; border: 1px solid #eee; margin-bottom: 25px; }
             .product-block { width: 100%; page-break-inside: avoid; margin-bottom: 30px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
@@ -357,14 +374,14 @@ window.gerarImpressaoRapida = async (btn, id) => {
             .col-left { width: 180px; flex-shrink: 0; }
             .col-right { flex: 1; }
             .img-main { width: 180px; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 10px; }
-            .dim-box { font-size: 9px; color: #1A3017; background: #F4F9F4; padding: 10px; border-radius: 4px; line-height: 1.3; }
-            .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1A3017; margin: 0; }
+            .dim-box { font-size: 9px; color: ${corPrimariaPdf}; background: ${corSuavePdf}; padding: 10px; border-radius: 4px; line-height: 1.3; }
+            .prod-title { font-size: 18px; font-weight: bold; text-transform: uppercase; color: ${corPrimariaPdf}; margin: 0; }
             .emocional-text { font-size: 11px; line-height: 1.5; color: #444; margin-bottom: 12px; text-align: justify; font-style: italic; }
             .specs-box { font-size: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; line-height: 1.4; }
             .price-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
             .price-table td { border: 1px solid #eee; padding: 8px; text-align: center; font-size: 11px; font-weight: bold; }
             .label-cell { background: #fafafa; font-size: 8px; color: #999; text-transform: uppercase; }
-            .total-destaque { background: #1A3017; color: white; padding: 15px 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px; margin-top: 10px; }
+            .total-destaque { background: ${corPrimariaPdf}; color: white; padding: 15px 20px; text-align: right; font-size: 20px; font-weight: bold; border-radius: 4px; margin-top: 10px; }
             .inst-text { font-size: 9px; color: #555; line-height: 1.5; text-align: justify; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
             .footer-container { page-break-inside: avoid; margin-top: 20px; padding-bottom: 20px; }
         </style>
@@ -374,7 +391,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
                 <img src="${obterLogoPdfLista(idFilialPdf)}" style="height: 50px;">
                 <div class="header-meta">
                     <div class="order-id">ORÇAMENTO #${data.id}</div>
-                    <strong style="color: #1A3017;">FILIAL: ${idFilialPdf}</strong><br>
+                    <strong style="color: ${corPrimariaPdf};">FILIAL: ${idFilialPdf}</strong><br>
                     Emissão: ${dataEmissao} | Validade: ${dataValidade}
                 </div>
             </div>
@@ -421,7 +438,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
                         
                         ${tecnico ? `<div class="specs-box"><strong>CARACTERÍSTICAS:</strong><br>${tecnico}</div>` : ''}
                         
-                        ${item.variacao ? `<div style="font-size:11px; font-weight:bold; color:#1A3017; margin:8px 0; text-transform:uppercase;">VARIAÇÃO: ${item.variacao}</div>` : ''}
+                        ${item.variacao ? `<div style="font-size:11px; font-weight:bold; color:${corPrimariaPdf}; margin:8px 0; text-transform:uppercase;">VARIAÇÃO: ${item.variacao}</div>` : ''}
                         <span style="font-size:9px; color:#999; display:block; margin-bottom:10px;">SKU: ${item.sku || '---'}</span>
                         
                         <table class="price-table">
@@ -490,6 +507,7 @@ function exibirUsuarioLogado() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    Promise.resolve(window.crmThemeReady).finally(aplicarTemaHistorico);
     exibirUsuarioLogado();
     inicializarFiltroStatus();
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);

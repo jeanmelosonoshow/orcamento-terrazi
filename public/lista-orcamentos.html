@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Histórico de Orçamentos | Terrazi</title>
+    <title>Histórico de Orçamentos</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@300;500&display=swap" rel="stylesheet">   
     <link rel="stylesheet" href="lista-style.css?v=20260528b"> 
     
@@ -11,7 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-    <div id="top-bar-user" style="background: #1A3017; color: #fff; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; font-family: sans-serif; font-size: 13px;">
+    <div id="top-bar-user">
         <div id="user-info-topo">
             Carregando usuário...
         </div>
@@ -20,10 +20,10 @@
     
     <header class="lista-header">
         <div class="header-content">
-            <img src="https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp" alt="Logo Terrazi" class="logo">
+            <img src="https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp" alt="Logo da marca" class="logo" data-brand-logo>
             <div class="header-actions-top">
                 <h1 class="premium-title">Gestão de Orçamentos</h1>
-                <a href="index.html" class="btn-primary-outline">← NOVO ORÇAMENTO</a>
+                <a href="index.html" class="btn-primary-outline" id="novoOrcamentoLink">← NOVO ORÇAMENTO</a>
             </div>
         </div>
     </header>
@@ -68,5 +68,4 @@
     <script src="script-lista.js?v=20260528b"></script>
 </body>
 </html>
-
 
