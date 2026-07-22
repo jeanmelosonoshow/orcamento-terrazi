@@ -374,6 +374,20 @@ function formatarErroProdutos(error) {
     return escaparHtml(mensagem.length > 220 ? `${mensagem.slice(0, 220)}...` : mensagem);
 }
 
+function calcularQuantidadeInicialProdutos(totalDisponivel) {
+    const fallback = Math.min(totalDisponivel, 15);
+    if (!productsGrid || !window.matchMedia('(min-width: 700px)').matches) return Math.min(totalDisponivel, 12);
+
+    const styles = window.getComputedStyle(productsGrid);
+    const columns = styles.gridTemplateColumns.split(' ').filter(column => column && column !== 'none').length;
+
+    if (!columns || columns <= 0) return fallback;
+
+    const cardsPorLinhaCompleta = Math.max(columns, Math.ceil(13 / columns) * columns);
+    const produtosNecessarios = cardsPorLinhaCompleta - 1;
+    return Math.max(0, Math.min(totalDisponivel, produtosNecessarios));
+}
+
 async function fetchProducts(isInitial = false) {
     const query = isInitial ? "" : (searchInput?.value.trim() || "");
     productsGrid.innerHTML = '<div class="loader">Carregando curadoria...</div>';
@@ -393,7 +407,7 @@ async function fetchProducts(isInitial = false) {
         }
 
         let products = payload;
-        if (isInitial) products = products.sort(() => 0.5 - Math.random()).slice(0, 12);
+        if (isInitial) products = products.sort(() => 0.5 - Math.random()).slice(0, calcularQuantidadeInicialProdutos(products.length));
         renderProducts(products);
     } catch (error) {
         console.error('Erro ao carregar produtos:', error);
@@ -1087,6 +1101,7 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
 
 
 
