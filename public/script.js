@@ -41,7 +41,7 @@ let quoteCart = [];
 let currentOrcamentoId = null;
 let currentCustomerKey = '';
 const LOGO_URL = ORCAMENTO_CONFIG.logoUrl || "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
-const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
+const CUSTOM_PRODUCT_IMAGE_URL = ORCAMENTO_CONFIG.customProductImageUrl || "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
 const CUSTOM_PRODUCT_SKU = "PERS";
 const CUSTOM_PRODUCT_LEGACY_SKU = "PERSONALIZADO";
 const CUSTOM_PRODUCT_IMAGE_KEY = "PERS_IMG";
@@ -1087,6 +1087,7 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
 
 
 
