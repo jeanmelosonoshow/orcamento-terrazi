@@ -50,7 +50,12 @@ const displayTotalGeral = document.getElementById('displayTotalGeral');
 let quoteCart = [];
 let currentOrcamentoId = null;
 let currentCustomerKey = '';
-const LOGO_URL = ORCAMENTO_CONFIG.logoUrl || "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const CASA_TERRAZI_LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const SONO_SHOW_LOGO_URL = "https://sonoshowmoveis.vtexassets.com/assets/vtex.file-manager-graphql/images/9c25daff-344c-4bbf-9adf-054dba3b5137___c25ce75d1124b3ba71eebaaf2a2527e2.png";
+const LOGO_URL = ORCAMENTO_CONFIG.logoUrl || CASA_TERRAZI_LOGO_URL;
+function obterLogoPdf() {
+    return obterTemaAtualOrcamento() === 'sonoshow' ? SONO_SHOW_LOGO_URL : LOGO_URL;
+}
 const CUSTOM_PRODUCT_IMAGE_URL = ORCAMENTO_CONFIG.customProductImageUrl || "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
 const CUSTOM_PRODUCT_SKU = "PERS";
 const CUSTOM_PRODUCT_LEGACY_SKU = "PERSONALIZADO";
@@ -550,7 +555,12 @@ function atualizarDestaqueTotal() {
 
 // 4. GERAÇÃO DE PDF + SALVAMENTO
 const WHATSAPP_MESSAGE = ORCAMENTO_CONFIG.whatsappMessage || 'Obrigado por Escolher a Casa Terrazi';
-const ADDITIONAL_INFO_HTML = ORCAMENTO_CONFIG.additionalInfoHtml || '<p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p><p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>';
+const BASE_ADDITIONAL_INFO_HTML = '<p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p>';
+const CASA_TERRAZI_ADDITIONAL_INFO_HTML = `${BASE_ADDITIONAL_INFO_HTML}<p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>`;
+function obterInformacoesAdicionaisPdf() {
+    if (obterTemaAtualOrcamento() === 'sonoshow') return ORCAMENTO_CONFIG.additionalInfoHtml || BASE_ADDITIONAL_INFO_HTML;
+    return ORCAMENTO_CONFIG.additionalInfoHtml || CASA_TERRAZI_ADDITIONAL_INFO_HTML;
+}
 
 generatePdfBtn.addEventListener('click', async () => {
     if (!validarDadosObrigatorios()) return;
@@ -888,7 +898,7 @@ function montarDocumentoPdf(orcamentoID) {
     <div class="pdf-body">
         <div class="brand-sidebar"></div>
         <div class="pdf-header">
-            <img src="${LOGO_URL}" style="height: 50px;">
+            <img src="${obterLogoPdf()}" style="height: 50px;">
             <div class="header-meta">
                 <div class="order-id">ORÇAMENTO #${orcamentoID}</div>
                 <strong style="color: ${corPrimaria};">FILIAL: ${usuarioLogado.idfilial}</strong><br>
@@ -956,7 +966,7 @@ function montarDocumentoPdf(orcamentoID) {
                 TOTAL GERAL: R$ ${displayTotalGeral.innerText}
             </div>
             <div class="inst-text">
-                ${ADDITIONAL_INFO_HTML}
+                ${obterInformacoesAdicionaisPdf()}
             </div>
         </div>
     </div>`;

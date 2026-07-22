@@ -6,7 +6,24 @@ let orcamentosFiltrados = [];
 let paginaAtual = 1;
 const ITENS_POR_PAGINA = 15;
 const statusSelecionadosFiltro = new Set(['PENDENTE', 'EXPIRADO']);
-const LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const CASA_TERRAZI_LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
+const SONO_SHOW_LOGO_URL = "https://sonoshowmoveis.vtexassets.com/assets/vtex.file-manager-graphql/images/9c25daff-344c-4bbf-9adf-054dba3b5137___c25ce75d1124b3ba71eebaaf2a2527e2.png";
+const LOGO_URL = CASA_TERRAZI_LOGO_URL;
+const BASE_ADDITIONAL_INFO_HTML = '<p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p>';
+const CASA_TERRAZI_ADDITIONAL_INFO_HTML = `${BASE_ADDITIONAL_INFO_HTML}<p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>`;
+function obterTemaListaPorFilial(idfilial) {
+    try {
+        const saved = JSON.parse(sessionStorage.getItem('crmTemaFilial') || 'null');
+        if (saved?.themeName) return saved.themeName;
+    } catch (error) {}
+    return String(idfilial || '').toUpperCase() === 'CD' ? 'sonoshow' : 'casaterrazi';
+}
+function obterLogoPdfLista(idfilial) {
+    return obterTemaListaPorFilial(idfilial) === 'sonoshow' ? SONO_SHOW_LOGO_URL : LOGO_URL;
+}
+function obterInformacoesAdicionaisPdfLista(idfilial) {
+    return obterTemaListaPorFilial(idfilial) === 'sonoshow' ? BASE_ADDITIONAL_INFO_HTML : CASA_TERRAZI_ADDITIONAL_INFO_HTML;
+}
 const CUSTOM_PRODUCT_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
 const CUSTOM_PRODUCT_IMAGE_KEY = "PERS_IMG";
 const CUSTOM_PRODUCT_LEGACY_IMAGE_KEY = "CUSTOM_PRODUCT_IMAGE";
@@ -325,6 +342,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
         const element = document.createElement('div');
         const dataValidade = data.data_validade ? new Date(data.data_validade.split('T')[0] + 'T03:00').toLocaleDateString('pt-BR') : 'A consultar';
         const dataEmissao = data.data_criacao ? new Date(data.data_criacao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+        const idFilialPdf = data.idfilial || usuarioLogado.idfilial;
 
         let html = `
         <style>
@@ -353,10 +371,10 @@ window.gerarImpressaoRapida = async (btn, id) => {
         <div class="pdf-body">
             <div class="brand-sidebar"></div>
             <div class="pdf-header">
-                <img src="${LOGO_URL}" style="height: 50px;">
+                <img src="${obterLogoPdfLista(idFilialPdf)}" style="height: 50px;">
                 <div class="header-meta">
                     <div class="order-id">ORÇAMENTO #${data.id}</div>
-                    <strong style="color: #1A3017;">FILIAL: ${data.idfilial || usuarioLogado.idfilial}</strong><br>
+                    <strong style="color: #1A3017;">FILIAL: ${idFilialPdf}</strong><br>
                     Emissão: ${dataEmissao} | Validade: ${dataValidade}
                 </div>
             </div>
@@ -426,8 +444,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
                 <div class="total-destaque">TOTAL GERAL: R$ ${parseFloat(data.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
 
                 <div class="inst-text">
-                    <p><strong>INFORMAÇÕES ADICIONAIS:</strong> *itens decorativos que aparecem na ambientação não acompanham a compra.</p>
-                    <p>cada peça da casa terrazi é fruto do design brasileiro, criada e produzida integralmente no brasil. valorizamos a produção local, o talento dos nossos profissionais e a qualidade que só o olhar atento de quem entende do próprio território pode oferecer. ao escolher um dos nossos móveis, você leva para casa não apenas sofisticação e funcionalidade, mas também uma história feita aqui — com originalidade, cuidado e identidade brasileira.</p>
+                    ${obterInformacoesAdicionaisPdfLista(idFilialPdf)}
                 </div>
             </div>
         </div>`;
