@@ -536,7 +536,6 @@ function validarDadosObrigatorios() {
 
     const camposObrigatorios = [
         { el: custName, msg: 'Preencha o nome do cliente.' },
-        { el: custDoc, msg: 'Preencha o CPF ou CNPJ do cliente.' },
         { el: custPhone, msg: 'Preencha o telefone do cliente.' },
         { el: quoteValid, msg: 'Preencha a data de validade do orçamento.' }
     ];
@@ -549,7 +548,7 @@ function validarDadosObrigatorios() {
     }
 
     const digitosDocumento = obterApenasDigitos(custDoc.value);
-    if (![11, 14].includes(digitosDocumento.length)) {
+    if (digitosDocumento && ![11, 14].includes(digitosDocumento.length)) {
         alert('Informe um CPF com 11 dígitos ou CNPJ com 14 dígitos.');
         custDoc.focus();
         return false;
