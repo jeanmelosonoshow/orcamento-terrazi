@@ -40,6 +40,7 @@ function esperarImagensDoPdf(element) {
 function limparDimensoesPdf(texto) {
     return String(texto || '')
         .split(/cada\s+pe[cç]a\s+da\s+casa\s+terrazi/i)[0]
+        .split(/(?:a)?ten[cç][aã]o!?\s*o\s+servi[cç]o\s+de\s+montagem\s+gr[aá]tis\s+n[aã]o\s+est[aá]\s+dispon[ií]vel\s+para\s+este\s+produto/i)[0]
         .trim();
 }
 async function carregarHistorico() {
@@ -477,3 +478,4 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
     carregarHistorico();
 });
+
