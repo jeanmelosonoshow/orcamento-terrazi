@@ -11,10 +11,8 @@ const categoria = usuarioLogado.categoria || 'Vendedor';
 
 const crmUserName = document.getElementById('crmUserName');
 const crmUserMeta = document.getElementById('crmUserMeta');
-const crmUserRole = document.getElementById('crmUserRole');
 if (crmUserName) crmUserName.textContent = nome;
 if (crmUserMeta) crmUserMeta.textContent = `${filial} · ${categoria}`;
-if (crmUserRole) crmUserRole.textContent = categoria;
 
 window.fazerLogout = () => {
     sessionStorage.clear();
@@ -101,3 +99,4 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+

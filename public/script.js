@@ -4,6 +4,16 @@ if (!usuarioLogadoRaw) { window.location.href = 'login.html'; }
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
 const ORCAMENTO_CONFIG = window.ORCAMENTO_CONFIG || {};
 
+function estaDentroDoCrm() {
+    try {
+        return window.self !== window.top;
+    } catch (error) {
+        return true;
+    }
+}
+
+if (estaDentroDoCrm()) document.body.classList.add('is-embedded-budget');
+
 function obterTemaSalvoOrcamento() {
     try {
         const saved = JSON.parse(sessionStorage.getItem('crmTemaFilial') || 'null');
@@ -1101,6 +1111,7 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
 
 
 

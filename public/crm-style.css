@@ -45,7 +45,6 @@ body {
 }
 
 .crm-brand span,
-.crm-access small,
 .crm-eyebrow {
     text-transform: uppercase;
     letter-spacing: 0.14em;
@@ -73,17 +72,6 @@ body {
     background: rgba(197,164,126,0.18);
     color: #fff;
     outline: 1px solid rgba(197,164,126,0.25);
-}
-
-.crm-access {
-    margin-top: 30px;
-    color: rgba(255,255,255,0.72);
-}
-
-.crm-access strong {
-    display: block;
-    margin-top: 6px;
-    color: #fff;
 }
 
 .crm-main {
@@ -303,3 +291,4 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     .crm-grid { grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr); }
     .crm-modules { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+

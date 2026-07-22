@@ -562,3 +562,24 @@ body.modal-open {
     z-index: 0;
 }
 
+
+body.is-embedded-budget #top-bar-user { display: none !important; }
+
+@media (min-width: 900px) {
+    body.is-embedded-budget {
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    body.is-embedded-budget header {
+        grid-row: 1;
+    }
+
+    body.is-embedded-budget .results-section {
+        grid-row: 2;
+    }
+
+    body.is-embedded-budget .quote-sidebar {
+        grid-row: 1 / 3;
+    }
+}
+
