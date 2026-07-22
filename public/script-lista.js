@@ -490,25 +490,8 @@ window.gerarImpressaoRapida = async (btn, id) => {
     }
 };
 
-window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
-
-function exibirUsuarioLogado() {
-    const infoTopo = document.getElementById('user-info-topo');
-    if (infoTopo && usuarioLogado) {
-        infoTopo.innerHTML = `
-            <div style="display:flex; align-items:center; gap:15px; width:100%;">
-                <span><strong>Vendedor:</strong> ${usuarioLogado.nomefuncionario} | </span>
-                <span><strong>Filial:</strong> ${usuarioLogado.idfilial} | </span>
-                <span><strong>Categoria:</strong> ${usuarioLogado.categoria}  </span>
-                <div style="flex-grow:1"></div>
-                <button onclick="fazerLogout()" style="background:#c0392b; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">SAIR</button>
-            </div>`;
-    }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     Promise.resolve(window.crmThemeReady).finally(aplicarTemaHistorico);
-    exibirUsuarioLogado();
     inicializarFiltroStatus();
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
     carregarHistorico();
