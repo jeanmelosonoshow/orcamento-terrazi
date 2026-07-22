@@ -49,6 +49,23 @@
     <button class="crm-sidebar-toggle" type="button" aria-label="Esconder menu" aria-expanded="true" data-sidebar-toggle>‹</button>
 
     <main class="crm-main">
+        <div class="crm-topbar" aria-label="Contexto de acesso">
+            <div class="crm-branch-control">
+                <label for="crmFilialSelect">Filial</label>
+                <select id="crmFilialSelect" data-filial-select>
+                    <option value="">Carregando filiais...</option>
+                </select>
+                <span id="crmFilialReadonly" class="crm-filial-readonly" hidden>Filial</span>
+            </div>
+            <div class="crm-user-box">
+                <div class="crm-user-avatar" id="crmUserInitials" aria-hidden="true">U</div>
+                <div class="crm-user-text">
+                    <span id="crmUserName">Usuário</span>
+                    <small id="crmUserMeta">Categoria</small>
+                </div>
+                <button type="button" onclick="fazerLogout()">Sair</button>
+            </div>
+        </div>
         <section class="crm-view" data-crm-view="visao-geral">
             <header class="crm-header">
                 <div>
@@ -56,11 +73,7 @@
                     <h1>Visão Geral</h1>
                     <p>Indicadores comerciais, alertas e atalhos para os módulos do CRM Casa Terrazi.</p>
                 </div>
-                <div class="crm-user-box">
-                    <span id="crmUserName">Usuário</span>
-                    <small id="crmUserMeta">Casa Terrazi</small>
-                    <button type="button" onclick="fazerLogout()">Sair</button>
-                </div>
+
             </header>
 
             <section class="crm-kpis" aria-label="Indicadores principais">

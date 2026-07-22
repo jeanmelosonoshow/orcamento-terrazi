@@ -6,14 +6,107 @@ if (!usuarioLogadoRaw) {
 const usuarioLogado = JSON.parse(usuarioLogadoRaw || '{}');
 const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
 const filialId = String(usuarioLogado.idfilial || '').trim().toUpperCase();
-const filial = usuarioLogado.idfilial ? `Filial: ${usuarioLogado.idfilial}` : 'Casa Terrazi';
-const categoria = usuarioLogado.categoria || 'Vendedor';
+const categoriaCodigo = String(usuarioLogado.categoria || '').trim().toUpperCase();
+const categoriasTraduzidas = {
+    VD: 'VENDEDOR',
+    GR: 'GERENTE',
+    SU: 'SUPERVISOR',
+    DI: 'DIRETOR',
+    CX: 'CAIXA'
+};
+const categoria = categoriasTraduzidas[categoriaCodigo] || categoriaCodigo || 'USUÁRIO';
 
 const crmUserName = document.getElementById('crmUserName');
 const crmUserMeta = document.getElementById('crmUserMeta');
-if (crmUserName) crmUserName.textContent = nome;
-if (crmUserMeta) crmUserMeta.textContent = `${filial} · ${categoria}`;
+const crmUserInitials = document.getElementById('crmUserInitials');
+const crmFilialSelect = document.querySelector('[data-filial-select]');
+const crmFilialReadonly = document.getElementById('crmFilialReadonly');
 
+function obterIniciais(nomeCompleto) {
+    return String(nomeCompleto || 'U')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(parte => parte[0])
+        .join('')
+        .toUpperCase() || 'U';
+}
+
+function getFilialSelecionada() {
+    return sessionStorage.getItem('crmFilialSelecionada') || filialId;
+}
+
+function setFilialSelecionada(filial) {
+    if (!filial) return;
+    sessionStorage.setItem('crmFilialSelecionada', String(filial));
+}
+
+if (crmUserName) crmUserName.textContent = nome;
+if (crmUserMeta) crmUserMeta.textContent = categoria;
+if (crmUserInitials) crmUserInitials.textContent = obterIniciais(nome);
+
+async function carregarFiliais() {
+    if (!crmFilialSelect || !crmFilialReadonly) return;
+
+    const podeSelecionar = ['DI', 'SU'].includes(categoriaCodigo);
+    crmFilialSelect.disabled = true;
+    crmFilialSelect.innerHTML = '<option value="">Carregando filiais...</option>';
+
+    try {
+        const params = new URLSearchParams({
+            categoria: categoriaCodigo,
+            idfuncionario: usuarioLogado.idfuncionario || '',
+            idfilial: usuarioLogado.idfilial || ''
+        });
+        const response = await fetch(`/api/filiais?${params.toString()}`);
+        const data = await response.json();
+        const filiais = Array.isArray(data.filiais) ? data.filiais : [];
+
+        if (!filiais.length) {
+            const fallbackNome = usuarioLogado.nomefilial || `Filial ${usuarioLogado.idfilial || ''}`.trim();
+            crmFilialSelect.innerHTML = `<option value="${usuarioLogado.idfilial || ''}">${fallbackNome}</option>`;
+            crmFilialReadonly.textContent = fallbackNome || 'Filial não encontrada';
+            crmFilialSelect.hidden = true;
+            crmFilialReadonly.hidden = false;
+            return;
+        }
+
+        const filialAtual = filiais.find(filial => String(filial.idfilial).toUpperCase() === String(getFilialSelecionada()).toUpperCase()) || filiais[0];
+        setFilialSelecionada(filialAtual.idfilial);
+        definirPaginaOrcamento();
+
+        crmFilialSelect.innerHTML = filiais.map(filial => {
+            const selected = String(filial.idfilial).toUpperCase() === String(filialAtual.idfilial).toUpperCase() ? ' selected' : '';
+            return `<option value="${filial.idfilial}"${selected}>${filial.nomefilial}</option>`;
+        }).join('');
+
+        crmFilialReadonly.textContent = filialAtual.nomefilial;
+
+        if (podeSelecionar) {
+            crmFilialSelect.hidden = false;
+            crmFilialReadonly.hidden = true;
+            crmFilialSelect.disabled = false;
+        } else {
+            crmFilialSelect.hidden = true;
+            crmFilialReadonly.hidden = false;
+        }
+    } catch (error) {
+        crmFilialSelect.innerHTML = '<option value="">Erro ao carregar filiais</option>';
+        crmFilialReadonly.textContent = 'Erro ao carregar filiais';
+        crmFilialSelect.hidden = true;
+        crmFilialReadonly.hidden = false;
+    }
+}
+
+if (crmFilialSelect) {
+    crmFilialSelect.addEventListener('change', () => {
+        setFilialSelecionada(crmFilialSelect.value);
+        definirPaginaOrcamento();
+    });
+}
+
+carregarFiliais();
 window.fazerLogout = () => {
     sessionStorage.clear();
     window.location.href = 'login.html';
@@ -28,7 +121,8 @@ async function definirPaginaOrcamento() {
         const response = await fetch('filial-themes.json', { cache: 'no-store' });
         if (response.ok) {
             const config = await response.json();
-            const themeName = config.branches?.[filialId] || config.defaultTheme || 'casaterrazi';
+            const filialContexto = String(getFilialSelecionada() || filialId).trim().toUpperCase();
+            const themeName = config.branches?.[filialContexto] || config.defaultTheme || 'casaterrazi';
             budgetPage = config.budgetPages?.[themeName] || config.themes?.[themeName]?.budgetPage || budgetPage;
         }
     } catch (error) {
