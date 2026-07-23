@@ -18,6 +18,7 @@ const categoria = categoriasTraduzidas[categoriaCodigo] || categoriaCodigo || 'U
 
 const crmUserName = document.getElementById('crmUserName');
 const crmUserMeta = document.getElementById('crmUserMeta');
+const crmUserFilial = document.getElementById('crmUserFilial');
 const crmUserInitials = document.getElementById('crmUserInitials');
 const crmFilialSelect = document.querySelector('[data-filial-select]');
 const crmFilialReadonly = document.getElementById('crmFilialReadonly');
@@ -44,6 +45,13 @@ function setFilialSelecionada(filial) {
 
 if (crmUserName) crmUserName.textContent = nome;
 if (crmUserMeta) crmUserMeta.textContent = categoria;
+function atualizarFilialUsuario(nomeFilial) {
+    if (!crmUserFilial) return;
+    const textoFilial = nomeFilial || usuarioLogado.nomefilial || (usuarioLogado.idfilial ? 'Filial: ' + usuarioLogado.idfilial : 'Filial nao informada');
+    crmUserFilial.textContent = textoFilial;
+}
+
+atualizarFilialUsuario();
 if (crmUserInitials) crmUserInitials.textContent = obterIniciais(nome);
 
 async function carregarFiliais() {
@@ -71,6 +79,9 @@ async function carregarFiliais() {
             crmFilialReadonly.hidden = false;
             return;
         }
+
+        const filialUsuario = filiais.find(filial => String(filial.idfilial).toUpperCase() === String(usuarioLogado.idfilial || '').toUpperCase());
+        atualizarFilialUsuario(filialUsuario?.nomefilial);
 
         const filialAtual = filiais.find(filial => String(filial.idfilial).toUpperCase() === String(getFilialSelecionada()).toUpperCase()) || filiais[0];
         setFilialSelecionada(filialAtual.idfilial);
