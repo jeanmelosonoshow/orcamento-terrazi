@@ -20,7 +20,12 @@ const crmUserName = document.getElementById('crmUserName');
 const crmUserMeta = document.getElementById('crmUserMeta');
 const crmUserFilial = document.getElementById('crmUserFilial');
 const crmUserInitials = document.getElementById('crmUserInitials');
-const crmFilialSelect = document.querySelector('[data-filial-select]');
+const crmDataInicial = document.querySelector('[data-date-start]');
+const crmDataFinal = document.querySelector('[data-date-end]');
+const crmFilialTrigger = document.querySelector('[data-filial-trigger]');
+const crmFilialPanel = document.querySelector('[data-filial-panel]');
+const crmFilialSearch = document.querySelector('[data-filial-search]');
+const crmFilialOptions = document.querySelector('[data-filial-options]');
 const crmFilialReadonly = document.getElementById('crmFilialReadonly');
 
 function obterIniciais(nomeCompleto) {
@@ -34,15 +39,27 @@ function obterIniciais(nomeCompleto) {
         .toUpperCase() || 'U';
 }
 
+function getFiliaisSelecionadas() {
+    try {
+        const salvas = JSON.parse(sessionStorage.getItem('crmFiliaisSelecionadas') || '[]');
+        if (Array.isArray(salvas) && salvas.length) return salvas.map(String);
+    } catch (error) {
+        // Mantem compatibilidade com a selecao antiga.
+    }
+
+    const filialAntiga = sessionStorage.getItem('crmFilialSelecionada');
+    return filialAntiga ? [String(filialAntiga)] : (filialId ? [filialId] : []);
+}
+
 function getFilialSelecionada() {
-    return sessionStorage.getItem('crmFilialSelecionada') || filialId;
+    return getFiliaisSelecionadas()[0] || filialId;
 }
 
-function setFilialSelecionada(filial) {
-    if (!filial) return;
-    sessionStorage.setItem('crmFilialSelecionada', String(filial));
+function setFiliaisSelecionadas(filiais) {
+    const lista = Array.from(new Set((filiais || []).map(filial => String(filial)).filter(Boolean)));
+    sessionStorage.setItem('crmFiliaisSelecionadas', JSON.stringify(lista));
+    if (lista[0]) sessionStorage.setItem('crmFilialSelecionada', lista[0]);
 }
-
 if (crmUserName) crmUserName.textContent = nome;
 if (crmUserMeta) crmUserMeta.textContent = categoria;
 function atualizarFilialUsuario(nomeFilial) {
@@ -54,12 +71,78 @@ function atualizarFilialUsuario(nomeFilial) {
 atualizarFilialUsuario();
 if (crmUserInitials) crmUserInitials.textContent = obterIniciais(nome);
 
+function inicializarPeriodo() {
+    if (crmDataInicial) {
+        crmDataInicial.value = sessionStorage.getItem('crmDataInicial') || '';
+        crmDataInicial.addEventListener('change', () => {
+            sessionStorage.setItem('crmDataInicial', crmDataInicial.value || '');
+        });
+    }
+
+    if (crmDataFinal) {
+        crmDataFinal.value = sessionStorage.getItem('crmDataFinal') || '';
+        crmDataFinal.addEventListener('change', () => {
+            sessionStorage.setItem('crmDataFinal', crmDataFinal.value || '');
+        });
+    }
+}
+
+function escapeHtml(valor) {
+    return String(valor || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function atualizarResumoFiliais(filiais, selecionadas) {
+    if (!crmFilialTrigger) return;
+    const nomesSelecionados = filiais
+        .filter(filial => selecionadas.includes(String(filial.idfilial)))
+        .map(filial => filial.nomefilial);
+
+    if (!nomesSelecionados.length) {
+        crmFilialTrigger.textContent = 'Selecione as filiais';
+    } else if (nomesSelecionados.length === 1) {
+        crmFilialTrigger.textContent = nomesSelecionados[0];
+    } else {
+        crmFilialTrigger.textContent = `${nomesSelecionados.length} filiais selecionadas`;
+    }
+}
+
+function renderizarOpcoesFiliais(filiais, termo = '') {
+    if (!crmFilialOptions) return;
+    const selecionadas = getFiliaisSelecionadas();
+    const termoBusca = termo.trim().toLowerCase();
+    const filtradas = filiais.filter(filial => {
+        const texto = `${filial.idfilial} ${filial.nomefilial}`.toLowerCase();
+        return texto.includes(termoBusca);
+    });
+
+    if (!filtradas.length) {
+        crmFilialOptions.innerHTML = '<div class="crm-multiselect-empty">Nenhuma filial encontrada.</div>';
+        return;
+    }
+
+    crmFilialOptions.innerHTML = filtradas.map(filial => {
+        const id = String(filial.idfilial);
+        const checked = selecionadas.includes(id) ? ' checked' : '';
+        return `
+            <label class="crm-multiselect-option">
+                <input type="checkbox" value="${escapeHtml(id)}"${checked} data-filial-checkbox>
+                <span>${escapeHtml(filial.nomefilial)}</span>
+            </label>
+        `;
+    }).join('');
+}
+
 async function carregarFiliais() {
-    if (!crmFilialSelect || !crmFilialReadonly) return;
+    if (!crmFilialTrigger || !crmFilialReadonly) return;
 
     const podeSelecionar = ['DI', 'SU'].includes(categoriaCodigo);
-    crmFilialSelect.disabled = true;
-    crmFilialSelect.innerHTML = '<option value="">Carregando filiais...</option>';
+    crmFilialTrigger.disabled = true;
+    crmFilialTrigger.textContent = 'Carregando filiais...';
 
     try {
         const params = new URLSearchParams({
@@ -73,51 +156,83 @@ async function carregarFiliais() {
 
         if (!filiais.length) {
             const fallbackNome = usuarioLogado.nomefilial || `Filial ${usuarioLogado.idfilial || ''}`.trim();
-            crmFilialSelect.innerHTML = `<option value="${usuarioLogado.idfilial || ''}">${fallbackNome}</option>`;
-            crmFilialReadonly.textContent = fallbackNome || 'Filial não encontrada';
-            crmFilialSelect.hidden = true;
+            setFiliaisSelecionadas(usuarioLogado.idfilial ? [usuarioLogado.idfilial] : []);
+            crmFilialReadonly.textContent = fallbackNome || 'Filial nao encontrada';
+            crmFilialTrigger.hidden = true;
             crmFilialReadonly.hidden = false;
+            atualizarFilialUsuario(fallbackNome);
             return;
         }
 
         const filialUsuario = filiais.find(filial => String(filial.idfilial).toUpperCase() === String(usuarioLogado.idfilial || '').toUpperCase());
         atualizarFilialUsuario(filialUsuario?.nomefilial);
 
-        const filialAtual = filiais.find(filial => String(filial.idfilial).toUpperCase() === String(getFilialSelecionada()).toUpperCase()) || filiais[0];
-        setFilialSelecionada(filialAtual.idfilial);
+        const idsDisponiveis = filiais.map(filial => String(filial.idfilial));
+        let selecionadas = getFiliaisSelecionadas().filter(id => idsDisponiveis.includes(String(id)));
+        if (!selecionadas.length) {
+            selecionadas = podeSelecionar ? idsDisponiveis : [String(filiais[0].idfilial)];
+        }
+        if (!podeSelecionar) selecionadas = [String(filiais[0].idfilial)];
+        setFiliaisSelecionadas(selecionadas);
         definirPaginaOrcamento();
 
-        crmFilialSelect.innerHTML = filiais.map(filial => {
-            const selected = String(filial.idfilial).toUpperCase() === String(filialAtual.idfilial).toUpperCase() ? ' selected' : '';
-            return `<option value="${filial.idfilial}"${selected}>${filial.nomefilial}</option>`;
-        }).join('');
-
-        crmFilialReadonly.textContent = filialAtual.nomefilial;
+        crmFilialReadonly.textContent = filiais.find(filial => String(filial.idfilial) === selecionadas[0])?.nomefilial || filiais[0].nomefilial;
+        atualizarResumoFiliais(filiais, selecionadas);
+        renderizarOpcoesFiliais(filiais);
 
         if (podeSelecionar) {
-            crmFilialSelect.hidden = false;
+            crmFilialTrigger.hidden = false;
             crmFilialReadonly.hidden = true;
-            crmFilialSelect.disabled = false;
+            crmFilialTrigger.disabled = false;
         } else {
-            crmFilialSelect.hidden = true;
+            crmFilialTrigger.hidden = true;
             crmFilialReadonly.hidden = false;
         }
+
+        if (crmFilialTrigger && crmFilialPanel) {
+            crmFilialTrigger.addEventListener('click', () => {
+                crmFilialPanel.hidden = !crmFilialPanel.hidden;
+                if (!crmFilialPanel.hidden && crmFilialSearch) crmFilialSearch.focus();
+            });
+        }
+
+        if (crmFilialSearch) {
+            crmFilialSearch.addEventListener('input', () => renderizarOpcoesFiliais(filiais, crmFilialSearch.value));
+        }
+
+        if (crmFilialOptions) {
+            crmFilialOptions.addEventListener('change', event => {
+                if (!event.target.matches('[data-filial-checkbox]')) return;
+                const valor = String(event.target.value);
+                const selecionadasAtuais = new Set(getFiliaisSelecionadas());
+                if (event.target.checked) {
+                    selecionadasAtuais.add(valor);
+                } else {
+                    selecionadasAtuais.delete(valor);
+                }
+                const novaSelecao = Array.from(selecionadasAtuais);
+                setFiliaisSelecionadas(novaSelecao.length ? novaSelecao : [String(filiais[0].idfilial)]);
+                atualizarResumoFiliais(filiais, getFiliaisSelecionadas());
+                renderizarOpcoesFiliais(filiais, crmFilialSearch?.value || '');
+                definirPaginaOrcamento();
+            });
+        }
     } catch (error) {
-        crmFilialSelect.innerHTML = '<option value="">Erro ao carregar filiais</option>';
+        crmFilialTrigger.textContent = 'Erro ao carregar filiais';
         crmFilialReadonly.textContent = 'Erro ao carregar filiais';
-        crmFilialSelect.hidden = true;
+        crmFilialTrigger.hidden = true;
         crmFilialReadonly.hidden = false;
     }
 }
 
-if (crmFilialSelect) {
-    crmFilialSelect.addEventListener('change', () => {
-        setFilialSelecionada(crmFilialSelect.value);
-        definirPaginaOrcamento();
-    });
-}
-
+inicializarPeriodo();
 carregarFiliais();
+document.addEventListener('click', event => {
+    if (!crmFilialPanel || crmFilialPanel.hidden) return;
+    if (event.target.closest('[data-filial-multiselect]')) return;
+    crmFilialPanel.hidden = true;
+});
+
 window.fazerLogout = () => {
     sessionStorage.clear();
     window.location.href = 'login.html';

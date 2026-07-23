@@ -51,10 +51,24 @@
     <main class="crm-main">
         <div class="crm-topbar" aria-label="Contexto de acesso">
             <div class="crm-branch-control">
-                <label for="crmFilialSelect">Filial</label>
-                <select id="crmFilialSelect" data-filial-select>
-                    <option value="">Carregando filiais...</option>
-                </select>
+                <div class="crm-period-fields">
+                    <div>
+                        <label for="crmDataInicial">Data inicial</label>
+                        <input id="crmDataInicial" type="date" data-date-start>
+                    </div>
+                    <div>
+                        <label for="crmDataFinal">Data final</label>
+                        <input id="crmDataFinal" type="date" data-date-end>
+                    </div>
+                </div>
+                <label for="crmFilialSearch">Filiais</label>
+                <div class="crm-multiselect" data-filial-multiselect>
+                    <button id="crmFilialSelect" class="crm-multiselect-trigger" type="button" data-filial-trigger disabled>Carregando filiais...</button>
+                    <div class="crm-multiselect-panel" data-filial-panel hidden>
+                        <input id="crmFilialSearch" type="search" placeholder="Pesquisar filial..." data-filial-search>
+                        <div class="crm-multiselect-options" data-filial-options></div>
+                    </div>
+                </div>
                 <span id="crmFilialReadonly" class="crm-filial-readonly" hidden>Filial</span>
             </div>
             <div class="crm-user-box">
@@ -171,4 +185,5 @@
     <script src="crm.js"></script>
 </body>
 </html>
+
 
