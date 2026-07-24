@@ -136,6 +136,114 @@ function renderizarOpcoesFiliais(filiais, termo = '') {
         `;
     }).join('');
 }
+function atualizarResumoVendedores(vendedores, selecionados) {
+    if (!crmVendedorTrigger) return;
+    const nomesSelecionados = vendedores
+        .filter(vendedor => selecionados.includes(String(vendedor.idvendedor)))
+        .map(vendedor => vendedor.nomefuncionario);
+
+    if (!nomesSelecionados.length) {
+        crmVendedorTrigger.textContent = 'Selecione os vendedores';
+    } else if (nomesSelecionados.length === 1) {
+        crmVendedorTrigger.textContent = nomesSelecionados[0];
+    } else {
+        crmVendedorTrigger.textContent = `${nomesSelecionados.length} vendedores selecionados`;
+    }
+}
+
+function renderizarOpcoesVendedores(vendedores, termo = '') {
+    if (!crmVendedorOptions) return;
+    const selecionados = getVendedoresSelecionados();
+    const termoBusca = termo.trim().toLowerCase();
+    const filtrados = vendedores.filter(vendedor => {
+        const texto = `${vendedor.idvendedor} ${vendedor.nomefuncionario}`.toLowerCase();
+        return texto.includes(termoBusca);
+    });
+
+    if (!filtrados.length) {
+        crmVendedorOptions.innerHTML = '<div class="crm-multiselect-empty">Nenhum vendedor encontrado.</div>';
+        return;
+    }
+
+    crmVendedorOptions.innerHTML = filtrados.map(vendedor => {
+        const id = String(vendedor.idvendedor);
+        const checked = selecionados.includes(id) ? ' checked' : '';
+        return `
+            <label class="crm-multiselect-option">
+                <input type="checkbox" value="${escapeHtml(id)}"${checked} data-vendedor-checkbox>
+                <span>${escapeHtml(vendedor.nomefuncionario)}</span>
+            </label>
+        `;
+    }).join('');
+}
+
+async function carregarVendedores() {
+    const podeFiltrarVendedor = ['DI', 'SU', 'GR'].includes(categoriaCodigo);
+    if (!crmSellerFilter || !crmVendedorTrigger || !crmVendedorOptions) return;
+
+    if (!podeFiltrarVendedor) {
+        crmSellerFilter.hidden = true;
+        setVendedoresSelecionados(usuarioLogado.idvendedor ? [usuarioLogado.idvendedor] : []);
+        return;
+    }
+
+    crmSellerFilter.hidden = false;
+    crmVendedorTrigger.disabled = true;
+    crmVendedorTrigger.textContent = 'Carregando vendedores...';
+
+    try {
+        const params = new URLSearchParams({
+            categoria: categoriaCodigo,
+            idfuncionario: usuarioLogado.idfuncionario || '',
+            idfilial: usuarioLogado.idfilial || ''
+        });
+        const response = await fetch(`/api/vendedores?${params.toString()}`);
+        const data = await response.json();
+        const vendedores = Array.isArray(data.vendedores) ? data.vendedores : [];
+
+        if (!vendedores.length) {
+            crmVendedorTrigger.textContent = 'Nenhum vendedor encontrado';
+            crmVendedorTrigger.disabled = true;
+            crmVendedorOptions.innerHTML = '<div class="crm-multiselect-empty">Nenhum vendedor encontrado.</div>';
+            return;
+        }
+
+        const idsDisponiveis = vendedores.map(vendedor => String(vendedor.idvendedor));
+        let selecionados = getVendedoresSelecionados().filter(id => idsDisponiveis.includes(String(id)));
+        if (!selecionados.length) selecionados = idsDisponiveis;
+        setVendedoresSelecionados(selecionados);
+        atualizarResumoVendedores(vendedores, selecionados);
+        renderizarOpcoesVendedores(vendedores);
+        crmVendedorTrigger.disabled = false;
+
+        crmVendedorTrigger.addEventListener('click', () => {
+            crmVendedorPanel.hidden = !crmVendedorPanel.hidden;
+            if (!crmVendedorPanel.hidden && crmVendedorSearch) crmVendedorSearch.focus();
+        });
+
+        if (crmVendedorSearch) {
+            crmVendedorSearch.addEventListener('input', () => renderizarOpcoesVendedores(vendedores, crmVendedorSearch.value));
+        }
+
+        crmVendedorOptions.addEventListener('change', event => {
+            if (!event.target.matches('[data-vendedor-checkbox]')) return;
+            const valor = String(event.target.value);
+            const selecionadosAtuais = new Set(getVendedoresSelecionados());
+            if (event.target.checked) {
+                selecionadosAtuais.add(valor);
+            } else {
+                selecionadosAtuais.delete(valor);
+            }
+            const novaSelecao = Array.from(selecionadosAtuais);
+            setVendedoresSelecionados(novaSelecao.length ? novaSelecao : [String(vendedores[0].idvendedor)]);
+            atualizarResumoVendedores(vendedores, getVendedoresSelecionados());
+            renderizarOpcoesVendedores(vendedores, crmVendedorSearch?.value || '');
+        });
+    } catch (error) {
+        crmVendedorTrigger.textContent = 'Erro ao carregar vendedores';
+        crmVendedorTrigger.disabled = true;
+    }
+}
 
 async function carregarFiliais() {
     if (!crmFilialTrigger || !crmFilialReadonly) return;
@@ -228,9 +336,9 @@ async function carregarFiliais() {
 inicializarPeriodo();
 carregarFiliais();
 document.addEventListener('click', event => {
-    if (!crmFilialPanel || crmFilialPanel.hidden) return;
-    if (event.target.closest('[data-filial-multiselect]')) return;
-    crmFilialPanel.hidden = true;
+    if (event.target.closest('[data-filial-multiselect]') || event.target.closest('[data-vendedor-multiselect]')) return;
+    if (crmFilialPanel) crmFilialPanel.hidden = true;
+    if (crmVendedorPanel) crmVendedorPanel.hidden = true;
 });
 
 window.fazerLogout = () => {
@@ -319,4 +427,6 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
 

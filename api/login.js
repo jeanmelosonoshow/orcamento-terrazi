@@ -46,7 +46,8 @@ export default async function handler(req, res) {
                     IDFUNCIONARIO AS ID_FUNCIONARIO, 
                     NOMEFUNCIONARIO AS NOME_FUNCIONARIO, 
                     CATEGORIA, 
-                    IDFILIAL AS ID_FILIAL 
+                    IDFILIAL AS ID_FILIAL,
+                    IDVENDEDOR AS ID_VENDEDOR 
                 FROM FUNCIONARIO 
                 WHERE LOGIN = ? AND SENHAWEB = ? AND STATUS = 'A' AND CATEGORIA IN ('GR','SU','VD','DI','CX')
             `;
@@ -66,7 +67,8 @@ export default async function handler(req, res) {
                         idfuncionario: result[0].ID_FUNCIONARIO,
                         nomefuncionario: result[0].NOME_FUNCIONARIO,
                         categoria: result[0].CATEGORIA, // VD, GR, SU, DI, CX
-                        idfilial: result[0].ID_FILIAL
+                        idfilial: result[0].ID_FILIAL,
+                        idvendedor: result[0].ID_VENDEDOR
                     });
                 } else {
                     res.status(401).json({ autorizado: false, mensagem: "Usuário ou senha inválidos." });
@@ -76,4 +78,5 @@ export default async function handler(req, res) {
         });
     });
 }
+
 

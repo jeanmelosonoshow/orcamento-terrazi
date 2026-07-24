@@ -70,6 +70,16 @@
                     </div>
                 </div>
                 <span id="crmFilialReadonly" class="crm-filial-readonly" hidden>Filial</span>
+                <div class="crm-seller-filter" data-seller-filter hidden>
+                    <label for="crmVendedorSearch">Vendedores</label>
+                    <div class="crm-multiselect" data-vendedor-multiselect>
+                        <button id="crmVendedorSelect" class="crm-multiselect-trigger" type="button" data-vendedor-trigger disabled>Carregando vendedores...</button>
+                        <div class="crm-multiselect-panel" data-vendedor-panel hidden>
+                            <input id="crmVendedorSearch" type="search" placeholder="Pesquisar vendedor..." data-vendedor-search>
+                            <div class="crm-multiselect-options" data-vendedor-options></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="crm-user-box">
                 <div class="crm-user-avatar" id="crmUserInitials" aria-hidden="true">U</div>
@@ -185,5 +195,6 @@
     <script src="crm.js"></script>
 </body>
 </html>
+
 
 

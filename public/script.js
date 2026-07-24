@@ -399,7 +399,7 @@ function calcularQuantidadeInicialProdutos(totalDisponivel) {
 
     if (!columns || columns <= 0) return fallback;
 
-    const cardsPorLinhaCompleta = Math.max(columns, Math.ceil(13 / columns) * columns);
+    const cardsPorLinhaCompleta = Math.max(columns, columns * 2);
     const produtosNecessarios = cardsPorLinhaCompleta - 1;
     return Math.max(0, Math.min(totalDisponivel, produtosNecessarios));
 }
@@ -1122,4 +1122,6 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
+
 
