@@ -439,6 +439,16 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     min-height: 0;
     border-radius: 6px;
 }
+.crm-filter-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.crm-filial-filter {
+    display: grid;
+    gap: 7px;
+}
 @media (min-width: 760px) {
     body {
         display: grid;
@@ -499,10 +509,14 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     .crm-main { padding: 34px; overflow: auto; max-height: 100vh; }
     .crm-topbar { grid-template-columns: minmax(520px, 1fr) 360px; align-items: stretch; }
     .crm-period-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .crm-filter-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .crm-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .crm-grid { grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr); }
     .crm-modules { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+
+
 
 
 

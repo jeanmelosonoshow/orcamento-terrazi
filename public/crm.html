@@ -61,22 +61,26 @@
                         <input id="crmDataFinal" type="date" data-date-end>
                     </div>
                 </div>
-                <label for="crmFilialSearch">Filiais</label>
-                <div class="crm-multiselect" data-filial-multiselect>
-                    <button id="crmFilialSelect" class="crm-multiselect-trigger" type="button" data-filial-trigger disabled>Carregando filiais...</button>
-                    <div class="crm-multiselect-panel" data-filial-panel hidden>
-                        <input id="crmFilialSearch" type="search" placeholder="Pesquisar filial..." data-filial-search>
-                        <div class="crm-multiselect-options" data-filial-options></div>
+                <div class="crm-filter-grid">
+                    <div class="crm-filial-filter">
+                        <label for="crmFilialSearch">Filiais</label>
+                        <div class="crm-multiselect" data-filial-multiselect>
+                            <button id="crmFilialSelect" class="crm-multiselect-trigger" type="button" data-filial-trigger disabled>Carregando filiais...</button>
+                            <div class="crm-multiselect-panel" data-filial-panel hidden>
+                                <input id="crmFilialSearch" type="search" placeholder="Pesquisar filial..." data-filial-search>
+                                <div class="crm-multiselect-options" data-filial-options></div>
+                            </div>
+                        </div>
+                        <span id="crmFilialReadonly" class="crm-filial-readonly" hidden>Filial</span>
                     </div>
-                </div>
-                <span id="crmFilialReadonly" class="crm-filial-readonly" hidden>Filial</span>
-                <div class="crm-seller-filter" data-seller-filter hidden>
-                    <label for="crmVendedorSearch">Vendedores</label>
-                    <div class="crm-multiselect" data-vendedor-multiselect>
-                        <button id="crmVendedorSelect" class="crm-multiselect-trigger" type="button" data-vendedor-trigger disabled>Carregando vendedores...</button>
-                        <div class="crm-multiselect-panel" data-vendedor-panel hidden>
-                            <input id="crmVendedorSearch" type="search" placeholder="Pesquisar vendedor..." data-vendedor-search>
-                            <div class="crm-multiselect-options" data-vendedor-options></div>
+                    <div class="crm-seller-filter" data-seller-filter hidden>
+                        <label for="crmVendedorSearch">Vendedores</label>
+                        <div class="crm-multiselect" data-vendedor-multiselect>
+                            <button id="crmVendedorSelect" class="crm-multiselect-trigger" type="button" data-vendedor-trigger disabled>Carregando vendedores...</button>
+                            <div class="crm-multiselect-panel" data-vendedor-panel hidden>
+                                <input id="crmVendedorSearch" type="search" placeholder="Pesquisar vendedor..." data-vendedor-search>
+                                <div class="crm-multiselect-options" data-vendedor-options></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -195,6 +199,7 @@
     <script src="crm.js"></script>
 </body>
 </html>
+
 
 
 

@@ -335,6 +335,7 @@ async function carregarFiliais() {
 
 inicializarPeriodo();
 carregarFiliais();
+carregarVendedores();
 document.addEventListener('click', event => {
     if (event.target.closest('[data-filial-multiselect]') || event.target.closest('[data-vendedor-multiselect]')) return;
     if (crmFilialPanel) crmFilialPanel.hidden = true;
@@ -427,6 +428,8 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
 
 
 

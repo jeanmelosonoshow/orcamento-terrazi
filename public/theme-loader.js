@@ -1,6 +1,7 @@
 (function () {
     const STORAGE_KEY = 'crmTemaFilial';
     const forcedThemeName = window.ORCAMENTO_CONFIG?.themeName || document.body.dataset.themeName || '';
+    if (forcedThemeName) sessionStorage.removeItem(STORAGE_KEY);
     window.crmCurrentThemeName = forcedThemeName || '';
 
     function getUsuarioLogado() {
@@ -51,8 +52,9 @@
 
     function aplicarTemaSalvo() {
         try {
+            if (forcedThemeName) return;
             const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
-            if (saved?.theme && (!forcedThemeName || saved.themeName === forcedThemeName)) aplicarTema(saved.themeName, saved.theme);
+            if (saved?.theme) aplicarTema(saved.themeName, saved.theme);
         } catch (error) {
             sessionStorage.removeItem(STORAGE_KEY);
         }
@@ -70,4 +72,6 @@
         })
         .catch(() => aplicarTemaSalvo());
 })();
+
+
 
