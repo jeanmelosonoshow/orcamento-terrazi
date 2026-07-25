@@ -61,7 +61,8 @@ export default async function handler(req, res) {
         sql += ' AND F.IDFILIAL = ?';
         params.push(idfilial);
     } else if (categoria !== 'DI') {
-        sql += ' AND 1 = 0';
+        sql += ' AND F.IDFUNCIONARIO = ?';
+        params.push(idfuncionario);
     }
 
     sql += ' ORDER BY F.NOMEFUNCIONARIO';
@@ -87,3 +88,4 @@ export default async function handler(req, res) {
         });
     });
 }
+
