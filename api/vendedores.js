@@ -76,7 +76,7 @@ export default async function handler(req, res) {
             params.push(idfilial);
         }
 
-        if ((categoria === 'DI' || categoria === 'SU') && filiaisSelecionadas.length) {
+        if (categoria === 'SU' && filiaisSelecionadas.length) {
             sql += ' AND V.IDFILIAL IN (' + filiaisSelecionadas.map(() => '?').join(',') + ')';
             params.push(...filiaisSelecionadas);
         }
@@ -121,3 +121,5 @@ export default async function handler(req, res) {
         });
     });
 }
+
+
