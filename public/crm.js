@@ -227,7 +227,8 @@ async function carregarVendedores() {
         const params = new URLSearchParams({
             categoria: categoriaCodigo,
             idfuncionario: idFuncionarioLogado || '',
-            idfilial: filialId || ''
+            idfilial: filialId || '',
+            filiais: getFiliaisSelecionadas().join(',')
         });
         const response = await fetch(`/api/vendedores?${params.toString()}`);
         const data = await response.json();
@@ -288,7 +289,8 @@ async function carregarFiliais() {
         const params = new URLSearchParams({
             categoria: categoriaCodigo,
             idfuncionario: idFuncionarioLogado || '',
-            idfilial: filialId || ''
+            idfilial: filialId || '',
+            filiais: getFiliaisSelecionadas().join(',')
         });
         const response = await fetch(`/api/filiais?${params.toString()}`);
         const data = await response.json();
@@ -355,6 +357,7 @@ async function carregarFiliais() {
                 atualizarResumoFiliais(filiais, getFiliaisSelecionadas());
                 renderizarOpcoesFiliais(filiais, crmFilialSearch?.value || '');
                 definirPaginaOrcamento();
+                carregarVendedores();
             });
         }
     } catch (error) {
@@ -366,8 +369,7 @@ async function carregarFiliais() {
 }
 
 inicializarPeriodo();
-carregarFiliais();
-carregarVendedores();
+carregarFiliais().then(() => carregarVendedores());
 document.addEventListener('click', event => {
     if (event.target.closest('[data-filial-multiselect]') || event.target.closest('[data-vendedor-multiselect]')) return;
     if (crmFilialPanel) crmFilialPanel.hidden = true;
@@ -465,6 +467,9 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
+
 
 
 

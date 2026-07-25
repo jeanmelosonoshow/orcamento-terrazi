@@ -44,6 +44,10 @@ export default async function handler(req, res) {
     const categoria = categoriasTraduzidas[categoriaRaw] || categoriaRaw;
     const idfuncionario = Number(req.query.idfuncionario || 0);
     const idfilial = String(req.query.idfilial || '').trim();
+    const filiaisSelecionadas = String(req.query.filiais || '')
+        .split(',')
+        .map(filial => filial.trim())
+        .filter(Boolean);
 
     let sql = `
         SELECT
@@ -63,8 +67,12 @@ export default async function handler(req, res) {
     const params = [];
 
     if (categoria === 'SU') {
-        sql += ' AND FIL.IDSUPERVISOR = ?';
+        sql += ' AND F.IDFILIAL IN (SELECT IDFILIAL FROM FILIAL WHERE IDSUPERVISOR = ?)';
         params.push(idfuncionario);
+        if (filiaisSelecionadas.length) {
+            sql += ' AND F.IDFILIAL IN (' + filiaisSelecionadas.map(() => '?').join(',') + ')';
+            params.push(...filiaisSelecionadas);
+        }
     } else if (categoria === 'GR') {
         sql += ' AND F.IDFILIAL = ?';
         params.push(idfilial);
@@ -96,5 +104,8 @@ export default async function handler(req, res) {
         });
     });
 }
+
+
+
 
 
