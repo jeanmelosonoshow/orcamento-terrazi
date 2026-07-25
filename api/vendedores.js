@@ -58,9 +58,7 @@ export default async function handler(req, res) {
             F.NOMEFUNCIONARIO,
             CAST(NULL AS INTEGER) AS IDSUPERVISOR
         FROM FUNCIONARIO F
-        JOIN VENDEDOR V ON V.IDVENDEDOR = F.IDVENDEDOR
         WHERE F.STATUS = 'A'
-          AND V.STATUS = 'A'
           AND F.CATEGORIA = 'VD'
     `;
     const params = [];
@@ -104,6 +102,7 @@ export default async function handler(req, res) {
         });
     });
 }
+
 
 
 
