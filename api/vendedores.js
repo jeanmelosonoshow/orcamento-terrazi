@@ -15,12 +15,13 @@ function getFirebirdOptions() {
 }
 
 function normalizarVendedor(row) {
+    const nomeVendedor = row.NOMEVENDEDOR || row.NOMEFUNCIONARIO || '';
     return {
         idfilial: String(row.IDFILIAL || '').trim(),
         categoria: String(row.CATEGORIA || '').trim(),
         idfuncionario: String(row.IDFUNCIONARIO || '').trim(),
         idvendedor: String(row.IDVENDEDOR || '').trim(),
-        nomefuncionario: String(row.NOMEFUNCIONARIO || '').trim(),
+        nomefuncionario: String(nomeVendedor).trim(),
         idsupervisor: String(row.IDSUPERVISOR || '').trim()
     };
 }
@@ -49,37 +50,55 @@ export default async function handler(req, res) {
         .map(filial => filial.trim())
         .filter(Boolean);
 
-    let sql = `
-        SELECT
-            F.IDFILIAL,
-            F.CATEGORIA,
-            F.IDFUNCIONARIO,
-            F.IDVENDEDOR,
-            F.NOMEFUNCIONARIO,
-            CAST(NULL AS INTEGER) AS IDSUPERVISOR
-        FROM FUNCIONARIO F
-        WHERE F.STATUS = 'A'
-          AND F.CATEGORIA = 'VD'
-    `;
+    let sql = '';
     const params = [];
+    const categoriasGestao = ['DI', 'SU', 'GR'];
 
-    if (categoria === 'SU') {
-        if (filiaisSelecionadas.length) {
-            sql += ' AND F.IDFILIAL IN (' + filiaisSelecionadas.map(() => '?').join(',') + ')';
-            params.push(...filiaisSelecionadas);
-        } else {
-            sql += ' AND F.IDFILIAL IN (SELECT IDFILIAL FROM FILIAL WHERE IDSUPERVISOR = ?)';
+    if (categoriasGestao.includes(categoria)) {
+        sql = `
+            SELECT
+                V.IDFILIAL,
+                CAST(NULL AS VARCHAR(5)) AS CATEGORIA,
+                CAST(NULL AS INTEGER) AS IDFUNCIONARIO,
+                V.IDVENDEDOR,
+                V.NOMEVENDEDOR,
+                FIL.IDSUPERVISOR
+            FROM VENDEDOR V
+            JOIN FILIAL FIL ON FIL.IDFILIAL = V.IDFILIAL
+            WHERE V.STATUS = 'A'
+        `;
+
+        if (categoria === 'SU') {
+            sql += ' AND FIL.IDSUPERVISOR = ?';
             params.push(idfuncionario);
+        } else if (categoria === 'GR') {
+            sql += ' AND V.IDFILIAL = ?';
+            params.push(idfilial);
         }
-    } else if (categoria === 'GR') {
-        sql += ' AND F.IDFILIAL = ?';
-        params.push(idfilial);
-    } else if (categoria !== 'DI') {
-        sql += ' AND F.IDFUNCIONARIO = ?';
-        params.push(idfuncionario);
-    }
 
-    sql += ' ORDER BY F.NOMEFUNCIONARIO';
+        if ((categoria === 'DI' || categoria === 'SU') && filiaisSelecionadas.length) {
+            sql += ' AND V.IDFILIAL IN (' + filiaisSelecionadas.map(() => '?').join(',') + ')';
+            params.push(...filiaisSelecionadas);
+        }
+
+        sql += ' ORDER BY V.NOMEVENDEDOR';
+    } else {
+        sql = `
+            SELECT
+                F.IDFILIAL,
+                F.CATEGORIA,
+                F.IDFUNCIONARIO,
+                F.IDVENDEDOR,
+                F.NOMEFUNCIONARIO,
+                CAST(NULL AS INTEGER) AS IDSUPERVISOR
+            FROM FUNCIONARIO F
+            WHERE F.STATUS = 'A'
+              AND F.CATEGORIA = 'VD'
+              AND F.IDFUNCIONARIO = ?
+        `;
+        params.push(idfuncionario);
+        sql += ' ORDER BY F.NOMEFUNCIONARIO';
+    }
 
     return new Promise((resolve) => {
         Firebird.attach(getFirebirdOptions(), function(err, db) {
@@ -102,10 +121,3 @@ export default async function handler(req, res) {
         });
     });
 }
-
-
-
-
-
-
-
