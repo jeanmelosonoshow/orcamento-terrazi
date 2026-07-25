@@ -27,6 +27,11 @@ const crmFilialPanel = document.querySelector('[data-filial-panel]');
 const crmFilialSearch = document.querySelector('[data-filial-search]');
 const crmFilialOptions = document.querySelector('[data-filial-options]');
 const crmFilialReadonly = document.getElementById('crmFilialReadonly');
+const crmSellerFilter = document.querySelector('[data-seller-filter]');
+const crmVendedorTrigger = document.querySelector('[data-vendedor-trigger]');
+const crmVendedorPanel = document.querySelector('[data-vendedor-panel]');
+const crmVendedorSearch = document.querySelector('[data-vendedor-search]');
+const crmVendedorOptions = document.querySelector('[data-vendedor-options]');
 
 function obterIniciais(nomeCompleto) {
     return String(nomeCompleto || 'U')
@@ -59,6 +64,22 @@ function setFiliaisSelecionadas(filiais) {
     const lista = Array.from(new Set((filiais || []).map(filial => String(filial)).filter(Boolean)));
     sessionStorage.setItem('crmFiliaisSelecionadas', JSON.stringify(lista));
     if (lista[0]) sessionStorage.setItem('crmFilialSelecionada', lista[0]);
+}
+
+function getVendedoresSelecionados() {
+    try {
+        const salvos = JSON.parse(sessionStorage.getItem('crmVendedoresSelecionados') || '[]');
+        if (Array.isArray(salvos)) return salvos.map(String).filter(Boolean);
+    } catch (error) {
+        // Mantem a tela funcionando mesmo se houver dado antigo invalido.
+    }
+
+    return [];
+}
+
+function setVendedoresSelecionados(vendedores) {
+    const lista = Array.from(new Set((vendedores || []).map(vendedor => String(vendedor)).filter(Boolean)));
+    sessionStorage.setItem('crmVendedoresSelecionados', JSON.stringify(lista));
 }
 if (crmUserName) crmUserName.textContent = nome;
 if (crmUserMeta) crmUserMeta.textContent = categoria;
@@ -356,7 +377,7 @@ async function definirPaginaOrcamento() {
         const response = await fetch('filial-themes.json', { cache: 'no-store' });
         if (response.ok) {
             const config = await response.json();
-            const filialContexto = String(getFilialSelecionada() || filialId).trim().toUpperCase();
+            const filialContexto = String(filialId || usuarioLogado.idfilial || '').trim().toUpperCase();
             const themeName = config.branches?.[filialContexto] || config.defaultTheme || 'casaterrazi';
             window.crmBudgetThemeName = themeName;
             budgetPage = config.budgetPages?.[themeName] || config.themes?.[themeName]?.budgetPage || budgetPage;
@@ -433,6 +454,8 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
 
 
 
