@@ -56,10 +56,9 @@ export default async function handler(req, res) {
             F.IDFUNCIONARIO,
             F.IDVENDEDOR,
             F.NOMEFUNCIONARIO,
-            FIL.IDSUPERVISOR
+            CAST(NULL AS INTEGER) AS IDSUPERVISOR
         FROM FUNCIONARIO F
         JOIN VENDEDOR V ON V.IDVENDEDOR = F.IDVENDEDOR
-        JOIN FILIAL FIL ON FIL.IDFILIAL = F.IDFILIAL
         WHERE F.STATUS = 'A'
           AND V.STATUS = 'A'
           AND F.CATEGORIA = 'VD'
@@ -67,11 +66,12 @@ export default async function handler(req, res) {
     const params = [];
 
     if (categoria === 'SU') {
-        sql += ' AND F.IDFILIAL IN (SELECT IDFILIAL FROM FILIAL WHERE IDSUPERVISOR = ?)';
-        params.push(idfuncionario);
         if (filiaisSelecionadas.length) {
             sql += ' AND F.IDFILIAL IN (' + filiaisSelecionadas.map(() => '?').join(',') + ')';
             params.push(...filiaisSelecionadas);
+        } else {
+            sql += ' AND F.IDFILIAL IN (SELECT IDFILIAL FROM FILIAL WHERE IDSUPERVISOR = ?)';
+            params.push(idfuncionario);
         }
     } else if (categoria === 'GR') {
         sql += ' AND F.IDFILIAL = ?';
@@ -104,6 +104,7 @@ export default async function handler(req, res) {
         });
     });
 }
+
 
 
 
