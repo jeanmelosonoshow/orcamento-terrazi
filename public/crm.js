@@ -358,14 +358,19 @@ async function definirPaginaOrcamento() {
             const config = await response.json();
             const filialContexto = String(getFilialSelecionada() || filialId).trim().toUpperCase();
             const themeName = config.branches?.[filialContexto] || config.defaultTheme || 'casaterrazi';
+            window.crmBudgetThemeName = themeName;
             budgetPage = config.budgetPages?.[themeName] || config.themes?.[themeName]?.budgetPage || budgetPage;
         }
     } catch (error) {
         budgetPage = 'index.html';
     }
 
-    if (!budgetFrame.src.endsWith(budgetPage)) {
-        budgetFrame.src = budgetPage;
+        const budgetUrl = `${budgetPage}?theme=${encodeURIComponent(window.crmBudgetThemeName || '')}&v=${Date.now()}`;
+    const currentPage = budgetFrame.dataset.currentBudgetPage || '';
+    const nextPageKey = `${budgetPage}:${window.crmBudgetThemeName || ''}`;
+    if (currentPage !== nextPageKey) {
+        budgetFrame.dataset.currentBudgetPage = nextPageKey;
+        budgetFrame.src = budgetUrl;
     }
 }
 
@@ -428,6 +433,8 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
 
 
 

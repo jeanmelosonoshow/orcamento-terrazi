@@ -1,6 +1,6 @@
 (function () {
     const STORAGE_KEY = 'crmTemaFilial';
-    const forcedThemeName = window.ORCAMENTO_CONFIG?.themeName || document.body.dataset.themeName || '';
+    const forcedThemeName = window.ORCAMENTO_CONFIG?.themeName || new URLSearchParams(window.location.search).get('theme') || document.body.dataset.themeName || '';
     if (forcedThemeName) sessionStorage.removeItem(STORAGE_KEY);
     window.crmCurrentThemeName = forcedThemeName || '';
 
@@ -72,6 +72,8 @@
         })
         .catch(() => aplicarTemaSalvo());
 })();
+
+
 
 
 

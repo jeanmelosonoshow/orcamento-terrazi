@@ -56,7 +56,15 @@ const LOGO_URL = ORCAMENTO_CONFIG.logoUrl || CASA_TERRAZI_LOGO_URL;
 function obterLogoPdf() {
     return obterTemaAtualOrcamento() === 'sonoshow' ? SONO_SHOW_LOGO_URL : LOGO_URL;
 }
-const CUSTOM_PRODUCT_IMAGE_URL = ORCAMENTO_CONFIG.customProductImageUrl || "https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0";
+const DEFAULT_CUSTOM_IMAGES = {
+    sonoshow: 'https://lh3.googleusercontent.com/pw/AP1GczNlvDmtbMtNVNH1WAP30_K_9mZ0jMxa2kg92SFcItdBl_1CtojSFnei5DPIKB1wZ9SqnwWX5xVyIkH7K1c1IvPq0gRbxPcpXXerVbinme7R2kapPhrroJrDkqCFoeDf4HSoKU9FkRRd_5Qdh4--RBrp=w911-h911-s-no-gm?authuser=0',
+    casaterrazi: 'https://lh3.googleusercontent.com/pw/AP1GczNXEpE7d00qdZ8UbOSIrUFqUQRfZ2XoRMzOUDZ2_4vq52AC7m_73Z0RP64I-qfSKiPYthP4LBEA3L1eMDXSNASJ5I__WQyafHOS2hapKhAG4HkgUJ5LouyEI8Dz0ZUA2ZyGWonprLsUXbrroUGxdEzm=w911-h911-s-no-gm?authuser=0'
+};
+function obterImagemPadraoPersonalizado() {
+    const tema = obterTemaAtualOrcamento() === 'sonoshow' ? 'sonoshow' : 'casaterrazi';
+    return ORCAMENTO_CONFIG.customProductImageUrl || DEFAULT_CUSTOM_IMAGES[tema] || DEFAULT_CUSTOM_IMAGES.casaterrazi;
+}
+const CUSTOM_PRODUCT_IMAGE_URL = obterImagemPadraoPersonalizado();
 const CUSTOM_PRODUCT_SKU = "PERS";
 const CUSTOM_PRODUCT_LEGACY_SKU = "PERSONALIZADO";
 const CUSTOM_PRODUCT_IMAGE_KEY = "PERS_IMG";
@@ -65,7 +73,7 @@ const CUSTOM_PRODUCT = {
     id: "produto-personalizado",
     sku: CUSTOM_PRODUCT_SKU,
     name: "Produto Personalizado",
-    image: CUSTOM_PRODUCT_IMAGE_URL,
+    get image() { return obterImagemPadraoPersonalizado(); },
     price: 0,
     stock: "Item manual",
     category: "Personalizado",
@@ -74,7 +82,7 @@ const CUSTOM_PRODUCT = {
 };
 
 function obterImagemItem(item) {
-    const imagem = item?.imagem_url || item?.image || '';
+    const imagem = item?.imagem_url || item?.image || obterImagemPadraoPersonalizado();
     return [CUSTOM_PRODUCT_IMAGE_KEY, CUSTOM_PRODUCT_LEGACY_IMAGE_KEY].includes(imagem) ? CUSTOM_PRODUCT_IMAGE_URL : imagem;
 }
 
@@ -136,7 +144,7 @@ function definirImagemProdutoPersonalizado(index, url) {
     const item = quoteCart[index];
     if (!item || !ehProdutoPersonalizado(item)) return;
 
-    const imagem = url || CUSTOM_PRODUCT_IMAGE_URL;
+    const imagem = url || obterImagemPadraoPersonalizado();
     item.image = imagem;
     item.imagem_url = imagem;
     renderQuoteSidebar();
@@ -1122,6 +1130,7 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
 
 
 
