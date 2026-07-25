@@ -33,7 +33,15 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'GET') return res.status(405).json({ error: 'Metodo nao permitido' });
 
-    const categoria = String(req.query.categoria || '').trim().toUpperCase();
+    const categoriasTraduzidas = {
+        VENDEDOR: 'VD',
+        GERENTE: 'GR',
+        SUPERVISOR: 'SU',
+        DIRETOR: 'DI',
+        CAIXA: 'CX'
+    };
+    const categoriaRaw = String(req.query.categoria || '').trim().toUpperCase();
+    const categoria = categoriasTraduzidas[categoriaRaw] || categoriaRaw;
     const idfuncionario = Number(req.query.idfuncionario || 0);
     const idfilial = String(req.query.idfilial || '').trim();
 
@@ -88,4 +96,5 @@ export default async function handler(req, res) {
         });
     });
 }
+
 

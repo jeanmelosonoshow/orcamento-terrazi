@@ -5,8 +5,9 @@ if (!usuarioLogadoRaw) {
 
 const usuarioLogado = JSON.parse(usuarioLogadoRaw || '{}');
 const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
-const filialId = String(usuarioLogado.idfilial || '').trim().toUpperCase();
-const categoriaCodigo = String(usuarioLogado.categoria || '').trim().toUpperCase();
+const filialId = String(usuarioLogado.idfilial || usuarioLogado.id_filial || '').trim().toUpperCase();
+const idFuncionarioLogado = usuarioLogado.idfuncionario || usuarioLogado.id_funcionario || usuarioLogado.IDFUNCIONARIO || '';
+const idVendedorLogado = usuarioLogado.idvendedor || usuarioLogado.id_vendedor || usuarioLogado.IDVENDEDOR || '';
 const categoriasTraduzidas = {
     VD: 'VENDEDOR',
     GR: 'GERENTE',
@@ -14,6 +15,9 @@ const categoriasTraduzidas = {
     DI: 'DIRETOR',
     CX: 'CAIXA'
 };
+const categoriasPorNome = Object.fromEntries(Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => [nomeCategoria, codigo]));
+const categoriaRaw = String(usuarioLogado.categoria || usuarioLogado.CATEGORIA || '').trim().toUpperCase();
+const categoriaCodigo = categoriasTraduzidas[categoriaRaw] ? categoriaRaw : (categoriasPorNome[categoriaRaw] || categoriaRaw);
 const categoria = categoriasTraduzidas[categoriaCodigo] || categoriaCodigo || 'USUÁRIO';
 
 const crmUserName = document.getElementById('crmUserName');
@@ -211,7 +215,7 @@ async function carregarVendedores() {
 
     if (!podeFiltrarVendedor) {
         crmSellerFilter.hidden = true;
-        setVendedoresSelecionados(usuarioLogado.idvendedor ? [usuarioLogado.idvendedor] : []);
+        setVendedoresSelecionados(idVendedorLogado ? [idVendedorLogado] : []);
         return;
     }
 
@@ -222,8 +226,8 @@ async function carregarVendedores() {
     try {
         const params = new URLSearchParams({
             categoria: categoriaCodigo,
-            idfuncionario: usuarioLogado.idfuncionario || '',
-            idfilial: usuarioLogado.idfilial || ''
+            idfuncionario: idFuncionarioLogado || '',
+            idfilial: filialId || ''
         });
         const response = await fetch(`/api/vendedores?${params.toString()}`);
         const data = await response.json();
@@ -283,8 +287,8 @@ async function carregarFiliais() {
     try {
         const params = new URLSearchParams({
             categoria: categoriaCodigo,
-            idfuncionario: usuarioLogado.idfuncionario || '',
-            idfilial: usuarioLogado.idfilial || ''
+            idfuncionario: idFuncionarioLogado || '',
+            idfilial: filialId || ''
         });
         const response = await fetch(`/api/filiais?${params.toString()}`);
         const data = await response.json();
@@ -461,6 +465,8 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
 
 
 
