@@ -157,11 +157,18 @@ function renderizarOpcoesFiliais(filiais, termo = '') {
         `;
     }).join('');
 }
+function formatarVendedor(vendedor) {
+    const idFilial = String(vendedor?.idfilial || '').trim();
+    const idVendedor = String(vendedor?.idvendedor || '').trim();
+    const nomeVendedor = String(vendedor?.nomefuncionario || '').trim();
+    return [idFilial, idVendedor, nomeVendedor].filter(Boolean).join('-');
+}
+
 function atualizarResumoVendedores(vendedores, selecionados) {
     if (!crmVendedorTrigger) return;
     const nomesSelecionados = vendedores
         .filter(vendedor => selecionados.includes(String(vendedor.idvendedor)))
-        .map(vendedor => vendedor.nomefuncionario);
+        .map(formatarVendedor);
 
     if (!nomesSelecionados.length) {
         crmVendedorTrigger.textContent = 'Selecione os vendedores';
@@ -177,7 +184,7 @@ function renderizarOpcoesVendedores(vendedores, termo = '') {
     const selecionados = getVendedoresSelecionados();
     const termoBusca = termo.trim().toLowerCase();
     const filtrados = vendedores.filter(vendedor => {
-        const texto = `${vendedor.idvendedor} ${vendedor.nomefuncionario}`.toLowerCase();
+        const texto = `${vendedor.idfilial} ${vendedor.idvendedor} ${vendedor.nomefuncionario}`.toLowerCase();
         return texto.includes(termoBusca);
     });
 
@@ -192,7 +199,7 @@ function renderizarOpcoesVendedores(vendedores, termo = '') {
         return `
             <label class="crm-multiselect-option">
                 <input type="checkbox" value="${escapeHtml(id)}"${checked} data-vendedor-checkbox>
-                <span>${escapeHtml(vendedor.nomefuncionario)}</span>
+                <span>${escapeHtml(formatarVendedor(vendedor))}</span>
             </label>
         `;
     }).join('');
@@ -454,6 +461,7 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
 
 
 
