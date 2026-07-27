@@ -561,6 +561,48 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     padding: 0 14px;
 }
 
+.crm-dashboard-editor-actions {
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.crm-canvas-height-control {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 4px 6px 4px 10px;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.88);
+}
+
+.crm-canvas-height-control span {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.crm-canvas-height-control output {
+    min-width: 58px;
+    color: var(--verde-escuro);
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.crm-canvas-height-control button {
+    width: 30px;
+    min-height: 28px;
+    padding: 0;
+    font-size: 1rem;
+}
+
+.crm-canvas-height-control button:disabled {
+    cursor: not-allowed;
+    opacity: 0.38;
+}
 .crm-dashboard-canvas {
     position: relative;
     min-height: 620px;
@@ -575,6 +617,25 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     overflow: auto;
 }
 
+.crm-dashboard-empty {
+    position: absolute;
+    inset: 24px;
+    display: grid;
+    place-content: center;
+    gap: 8px;
+    color: #68758c;
+    text-align: center;
+    pointer-events: none;
+}
+
+.crm-dashboard-empty strong {
+    color: var(--crm-primary);
+    font-size: 18px;
+}
+
+.crm-dashboard-empty span {
+    font-size: 14px;
+}
 .crm-dashboard-widget {
     position: absolute;
     display: flex;
@@ -599,6 +660,19 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     z-index: 5;
 }
 
+.crm-dashboard-widget-actions {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.crm-dashboard-widget-head .crm-danger-button {
+    background: #A83224;
+}
+
+.crm-dashboard-widget-head .crm-danger-button:hover {
+    background: #87271C;
+}
 .crm-dashboard-widget-head {
     cursor: move;
     user-select: none;
@@ -924,6 +998,12 @@ body.crm-budget-mode .crm-budget-frame-wrap {
 }
 
 @media (max-width: 760px) {
+    .crm-dashboard-editor-actions {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
     .crm-dashboard-canvas {
         min-height: 720px;
     }
@@ -1098,6 +1178,10 @@ body.crm-scenario-editing .crm-dashboard-editor {
 body.crm-scenario-editing .crm-dashboard-editor > div,
 body.crm-scenario-editing .crm-dashboard-editor [data-add-widget] {
     display: block;
+}
+
+body.crm-scenario-editing .crm-dashboard-editor > .crm-dashboard-editor-actions {
+    display: flex;
 }
 
 body.crm-scenario-editing .crm-edit-mode-toggle {

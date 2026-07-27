@@ -96,6 +96,9 @@ const dashboardEditor = document.querySelector('[data-dashboard-editor]');
 const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');
 const editModeToggle = document.querySelector('[data-edit-mode-toggle]');
 const addWidgetButton = document.querySelector('[data-add-widget]');
+const decreaseCanvasHeightButton = document.querySelector('[data-decrease-canvas-height]');
+const increaseCanvasHeightButton = document.querySelector('[data-increase-canvas-height]');
+const canvasHeightValue = document.querySelector('[data-canvas-height-value]');
 const widgetModal = document.querySelector('[data-widget-modal]');
 const widgetTypeSelect = document.querySelector('[data-widget-type]');
 const widgetTitleInput = document.querySelector('[data-widget-title]');
@@ -114,6 +117,10 @@ const saveWidgetButton = document.querySelector('[data-save-widget]');
 const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
 const budgetFrame = document.querySelector('[data-budget-frame]');
 const dashboardStorageKey = 'crmDashboardScenario:v1';
+const dashboardCanvasHeightKey = 'crmDashboardCanvasHeight:v1';
+const dashboardCanvasMinHeight = 620;
+const dashboardCanvasMaxHeight = 4000;
+const dashboardCanvasHeightStep = 200;
 let widgetEmEdicao = null;
 let colunasConsultaAtual = [];
 let dadosConsultaAtual = [];
@@ -229,8 +236,11 @@ function criarWidgetPadrao(tipo = 'bar') {
 
 function obterWidgetsDashboard() {
     try {
-        const salvos = JSON.parse(localStorage.getItem(dashboardStorageKey) || '[]');
-        if (Array.isArray(salvos) && salvos.length) return salvos;
+        const conteudoSalvo = localStorage.getItem(dashboardStorageKey);
+        if (conteudoSalvo !== null) {
+            const salvos = JSON.parse(conteudoSalvo);
+            if (Array.isArray(salvos)) return salvos;
+        }
     } catch (error) {
         // Mantem o painel utilizavel caso um rascunho local esteja invalido.
     }
@@ -529,13 +539,38 @@ function normalizarWidgetsDashboard(widgets) {
     return widgets.map((widget, index) => ({ ...widget, ...obterLayoutWidget(widget, index) }));
 }
 
+function obterAlturaCanvasPreferida() {
+    const alturaSalva = Number(localStorage.getItem(dashboardCanvasHeightKey));
+    if (!Number.isFinite(alturaSalva)) return dashboardCanvasMinHeight;
+    return Math.min(dashboardCanvasMaxHeight, Math.max(dashboardCanvasMinHeight, alturaSalva));
+}
+
 function atualizarAlturaCanvas(widgets) {
     if (!dashboardCanvas) return;
-    const alturaNecessaria = widgets.reduce((maior, widget, index) => {
+    const alturaConteudo = widgets.reduce((maior, widget, index) => {
         const layout = obterLayoutWidget(widget, index);
         return Math.max(maior, layout.y + layout.h + 28);
-    }, 520);
-    dashboardCanvas.style.minHeight = `${alturaNecessaria}px`;
+    }, dashboardCanvasMinHeight);
+    const alturaPreferida = obterAlturaCanvasPreferida();
+    const alturaFinal = Math.max(alturaConteudo, alturaPreferida);
+    dashboardCanvas.style.minHeight = `${alturaFinal}px`;
+    if (canvasHeightValue) canvasHeightValue.textContent = `${alturaFinal} px`;
+    if (decreaseCanvasHeightButton) {
+        decreaseCanvasHeightButton.disabled = alturaPreferida <= dashboardCanvasMinHeight;
+    }
+    if (increaseCanvasHeightButton) {
+        increaseCanvasHeightButton.disabled = alturaPreferida >= dashboardCanvasMaxHeight;
+    }
+}
+
+function ajustarAlturaCanvas(direcao) {
+    const alturaAtual = obterAlturaCanvasPreferida();
+    const novaAltura = Math.min(
+        dashboardCanvasMaxHeight,
+        Math.max(dashboardCanvasMinHeight, alturaAtual + (direcao * dashboardCanvasHeightStep))
+    );
+    localStorage.setItem(dashboardCanvasHeightKey, String(novaAltura));
+    atualizarAlturaCanvas(normalizarWidgetsDashboard(obterWidgetsDashboard()));
 }
 
 function atualizarLayoutWidget(widgetId, layoutParcial) {
@@ -546,6 +581,16 @@ function atualizarLayoutWidget(widgetId, layoutParcial) {
     salvarWidgetsDashboard(widgets);
     atualizarAlturaCanvas(widgets);
 }
+function excluirWidgetDashboard(widgetId) {
+    const widgets = obterWidgetsDashboard();
+    const widget = widgets.find(item => item.id === widgetId);
+    if (!widget) return;
+    const confirmado = window.confirm(`Excluir o grafico "${widget.titulo || obterNomeGrafico(widget.tipo)}"?`);
+    if (!confirmado) return;
+    salvarWidgetsDashboard(widgets.filter(item => item.id !== widgetId));
+    renderizarDashboard();
+}
+
 function renderizarDashboard() {
     if (!dashboardCanvas) return;
     limparGraficosDashboard();
@@ -553,6 +598,15 @@ function renderizarDashboard() {
     const widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
     salvarWidgetsDashboard(widgets);
     atualizarAlturaCanvas(widgets);
+    if (!widgets.length) {
+        dashboardCanvas.innerHTML = `
+            <div class="crm-dashboard-empty">
+                <strong>Nenhum grafico neste painel</strong>
+                <span>${editorAtivo ? 'Use Adicionar grafico para criar um novo indicador.' : 'Os indicadores ainda nao foram configurados.'}</span>
+            </div>
+        `;
+        return;
+    }
     dashboardCanvas.innerHTML = widgets.map((widget, index) => {
         const layout = obterLayoutWidget(widget, index);
         return `
@@ -562,7 +616,12 @@ function renderizarDashboard() {
                         <span>${escapeHtml(obterNomeGrafico(widget.tipo))}</span>
                         <strong>${escapeHtml(widget.titulo)}</strong>
                     </div>
-                    ${editorAtivo ? '<button type="button" data-edit-widget>Editar</button>' : ''}
+                    ${editorAtivo ? `
+                        <div class="crm-dashboard-widget-actions">
+                            <button type="button" data-edit-widget>Editar</button>
+                            <button type="button" class="crm-danger-button" data-delete-widget>Excluir</button>
+                        </div>
+                    ` : ''}
                 </div>
                 ${renderizarVisualGrafico(widget)}
                 <div class="crm-dashboard-widget-meta">
@@ -897,7 +956,7 @@ function inicializarInteracaoLivreDashboard() {
         if (!modoEdicaoCenario) return;
         const card = event.target.closest('[data-widget-id]');
         if (!card) return;
-        if (event.target.closest('[data-edit-widget]')) return;
+        if (event.target.closest('button')) return;
 
         const resizeHandle = event.target.closest('[data-resize-widget]');
         const dragHandle = event.target.closest('[data-widget-drag-handle]');
@@ -975,6 +1034,8 @@ function inicializarEditorDashboard() {
 
     if (editModeToggle) editModeToggle.addEventListener('click', () => aplicarModoEdicaoCenario(!modoEdicaoCenario));
     if (addWidgetButton) addWidgetButton.addEventListener('click', () => abrirModalWidget());
+    if (decreaseCanvasHeightButton) decreaseCanvasHeightButton.addEventListener('click', () => ajustarAlturaCanvas(-1));
+    if (increaseCanvasHeightButton) increaseCanvasHeightButton.addEventListener('click', () => ajustarAlturaCanvas(1));
     if (testWidgetQueryButton) testWidgetQueryButton.addEventListener('click', () => testarConsultaWidget());
     if (nextWidgetStepButton) {
         nextWidgetStepButton.addEventListener('click', async () => {
@@ -1002,6 +1063,12 @@ function inicializarEditorDashboard() {
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', event => {
+            const deleteButton = event.target.closest('[data-delete-widget]');
+            if (deleteButton) {
+                const card = deleteButton.closest('[data-widget-id]');
+                if (card) excluirWidgetDashboard(card.dataset.widgetId);
+                return;
+            }
             const editButton = event.target.closest('[data-edit-widget]');
             if (!editButton) return;
             const card = editButton.closest('[data-widget-id]');

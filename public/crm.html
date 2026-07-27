@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260727-4">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260727-5">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -127,7 +127,15 @@
                     <strong>Construtor visual</strong>
                     <small>Modo edição ativo. Arraste, redimensione e configure os gráficos deste painel.</small>
                 </div>
-                <button type="button" data-add-widget>Adicionar grafico</button>
+                <div class="crm-dashboard-editor-actions">
+                    <div class="crm-canvas-height-control" aria-label="Altura da area de BI">
+                        <span>Altura da area BI</span>
+                        <button type="button" data-decrease-canvas-height aria-label="Diminuir altura" title="Diminuir altura">-</button>
+                        <output data-canvas-height-value>620 px</output>
+                        <button type="button" data-increase-canvas-height aria-label="Aumentar altura" title="Aumentar altura">+</button>
+                    </div>
+                    <button type="button" data-add-widget>Adicionar grafico</button>
+                </div>
             </section>
 
             <section class="crm-dashboard-canvas" data-dashboard-canvas aria-label="Cenarios do painel"></section>
@@ -292,6 +300,6 @@
     </div>
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260727-4"></script>
+    <script src="crm.js?v=crm-20260727-5"></script>
 </body>
 </html>
