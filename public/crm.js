@@ -768,9 +768,18 @@ function obterCamposDetalheWidget(widget, mapeamentos) {
             return {
                 coluna,
                 apelido: configuracao.apelido || coluna,
-                formatoData: configuracao.formatoData || 'none'
+                formatoData: configuracao.formatoData || 'none',
+                alinhamento: configuracao.alinhamento || 'left'
             };
         });
+}
+
+function obterAlinhamentoCampo(campo, padrao = 'left') {
+    return ['left', 'center', 'right'].includes(campo?.alinhamento) ? campo.alinhamento : padrao;
+}
+
+function atributoAlinhamentoCampo(campo, padrao = 'left') {
+    return ` style="text-align: ${obterAlinhamentoCampo(campo, padrao)}"`;
 }
 
 function registrarContextoDrill(widgetId, filtros, campos) {
@@ -812,7 +821,7 @@ function renderizarBreadcrumbDrill(widget, estado) {
 function renderizarTabelaSimples(container, widget, registros, camposLinha, camposColuna, valores, camposDetalhe, configuracao) {
     const dimensoes = [...camposLinha, ...camposColuna];
     const camposExibidos = [...dimensoes, ...valores];
-    const cabecalho = camposExibidos.map(campo => `<th>${escapeHtml(obterApelidoMapeamento(campo))}</th>`).join('');
+    const cabecalho = camposExibidos.map(campo => `<th${atributoAlinhamentoCampo(campo, campo.papel === 'valor' ? 'right' : 'left')}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`).join('');
     const corpo = registros.map(registro => {
         const filtrosLinha = [];
         const celulasDimensao = dimensoes.map((campo, index) => {
@@ -824,21 +833,21 @@ function renderizarTabelaSimples(container, widget, registros, camposLinha, camp
             const controle = campo.papel === 'linha'
                 ? renderizarControleDrill(widget, filtrosLinha.slice(), camposDetalhe)
                 : '';
-            return `<td class="is-dimension"><span class="crm-dimension-cell"><span>${escapeHtml(rotulo)}</span>${controle}</span></td>`;
+            return `<td class="is-dimension"${atributoAlinhamentoCampo(campo)}><span class="crm-dimension-cell"><span>${escapeHtml(rotulo)}</span>${controle}</span></td>`;
         }).join('');
         const celulasValor = valores.map(valor => {
             const bruto = obterValorLinha(registro, valor.coluna);
             const formatado = formatarValorGrafico(calcularAgregacao([bruto], valor.agregacao || 'none'), valor.formatoValor);
-            return `<td class="is-value">${escapeHtml(formatado)}</td>`;
+            return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatado)}</td>`;
         }).join('');
         return `<tr>${celulasDimensao}${celulasValor}</tr>`;
     }).join('');
     const total = configuracao.totalLinhas ? `
         <tr class="crm-pivot-grand-total">
-            <td colspan="${Math.max(1, dimensoes.length)}">Total geral</td>
+            <td${atributoAlinhamentoCampo(dimensoes[0])} colspan="${Math.max(1, dimensoes.length)}">Total geral</td>
             ${valores.map(valor => {
                 const agregado = calcularAgregacao(registros.map(registro => obterValorLinha(registro, valor.coluna)), valor.agregacao || 'none');
-                return `<td class="is-value">${escapeHtml(formatarValorGrafico(agregado, valor.formatoValor))}</td>`;
+                return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatarValorGrafico(agregado, valor.formatoValor))}</td>`;
             }).join('')}
         </tr>` : '';
     container.innerHTML = `
@@ -907,12 +916,13 @@ function renderizarTabelaGrafico(container, widget) {
     const totalColunasAtivo = configuracao.totalColunas && temCabecalhoDuplo;
     const quantidadeMetricas = valores.length;
     const cabecalhoLinhas = camposLinha.map(campo =>
-        `<th${temCabecalhoDuplo ? ' rowspan="2"' : ''}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`
+        `<th${atributoAlinhamentoCampo(campo)}${temCabecalhoDuplo ? ' rowspan="2"' : ''}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`
     ).join('');
+    const campoColunaPrincipal = camposColuna[0];
     const cabecalho = temCabecalhoDuplo
-        ? `<tr>${cabecalhoLinhas}${colunasDinamicas.map(coluna => `<th colspan="${quantidadeMetricas}">${escapeHtml(coluna.rotulo)}</th>`).join('')}${totalColunasAtivo ? `<th colspan="${quantidadeMetricas}">Total geral</th>` : ''}</tr>
-           <tr>${colunasDinamicas.concat(totalColunasAtivo ? [{ chave: '__total__' }] : []).map(() => valores.map(valor => `<th>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')).join('')}</tr>`
-        : `<tr>${cabecalhoLinhas}${valores.map(valor => `<th>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')}</tr>`;
+        ? `<tr>${cabecalhoLinhas}${colunasDinamicas.map(coluna => `<th${atributoAlinhamentoCampo(campoColunaPrincipal, 'center')} colspan="${quantidadeMetricas}">${escapeHtml(coluna.rotulo)}</th>`).join('')}${totalColunasAtivo ? `<th colspan="${quantidadeMetricas}">Total geral</th>` : ''}</tr>
+           <tr>${colunasDinamicas.concat(totalColunasAtivo ? [{ chave: '__total__' }] : []).map(() => valores.map(valor => `<th${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')).join('')}</tr>`
+        : `<tr>${cabecalhoLinhas}${valores.map(valor => `<th${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')}</tr>`;
 
     const estadoRotulos = { anteriores: [] };
     const renderizarCelulasValor = registrosGrupo => {
@@ -925,7 +935,7 @@ function renderizarTabelaGrafico(container, widget) {
                     registrosColuna.map(registro => obterValorLinha(registro, valor.coluna)),
                     valor.agregacao || 'none'
                 );
-                return `<td class="is-value">${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</td>`;
+                return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</td>`;
             }).join('');
         }).join('');
         const totais = totalColunasAtivo ? valores.map(valor => {
@@ -933,7 +943,7 @@ function renderizarTabelaGrafico(container, widget) {
                 registrosGrupo.map(registro => obterValorLinha(registro, valor.coluna)),
                 valor.agregacao || 'none'
             );
-            return `<td class="is-value is-total">${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</td>`;
+            return `<td class="is-value is-total"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</td>`;
         }).join('') : '';
         return porColuna + totais;
     };
@@ -948,7 +958,7 @@ function renderizarTabelaGrafico(container, widget) {
                 rotulo: parte.rotulo
             }))];
             const controle = renderizarControleDrill(widget, filtrosContexto, camposDetalheDisponiveis);
-            return `<td class="is-dimension"><span class="crm-dimension-cell"><span>${exibir ? escapeHtml(item.rotulo) : ''}</span>${controle}</span></td>`;
+            return `<td class="is-dimension"${atributoAlinhamentoCampo(item.campo)}><span class="crm-dimension-cell"><span>${exibir ? escapeHtml(item.rotulo) : ''}</span>${controle}</span></td>`;
         }).join('');
         estadoRotulos.anteriores = caminho.map(item => item.rotulo);
         return `<tr>${celulasLinha}${renderizarCelulasValor(registrosGrupo)}</tr>`;
@@ -961,7 +971,7 @@ function renderizarTabelaGrafico(container, widget) {
                 ? renderizarLinhaBase(novoCaminho, grupo.registros)
                 : renderizarNivel(grupo.registros, nivel + 1, novoCaminho);
             if (!estadoDrill?.campoAtual && configuracao.subtotais.includes(String(campo.coluna)) && nivel < camposLinha.length - 1) {
-                conteudo += `<tr class="crm-pivot-subtotal"><td colspan="${camposLinha.length}">Subtotal ${escapeHtml(obterApelidoMapeamento(campo))}: ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(grupo.registros)}</tr>`;
+                conteudo += `<tr class="crm-pivot-subtotal"><td${atributoAlinhamentoCampo(campo)} colspan="${camposLinha.length}">Subtotal ${escapeHtml(obterApelidoMapeamento(campo))}: ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(grupo.registros)}</tr>`;
                 estadoRotulos.anteriores = [];
             }
             return conteudo;
@@ -970,7 +980,7 @@ function renderizarTabelaGrafico(container, widget) {
 
     const corpo = renderizarNivel(registros);
     const totalGeral = configuracao.totalLinhas
-        ? `<tr class="crm-pivot-grand-total"><td colspan="${camposLinha.length}">Total geral</td>${renderizarCelulasValor(registros)}</tr>`
+        ? `<tr class="crm-pivot-grand-total"><td${atributoAlinhamentoCampo(camposLinha[0])} colspan="${camposLinha.length}">Total geral</td>${renderizarCelulasValor(registros)}</tr>`
         : '';
     container.innerHTML = `
         ${renderizarBreadcrumbDrill(widget, estadoDrill)}
@@ -1555,6 +1565,14 @@ function renderizarMapeamentoColunas() {
                     Uso
                     <select data-map-role>${montarOpcoesPapel(tipo, atual.papel || 'ignorar')}</select>
                 </label>
+                <label>
+                    Alinhamento
+                    <select data-map-alignment data-user-defined="${atual.alinhamento ? 'true' : 'false'}">
+                        <option value="left"${obterAlinhamentoCampo(atual, atual.papel === 'valor' ? 'right' : 'left') === 'left' ? ' selected' : ''}>Esquerda</option>
+                        <option value="center"${obterAlinhamentoCampo(atual, atual.papel === 'valor' ? 'right' : 'left') === 'center' ? ' selected' : ''}>Centro</option>
+                        <option value="right"${obterAlinhamentoCampo(atual, atual.papel === 'valor' ? 'right' : 'left') === 'right' ? ' selected' : ''}>Direita</option>
+                    </select>
+                </label>
                 <label data-map-config="aggregation">
                     Agregacao
                     <select data-map-aggregation>
@@ -1605,7 +1623,8 @@ function coletarMapeamentosColunas() {
             papel,
             agregacao: valorAtivo ? (row.querySelector('[data-map-aggregation]')?.value || 'none') : 'none',
             formatoValor: valorAtivo ? (row.querySelector('[data-map-value-format]')?.value || 'decimal') : null,
-            formatoData: dimensaoAtiva ? (row.querySelector('[data-map-date-format]')?.value || 'none') : 'none'
+            formatoData: dimensaoAtiva ? (row.querySelector('[data-map-date-format]')?.value || 'none') : 'none',
+            alinhamento: row.querySelector('[data-map-alignment]')?.value || (valorAtivo ? 'right' : 'left')
         };
     });
 }
@@ -1854,8 +1873,17 @@ function inicializarEditorDashboard() {
     }
     if (columnMappingBox) {
         columnMappingBox.addEventListener('change', event => {
+            if (event.target.matches('[data-map-alignment]')) {
+                event.target.dataset.userDefined = 'true';
+                return;
+            }
             if (!event.target.matches('[data-map-role]')) return;
-            atualizarCamposMapeamento(event.target.closest('[data-column-name]'));
+            const row = event.target.closest('[data-column-name]');
+            const alinhamento = row?.querySelector('[data-map-alignment]');
+            if (alinhamento && alinhamento.dataset.userDefined !== 'true') {
+                alinhamento.value = event.target.value === 'valor' ? 'right' : 'left';
+            }
+            atualizarCamposMapeamento(row);
             configuracaoTabelaAtual.subtotais = configuracaoTabelaAtual.subtotais.filter(coluna =>
                 coletarMapeamentosColunas().some(item => item.papel === 'linha' && String(item.coluna) === String(coluna))
             );
