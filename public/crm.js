@@ -91,6 +91,8 @@ const crmVendedorTrigger = document.querySelector('[data-vendedor-trigger]');
 const crmVendedorPanel = document.querySelector('[data-vendedor-panel]');
 const crmVendedorSearch = document.querySelector('[data-vendedor-search]');
 const crmVendedorOptions = document.querySelector('[data-vendedor-options]');
+const applyFiltersButton = document.querySelector('[data-apply-filters]');
+const filterStatus = document.querySelector('[data-filter-status]');
 const podeEditarCenarios = Boolean(usuarioLogado.podeEditarCenarios || usuarioLogado.canEditScenarios);
 const dashboardEditor = document.querySelector('[data-dashboard-editor]');
 const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');
@@ -137,6 +139,10 @@ let dadosConsultaAtual = [];
 let assinaturaConsultaAtual = '';
 let etapaWidgetAtual = 'sql';
 let modoEdicaoCenario = false;
+let filiaisDisponiveis = [];
+let vendedoresDisponiveis = [];
+let filiaisRascunho = [];
+let vendedoresRascunho = [];
 const instanciasGraficosDashboard = new Map();
 const observadoresGraficosDashboard = new Map();
 
@@ -825,14 +831,98 @@ function setEtapaWidget(etapa) {
 
 function obterFiltrosCenario() {
     return {
-        dataInicial: crmDataInicial?.value || '',
-        dataFinal: crmDataFinal?.value || '',
+        dataInicial: sessionStorage.getItem('crmDataInicial') || crmDataInicial?.value || '',
+        dataFinal: sessionStorage.getItem('crmDataFinal') || crmDataFinal?.value || '',
         filiais: getFiliaisSelecionadas(),
         vendedores: getVendedoresSelecionados(),
         idfuncionario: idFuncionarioLogado || '',
         idfilial: filialId || '',
         idvendedor: idVendedorLogado || ''
     };
+}
+
+function widgetUtilizaFiltrosVisiveis(widget) {
+    return /:(data_inicial|data_final|filiais|vendedores)\b/i.test(String(widget?.sql || ''));
+}
+
+async function executarWidgetComFiltros(widget, filtros) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+        const response = await fetch('/api/executar-cenario', {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
+            },
+            body: JSON.stringify({ fonte: widget.fonte || 'firebird', sql: widget.sql, filtros })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) window.fazerLogout();
+        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao atualizar o card.');
+        return {
+            ...widget,
+            colunasConsulta: Array.isArray(data.colunas) ? data.colunas : [],
+            dadosConsulta: Array.isArray(data.amostra) ? data.amostra : [],
+            consultaAtualizadaEm: new Date().toISOString()
+        };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+function atualizarStatusFiltros(mensagem, erro = false) {
+    if (!filterStatus) return;
+    filterStatus.textContent = mensagem;
+    filterStatus.classList.toggle('is-error', erro);
+}
+
+async function aplicarFiltrosDashboard() {
+    const dataInicial = crmDataInicial?.value || '';
+    const dataFinal = crmDataFinal?.value || '';
+    if (!dataInicial || !dataFinal) return atualizarStatusFiltros('Informe as duas datas.', true);
+    if (dataInicial > dataFinal) return atualizarStatusFiltros('A data inicial deve ser anterior a data final.', true);
+    if (filiaisDisponiveis.length && !filiaisRascunho.length) return atualizarStatusFiltros('Selecione ao menos uma filial.', true);
+    if (!crmSellerFilter?.hidden && vendedoresDisponiveis.length && !vendedoresRascunho.length) {
+        return atualizarStatusFiltros('Selecione ao menos um vendedor.', true);
+    }
+
+    sessionStorage.setItem('crmDataInicial', dataInicial);
+    sessionStorage.setItem('crmDataFinal', dataFinal);
+    setFiliaisSelecionadas(filiaisRascunho);
+    setVendedoresSelecionados(vendedoresRascunho);
+    if (crmFilialPanel) crmFilialPanel.hidden = true;
+    if (crmVendedorPanel) crmVendedorPanel.hidden = true;
+    definirPaginaOrcamento();
+
+    const widgets = obterWidgetsDashboard();
+    const indices = widgets.map((widget, index) => widgetUtilizaFiltrosVisiveis(widget) ? index : -1).filter(index => index >= 0);
+    if (!indices.length) return atualizarStatusFiltros('Filtros aplicados.');
+
+    if (applyFiltersButton) {
+        applyFiltersButton.disabled = true;
+        applyFiltersButton.textContent = 'Aplicando...';
+    }
+    atualizarStatusFiltros('Atualizando ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + '...');
+    const resultados = await Promise.allSettled(indices.map(index => executarWidgetComFiltros(widgets[index], obterFiltrosCenario())));
+    let atualizados = 0;
+    resultados.forEach((resultado, posicao) => {
+        if (resultado.status !== 'fulfilled') return;
+        widgets[indices[posicao]] = resultado.value;
+        atualizados += 1;
+    });
+    if (atualizados) {
+        salvarWidgetsDashboard(widgets);
+        renderizarDashboard();
+    }
+    const falhas = indices.length - atualizados;
+    if (falhas) atualizarStatusFiltros(atualizados + ' atualizado(s); ' + falhas + ' com erro.', true);
+    else atualizarStatusFiltros(atualizados + ' card' + (atualizados === 1 ? '' : 's') + ' atualizado' + (atualizados === 1 ? '' : 's') + '.');
+    if (applyFiltersButton) {
+        applyFiltersButton.disabled = false;
+        applyFiltersButton.textContent = 'Aplicar';
+    }
 }
 
 function fetchJsonComTimeout(url, timeoutMs = 15000) {
@@ -1274,20 +1364,22 @@ function inicializarEditorDashboard() {
     closeWidgetButtons.forEach(button => button.addEventListener('click', fecharModalWidget));
     if (saveWidgetButton) saveWidgetButton.addEventListener('click', salvarWidgetAtual);
 }
-function inicializarPeriodo() {
-    if (crmDataInicial) {
-        crmDataInicial.value = sessionStorage.getItem('crmDataInicial') || '';
-        crmDataInicial.addEventListener('change', () => {
-            sessionStorage.setItem('crmDataInicial', crmDataInicial.value || '');
-        });
-    }
+function formatarDataInput(data) {
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
 
-    if (crmDataFinal) {
-        crmDataFinal.value = sessionStorage.getItem('crmDataFinal') || '';
-        crmDataFinal.addEventListener('change', () => {
-            sessionStorage.setItem('crmDataFinal', crmDataFinal.value || '');
-        });
-    }
+function inicializarPeriodo() {
+    const hoje = new Date();
+    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const dataInicial = sessionStorage.getItem('crmDataInicial') || formatarDataInput(primeiroDiaMes);
+    const dataFinal = sessionStorage.getItem('crmDataFinal') || formatarDataInput(hoje);
+    if (crmDataInicial) crmDataInicial.value = dataInicial;
+    if (crmDataFinal) crmDataFinal.value = dataFinal;
+    sessionStorage.setItem('crmDataInicial', dataInicial);
+    sessionStorage.setItem('crmDataFinal', dataFinal);
 }
 
 function escapeHtml(valor) {
@@ -1301,11 +1393,14 @@ function escapeHtml(valor) {
 
 function atualizarResumoFiliais(filiais, selecionadas) {
     if (!crmFilialTrigger) return;
+    const idsDisponiveis = filiais.map(filial => String(filial.idfilial));
     const nomesSelecionados = filiais
         .filter(filial => selecionadas.includes(String(filial.idfilial)))
         .map(filial => filial.nomefilial);
 
-    if (!nomesSelecionados.length) {
+    if (idsDisponiveis.length && nomesSelecionados.length === idsDisponiveis.length) {
+        crmFilialTrigger.textContent = 'Todas as filiais';
+    } else if (!nomesSelecionados.length) {
         crmFilialTrigger.textContent = 'Selecione as filiais';
     } else if (nomesSelecionados.length === 1) {
         crmFilialTrigger.textContent = nomesSelecionados[0];
@@ -1316,28 +1411,32 @@ function atualizarResumoFiliais(filiais, selecionadas) {
 
 function renderizarOpcoesFiliais(filiais, termo = '') {
     if (!crmFilialOptions) return;
-    const selecionadas = getFiliaisSelecionadas();
     const termoBusca = termo.trim().toLowerCase();
     const filtradas = filiais.filter(filial => {
         const texto = `${filial.idfilial} ${filial.nomefilial}`.toLowerCase();
         return texto.includes(termoBusca);
     });
-
-    if (!filtradas.length) {
-        crmFilialOptions.innerHTML = '<div class="crm-multiselect-empty">Nenhuma filial encontrada.</div>';
-        return;
-    }
-
-    crmFilialOptions.innerHTML = filtradas.map(filial => {
+    const idsDisponiveis = filiais.map(filial => String(filial.idfilial));
+    const todasSelecionadas = idsDisponiveis.length > 0 && idsDisponiveis.every(id => filiaisRascunho.includes(id));
+    const opcaoTodos = `
+        <label class="crm-multiselect-option is-all">
+            <input type="checkbox"${todasSelecionadas ? ' checked' : ''} data-filial-all>
+            <span>Todos</span>
+        </label>
+    `;
+    const opcoes = filtradas.length ? filtradas.map(filial => {
         const id = String(filial.idfilial);
-        const checked = selecionadas.includes(id) ? ' checked' : '';
+        const checked = filiaisRascunho.includes(id) ? ' checked' : '';
         return `
             <label class="crm-multiselect-option">
                 <input type="checkbox" value="${escapeHtml(id)}"${checked} data-filial-checkbox>
                 <span>${escapeHtml(filial.nomefilial)}</span>
             </label>
         `;
-    }).join('');
+    }).join('') : '<div class="crm-multiselect-empty">Nenhuma filial encontrada.</div>';
+    crmFilialOptions.innerHTML = opcaoTodos + opcoes;
+    const todosCheckbox = crmFilialOptions.querySelector('[data-filial-all]');
+    if (todosCheckbox) todosCheckbox.indeterminate = filiaisRascunho.length > 0 && !todasSelecionadas;
 }
 function formatarVendedor(vendedor) {
     const idFilial = String(vendedor?.idfilial || '').trim();
@@ -1348,11 +1447,14 @@ function formatarVendedor(vendedor) {
 
 function atualizarResumoVendedores(vendedores, selecionados) {
     if (!crmVendedorTrigger) return;
+    const idsDisponiveis = vendedores.map(vendedor => String(vendedor.idvendedor));
     const nomesSelecionados = vendedores
         .filter(vendedor => selecionados.includes(String(vendedor.idvendedor)))
         .map(formatarVendedor);
 
-    if (!nomesSelecionados.length) {
+    if (idsDisponiveis.length && nomesSelecionados.length === idsDisponiveis.length) {
+        crmVendedorTrigger.textContent = 'Todos os vendedores';
+    } else if (!nomesSelecionados.length) {
         crmVendedorTrigger.textContent = 'Selecione os vendedores';
     } else if (nomesSelecionados.length === 1) {
         crmVendedorTrigger.textContent = nomesSelecionados[0];
@@ -1363,93 +1465,96 @@ function atualizarResumoVendedores(vendedores, selecionados) {
 
 function renderizarOpcoesVendedores(vendedores, termo = '') {
     if (!crmVendedorOptions) return;
-    const selecionados = getVendedoresSelecionados();
     const termoBusca = termo.trim().toLowerCase();
     const filtrados = vendedores.filter(vendedor => {
         const texto = `${vendedor.idfilial} ${vendedor.idvendedor} ${vendedor.nomefuncionario}`.toLowerCase();
         return texto.includes(termoBusca);
     });
-
-    if (!filtrados.length) {
-        crmVendedorOptions.innerHTML = '<div class="crm-multiselect-empty">Nenhum vendedor encontrado.</div>';
-        return;
-    }
-
-    crmVendedorOptions.innerHTML = filtrados.map(vendedor => {
+    const idsDisponiveis = vendedores.map(vendedor => String(vendedor.idvendedor));
+    const todosSelecionados = idsDisponiveis.length > 0 && idsDisponiveis.every(id => vendedoresRascunho.includes(id));
+    const opcaoTodos = `
+        <label class="crm-multiselect-option is-all">
+            <input type="checkbox"${todosSelecionados ? ' checked' : ''} data-vendedor-all>
+            <span>Todos</span>
+        </label>
+    `;
+    const opcoes = filtrados.length ? filtrados.map(vendedor => {
         const id = String(vendedor.idvendedor);
-        const checked = selecionados.includes(id) ? ' checked' : '';
+        const checked = vendedoresRascunho.includes(id) ? ' checked' : '';
         return `
             <label class="crm-multiselect-option">
                 <input type="checkbox" value="${escapeHtml(id)}"${checked} data-vendedor-checkbox>
                 <span>${escapeHtml(formatarVendedor(vendedor))}</span>
             </label>
         `;
-    }).join('');
+    }).join('') : '<div class="crm-multiselect-empty">Nenhum vendedor encontrado.</div>';
+    crmVendedorOptions.innerHTML = opcaoTodos + opcoes;
+    const todosCheckbox = crmVendedorOptions.querySelector('[data-vendedor-all]');
+    if (todosCheckbox) todosCheckbox.indeterminate = vendedoresRascunho.length > 0 && !todosSelecionados;
 }
 
-async function carregarVendedores() {
+async function carregarVendedores(selecionarTodos = false) {
     const podeFiltrarVendedor = ['DI', 'SU', 'GR'].includes(categoriaCodigo);
     if (!crmSellerFilter || !crmVendedorTrigger || !crmVendedorOptions) return;
 
     if (!podeFiltrarVendedor) {
         crmSellerFilter.hidden = true;
-        setVendedoresSelecionados(idVendedorLogado ? [idVendedorLogado] : []);
+        vendedoresRascunho = idVendedorLogado ? [String(idVendedorLogado)] : [];
+        setVendedoresSelecionados(vendedoresRascunho);
         return;
     }
 
     crmSellerFilter.hidden = false;
     crmVendedorTrigger.disabled = true;
     crmVendedorTrigger.textContent = 'Carregando vendedores...';
-
     try {
         const params = new URLSearchParams({
             categoria: categoriaCodigo,
             idfuncionario: idFuncionarioLogado || '',
             idfilial: filialId || '',
-            filiais: getFiliaisSelecionadas().join(',')
+            filiais: filiaisRascunho.join(',')
         });
-        const data = await fetchJsonComTimeout(`/api/vendedores?${params.toString()}`);
-        const vendedores = Array.isArray(data.vendedores) ? data.vendedores : [];
-
-        if (!vendedores.length) {
+        const data = await fetchJsonComTimeout('/api/vendedores?' + params.toString());
+        vendedoresDisponiveis = Array.isArray(data.vendedores) ? data.vendedores : [];
+        if (!vendedoresDisponiveis.length) {
+            vendedoresRascunho = [];
             crmVendedorTrigger.textContent = 'Nenhum vendedor encontrado';
             crmVendedorTrigger.disabled = true;
             crmVendedorOptions.innerHTML = '<div class="crm-multiselect-empty">Nenhum vendedor encontrado.</div>';
             return;
         }
 
-        const idsDisponiveis = vendedores.map(vendedor => String(vendedor.idvendedor));
-        let selecionados = getVendedoresSelecionados().filter(id => idsDisponiveis.includes(String(id)));
-        if (!selecionados.length) selecionados = idsDisponiveis;
-        setVendedoresSelecionados(selecionados);
-        atualizarResumoVendedores(vendedores, selecionados);
-        renderizarOpcoesVendedores(vendedores);
+        const idsDisponiveis = vendedoresDisponiveis.map(vendedor => String(vendedor.idvendedor));
+        const temSelecaoSalva = sessionStorage.getItem('crmVendedoresSelecionados') !== null;
+        if (!vendedoresRascunho.length && temSelecaoSalva && !selecionarTodos) vendedoresRascunho = getVendedoresSelecionados();
+        vendedoresRascunho = vendedoresRascunho.filter(id => idsDisponiveis.includes(String(id)));
+        if (selecionarTodos || !temSelecaoSalva || !vendedoresRascunho.length) vendedoresRascunho = idsDisponiveis;
+        if (!temSelecaoSalva) setVendedoresSelecionados(vendedoresRascunho);
+        atualizarResumoVendedores(vendedoresDisponiveis, vendedoresRascunho);
+        renderizarOpcoesVendedores(vendedoresDisponiveis);
         crmVendedorTrigger.disabled = false;
 
         crmVendedorTrigger.onclick = () => {
             crmVendedorPanel.hidden = !crmVendedorPanel.hidden;
             if (!crmVendedorPanel.hidden && crmVendedorSearch) crmVendedorSearch.focus();
         };
-
-        if (crmVendedorSearch) {
-            crmVendedorSearch.oninput = () => renderizarOpcoesVendedores(vendedores, crmVendedorSearch.value);
-        }
-
+        if (crmVendedorSearch) crmVendedorSearch.oninput = () => renderizarOpcoesVendedores(vendedoresDisponiveis, crmVendedorSearch.value);
         crmVendedorOptions.onchange = event => {
-            if (!event.target.matches('[data-vendedor-checkbox]')) return;
-            const valor = String(event.target.value);
-            const selecionadosAtuais = new Set(getVendedoresSelecionados());
-            if (event.target.checked) {
-                selecionadosAtuais.add(valor);
-            } else {
-                selecionadosAtuais.delete(valor);
-            }
-            const novaSelecao = Array.from(selecionadosAtuais);
-            setVendedoresSelecionados(novaSelecao.length ? novaSelecao : [String(vendedores[0].idvendedor)]);
-            atualizarResumoVendedores(vendedores, getVendedoresSelecionados());
-            renderizarOpcoesVendedores(vendedores, crmVendedorSearch?.value || '');
+            if (event.target.matches('[data-vendedor-all]')) {
+                vendedoresRascunho = event.target.checked ? idsDisponiveis : [];
+            } else if (event.target.matches('[data-vendedor-checkbox]')) {
+                const valor = String(event.target.value);
+                const selecionadosAtuais = new Set(vendedoresRascunho);
+                if (event.target.checked) selecionadosAtuais.add(valor);
+                else selecionadosAtuais.delete(valor);
+                vendedoresRascunho = Array.from(selecionadosAtuais);
+            } else return;
+            atualizarResumoVendedores(vendedoresDisponiveis, vendedoresRascunho);
+            renderizarOpcoesVendedores(vendedoresDisponiveis, crmVendedorSearch?.value || '');
+            atualizarStatusFiltros('');
         };
     } catch (error) {
+        vendedoresDisponiveis = [];
         crmVendedorTrigger.textContent = 'Erro ao carregar vendedores';
         crmVendedorTrigger.disabled = true;
     }
@@ -1457,7 +1562,6 @@ async function carregarVendedores() {
 
 async function carregarFiliais() {
     if (!crmFilialTrigger || !crmFilialReadonly) return;
-
     const podeSelecionar = ['DI', 'SU'].includes(categoriaCodigo);
     crmFilialTrigger.disabled = true;
     crmFilialTrigger.textContent = 'Carregando filiais...';
@@ -1469,12 +1573,12 @@ async function carregarFiliais() {
             idfilial: filialId || '',
             filiais: getFiliaisSelecionadas().join(',')
         });
-        const data = await fetchJsonComTimeout(`/api/filiais?${params.toString()}`);
-        const filiais = Array.isArray(data.filiais) ? data.filiais : [];
-
-        if (!filiais.length) {
-            const fallbackNome = usuarioLogado.nomefilial || `Filial ${usuarioLogado.idfilial || ''}`.trim();
-            setFiliaisSelecionadas(usuarioLogado.idfilial ? [usuarioLogado.idfilial] : []);
+        const data = await fetchJsonComTimeout('/api/filiais?' + params.toString());
+        filiaisDisponiveis = Array.isArray(data.filiais) ? data.filiais : [];
+        if (!filiaisDisponiveis.length) {
+            const fallbackNome = usuarioLogado.nomefilial || ('Filial ' + (usuarioLogado.idfilial || '')).trim();
+            filiaisRascunho = usuarioLogado.idfilial ? [String(usuarioLogado.idfilial)] : [];
+            setFiliaisSelecionadas(filiaisRascunho);
             crmFilialReadonly.textContent = fallbackNome || 'Filial nao encontrada';
             crmFilialTrigger.hidden = true;
             crmFilialReadonly.hidden = false;
@@ -1482,22 +1586,19 @@ async function carregarFiliais() {
             return;
         }
 
-        const filialUsuario = filiais.find(filial => String(filial.idfilial).toUpperCase() === String(usuarioLogado.idfilial || '').toUpperCase());
+        const filialUsuario = filiaisDisponiveis.find(filial => String(filial.idfilial).toUpperCase() === String(usuarioLogado.idfilial || '').toUpperCase());
         atualizarFilialUsuario(filialUsuario?.nomefilial);
-
-        const idsDisponiveis = filiais.map(filial => String(filial.idfilial));
-        let selecionadas = getFiliaisSelecionadas().filter(id => idsDisponiveis.includes(String(id)));
-        if (!selecionadas.length) {
-            selecionadas = podeSelecionar ? idsDisponiveis : [String(filiais[0].idfilial)];
-        }
-        if (!podeSelecionar) selecionadas = [String(filiais[0].idfilial)];
-        setFiliaisSelecionadas(selecionadas);
+        const idsDisponiveis = filiaisDisponiveis.map(filial => String(filial.idfilial));
+        const temSelecaoSalva = sessionStorage.getItem('crmFiliaisSelecionadas') !== null;
+        filiaisRascunho = temSelecaoSalva ? getFiliaisSelecionadas().filter(id => idsDisponiveis.includes(String(id))) : [];
+        if (!filiaisRascunho.length) filiaisRascunho = podeSelecionar ? idsDisponiveis : [String(filiaisDisponiveis[0].idfilial)];
+        if (!podeSelecionar) filiaisRascunho = [String(filiaisDisponiveis[0].idfilial)];
+        if (!temSelecaoSalva) setFiliaisSelecionadas(filiaisRascunho);
         definirPaginaOrcamento();
 
-        crmFilialReadonly.textContent = filiais.find(filial => String(filial.idfilial) === selecionadas[0])?.nomefilial || filiais[0].nomefilial;
-        atualizarResumoFiliais(filiais, selecionadas);
-        renderizarOpcoesFiliais(filiais);
-
+        crmFilialReadonly.textContent = filiaisDisponiveis.find(filial => String(filial.idfilial) === filiaisRascunho[0])?.nomefilial || filiaisDisponiveis[0].nomefilial;
+        atualizarResumoFiliais(filiaisDisponiveis, filiaisRascunho);
+        renderizarOpcoesFiliais(filiaisDisponiveis);
         if (podeSelecionar) {
             crmFilialTrigger.hidden = false;
             crmFilialReadonly.hidden = true;
@@ -1513,30 +1614,26 @@ async function carregarFiliais() {
                 if (!crmFilialPanel.hidden && crmFilialSearch) crmFilialSearch.focus();
             };
         }
-
-        if (crmFilialSearch) {
-            crmFilialSearch.oninput = () => renderizarOpcoesFiliais(filiais, crmFilialSearch.value);
-        }
-
+        if (crmFilialSearch) crmFilialSearch.oninput = () => renderizarOpcoesFiliais(filiaisDisponiveis, crmFilialSearch.value);
         if (crmFilialOptions) {
-            crmFilialOptions.onchange = event => {
-                if (!event.target.matches('[data-filial-checkbox]')) return;
-                const valor = String(event.target.value);
-                const selecionadasAtuais = new Set(getFiliaisSelecionadas());
-                if (event.target.checked) {
-                    selecionadasAtuais.add(valor);
-                } else {
-                    selecionadasAtuais.delete(valor);
-                }
-                const novaSelecao = Array.from(selecionadasAtuais);
-                setFiliaisSelecionadas(novaSelecao.length ? novaSelecao : [String(filiais[0].idfilial)]);
-                atualizarResumoFiliais(filiais, getFiliaisSelecionadas());
-                renderizarOpcoesFiliais(filiais, crmFilialSearch?.value || '');
-                definirPaginaOrcamento();
-                carregarVendedores();
+            crmFilialOptions.onchange = async event => {
+                if (event.target.matches('[data-filial-all]')) {
+                    filiaisRascunho = event.target.checked ? idsDisponiveis : [];
+                } else if (event.target.matches('[data-filial-checkbox]')) {
+                    const valor = String(event.target.value);
+                    const selecionadasAtuais = new Set(filiaisRascunho);
+                    if (event.target.checked) selecionadasAtuais.add(valor);
+                    else selecionadasAtuais.delete(valor);
+                    filiaisRascunho = Array.from(selecionadasAtuais);
+                } else return;
+                atualizarResumoFiliais(filiaisDisponiveis, filiaisRascunho);
+                renderizarOpcoesFiliais(filiaisDisponiveis, crmFilialSearch?.value || '');
+                atualizarStatusFiltros('');
+                await carregarVendedores(true);
             };
         }
     } catch (error) {
+        filiaisDisponiveis = [];
         crmFilialTrigger.textContent = 'Erro ao carregar filiais';
         crmFilialReadonly.textContent = 'Erro ao carregar filiais';
         crmFilialTrigger.hidden = true;
@@ -1599,6 +1696,8 @@ function inicializarAplicacao() {
     iniciarModulo('filtros', async () => {
         await carregarFiliais();
         await carregarVendedores();
+        if (applyFiltersButton) applyFiltersButton.addEventListener('click', aplicarFiltrosDashboard);
+        [crmDataInicial, crmDataFinal].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('')));
     });
 }
 
