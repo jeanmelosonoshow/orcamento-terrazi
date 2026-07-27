@@ -200,25 +200,77 @@ function renderizarVisualGrafico(tipo) {
     return '<div class="crm-chart-bars-preview"><span></span><span></span><span></span><span></span><span></span></div>';
 }
 
+
+function obterLayoutWidget(widget, index = 0) {
+    const larguraBase = Math.max(260, Number(widget.w || widget.largura || 0));
+    const alturaBase = Math.max(180, Number(widget.h || widget.altura || 0));
+    const temLayoutLivre = Number.isFinite(Number(widget.x)) && Number.isFinite(Number(widget.y)) && larguraBase && alturaBase;
+
+    if (temLayoutLivre) {
+        return {
+            x: Math.max(0, Number(widget.x) || 0),
+            y: Math.max(0, Number(widget.y) || 0),
+            w: larguraBase,
+            h: alturaBase
+        };
+    }
+
+    const largura = Math.max(280, (Number(widget.colunas) || 6) * 78);
+    const altura = Math.max(190, 150 + ((Number(widget.linhas) || 2) * 62));
+    return {
+        x: (index % 2) * (largura + 20),
+        y: Math.floor(index / 2) * (altura + 20),
+        w: largura,
+        h: altura
+    };
+}
+
+function normalizarWidgetsDashboard(widgets) {
+    return widgets.map((widget, index) => ({ ...widget, ...obterLayoutWidget(widget, index) }));
+}
+
+function atualizarAlturaCanvas(widgets) {
+    if (!dashboardCanvas) return;
+    const alturaNecessaria = widgets.reduce((maior, widget, index) => {
+        const layout = obterLayoutWidget(widget, index);
+        return Math.max(maior, layout.y + layout.h + 28);
+    }, 520);
+    dashboardCanvas.style.minHeight = `${alturaNecessaria}px`;
+}
+
+function atualizarLayoutWidget(widgetId, layoutParcial) {
+    const widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
+    const index = widgets.findIndex(widget => widget.id === widgetId);
+    if (index < 0) return;
+    widgets[index] = { ...widgets[index], ...layoutParcial };
+    salvarWidgetsDashboard(widgets);
+    atualizarAlturaCanvas(widgets);
+}
 function renderizarDashboard() {
     if (!dashboardCanvas) return;
-    const widgets = obterWidgetsDashboard();
-    dashboardCanvas.innerHTML = widgets.map(widget => `
-        <article class="crm-dashboard-widget" draggable="${podeEditarCenarios}" data-widget-id="${escapeHtml(widget.id)}" style="grid-column: span ${Number(widget.colunas) || 6}; min-height: ${150 + ((Number(widget.linhas) || 2) * 62)}px;">
-            <div class="crm-dashboard-widget-head">
-                <div>
-                    <span>${escapeHtml(obterNomeGrafico(widget.tipo))}</span>
-                    <strong>${escapeHtml(widget.titulo)}</strong>
+    const widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
+    salvarWidgetsDashboard(widgets);
+    atualizarAlturaCanvas(widgets);
+    dashboardCanvas.innerHTML = widgets.map((widget, index) => {
+        const layout = obterLayoutWidget(widget, index);
+        return `
+            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px;">
+                <div class="crm-dashboard-widget-head" data-widget-drag-handle>
+                    <div>
+                        <span>${escapeHtml(obterNomeGrafico(widget.tipo))}</span>
+                        <strong>${escapeHtml(widget.titulo)}</strong>
+                    </div>
+                    ${podeEditarCenarios ? '<button type="button" data-edit-widget>Editar</button>' : ''}
                 </div>
-                ${podeEditarCenarios ? '<button type="button" data-edit-widget>Editar</button>' : ''}
-            </div>
-            ${renderizarVisualGrafico(widget.tipo)}
-            <div class="crm-dashboard-widget-meta">
-                <span>${escapeHtml(widget.fonte || 'firebird')}</span>
-                <span>${widget.sql ? 'SQL definido' : 'Aguardando consulta'}</span>
-            </div>
-        </article>
-    `).join('');
+                ${renderizarVisualGrafico(widget.tipo)}
+                <div class="crm-dashboard-widget-meta">
+                    <span>${escapeHtml(widget.fonte || 'firebird')}</span>
+                    <span>${widget.sql ? 'SQL definido' : 'Aguardando consulta'}</span>
+                </div>
+                ${podeEditarCenarios ? '<span class="crm-dashboard-resize" data-resize-widget aria-hidden="true"></span>' : ''}
+            </article>
+        `;
+    }).join('');
 }
 
 function abrirModalWidget(widgetId) {
@@ -278,6 +330,71 @@ function salvarWidgetAtual() {
     renderizarDashboard();
 }
 
+
+function inicializarInteracaoLivreDashboard() {
+    if (!dashboardCanvas || !podeEditarCenarios) return;
+
+    dashboardCanvas.addEventListener('pointerdown', event => {
+        const card = event.target.closest('[data-widget-id]');
+        if (!card) return;
+        if (event.target.closest('[data-edit-widget]')) return;
+
+        const resizeHandle = event.target.closest('[data-resize-widget]');
+        const dragHandle = event.target.closest('[data-widget-drag-handle]');
+        if (!resizeHandle && !dragHandle) return;
+
+        event.preventDefault();
+        card.setPointerCapture(event.pointerId);
+        card.classList.add(resizeHandle ? 'is-resizing' : 'is-dragging');
+
+        const canvasRect = dashboardCanvas.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        const inicio = {
+            pointerX: event.clientX,
+            pointerY: event.clientY,
+            x: cardRect.left - canvasRect.left + dashboardCanvas.scrollLeft,
+            y: cardRect.top - canvasRect.top + dashboardCanvas.scrollTop,
+            w: cardRect.width,
+            h: cardRect.height
+        };
+
+        function mover(pointerEvent) {
+            const deltaX = pointerEvent.clientX - inicio.pointerX;
+            const deltaY = pointerEvent.clientY - inicio.pointerY;
+
+            if (resizeHandle) {
+                const largura = Math.max(260, inicio.w + deltaX);
+                const altura = Math.max(180, inicio.h + deltaY);
+                card.style.width = `${largura}px`;
+                card.style.height = `${altura}px`;
+            } else {
+                const limiteX = Math.max(0, dashboardCanvas.clientWidth - card.offsetWidth);
+                const x = Math.max(0, Math.min(inicio.x + deltaX, limiteX));
+                const y = Math.max(0, inicio.y + deltaY);
+                card.style.left = `${x}px`;
+                card.style.top = `${y}px`;
+            }
+        }
+
+        function soltar() {
+            card.classList.remove('is-dragging', 'is-resizing');
+            card.releasePointerCapture(event.pointerId);
+            card.removeEventListener('pointermove', mover);
+            card.removeEventListener('pointerup', soltar);
+            card.removeEventListener('pointercancel', soltar);
+            atualizarLayoutWidget(card.dataset.widgetId, {
+                x: Math.round(parseFloat(card.style.left) || 0),
+                y: Math.round(parseFloat(card.style.top) || 0),
+                w: Math.round(card.offsetWidth),
+                h: Math.round(card.offsetHeight)
+            });
+        }
+
+        card.addEventListener('pointermove', mover);
+        card.addEventListener('pointerup', soltar);
+        card.addEventListener('pointercancel', soltar);
+    });
+}
 function inicializarEditorDashboard() {
     if (dashboardEditor) dashboardEditor.hidden = !podeEditarCenarios;
     renderizarDashboard();
@@ -285,40 +402,13 @@ function inicializarEditorDashboard() {
     if (addWidgetButton) addWidgetButton.addEventListener('click', () => abrirModalWidget());
 
     if (dashboardCanvas) {
-        let draggedId = null;
         dashboardCanvas.addEventListener('click', event => {
             const editButton = event.target.closest('[data-edit-widget]');
             if (!editButton) return;
             const card = editButton.closest('[data-widget-id]');
             if (card) abrirModalWidget(card.dataset.widgetId);
         });
-        dashboardCanvas.addEventListener('dragstart', event => {
-            const card = event.target.closest('[data-widget-id]');
-            if (!card || !podeEditarCenarios) return;
-            draggedId = card.dataset.widgetId;
-            card.classList.add('is-dragging');
-        });
-        dashboardCanvas.addEventListener('dragend', event => {
-            event.target.closest('[data-widget-id]')?.classList.remove('is-dragging');
-            draggedId = null;
-        });
-        dashboardCanvas.addEventListener('dragover', event => {
-            if (!draggedId) return;
-            event.preventDefault();
-        });
-        dashboardCanvas.addEventListener('drop', event => {
-            if (!draggedId) return;
-            const destino = event.target.closest('[data-widget-id]');
-            if (!destino || destino.dataset.widgetId === draggedId) return;
-            const widgets = obterWidgetsDashboard();
-            const origemIndex = widgets.findIndex(widget => widget.id === draggedId);
-            const destinoIndex = widgets.findIndex(widget => widget.id === destino.dataset.widgetId);
-            if (origemIndex < 0 || destinoIndex < 0) return;
-            const movido = widgets.splice(origemIndex, 1)[0];
-            widgets.splice(destinoIndex, 0, movido);
-            salvarWidgetsDashboard(widgets);
-            renderizarDashboard();
-        });
+        inicializarInteracaoLivreDashboard();
     }
 
     closeWidgetButtons.forEach(button => button.addEventListener('click', fecharModalWidget));
@@ -696,6 +786,7 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
 
 
 
