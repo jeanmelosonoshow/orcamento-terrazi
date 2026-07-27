@@ -119,7 +119,7 @@ function prepararConsultaVisual(preparado, fonte, visualizacao = {}) {
     };
     const referencia = campo => `CRM_BASE.${citarIdentificador(campo.coluna)}`;
     const expressoesDimensao = dimensoes.map(campo => referencia(campo));
-    const expressoesValor = valoresConfigurados.map(campo => {
+    const valoresComExpressao = valoresConfigurados.map(campo => {
         const referenciaCampo = referencia(campo);
         const agregacao = String(campo.agregacao || 'sum').toLowerCase();
         let expressao = `SUM(${referenciaCampo})`;
@@ -128,8 +128,11 @@ function prepararConsultaVisual(preparado, fonte, visualizacao = {}) {
         else if (agregacao === 'min' || agregacao === 'none') expressao = `MIN(${referenciaCampo})`;
         else if (agregacao === 'max') expressao = `MAX(${referenciaCampo})`;
         else if (agregacao === 'avg') expressao = `AVG(${referenciaCampo})`;
-        return `${expressao} AS ${citarIdentificador(campo.coluna)}`;
+        return { campo, expressao };
     });
+    const expressoesValor = valoresComExpressao.map(item =>
+        `${item.expressao} AS ${citarIdentificador(item.campo.coluna)}`
+    );
     const filtrosDimensao = Array.isArray(visualizacao.filtrosDimensao) ? visualizacao.filtrosDimensao : [];
     const condicoes = filtrosDimensao.map(filtro => {
         const coluna = citarIdentificador(filtro?.coluna);
@@ -137,7 +140,15 @@ function prepararConsultaVisual(preparado, fonte, visualizacao = {}) {
         return `CRM_BASE.${coluna} = ${marcador(filtro.valor)}`;
     });
     const where = condicoes.length ? ` WHERE ${condicoes.join(' AND ')}` : '';
-    const sql = `SELECT ${[...expressoesDimensao, ...expressoesValor].join(', ')} FROM (${preparado.sql}) CRM_BASE${where} GROUP BY ${expressoesDimensao.join(', ')}`;
+    const referenciasOrdenacao = new Map([
+        ...dimensoes.map(campo => [String(campo.coluna).toLowerCase(), referencia(campo)]),
+        ...valoresComExpressao.map(item => [String(item.campo.coluna).toLowerCase(), item.expressao])
+    ]);
+    const ordem = [...dimensoes, ...valoresConfigurados]
+        .filter(campo => ['asc', 'desc'].includes(String(campo.ordenacao).toLowerCase()))
+        .map(campo => `${referenciasOrdenacao.get(String(campo.coluna).toLowerCase())} ${String(campo.ordenacao).toUpperCase()}`);
+    const orderBy = ordem.length ? ` ORDER BY ${ordem.join(', ')}` : '';
+    const sql = `SELECT ${[...expressoesDimensao, ...expressoesValor].join(', ')} FROM (${preparado.sql}) CRM_BASE${where} GROUP BY ${expressoesDimensao.join(', ')}${orderBy}`;
     return { sql, valores };
 }
 

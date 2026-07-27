@@ -532,9 +532,29 @@ function prepararDadosGrafico(widget) {
         grupos.get(chave).linhas.push(linha);
     });
 
-    const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => a.ordem - b.ordem);
+    const direcaoDimensao = obterOrdenacaoCampo(dimensao);
+    const valoresOrdenados = valores.filter(valor => obterOrdenacaoCampo(valor) !== 'none');
+    const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => {
+        if (direcaoDimensao !== 'none') {
+            const brutoA = dimensao ? obterValorLinha(a.linhas[0], dimensao.coluna) : a.rotulo;
+            const brutoB = dimensao ? obterValorLinha(b.linhas[0], dimensao.coluna) : b.rotulo;
+            const comparacao = compararValoresOrdenacao(brutoA, brutoB);
+            if (comparacao !== 0) return direcaoDimensao === 'desc' ? -comparacao : comparacao;
+        }
+        for (const valor of valoresOrdenados) {
+            const agregadoA = calcularAgregacao(a.linhas.map(linha => obterValorLinha(linha, valor.coluna)), valor.agregacao || 'none');
+            const agregadoB = calcularAgregacao(b.linhas.map(linha => obterValorLinha(linha, valor.coluna)), valor.agregacao || 'none');
+            const comparacao = compararValoresOrdenacao(agregadoA, agregadoB);
+            if (comparacao !== 0) return obterOrdenacaoCampo(valor) === 'desc' ? -comparacao : comparacao;
+        }
+        return a.ordem - b.ordem;
+    });
     const membrosColuna = coluna
         ? Array.from(new Set(linhas.map(linha => formatarDimensao(obterValorLinha(linha, coluna.coluna), coluna.formatoData))))
+            .sort((a, b) => {
+                const comparacao = compararValoresOrdenacao(a, b);
+                return obterOrdenacaoCampo(coluna) === 'desc' ? -comparacao : (obterOrdenacaoCampo(coluna) === 'asc' ? comparacao : 0);
+            })
         : [null];
     const series = valores.flatMap(mapeamento => membrosColuna.map(membro => ({
         nome: membro === null
@@ -744,7 +764,7 @@ function chaveCamposRegistro(registro, campos) {
     return JSON.stringify(campos.map(campo => obterValorLinha(registro, campo.coluna)));
 }
 
-function agruparRegistros(registros, campo) {
+function agruparRegistros(registros, campo, valores = []) {
     const grupos = new Map();
     registros.forEach(registro => {
         const bruto = obterValorLinha(registro, campo.coluna);
@@ -753,7 +773,21 @@ function agruparRegistros(registros, campo) {
         if (!grupos.has(chave)) grupos.set(chave, { valor: bruto, rotulo, registros: [] });
         grupos.get(chave).registros.push(registro);
     });
-    return Array.from(grupos.values());
+    const direcaoDimensao = obterOrdenacaoCampo(campo);
+    const valoresOrdenados = valores.filter(valor => obterOrdenacaoCampo(valor) !== 'none');
+    return Array.from(grupos.values()).sort((a, b) => {
+        if (direcaoDimensao !== 'none') {
+            const comparacao = compararValoresOrdenacao(a.valor, b.valor);
+            if (comparacao !== 0) return direcaoDimensao === 'desc' ? -comparacao : comparacao;
+        }
+        for (const valor of valoresOrdenados) {
+            const agregadoA = calcularAgregacao(a.registros.map(registro => obterValorLinha(registro, valor.coluna)), valor.agregacao || 'none');
+            const agregadoB = calcularAgregacao(b.registros.map(registro => obterValorLinha(registro, valor.coluna)), valor.agregacao || 'none');
+            const comparacao = compararValoresOrdenacao(agregadoA, agregadoB);
+            if (comparacao !== 0) return obterOrdenacaoCampo(valor) === 'desc' ? -comparacao : comparacao;
+        }
+        return 0;
+    });
 }
 
 function obterCamposDetalheWidget(widget, mapeamentos) {
@@ -769,13 +803,48 @@ function obterCamposDetalheWidget(widget, mapeamentos) {
                 coluna,
                 apelido: configuracao.apelido || coluna,
                 formatoData: configuracao.formatoData || 'none',
-                alinhamento: configuracao.alinhamento || 'left'
+                alinhamento: configuracao.alinhamento || 'left',
+                ordenacao: configuracao.ordenacao || 'none'
             };
         });
 }
 
 function obterAlinhamentoCampo(campo, padrao = 'left') {
     return ['left', 'center', 'right'].includes(campo?.alinhamento) ? campo.alinhamento : padrao;
+}
+
+function obterOrdenacaoCampo(campo) {
+    return ['asc', 'desc'].includes(campo?.ordenacao) ? campo.ordenacao : 'none';
+}
+
+function compararValoresOrdenacao(a, b) {
+    const vazioA = a === null || a === undefined || a === '';
+    const vazioB = b === null || b === undefined || b === '';
+    if (vazioA || vazioB) return vazioA === vazioB ? 0 : (vazioA ? 1 : -1);
+    const numeroA = typeof a === 'number' ? a : Number(String(a).replace(',', '.'));
+    const numeroB = typeof b === 'number' ? b : Number(String(b).replace(',', '.'));
+    if (Number.isFinite(numeroA) && Number.isFinite(numeroB)) return numeroA - numeroB;
+    return String(a).localeCompare(String(b), 'pt-BR', { numeric: true, sensitivity: 'base' });
+}
+
+function compararRegistrosPorCampos(a, b, campos = []) {
+    for (const campo of campos) {
+        const direcao = obterOrdenacaoCampo(campo);
+        if (direcao === 'none') continue;
+        const comparacao = compararValoresOrdenacao(
+            obterValorLinha(a, campo.coluna),
+            obterValorLinha(b, campo.coluna)
+        );
+        if (comparacao !== 0) return direcao === 'desc' ? -comparacao : comparacao;
+    }
+    return 0;
+}
+
+function ordenarRegistrosPorCampos(registros, campos = []) {
+    if (!campos.some(campo => obterOrdenacaoCampo(campo) !== 'none')) return registros;
+    return registros.map((registro, index) => ({ registro, index }))
+        .sort((a, b) => compararRegistrosPorCampos(a.registro, b.registro, campos) || a.index - b.index)
+        .map(item => item.registro);
 }
 
 function atributoAlinhamentoCampo(campo, padrao = 'left') {
@@ -872,8 +941,11 @@ function renderizarTabelaGrafico(container, widget) {
     const camposDetalhe = obterCamposDetalheWidget(widget, mapeamentos);
     const configuracao = obterConfiguracaoTabela(widget);
     const filtrosAtivos = estadoDrill?.filtros || [];
-    const registros = todosRegistros;
     const camposLinha = estadoDrill?.campoAtual ? [estadoDrill.campoAtual] : camposLinhaConfigurados;
+    const camposOrdenacao = estadoDrill?.campoAtual
+        ? [estadoDrill.campoAtual, ...valores]
+        : mapeamentos.filter(item => item.papel !== 'ignorar');
+    const registros = ordenarRegistrosPorCampos(todosRegistros, camposOrdenacao);
 
     if (!camposLinhaConfigurados.length || !valores.length) {
         container.innerHTML = '<div class="crm-chart-empty">Defina ao menos um campo de linha e um campo de valor.</div>';
@@ -965,7 +1037,7 @@ function renderizarTabelaGrafico(container, widget) {
     };
     const renderizarNivel = (registrosNivel, nivel = 0, caminho = []) => {
         const campo = camposLinha[nivel];
-        return agruparRegistros(registrosNivel, campo).map(grupo => {
+        return agruparRegistros(registrosNivel, campo, valores).map(grupo => {
             const novoCaminho = [...caminho, { campo, valor: grupo.valor, rotulo: grupo.rotulo }];
             let conteudo = nivel === camposLinha.length - 1
                 ? renderizarLinhaBase(novoCaminho, grupo.registros)
@@ -1219,9 +1291,13 @@ function montarVisualizacaoWidget(widget, opcoes = {}) {
     if (!dimensoes.length || !valores.length) return null;
     return {
         agrupar: true,
-        dimensoes: dimensoes.map(item => ({ coluna: item.coluna })),
-        colunas: colunas.map(item => ({ coluna: item.coluna })),
-        valores: valores.map(item => ({ coluna: item.coluna, agregacao: item.agregacao || 'sum' })),
+        dimensoes: dimensoes.map(item => ({ coluna: item.coluna, ordenacao: obterOrdenacaoCampo(item) })),
+        colunas: colunas.map(item => ({ coluna: item.coluna, ordenacao: obterOrdenacaoCampo(item) })),
+        valores: valores.map(item => ({
+            coluna: item.coluna,
+            agregacao: item.agregacao || 'sum',
+            ordenacao: obterOrdenacaoCampo(item)
+        })),
         filtrosDimensao: Array.isArray(opcoes.filtrosDimensao)
             ? opcoes.filtrosDimensao.map(item => ({ coluna: item.coluna, valor: item.valor }))
             : []
@@ -1573,6 +1649,14 @@ function renderizarMapeamentoColunas() {
                         <option value="right"${obterAlinhamentoCampo(atual, atual.papel === 'valor' ? 'right' : 'left') === 'right' ? ' selected' : ''}>Direita</option>
                     </select>
                 </label>
+                <label>
+                    Ordenação
+                    <select data-map-order>
+                        <option value="none"${obterOrdenacaoCampo(atual) === 'none' ? ' selected' : ''}>Sem ordenação</option>
+                        <option value="asc"${obterOrdenacaoCampo(atual) === 'asc' ? ' selected' : ''}>Crescente</option>
+                        <option value="desc"${obterOrdenacaoCampo(atual) === 'desc' ? ' selected' : ''}>Decrescente</option>
+                    </select>
+                </label>
                 <label data-map-config="aggregation">
                     Agregacao
                     <select data-map-aggregation>
@@ -1624,7 +1708,8 @@ function coletarMapeamentosColunas() {
             agregacao: valorAtivo ? (row.querySelector('[data-map-aggregation]')?.value || 'none') : 'none',
             formatoValor: valorAtivo ? (row.querySelector('[data-map-value-format]')?.value || 'decimal') : null,
             formatoData: dimensaoAtiva ? (row.querySelector('[data-map-date-format]')?.value || 'none') : 'none',
-            alinhamento: row.querySelector('[data-map-alignment]')?.value || (valorAtivo ? 'right' : 'left')
+            alinhamento: row.querySelector('[data-map-alignment]')?.value || (valorAtivo ? 'right' : 'left'),
+            ordenacao: row.querySelector('[data-map-order]')?.value || 'none'
         };
     });
 }
