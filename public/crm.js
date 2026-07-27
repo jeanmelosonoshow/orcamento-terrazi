@@ -106,6 +106,7 @@ const widgetSteps = Array.from(document.querySelectorAll('[data-widget-step]'));
 const widgetStepIndicators = Array.from(document.querySelectorAll('[data-step-indicator]'));
 const testWidgetQueryButton = document.querySelector('[data-test-widget-query]');
 const nextWidgetStepButton = document.querySelector('[data-next-widget-step]');
+const nextAppearanceStepButton = document.querySelector('[data-next-appearance-step]');
 const prevWidgetStepButton = document.querySelector('[data-prev-widget-step]');
 const queryResultBox = document.querySelector('[data-query-result]');
 const queryTableWrap = document.querySelector('[data-query-table-wrap]');
@@ -114,6 +115,15 @@ const mappingNote = document.querySelector('[data-mapping-note]');
 const widgetSourceSelect = document.querySelector('[data-widget-source]');
 const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
 const saveWidgetButton = document.querySelector('[data-save-widget]');
+const widgetBackgroundModeSelect = document.querySelector('[data-widget-background-mode]');
+const widgetBackgroundColorInput = document.querySelector('[data-widget-background-color]');
+const widgetGradientStartInput = document.querySelector('[data-widget-gradient-start]');
+const widgetGradientEndInput = document.querySelector('[data-widget-gradient-end]');
+const widgetSolidColorField = document.querySelector('[data-widget-solid-color-field]');
+const widgetGradientFields = Array.from(document.querySelectorAll('[data-widget-gradient-field]'));
+const widgetPaletteOptions = document.querySelector('[data-widget-palette-options]');
+const widgetIconOptions = document.querySelector('[data-widget-icon-options]');
+const appearancePreview = document.querySelector('[data-appearance-preview]');
 const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
 const budgetFrame = document.querySelector('[data-budget-frame]');
 const dashboardStorageKey = 'crmDashboardScenario:v1';
@@ -158,6 +168,38 @@ const catalogoGraficos = [
     { id: 'cohort', nome: 'Coorte', roles: ['linha', 'coluna', 'valor'] }
 ];
 
+const paletasGraficos = [
+    { id: 'brand', nome: 'Marca', cores: [] },
+    { id: 'ocean', nome: 'Oceano', cores: ['#123865', '#1E65A7', '#43A6C6', '#8BD3DD', '#F2C14E', '#E07A5F'] },
+    { id: 'forest', nome: 'Floresta', cores: ['#173F35', '#2F6B4F', '#6B8F71', '#A7C4A0', '#D6A756', '#8C5A3C'] },
+    { id: 'sunset', nome: 'Por do sol', cores: ['#8C2F39', '#D85C41', '#F29E4C', '#F7C967', '#5C4D7D', '#2D6A8B'] },
+    { id: 'graphite', nome: 'Grafite', cores: ['#1F2933', '#52606D', '#7B8794', '#9FB3C8', '#CBD2D9', '#D9A441'] },
+    { id: 'jewel', nome: 'Joias', cores: ['#0B6E69', '#9B1D5A', '#3D348B', '#E38B29', '#1F7A8C', '#7A9E3A'] },
+    { id: 'soft', nome: 'Suave', cores: ['#729EA1', '#B5BD89', '#DFBE99', '#EC9192', '#DBAFC1', '#9A8C98'] }
+];
+
+const iconesWidgets = [
+    { id: 'none', nome: 'Sem icone', svg: '' },
+    { id: 'money', nome: 'Financeiro', svg: '<circle cx="12" cy="12" r="9"></circle><path d="M16 8.5c-.8-.8-2-1.2-3.4-1.2-1.9 0-3.1.9-3.1 2.2 0 3.4 6.7 1.6 6.7 5 0 1.4-1.4 2.4-3.5 2.4-1.5 0-2.9-.5-3.8-1.4"></path><path d="M12.5 5.5v13"></path>' },
+    { id: 'chart', nome: 'Desempenho', svg: '<path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path>' },
+    { id: 'trend', nome: 'Crescimento', svg: '<path d="m3 17 6-6 4 4 8-9"></path><path d="M15 6h6v6"></path>' },
+    { id: 'target', nome: 'Meta', svg: '<circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1"></circle>' },
+    { id: 'users', nome: 'Clientes', svg: '<path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 20v-1.5a4 4 0 0 0-3-3.8"></path><path d="M16 3.3a4 4 0 0 1 0 7.4"></path>' },
+    { id: 'store', nome: 'Filial', svg: '<path d="M3 10h18"></path><path d="m5 10 1-6h12l1 6"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path>' },
+    { id: 'cart', nome: 'Vendas', svg: '<circle cx="9" cy="20" r="1"></circle><circle cx="19" cy="20" r="1"></circle><path d="M3 4h2l2.5 11h11l2-7H6"></path>' },
+    { id: 'calendar', nome: 'Periodo', svg: '<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path>' },
+    { id: 'star', nome: 'Destaque', svg: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"></path>' },
+    { id: 'percent', nome: 'Conversao', svg: '<path d="m19 5-14 14"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle>' }
+];
+
+const aparenciaWidgetPadrao = Object.freeze({
+    fundoTipo: 'light',
+    fundoCor: '#FFFFFF',
+    gradienteInicio: '#123865',
+    gradienteFim: '#1A3017',
+    paleta: 'brand',
+    icone: 'none'
+});
 function obterIniciais(nomeCompleto) {
     return String(nomeCompleto || 'U')
         .trim()
@@ -230,7 +272,8 @@ function criarWidgetPadrao(tipo = 'bar') {
         h: 300,
         mapeamentos: [],
         fonte: 'firebird',
-        sql: ''
+        sql: '',
+        aparencia: { ...aparenciaWidgetPadrao }
     };
 }
 
@@ -261,6 +304,119 @@ function obterNomeGrafico(tipo) {
     return catalogoGraficos.find(item => item.id === tipo)?.nome || 'Grafico';
 }
 
+function normalizarCorHex(cor, fallback = '#FFFFFF') {
+    const valor = String(cor || '').trim().toUpperCase();
+    return /^#[0-9A-F]{6}$/.test(valor) ? valor : fallback;
+}
+
+function obterAparenciaWidget(widget = {}) {
+    const atual = widget.aparencia && typeof widget.aparencia === 'object' ? widget.aparencia : {};
+    return {
+        fundoTipo: ['light', 'solid', 'gradient'].includes(atual.fundoTipo) ? atual.fundoTipo : aparenciaWidgetPadrao.fundoTipo,
+        fundoCor: normalizarCorHex(atual.fundoCor, aparenciaWidgetPadrao.fundoCor),
+        gradienteInicio: normalizarCorHex(atual.gradienteInicio, aparenciaWidgetPadrao.gradienteInicio),
+        gradienteFim: normalizarCorHex(atual.gradienteFim, aparenciaWidgetPadrao.gradienteFim),
+        paleta: paletasGraficos.some(item => item.id === atual.paleta) ? atual.paleta : aparenciaWidgetPadrao.paleta,
+        icone: iconesWidgets.some(item => item.id === atual.icone) ? atual.icone : aparenciaWidgetPadrao.icone
+    };
+}
+
+function obterContrasteCor(corHex) {
+    const cor = normalizarCorHex(corHex, '#FFFFFF').slice(1);
+    const canais = [0, 2, 4].map(indice => parseInt(cor.slice(indice, indice + 2), 16) / 255)
+        .map(canal => canal <= 0.03928 ? canal / 12.92 : ((canal + 0.055) / 1.055) ** 2.4);
+    const luminancia = (0.2126 * canais[0]) + (0.7152 * canais[1]) + (0.0722 * canais[2]);
+    return luminancia > 0.42 ? '#17304A' : '#FFFFFF';
+}
+
+function obterPaletaWidget(widget = {}) {
+    const aparencia = obterAparenciaWidget(widget);
+    const configurada = paletasGraficos.find(item => item.id === aparencia.paleta);
+    if (configurada?.cores?.length) return configurada.cores;
+    const cores = obterCoresGraficos();
+    return [cores.principal, cores.secundaria, cores.destaque, '#2F6B9A', '#748C68', '#B8563F'];
+}
+
+function renderizarIconeWidget(iconeId, classe = '') {
+    const icone = iconesWidgets.find(item => item.id === iconeId);
+    if (!icone?.svg) return '';
+    return `<span class="crm-widget-icon ${escapeHtml(classe)}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icone.svg}</svg></span>`;
+}
+
+function obterEstiloAparenciaWidget(widget = {}) {
+    const aparencia = obterAparenciaWidget(widget);
+    const paleta = obterPaletaWidget(widget);
+    let fundo = 'rgba(255,255,255,0.94)';
+    let baseContraste = '#FFFFFF';
+    if (aparencia.fundoTipo === 'solid') {
+        fundo = aparencia.fundoCor;
+        baseContraste = aparencia.fundoCor;
+    } else if (aparencia.fundoTipo === 'gradient') {
+        fundo = `linear-gradient(135deg, ${aparencia.gradienteInicio}, ${aparencia.gradienteFim})`;
+        baseContraste = aparencia.gradienteInicio;
+    }
+    const texto = aparencia.fundoTipo === 'light' ? '#17304A' : obterContrasteCor(baseContraste);
+    const textoSuave = texto === '#FFFFFF' ? 'rgba(255,255,255,0.72)' : 'rgba(23,48,74,0.66)';
+    const linha = texto === '#FFFFFF' ? 'rgba(255,255,255,0.20)' : 'rgba(23,48,74,0.13)';
+    return `--widget-background:${fundo};--widget-color:${texto};--widget-muted:${textoSuave};--widget-line:${linha};--widget-accent:${paleta[0]};`;
+}
+
+function coletarAparenciaWidget() {
+    return obterAparenciaWidget({
+        aparencia: {
+            fundoTipo: widgetBackgroundModeSelect?.value || 'light',
+            fundoCor: widgetBackgroundColorInput?.value,
+            gradienteInicio: widgetGradientStartInput?.value,
+            gradienteFim: widgetGradientEndInput?.value,
+            paleta: widgetPaletteOptions?.querySelector('input:checked')?.value || 'brand',
+            icone: widgetIconOptions?.querySelector('input:checked')?.value || 'none'
+        }
+    });
+}
+
+function atualizarCamposAparencia() {
+    const modo = widgetBackgroundModeSelect?.value || 'light';
+    if (widgetSolidColorField) widgetSolidColorField.hidden = modo !== 'solid';
+    widgetGradientFields.forEach(campo => { campo.hidden = modo !== 'gradient'; });
+    renderizarPreviaAparencia();
+}
+
+function renderizarOpcoesAparencia(aparencia) {
+    if (widgetPaletteOptions) {
+        widgetPaletteOptions.innerHTML = paletasGraficos.map(paleta => {
+            const cores = paleta.cores.length ? paleta.cores : obterPaletaWidget({ aparencia: { ...aparencia, paleta: 'brand' } });
+            return `<label class="crm-palette-option"><input type="radio" name="widget-palette" value="${escapeHtml(paleta.id)}"${paleta.id === aparencia.paleta ? ' checked' : ''}><span>${escapeHtml(paleta.nome)}</span><i>${cores.slice(0, 5).map(cor => `<b style="background:${normalizarCorHex(cor, '#123865')}"></b>`).join('')}</i></label>`;
+        }).join('');
+    }
+    if (widgetIconOptions) {
+        widgetIconOptions.innerHTML = iconesWidgets.map(icone => `<label class="crm-icon-option"><input type="radio" name="widget-icon" value="${escapeHtml(icone.id)}"${icone.id === aparencia.icone ? ' checked' : ''}><span>${icone.svg ? renderizarIconeWidget(icone.id) : '<span class="crm-no-icon">--</span>'}<small>${escapeHtml(icone.nome)}</small></span></label>`).join('');
+    }
+}
+
+function renderizarPreviaAparencia() {
+    if (!appearancePreview) return;
+    const aparencia = coletarAparenciaWidget();
+    const widgetPrevia = { ...(widgetEmEdicao || {}), aparencia };
+    const paleta = obterPaletaWidget(widgetPrevia);
+    appearancePreview.innerHTML = `
+        <div class="crm-appearance-preview-card" style="${obterEstiloAparenciaWidget(widgetPrevia)}">
+            ${renderizarIconeWidget(aparencia.icone, 'is-preview')}
+            <small>${escapeHtml(obterNomeGrafico(widgetTypeSelect?.value || widgetPrevia.tipo))}</small>
+            <strong>${escapeHtml(widgetTitleInput?.value.trim() || 'Titulo do indicador')}</strong>
+            <span>Conteudo ajustavel ao tamanho do card</span>
+            <div class="crm-appearance-preview-bars">${[42, 68, 54, 84, 63].map((altura, index) => `<i style="height:${altura}%;background:${paleta[index % paleta.length]}"></i>`).join('')}</div>
+        </div>`;
+}
+
+function carregarAparenciaWidget(widget) {
+    const aparencia = obterAparenciaWidget(widget);
+    if (widgetBackgroundModeSelect) widgetBackgroundModeSelect.value = aparencia.fundoTipo;
+    if (widgetBackgroundColorInput) widgetBackgroundColorInput.value = aparencia.fundoCor;
+    if (widgetGradientStartInput) widgetGradientStartInput.value = aparencia.gradienteInicio;
+    if (widgetGradientEndInput) widgetGradientEndInput.value = aparencia.gradienteFim;
+    renderizarOpcoesAparencia(aparencia);
+    atualizarCamposAparencia();
+}
 function renderizarVisualGrafico(widget) {
     return `
         <div class="crm-chart-real"
@@ -377,13 +533,16 @@ function obterCoresGraficos() {
 
 function montarOpcaoECharts(widget, dados) {
     const cores = obterCoresGraficos();
-    const paleta = [cores.principal, cores.secundaria, cores.destaque, '#2F6B9A', '#748C68', '#B8563F'];
+    const paleta = obterPaletaWidget(widget);
+    const aparencia = obterAparenciaWidget(widget);
+    const baseContraste = aparencia.fundoTipo === 'solid' ? aparencia.fundoCor : aparencia.gradienteInicio;
+    const textoGrafico = aparencia.fundoTipo === 'light' ? cores.texto : obterContrasteCor(baseContraste);
     const primeiraSerie = dados.series[0];
     const formatarTooltip = valor => formatarValorGrafico(valor, primeiraSerie?.formato);
     const base = {
         animationDuration: 420,
         color: paleta,
-        textStyle: { color: cores.texto, fontFamily: 'Arial, sans-serif' },
+        textStyle: { color: textoGrafico, fontFamily: 'Arial, sans-serif' },
         tooltip: { trigger: 'axis', valueFormatter: formatarTooltip },
         grid: { left: 18, right: 18, top: 22, bottom: 14, containLabel: true }
     };
@@ -536,7 +695,11 @@ function obterLayoutWidget(widget, index = 0) {
 }
 
 function normalizarWidgetsDashboard(widgets) {
-    return widgets.map((widget, index) => ({ ...widget, ...obterLayoutWidget(widget, index) }));
+    return widgets.map((widget, index) => ({
+        ...widget,
+        aparencia: obterAparenciaWidget(widget),
+        ...obterLayoutWidget(widget, index)
+    }));
 }
 
 function obterAlturaCanvasPreferida() {
@@ -610,8 +773,9 @@ function renderizarDashboard() {
     dashboardCanvas.innerHTML = widgets.map((widget, index) => {
         const layout = obterLayoutWidget(widget, index);
         return `
-            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px;">
+            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
+                    ${renderizarIconeWidget(obterAparenciaWidget(widget).icone)}
                     <div>
                         <span>${escapeHtml(obterNomeGrafico(widget.tipo))}</span>
                         <strong>${escapeHtml(widget.titulo)}</strong>
@@ -654,7 +818,9 @@ function setEtapaWidget(etapa) {
     if (prevWidgetStepButton) prevWidgetStepButton.hidden = etapa === 'sql';
     if (testWidgetQueryButton) testWidgetQueryButton.hidden = etapa !== 'sql';
     if (nextWidgetStepButton) nextWidgetStepButton.hidden = etapa !== 'sql';
-    if (saveWidgetButton) saveWidgetButton.hidden = etapa !== 'mapping';
+    if (nextAppearanceStepButton) nextAppearanceStepButton.hidden = etapa !== 'mapping';
+    if (saveWidgetButton) saveWidgetButton.hidden = etapa !== 'appearance';
+    if (etapa === 'appearance') renderizarPreviaAparencia();
 }
 
 function obterFiltrosCenario() {
@@ -892,6 +1058,7 @@ function abrirModalWidget(widgetId) {
     if (queryResultBox) queryResultBox.hidden = true;
     if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
     renderizarMapeamentoColunas();
+    carregarAparenciaWidget(widgetEmEdicao);
     setEtapaWidget('sql');
     widgetModal.hidden = false;
 }
@@ -936,7 +1103,8 @@ function salvarWidgetAtual() {
         colunasConsulta: colunasConsultaAtual,
         dadosConsulta: dadosConsultaAtual,
         consultaAtualizadaEm: new Date().toISOString(),
-        mapeamentos
+        mapeamentos,
+        aparencia: coletarAparenciaWidget()
     };
     const index = widgets.findIndex(widget => widget.id === atualizado.id);
     if (index >= 0) {
@@ -1047,7 +1215,19 @@ function inicializarEditorDashboard() {
             setEtapaWidget('mapping');
         });
     }
-    if (prevWidgetStepButton) prevWidgetStepButton.addEventListener('click', () => setEtapaWidget('sql'));
+    if (nextAppearanceStepButton) {
+        nextAppearanceStepButton.addEventListener('click', () => {
+            if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
+            const mapeamentos = coletarMapeamentosColunas();
+            if (!validarMapeamentoWidget(mapeamentos)) return;
+            setEtapaWidget('appearance');
+        });
+    }
+    if (prevWidgetStepButton) {
+        prevWidgetStepButton.addEventListener('click', () => {
+            setEtapaWidget(etapaWidgetAtual === 'appearance' ? 'mapping' : 'sql');
+        });
+    }
     if (columnMappingBox) {
         columnMappingBox.addEventListener('change', event => {
             if (!event.target.matches('[data-map-role]')) return;
@@ -1058,8 +1238,22 @@ function inicializarEditorDashboard() {
         widgetTypeSelect.addEventListener('change', () => {
             if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
             renderizarMapeamentoColunas();
+            renderizarPreviaAparencia();
         });
     }
+    if (widgetTitleInput) widgetTitleInput.addEventListener('input', renderizarPreviaAparencia);
+    [
+        widgetBackgroundModeSelect,
+        widgetBackgroundColorInput,
+        widgetGradientStartInput,
+        widgetGradientEndInput
+    ].forEach(campo => {
+        if (!campo) return;
+        campo.addEventListener('input', atualizarCamposAparencia);
+        campo.addEventListener('change', atualizarCamposAparencia);
+    });
+    if (widgetPaletteOptions) widgetPaletteOptions.addEventListener('change', renderizarPreviaAparencia);
+    if (widgetIconOptions) widgetIconOptions.addEventListener('change', renderizarPreviaAparencia);
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', event => {

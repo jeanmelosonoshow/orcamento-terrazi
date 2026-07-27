@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260727-5">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260727-6">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -243,6 +243,7 @@
             <div class="crm-modal-steps" aria-label="Etapas da configuracao">
                 <span class="is-active" data-step-indicator="sql">1. Consulta</span>
                 <span data-step-indicator="mapping">2. Colunas</span>
+                <span data-step-indicator="appearance">3. Aparencia</span>
             </div>
 
             <div class="crm-widget-step" data-widget-step="sql">
@@ -289,17 +290,41 @@
                 <div class="crm-column-mapping" data-column-mapping></div>
             </div>
 
+            <div class="crm-widget-step" data-widget-step="appearance" hidden>
+                <div class="crm-appearance-layout">
+                    <section class="crm-appearance-panel">
+                        <div><span class="crm-eyebrow">Card</span><h3>Fundo e contraste</h3></div>
+                        <div class="crm-appearance-fields">
+                            <label>Estilo do fundo<select data-widget-background-mode><option value="light">Claro</option><option value="solid">Cor solida</option><option value="gradient">Gradiente</option></select></label>
+                            <label data-widget-solid-color-field>Cor do fundo<input type="color" value="#FFFFFF" data-widget-background-color></label>
+                            <label data-widget-gradient-field>Inicio do gradiente<input type="color" value="#123865" data-widget-gradient-start></label>
+                            <label data-widget-gradient-field>Final do gradiente<input type="color" value="#1A3017" data-widget-gradient-end></label>
+                        </div>
+                    </section>
+                    <section class="crm-appearance-panel">
+                        <div><span class="crm-eyebrow">Grafico</span><h3>Paleta de cores</h3></div>
+                        <div class="crm-palette-options" data-widget-palette-options></div>
+                    </section>
+                    <section class="crm-appearance-panel">
+                        <div><span class="crm-eyebrow">Detalhe opcional</span><h3>Icone do card</h3></div>
+                        <div class="crm-icon-options" data-widget-icon-options></div>
+                    </section>
+                    <aside class="crm-appearance-preview" data-appearance-preview aria-label="Previa da aparencia"></aside>
+                </div>
+            </div>
+
             <div class="crm-modal-actions">
                 <button type="button" class="crm-secondary-button" data-close-widget-modal>Cancelar</button>
                 <button type="button" class="crm-secondary-button" data-prev-widget-step hidden>Voltar</button>
                 <button type="button" class="crm-secondary-button" data-test-widget-query>Executar teste</button>
                 <button type="button" data-next-widget-step>Proximo</button>
+                <button type="button" data-next-appearance-step hidden>Aparencia</button>
                 <button type="button" data-save-widget hidden>Salvar cenario</button>
             </div>
         </section>
     </div>
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260727-5"></script>
+    <script src="crm.js?v=crm-20260727-7"></script>
 </body>
 </html>
