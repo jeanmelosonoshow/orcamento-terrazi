@@ -37,6 +37,55 @@ const crmVendedorTrigger = document.querySelector('[data-vendedor-trigger]');
 const crmVendedorPanel = document.querySelector('[data-vendedor-panel]');
 const crmVendedorSearch = document.querySelector('[data-vendedor-search]');
 const crmVendedorOptions = document.querySelector('[data-vendedor-options]');
+const podeEditarCenarios = Boolean(usuarioLogado.podeEditarCenarios || usuarioLogado.canEditScenarios);
+const dashboardEditor = document.querySelector('[data-dashboard-editor]');
+const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');
+const addWidgetButton = document.querySelector('[data-add-widget]');
+const widgetModal = document.querySelector('[data-widget-modal]');
+const widgetTypeSelect = document.querySelector('[data-widget-type]');
+const widgetTitleInput = document.querySelector('[data-widget-title]');
+const widgetColsSelect = document.querySelector('[data-widget-cols]');
+const widgetRowsSelect = document.querySelector('[data-widget-rows]');
+const widgetDimensionInput = document.querySelector('[data-widget-dimension]');
+const widgetRowInput = document.querySelector('[data-widget-row]');
+const widgetColumnInput = document.querySelector('[data-widget-column]');
+const widgetValueInput = document.querySelector('[data-widget-value]');
+const widgetValueFormatSelect = document.querySelector('[data-widget-value-format]');
+const widgetDateFormatSelect = document.querySelector('[data-widget-date-format]');
+const widgetSourceSelect = document.querySelector('[data-widget-source]');
+const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
+const saveWidgetButton = document.querySelector('[data-save-widget]');
+const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
+const dashboardStorageKey = 'crmDashboardScenario:v1';
+let widgetEmEdicao = null;
+
+const catalogoGraficos = [
+    { id: 'kpi', nome: 'Indicador KPI' },
+    { id: 'bar', nome: 'Barras verticais' },
+    { id: 'horizontal-bar', nome: 'Barras horizontais' },
+    { id: 'grouped-bar', nome: 'Barras agrupadas' },
+    { id: 'stacked-bar', nome: 'Barras empilhadas' },
+    { id: 'line', nome: 'Linha' },
+    { id: 'area', nome: 'Area' },
+    { id: 'combo', nome: 'Combinado barras e linha' },
+    { id: 'pie', nome: 'Pizza' },
+    { id: 'donut', nome: 'Rosca' },
+    { id: 'gauge', nome: 'Velocimetro' },
+    { id: 'funnel', nome: 'Funil' },
+    { id: 'treemap', nome: 'Mapa de arvore' },
+    { id: 'heatmap', nome: 'Mapa de calor' },
+    { id: 'scatter', nome: 'Dispersao' },
+    { id: 'bubble', nome: 'Bolhas' },
+    { id: 'ranking', nome: 'Ranking' },
+    { id: 'table', nome: 'Tabela' },
+    { id: 'pivot', nome: 'Tabela dinamica' },
+    { id: 'waterfall', nome: 'Cascata' },
+    { id: 'histogram', nome: 'Histograma' },
+    { id: 'bullet', nome: 'Meta x realizado' },
+    { id: 'sparkline', nome: 'Mini linha' },
+    { id: 'calendar', nome: 'Calendario de calor' },
+    { id: 'cohort', nome: 'Coorte' }
+];
 
 function obterIniciais(nomeCompleto) {
     return String(nomeCompleto || 'U')
@@ -97,6 +146,184 @@ function atualizarFilialUsuario(nomeFilial) {
 atualizarFilialUsuario();
 if (crmUserInitials) crmUserInitials.textContent = obterIniciais(nome);
 
+
+function criarWidgetPadrao(tipo = 'bar') {
+    const itemCatalogo = catalogoGraficos.find(item => item.id === tipo) || catalogoGraficos[1];
+    return {
+        id: `grafico-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        titulo: itemCatalogo.nome,
+        tipo: itemCatalogo.id,
+        colunas: 6,
+        linhas: 2,
+        dimensao: '',
+        linha: '',
+        coluna: '',
+        valor: '',
+        formatoValor: 'money',
+        formatoData: 'none',
+        fonte: 'firebird',
+        sql: ''
+    };
+}
+
+function obterWidgetsDashboard() {
+    try {
+        const salvos = JSON.parse(localStorage.getItem(dashboardStorageKey) || '[]');
+        if (Array.isArray(salvos) && salvos.length) return salvos;
+    } catch (error) {
+        // Mantem o painel utilizavel caso um rascunho local esteja invalido.
+    }
+
+    return [
+        { ...criarWidgetPadrao('bar'), id: 'evolucao-comercial', titulo: 'Evolucao comercial', colunas: 8 },
+        { ...criarWidgetPadrao('kpi'), id: 'ticket-medio', titulo: 'Ticket medio', colunas: 4, linhas: 1 },
+        { ...criarWidgetPadrao('funnel'), id: 'funil-orcamentos', titulo: 'Funil de orcamentos', colunas: 6 },
+        { ...criarWidgetPadrao('ranking'), id: 'ranking-vendedores', titulo: 'Ranking de vendedores', colunas: 6 }
+    ];
+}
+
+function salvarWidgetsDashboard(widgets) {
+    localStorage.setItem(dashboardStorageKey, JSON.stringify(widgets));
+}
+
+function obterNomeGrafico(tipo) {
+    return catalogoGraficos.find(item => item.id === tipo)?.nome || 'Grafico';
+}
+
+function renderizarVisualGrafico(tipo) {
+    if (tipo === 'kpi') return '<div class="crm-chart-kpi-preview"><strong>R$ 0,00</strong><span>Indicador</span></div>';
+    if (tipo === 'pie' || tipo === 'donut' || tipo === 'gauge') return '<div class="crm-chart-circle-preview"></div>';
+    if (tipo === 'funnel') return '<div class="crm-chart-funnel-preview"><span></span><span></span><span></span><span></span></div>';
+    if (tipo === 'table' || tipo === 'pivot' || tipo === 'ranking') return '<div class="crm-chart-table-preview"><span></span><span></span><span></span><span></span></div>';
+    if (tipo === 'line' || tipo === 'area' || tipo === 'sparkline') return '<div class="crm-chart-line-preview"><span></span></div>';
+    if (tipo === 'heatmap' || tipo === 'calendar' || tipo === 'cohort') return '<div class="crm-chart-heat-preview">' + Array.from({ length: 24 }, () => '<span></span>').join('') + '</div>';
+    return '<div class="crm-chart-bars-preview"><span></span><span></span><span></span><span></span><span></span></div>';
+}
+
+function renderizarDashboard() {
+    if (!dashboardCanvas) return;
+    const widgets = obterWidgetsDashboard();
+    dashboardCanvas.innerHTML = widgets.map(widget => `
+        <article class="crm-dashboard-widget" draggable="${podeEditarCenarios}" data-widget-id="${escapeHtml(widget.id)}" style="grid-column: span ${Number(widget.colunas) || 6}; min-height: ${150 + ((Number(widget.linhas) || 2) * 62)}px;">
+            <div class="crm-dashboard-widget-head">
+                <div>
+                    <span>${escapeHtml(obterNomeGrafico(widget.tipo))}</span>
+                    <strong>${escapeHtml(widget.titulo)}</strong>
+                </div>
+                ${podeEditarCenarios ? '<button type="button" data-edit-widget>Editar</button>' : ''}
+            </div>
+            ${renderizarVisualGrafico(widget.tipo)}
+            <div class="crm-dashboard-widget-meta">
+                <span>${escapeHtml(widget.fonte || 'firebird')}</span>
+                <span>${widget.sql ? 'SQL definido' : 'Aguardando consulta'}</span>
+            </div>
+        </article>
+    `).join('');
+}
+
+function abrirModalWidget(widgetId) {
+    if (!widgetModal) return;
+    const widgets = obterWidgetsDashboard();
+    widgetEmEdicao = widgets.find(widget => widget.id === widgetId) || criarWidgetPadrao();
+
+    if (widgetTypeSelect) {
+        widgetTypeSelect.innerHTML = catalogoGraficos.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)}</option>`).join('');
+        widgetTypeSelect.value = widgetEmEdicao.tipo;
+    }
+    if (widgetTitleInput) widgetTitleInput.value = widgetEmEdicao.titulo || '';
+    if (widgetColsSelect) widgetColsSelect.value = String(widgetEmEdicao.colunas || 6);
+    if (widgetRowsSelect) widgetRowsSelect.value = String(widgetEmEdicao.linhas || 2);
+    if (widgetDimensionInput) widgetDimensionInput.value = widgetEmEdicao.dimensao || '';
+    if (widgetRowInput) widgetRowInput.value = widgetEmEdicao.linha || '';
+    if (widgetColumnInput) widgetColumnInput.value = widgetEmEdicao.coluna || '';
+    if (widgetValueInput) widgetValueInput.value = widgetEmEdicao.valor || '';
+    if (widgetValueFormatSelect) widgetValueFormatSelect.value = widgetEmEdicao.formatoValor || 'money';
+    if (widgetDateFormatSelect) widgetDateFormatSelect.value = widgetEmEdicao.formatoData || 'none';
+    if (widgetSourceSelect) widgetSourceSelect.value = widgetEmEdicao.fonte || 'firebird';
+    if (widgetSqlTextarea) widgetSqlTextarea.value = widgetEmEdicao.sql || '';
+    widgetModal.hidden = false;
+}
+
+function fecharModalWidget() {
+    if (widgetModal) widgetModal.hidden = true;
+    widgetEmEdicao = null;
+}
+
+function salvarWidgetAtual() {
+    if (!widgetEmEdicao) return;
+    const widgets = obterWidgetsDashboard();
+    const atualizado = {
+        ...widgetEmEdicao,
+        titulo: widgetTitleInput?.value.trim() || obterNomeGrafico(widgetTypeSelect?.value),
+        tipo: widgetTypeSelect?.value || 'bar',
+        colunas: Number(widgetColsSelect?.value || 6),
+        linhas: Number(widgetRowsSelect?.value || 2),
+        dimensao: widgetDimensionInput?.value.trim() || '',
+        linha: widgetRowInput?.value.trim() || '',
+        coluna: widgetColumnInput?.value.trim() || '',
+        valor: widgetValueInput?.value.trim() || '',
+        formatoValor: widgetValueFormatSelect?.value || 'money',
+        formatoData: widgetDateFormatSelect?.value || 'none',
+        fonte: widgetSourceSelect?.value || 'firebird',
+        sql: widgetSqlTextarea?.value.trim() || ''
+    };
+    const index = widgets.findIndex(widget => widget.id === atualizado.id);
+    if (index >= 0) {
+        widgets[index] = atualizado;
+    } else {
+        widgets.push(atualizado);
+    }
+    salvarWidgetsDashboard(widgets);
+    fecharModalWidget();
+    renderizarDashboard();
+}
+
+function inicializarEditorDashboard() {
+    if (dashboardEditor) dashboardEditor.hidden = !podeEditarCenarios;
+    renderizarDashboard();
+
+    if (addWidgetButton) addWidgetButton.addEventListener('click', () => abrirModalWidget());
+
+    if (dashboardCanvas) {
+        let draggedId = null;
+        dashboardCanvas.addEventListener('click', event => {
+            const editButton = event.target.closest('[data-edit-widget]');
+            if (!editButton) return;
+            const card = editButton.closest('[data-widget-id]');
+            if (card) abrirModalWidget(card.dataset.widgetId);
+        });
+        dashboardCanvas.addEventListener('dragstart', event => {
+            const card = event.target.closest('[data-widget-id]');
+            if (!card || !podeEditarCenarios) return;
+            draggedId = card.dataset.widgetId;
+            card.classList.add('is-dragging');
+        });
+        dashboardCanvas.addEventListener('dragend', event => {
+            event.target.closest('[data-widget-id]')?.classList.remove('is-dragging');
+            draggedId = null;
+        });
+        dashboardCanvas.addEventListener('dragover', event => {
+            if (!draggedId) return;
+            event.preventDefault();
+        });
+        dashboardCanvas.addEventListener('drop', event => {
+            if (!draggedId) return;
+            const destino = event.target.closest('[data-widget-id]');
+            if (!destino || destino.dataset.widgetId === draggedId) return;
+            const widgets = obterWidgetsDashboard();
+            const origemIndex = widgets.findIndex(widget => widget.id === draggedId);
+            const destinoIndex = widgets.findIndex(widget => widget.id === destino.dataset.widgetId);
+            if (origemIndex < 0 || destinoIndex < 0) return;
+            const movido = widgets.splice(origemIndex, 1)[0];
+            widgets.splice(destinoIndex, 0, movido);
+            salvarWidgetsDashboard(widgets);
+            renderizarDashboard();
+        });
+    }
+
+    closeWidgetButtons.forEach(button => button.addEventListener('click', fecharModalWidget));
+    if (saveWidgetButton) saveWidgetButton.addEventListener('click', salvarWidgetAtual);
+}
 function inicializarPeriodo() {
     if (crmDataInicial) {
         crmDataInicial.value = sessionStorage.getItem('crmDataInicial') || '';
@@ -369,6 +596,7 @@ async function carregarFiliais() {
     }
 }
 
+inicializarEditorDashboard();
 inicializarPeriodo();
 carregarFiliais().then(() => carregarVendedores());
 document.addEventListener('click', event => {
@@ -468,6 +696,7 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
 
 
 

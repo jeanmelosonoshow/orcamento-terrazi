@@ -1,0 +1,10 @@
+{
+  "categorias": {
+    "loginPermitido": ["VD", "GR", "SU", "DI", "CX"]
+  },
+  "cenarios": {
+    "editoresIdFuncionario": []
+  },
+  "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
+  "scenarioEditorFuncionarioIds": []
+}

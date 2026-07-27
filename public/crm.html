@@ -112,6 +112,16 @@
                 </div>
 
             </header>
+            <section class="crm-dashboard-editor" data-dashboard-editor hidden>
+                <div>
+                    <span class="crm-eyebrow">Cenarios</span>
+                    <strong>Construtor visual</strong>
+                    <small>Arraste, redimensione e configure graficos para este painel.</small>
+                </div>
+                <button type="button" data-add-widget>Adicionar grafico</button>
+            </section>
+
+            <section class="crm-dashboard-canvas" data-dashboard-canvas aria-label="Cenarios do painel"></section>
 
             <section class="crm-kpis" aria-label="Indicadores principais">
                 <article class="crm-kpi crm-kpi-featured">
@@ -202,11 +212,103 @@
             </div>
         </section>
     </main>
+    <div class="crm-modal" data-widget-modal hidden>
+        <div class="crm-modal-backdrop" data-close-widget-modal></div>
+        <section class="crm-modal-card" role="dialog" aria-modal="true" aria-labelledby="crmWidgetModalTitle">
+            <div class="crm-modal-head">
+                <div>
+                    <span class="crm-eyebrow">Editar cenario</span>
+                    <h2 id="crmWidgetModalTitle">Grafico e consulta</h2>
+                </div>
+                <button type="button" class="crm-icon-button" aria-label="Fechar" data-close-widget-modal>×</button>
+            </div>
 
-    <script src="theme-loader.js?v=crm-20260727-1"></script>
-    <script src="crm.js?v=crm-20260727-1"></script>
+            <div class="crm-modal-grid">
+                <label>
+                    Titulo
+                    <input type="text" data-widget-title placeholder="Ex: Faturamento por filial">
+                </label>
+                <label>
+                    Tipo de grafico
+                    <select data-widget-type></select>
+                </label>
+                <label>
+                    Largura
+                    <select data-widget-cols>
+                        <option value="3">3 colunas</option>
+                        <option value="4">4 colunas</option>
+                        <option value="6">6 colunas</option>
+                        <option value="8">8 colunas</option>
+                        <option value="12">12 colunas</option>
+                    </select>
+                </label>
+                <label>
+                    Altura
+                    <select data-widget-rows>
+                        <option value="1">Baixa</option>
+                        <option value="2">Media</option>
+                        <option value="3">Alta</option>
+                    </select>
+                </label>
+                <label>
+                    Dimensao
+                    <input type="text" data-widget-dimension placeholder="Coluna de categoria/data">
+                </label>
+                <label>
+                    Linha
+                    <input type="text" data-widget-row placeholder="Opcional">
+                </label>
+                <label>
+                    Coluna
+                    <input type="text" data-widget-column placeholder="Opcional">
+                </label>
+                <label>
+                    Valor
+                    <input type="text" data-widget-value placeholder="Coluna numerica">
+                </label>
+                <label>
+                    Formato do valor
+                    <select data-widget-value-format>
+                        <option value="money">Monetario</option>
+                        <option value="percent">Percentual</option>
+                        <option value="integer">Inteiro</option>
+                        <option value="decimal">Decimal</option>
+                    </select>
+                </label>
+                <label>
+                    Formato da data
+                    <select data-widget-date-format>
+                        <option value="none">Nao se aplica</option>
+                        <option value="day">Dia</option>
+                        <option value="month">Mes</option>
+                        <option value="quarter">Trimestre</option>
+                        <option value="year">Ano</option>
+                    </select>
+                </label>
+                <label>
+                    Fonte de dados
+                    <select data-widget-source>
+                        <option value="firebird">Firebird</option>
+                        <option value="postgres">Postgres</option>
+                    </select>
+                </label>
+                <label class="crm-sql-field">
+                    Console SQL
+                    <textarea data-widget-sql spellcheck="false" placeholder="Digite apenas SELECT. A execucao real sera conectada na proxima etapa com validacao."></textarea>
+                </label>
+            </div>
+
+            <div class="crm-modal-actions">
+                <button type="button" class="crm-secondary-button" data-close-widget-modal>Cancelar</button>
+                <button type="button" data-save-widget>Salvar cenario</button>
+            </div>
+        </section>
+    </div>
+    <script src="theme-loader.js?v=crm-20260727-2"></script>
+    <script src="crm.js?v=crm-20260727-2"></script>
 </body>
 </html>
+
 
 
 
