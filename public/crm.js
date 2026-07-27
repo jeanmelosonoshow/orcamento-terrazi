@@ -309,6 +309,18 @@ function obterFiltrosCenario() {
     };
 }
 
+function fetchJsonComTimeout(url, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { signal: controller.signal })
+        .then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || data.details || 'Erro ao carregar dados.');
+            return data;
+        })
+        .finally(() => clearTimeout(timeout));
+}
+
 function renderizarResultadoConsulta(mensagem, tipo = 'info') {
     if (!queryResultBox) return;
     queryResultBox.hidden = false;
@@ -760,8 +772,7 @@ async function carregarVendedores() {
             idfilial: filialId || '',
             filiais: getFiliaisSelecionadas().join(',')
         });
-        const response = await fetch(`/api/vendedores?${params.toString()}`);
-        const data = await response.json();
+        const data = await fetchJsonComTimeout(`/api/vendedores?${params.toString()}`);
         const vendedores = Array.isArray(data.vendedores) ? data.vendedores : [];
 
         if (!vendedores.length) {
@@ -822,8 +833,7 @@ async function carregarFiliais() {
             idfilial: filialId || '',
             filiais: getFiliaisSelecionadas().join(',')
         });
-        const response = await fetch(`/api/filiais?${params.toString()}`);
-        const data = await response.json();
+        const data = await fetchJsonComTimeout(`/api/filiais?${params.toString()}`);
         const filiais = Array.isArray(data.filiais) ? data.filiais : [];
 
         if (!filiais.length) {
@@ -998,3 +1008,5 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
