@@ -123,6 +123,7 @@ const widgetSourceSelect = document.querySelector('[data-widget-source]');
 const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
 const saveWidgetButton = document.querySelector('[data-save-widget]');
 const widgetBackgroundModeSelect = document.querySelector('[data-widget-background-mode]');
+const widgetAlignmentSelect = document.querySelector('[data-widget-alignment]');
 const widgetBackgroundColorInput = document.querySelector('[data-widget-background-color]');
 const widgetGradientStartInput = document.querySelector('[data-widget-gradient-start]');
 const widgetGradientEndInput = document.querySelector('[data-widget-gradient-end]');
@@ -213,7 +214,8 @@ const aparenciaWidgetPadrao = Object.freeze({
     gradienteInicio: '#123865',
     gradienteFim: '#1A3017',
     paleta: 'brand',
-    icone: 'none'
+    icone: 'none',
+    alinhamento: 'left'
 });
 function obterIniciais(nomeCompleto) {
     return String(nomeCompleto || 'U')
@@ -332,7 +334,8 @@ function obterAparenciaWidget(widget = {}) {
         gradienteInicio: normalizarCorHex(atual.gradienteInicio, aparenciaWidgetPadrao.gradienteInicio),
         gradienteFim: normalizarCorHex(atual.gradienteFim, aparenciaWidgetPadrao.gradienteFim),
         paleta: paletasGraficos.some(item => item.id === atual.paleta) ? atual.paleta : aparenciaWidgetPadrao.paleta,
-        icone: iconesWidgets.some(item => item.id === atual.icone) ? atual.icone : aparenciaWidgetPadrao.icone
+        icone: iconesWidgets.some(item => item.id === atual.icone) ? atual.icone : aparenciaWidgetPadrao.icone,
+        alinhamento: ['left', 'center', 'right'].includes(atual.alinhamento) ? atual.alinhamento : aparenciaWidgetPadrao.alinhamento
     };
 }
 
@@ -373,7 +376,8 @@ function obterEstiloAparenciaWidget(widget = {}) {
     const texto = aparencia.fundoTipo === 'light' ? '#17304A' : obterContrasteCor(baseContraste);
     const textoSuave = texto === '#FFFFFF' ? 'rgba(255,255,255,0.72)' : 'rgba(23,48,74,0.66)';
     const linha = texto === '#FFFFFF' ? 'rgba(255,255,255,0.20)' : 'rgba(23,48,74,0.13)';
-    return `--widget-background:${fundo};--widget-color:${texto};--widget-muted:${textoSuave};--widget-line:${linha};--widget-accent:${paleta[0]};`;
+    const alinhamentoFlex = { left: 'start', center: 'center', right: 'end' }[aparencia.alinhamento] || 'start';
+    return `--widget-background:${fundo};--widget-color:${texto};--widget-muted:${textoSuave};--widget-line:${linha};--widget-accent:${paleta[0]};--widget-align:${aparencia.alinhamento};--widget-justify:${alinhamentoFlex};`;
 }
 
 function coletarAparenciaWidget() {
@@ -384,7 +388,8 @@ function coletarAparenciaWidget() {
             gradienteInicio: widgetGradientStartInput?.value,
             gradienteFim: widgetGradientEndInput?.value,
             paleta: widgetPaletteOptions?.querySelector('input:checked')?.value || 'brand',
-            icone: widgetIconOptions?.querySelector('input:checked')?.value || 'none'
+            icone: widgetIconOptions?.querySelector('input:checked')?.value || 'none',
+            alinhamento: widgetAlignmentSelect?.value || 'left'
         }
     });
 }
@@ -426,6 +431,7 @@ function renderizarPreviaAparencia() {
 function carregarAparenciaWidget(widget) {
     const aparencia = obterAparenciaWidget(widget);
     if (widgetBackgroundModeSelect) widgetBackgroundModeSelect.value = aparencia.fundoTipo;
+    if (widgetAlignmentSelect) widgetAlignmentSelect.value = aparencia.alinhamento;
     if (widgetBackgroundColorInput) widgetBackgroundColorInput.value = aparencia.fundoCor;
     if (widgetGradientStartInput) widgetGradientStartInput.value = aparencia.gradienteInicio;
     if (widgetGradientEndInput) widgetGradientEndInput.value = aparencia.gradienteFim;
@@ -767,12 +773,6 @@ function obterCamposDetalheWidget(widget, mapeamentos) {
         });
 }
 
-function filtrarRegistrosDrill(registros, filtros = []) {
-    return registros.filter(registro => filtros.every(filtro =>
-        String(obterValorLinha(registro, filtro.coluna) ?? '') === String(filtro.valor ?? '')
-    ));
-}
-
 function registrarContextoDrill(widgetId, filtros, campos) {
     const token = `${widgetId}-${++sequenciaContextoDrill}`;
     contextosDrillDashboard.set(token, { widgetId, filtros, campos });
@@ -852,20 +852,30 @@ function renderizarTabelaSimples(container, widget, registros, camposLinha, camp
 }
 
 function renderizarTabelaGrafico(container, widget) {
-    const todosRegistros = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
+    const estadoDrill = estadosDrillDashboard.get(widget.id);
+    const todosRegistros = estadoDrill?.campoAtual
+        ? (Array.isArray(estadoDrill.dados) ? estadoDrill.dados : [])
+        : (Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : []);
     const mapeamentos = Array.isArray(widget.mapeamentos) ? widget.mapeamentos : [];
     const camposLinhaConfigurados = mapeamentos.filter(item => item.papel === 'linha');
     const camposColuna = mapeamentos.filter(item => item.papel === 'coluna');
     const valores = mapeamentos.filter(item => item.papel === 'valor');
     const camposDetalhe = obterCamposDetalheWidget(widget, mapeamentos);
     const configuracao = obterConfiguracaoTabela(widget);
-    const estadoDrill = estadosDrillDashboard.get(widget.id);
     const filtrosAtivos = estadoDrill?.filtros || [];
-    const registros = filtrarRegistrosDrill(todosRegistros, filtrosAtivos);
+    const registros = todosRegistros;
     const camposLinha = estadoDrill?.campoAtual ? [estadoDrill.campoAtual] : camposLinhaConfigurados;
 
-    if (!todosRegistros.length || !camposLinhaConfigurados.length || !valores.length) {
+    if (!camposLinhaConfigurados.length || !valores.length) {
         container.innerHTML = '<div class="crm-chart-empty">Defina ao menos um campo de linha e um campo de valor.</div>';
+        return;
+    }
+    if (estadoDrill?.carregando) {
+        container.innerHTML = `${renderizarBreadcrumbDrill(widget, estadoDrill)}<div class="crm-chart-empty">Carregando detalhamento...</div>`;
+        return;
+    }
+    if (estadoDrill?.erro) {
+        container.innerHTML = `${renderizarBreadcrumbDrill(widget, estadoDrill)}<div class="crm-chart-empty">${escapeHtml(estadoDrill.erro)}</div>`;
         return;
     }
     if (!registros.length) {
@@ -1128,7 +1138,7 @@ function renderizarDashboard() {
     dashboardCanvas.innerHTML = widgets.map((widget, index) => {
         const layout = obterLayoutWidget(widget, index);
         return `
-            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
+            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-align="${escapeHtml(obterAparenciaWidget(widget).alinhamento)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     ${renderizarIconeWidget(obterAparenciaWidget(widget).icone)}
                     <strong>${escapeHtml(widget.titulo)}</strong>
@@ -1188,6 +1198,133 @@ function obterFiltrosCenario() {
     };
 }
 
+function montarVisualizacaoWidget(widget, opcoes = {}) {
+    if (String(widget?.tipo) !== 'pivot') return null;
+    const mapeamentos = Array.isArray(widget.mapeamentos) ? widget.mapeamentos : [];
+    const dimensoes = opcoes.campoDrill
+        ? [opcoes.campoDrill]
+        : mapeamentos.filter(item => item.papel === 'linha');
+    const colunas = mapeamentos.filter(item => item.papel === 'coluna');
+    const valores = mapeamentos.filter(item => item.papel === 'valor');
+    if (!dimensoes.length || !valores.length) return null;
+    return {
+        agrupar: true,
+        dimensoes: dimensoes.map(item => ({ coluna: item.coluna })),
+        colunas: colunas.map(item => ({ coluna: item.coluna })),
+        valores: valores.map(item => ({ coluna: item.coluna, agregacao: item.agregacao || 'sum' })),
+        filtrosDimensao: Array.isArray(opcoes.filtrosDimensao)
+            ? opcoes.filtrosDimensao.map(item => ({ coluna: item.coluna, valor: item.valor }))
+            : []
+    };
+}
+
+async function atualizarDadosMapeadosWidget(mapeamentos) {
+    const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
+    if (tipo !== 'pivot') return true;
+    const widgetTemporario = {
+        ...(widgetEmEdicao || {}),
+        tipo,
+        mapeamentos,
+        fonte: widgetSourceSelect?.value || 'firebird',
+        sql: widgetSqlTextarea?.value.trim() || ''
+    };
+    const visualizacao = montarVisualizacaoWidget(widgetTemporario);
+    if (!visualizacao) return true;
+    renderizarResultadoConsulta('Agrupando todos os registros no banco...', 'info');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+        const response = await fetch('/api/executar-cenario', {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {})
+            },
+            body: JSON.stringify({
+                fonte: widgetTemporario.fonte,
+                sql: widgetTemporario.sql,
+                filtros: obterFiltrosCenario(),
+                visualizacao
+            })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) window.fazerLogout();
+        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao agrupar a tabela dinâmica.');
+        dadosConsultaAtual = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
+        renderizarResultadoConsulta(`${data.linhas || dadosConsultaAtual.length} grupos calculados no banco.`, 'success');
+        return true;
+    } catch (error) {
+        renderizarResultadoConsulta(error.name === 'AbortError' ? 'Tempo limite ao agrupar a tabela dinâmica.' : error.message, 'error');
+        return false;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function executarDrillDownWidget(contexto, campo) {
+    const widget = obterWidgetsDashboard().find(item => item.id === contexto.widgetId);
+    if (!widget) return;
+    const estadoAtual = estadosDrillDashboard.get(contexto.widgetId);
+    const historico = Array.isArray(estadoAtual?.historico) ? [...estadoAtual.historico] : [];
+    if (estadoAtual?.campoAtual) {
+        historico.push({
+            campoAtual: estadoAtual.campoAtual,
+            filtros: estadoAtual.filtros || [],
+            dados: estadoAtual.dados || []
+        });
+    }
+    estadosDrillDashboard.set(contexto.widgetId, {
+        campoAtual: campo,
+        filtros: contexto.filtros,
+        historico,
+        dados: [],
+        carregando: true
+    });
+    renderizarDashboard();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+        const response = await fetch('/api/executar-cenario', {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {})
+            },
+            body: JSON.stringify({
+                fonte: widget.fonte || 'firebird',
+                sql: widget.sql,
+                filtros: obterFiltrosCenario(),
+                visualizacao: montarVisualizacaoWidget(widget, {
+                    campoDrill: campo,
+                    filtrosDimensao: contexto.filtros
+                })
+            })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) window.fazerLogout();
+        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao detalhar os dados.');
+        estadosDrillDashboard.set(contexto.widgetId, {
+            campoAtual: campo,
+            filtros: contexto.filtros,
+            historico,
+            dados: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : [])
+        });
+    } catch (error) {
+        estadosDrillDashboard.set(contexto.widgetId, {
+            campoAtual: campo,
+            filtros: contexto.filtros,
+            historico,
+            dados: [],
+            erro: error.name === 'AbortError' ? 'Tempo limite ao detalhar os dados.' : error.message
+        });
+    } finally {
+        clearTimeout(timeout);
+        renderizarDashboard();
+    }
+}
+
 function widgetUtilizaFiltrosVisiveis(widget) {
     return /:(data_inicial|data_final|filiais|vendedores)\b/i.test(String(widget?.sql || ''));
 }
@@ -1203,7 +1340,12 @@ async function executarWidgetComFiltros(widget, filtros) {
                 'Content-Type': 'application/json',
                 ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
             },
-            body: JSON.stringify({ fonte: widget.fonte || 'firebird', sql: widget.sql, filtros })
+            body: JSON.stringify({
+                fonte: widget.fonte || 'firebird',
+                sql: widget.sql,
+                filtros,
+                visualizacao: montarVisualizacaoWidget(widget)
+            })
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
@@ -1697,10 +1839,11 @@ function inicializarEditorDashboard() {
         });
     }
     if (nextAppearanceStepButton) {
-        nextAppearanceStepButton.addEventListener('click', () => {
-            if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
+        nextAppearanceStepButton.addEventListener('click', async () => {
             const mapeamentos = coletarMapeamentosColunas();
+            if (widgetEmEdicao) widgetEmEdicao.mapeamentos = mapeamentos;
             if (!validarMapeamentoWidget(mapeamentos)) return;
+            if (!await atualizarDadosMapeadosWidget(mapeamentos)) return;
             setEtapaWidget('appearance');
         });
     }
@@ -1730,6 +1873,7 @@ function inicializarEditorDashboard() {
     if (widgetTitleInput) widgetTitleInput.addEventListener('input', renderizarPreviaAparencia);
     [
         widgetBackgroundModeSelect,
+        widgetAlignmentSelect,
         widgetBackgroundColorInput,
         widgetGradientStartInput,
         widgetGradientEndInput
@@ -1742,7 +1886,7 @@ function inicializarEditorDashboard() {
     if (widgetIconOptions) widgetIconOptions.addEventListener('change', renderizarPreviaAparencia);
 
     if (dashboardCanvas) {
-        dashboardCanvas.addEventListener('click', event => {
+        dashboardCanvas.addEventListener('click', async event => {
             const drillBackButton = event.target.closest('[data-drill-back-widget]');
             if (drillBackButton) {
                 const widgetId = drillBackButton.dataset.drillBackWidget;
@@ -1760,11 +1904,7 @@ function inicializarEditorDashboard() {
                 const contexto = contextosDrillDashboard.get(drillFieldButton.dataset.drillContext);
                 const campo = contexto?.campos.find(item => String(item.coluna) === String(drillFieldButton.dataset.drillField));
                 if (!contexto || !campo) return;
-                const estadoAtual = estadosDrillDashboard.get(contexto.widgetId);
-                const historico = Array.isArray(estadoAtual?.historico) ? [...estadoAtual.historico] : [];
-                if (estadoAtual?.campoAtual) historico.push({ campoAtual: estadoAtual.campoAtual, filtros: estadoAtual.filtros || [] });
-                estadosDrillDashboard.set(contexto.widgetId, { campoAtual: campo, filtros: contexto.filtros, historico });
-                renderizarDashboard();
+                await executarDrillDownWidget(contexto, campo);
                 return;
             }
 

@@ -60,7 +60,7 @@ function prepararSql(sql, fonte, filtros = {}) {
     const valores = [];
     const marcador = () => fonte === 'postgres' ? `$${valores.length}` : '?';
     const adicionarValor = valor => {
-        valores.push(valor || null);
+        valores.push(valor === undefined || valor === '' ? null : valor);
         return marcador();
     };
     const adicionarLista = valor => {
@@ -84,6 +84,61 @@ function prepararSql(sql, fonte, filtros = {}) {
 
     const texto = String(sql).replace(/:(data_inicial|data_final|idfuncionario|idfilial|idvendedor|filiais|vendedores)\b/g, (_, nome) => mapa[nome]());
     return { sql: texto, valores };
+}
+
+function citarIdentificador(nome) {
+    const valor = String(nome || '').trim();
+    if (!valor) throw new Error('Campo de agrupamento invalido.');
+    return `"${valor.replace(/"/g, '""')}"`;
+}
+
+function normalizarCamposVisualizacao(campos) {
+    const unicos = new Map();
+    (Array.isArray(campos) ? campos : []).forEach(campo => {
+        const coluna = String(campo?.coluna || '').trim();
+        if (!coluna) return;
+        const chave = coluna.toLowerCase();
+        if (!unicos.has(chave)) unicos.set(chave, { ...campo, coluna });
+    });
+    return Array.from(unicos.values());
+}
+
+function prepararConsultaVisual(preparado, fonte, visualizacao = {}) {
+    if (!visualizacao || visualizacao.agrupar !== true) return preparado;
+    const dimensoes = normalizarCamposVisualizacao([
+        ...(Array.isArray(visualizacao.dimensoes) ? visualizacao.dimensoes : []),
+        ...(Array.isArray(visualizacao.colunas) ? visualizacao.colunas : [])
+    ]);
+    const valoresConfigurados = normalizarCamposVisualizacao(visualizacao.valores);
+    if (!dimensoes.length || !valoresConfigurados.length) return preparado;
+
+    const valores = [...preparado.valores];
+    const marcador = valor => {
+        valores.push(valor);
+        return fonte === 'postgres' ? '$' + valores.length : '?';
+    };
+    const referencia = campo => `CRM_BASE.${citarIdentificador(campo.coluna)}`;
+    const expressoesDimensao = dimensoes.map(campo => referencia(campo));
+    const expressoesValor = valoresConfigurados.map(campo => {
+        const referenciaCampo = referencia(campo);
+        const agregacao = String(campo.agregacao || 'sum').toLowerCase();
+        let expressao = `SUM(${referenciaCampo})`;
+        if (agregacao === 'count') expressao = `COUNT(${referenciaCampo})`;
+        else if (agregacao === 'count_distinct') expressao = `COUNT(DISTINCT ${referenciaCampo})`;
+        else if (agregacao === 'min' || agregacao === 'none') expressao = `MIN(${referenciaCampo})`;
+        else if (agregacao === 'max') expressao = `MAX(${referenciaCampo})`;
+        else if (agregacao === 'avg') expressao = `AVG(${referenciaCampo})`;
+        return `${expressao} AS ${citarIdentificador(campo.coluna)}`;
+    });
+    const filtrosDimensao = Array.isArray(visualizacao.filtrosDimensao) ? visualizacao.filtrosDimensao : [];
+    const condicoes = filtrosDimensao.map(filtro => {
+        const coluna = citarIdentificador(filtro?.coluna);
+        if (filtro?.valor === null || filtro?.valor === undefined) return `CRM_BASE.${coluna} IS NULL`;
+        return `CRM_BASE.${coluna} = ${marcador(filtro.valor)}`;
+    });
+    const where = condicoes.length ? ` WHERE ${condicoes.join(' AND ')}` : '';
+    const sql = `SELECT ${[...expressoesDimensao, ...expressoesValor].join(', ')} FROM (${preparado.sql}) CRM_BASE${where} GROUP BY ${expressoesDimensao.join(', ')}`;
+    return { sql, valores };
 }
 
 function extrairColunas(linhas) {
@@ -135,16 +190,16 @@ export default async function handler(req, res) {
 
     const session = requireRequestSession(req, res);
     if (!session) return;
-    const { fonte = 'firebird', sql, filtros = {} } = req.body || {};
+    const { fonte = 'firebird', sql, filtros = {}, visualizacao = null } = req.body || {};
     if (!usuarioPodeEditarCenario(String(session.sub))) return res.status(403).json({ error: 'Usuario sem permissao para testar cenarios.' });
 
     const erroValidacao = validarSqlLeitura(sql);
     if (erroValidacao) return res.status(400).json({ error: erroValidacao });
 
     const fonteNormalizada = String(fonte).toLowerCase() === 'postgres' ? 'postgres' : 'firebird';
-    const preparado = prepararSql(sql, fonteNormalizada, filtros);
-
     try {
+        const preparadoBase = prepararSql(sql, fonteNormalizada, filtros);
+        const preparado = prepararConsultaVisual(preparadoBase, fonteNormalizada, visualizacao);
         let linhas = [];
         if (fonteNormalizada === 'postgres') {
             const client = await db.connect();

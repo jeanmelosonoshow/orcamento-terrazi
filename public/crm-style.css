@@ -1901,3 +1901,39 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 .crm-drill-breadcrumb strong {
     color: var(--widget-color, var(--verde-escuro));
 }
+
+
+/* Widget content alignment */
+.crm-dashboard-widget-head > strong {
+    flex: 1;
+    text-align: var(--widget-align, left);
+}
+
+.crm-chart-kpi-real {
+    justify-items: var(--widget-justify, start);
+    text-align: var(--widget-align, left);
+}
+
+.crm-dashboard-widget .crm-chart-table-real th,
+.crm-dashboard-widget .crm-chart-table-real td {
+    text-align: var(--widget-align, left);
+}
+
+.crm-appearance-preview-card {
+    justify-items: var(--widget-justify, start);
+    text-align: var(--widget-align, left);
+}
+
+
+.crm-dashboard-widget[data-widget-align="center"] .crm-dashboard-widget-head > strong {
+    position: absolute;
+    inset-inline: 0;
+    width: 100%;
+    pointer-events: none;
+}
+
+.crm-dashboard-widget[data-widget-align="center"] .crm-dashboard-widget-actions,
+.crm-dashboard-widget[data-widget-align="center"] .crm-widget-icon {
+    position: relative;
+    z-index: 1;
+}
