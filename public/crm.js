@@ -116,8 +116,12 @@ const budgetFrame = document.querySelector('[data-budget-frame]');
 const dashboardStorageKey = 'crmDashboardScenario:v1';
 let widgetEmEdicao = null;
 let colunasConsultaAtual = [];
+let dadosConsultaAtual = [];
+let assinaturaConsultaAtual = '';
 let etapaWidgetAtual = 'sql';
 let modoEdicaoCenario = false;
+const instanciasGraficosDashboard = new Map();
+const observadoresGraficosDashboard = new Map();
 
 const catalogoGraficos = [
     { id: 'kpi', nome: 'Indicador KPI', roles: ['valor'] },
@@ -247,16 +251,255 @@ function obterNomeGrafico(tipo) {
     return catalogoGraficos.find(item => item.id === tipo)?.nome || 'Grafico';
 }
 
-function renderizarVisualGrafico(tipo) {
-    if (tipo === 'kpi') return '<div class="crm-chart-kpi-preview"><strong>R$ 0,00</strong><span>Indicador</span></div>';
-    if (tipo === 'pie' || tipo === 'donut' || tipo === 'gauge') return '<div class="crm-chart-circle-preview"></div>';
-    if (tipo === 'funnel') return '<div class="crm-chart-funnel-preview"><span></span><span></span><span></span><span></span></div>';
-    if (tipo === 'table' || tipo === 'pivot' || tipo === 'ranking') return '<div class="crm-chart-table-preview"><span></span><span></span><span></span><span></span></div>';
-    if (tipo === 'line' || tipo === 'area' || tipo === 'sparkline') return '<div class="crm-chart-line-preview"><span></span></div>';
-    if (tipo === 'heatmap' || tipo === 'calendar' || tipo === 'cohort') return '<div class="crm-chart-heat-preview">' + Array.from({ length: 24 }, () => '<span></span>').join('') + '</div>';
-    return '<div class="crm-chart-bars-preview"><span></span><span></span><span></span><span></span><span></span></div>';
+function renderizarVisualGrafico(widget) {
+    return `
+        <div class="crm-chart-real"
+             data-chart-widget="${escapeHtml(widget.id)}"
+             role="img"
+             aria-label="${escapeHtml(widget.titulo || obterNomeGrafico(widget.tipo))}">
+        </div>
+    `;
 }
 
+function obterAssinaturaConsulta(fonte = '', sql = '') {
+    return `${String(fonte || '').trim().toLowerCase()}::${String(sql || '').trim()}`;
+}
+
+function obterValorLinha(linha, coluna) {
+    if (!linha || !coluna) return null;
+    if (Object.prototype.hasOwnProperty.call(linha, coluna)) return linha[coluna];
+    const nome = Object.keys(linha).find(chave => chave.toLowerCase() === String(coluna).toLowerCase());
+    return nome ? linha[nome] : null;
+}
+
+function converterNumero(valor) {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+    if (valor === null || valor === undefined || valor === '') return 0;
+    const texto = String(valor).trim();
+    if (!texto) return 0;
+    const normalizado = texto.includes(',') && texto.includes('.')
+        ? texto.replace(/\./g, '').replace(',', '.')
+        : texto.replace(',', '.');
+    const numero = Number(normalizado);
+    return Number.isFinite(numero) ? numero : 0;
+}
+
+function formatarDimensao(valor, formatoData = 'none') {
+    if (valor === null || valor === undefined || valor === '') return 'Sem valor';
+    if (!formatoData || formatoData === 'none') return String(valor);
+    const data = valor instanceof Date ? valor : new Date(valor);
+    if (Number.isNaN(data.getTime())) return String(valor);
+    if (formatoData === 'year') return String(data.getFullYear());
+    if (formatoData === 'quarter') return `${Math.floor(data.getMonth() / 3) + 1}o tri/${data.getFullYear()}`;
+    if (formatoData === 'month') {
+        return new Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric' }).format(data);
+    }
+    return new Intl.DateTimeFormat('pt-BR').format(data);
+}
+
+function formatarValorGrafico(valor, formato = 'decimal') {
+    const numero = converterNumero(valor);
+    if (formato === 'money') {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numero);
+    }
+    if (formato === 'percent') {
+        return new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 2 }).format(numero / 100);
+    }
+    if (formato === 'integer') {
+        return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(numero);
+    }
+    return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(numero);
+}
+
+function calcularAgregacao(valores, agregacao = 'none') {
+    const preenchidos = valores.filter(valor => valor !== null && valor !== undefined && valor !== '');
+    if (agregacao === 'count') return preenchidos.length;
+    if (agregacao === 'count_distinct') return new Set(preenchidos.map(valor => String(valor))).size;
+    const numeros = preenchidos.map(converterNumero);
+    if (!numeros.length) return 0;
+    if (agregacao === 'min') return Math.min(...numeros);
+    if (agregacao === 'max') return Math.max(...numeros);
+    if (agregacao === 'avg') return numeros.reduce((total, numero) => total + numero, 0) / numeros.length;
+    if (agregacao === 'sum') return numeros.reduce((total, numero) => total + numero, 0);
+    return numeros[0];
+}
+
+function prepararDadosGrafico(widget) {
+    const linhas = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
+    const mapeamentos = Array.isArray(widget.mapeamentos) ? widget.mapeamentos : [];
+    const dimensao = mapeamentos.find(item => ['dimensao', 'linha'].includes(item.papel));
+    const valores = mapeamentos.filter(item => item.papel === 'valor');
+    if (!linhas.length || !valores.length) return null;
+
+    const grupos = new Map();
+    linhas.forEach((linha, index) => {
+        const valorDimensao = dimensao ? obterValorLinha(linha, dimensao.coluna) : 'Total';
+        const rotulo = dimensao ? formatarDimensao(valorDimensao, dimensao.formatoData) : 'Total';
+        const chave = dimensao ? `${rotulo}::${String(valorDimensao)}` : 'total';
+        if (!grupos.has(chave)) grupos.set(chave, { rotulo, linhas: [], ordem: index });
+        grupos.get(chave).linhas.push(linha);
+    });
+
+    const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => a.ordem - b.ordem);
+    return {
+        categorias: gruposOrdenados.map(grupo => grupo.rotulo),
+        series: valores.map(mapeamento => ({
+            nome: mapeamento.coluna,
+            formato: mapeamento.formatoValor || 'decimal',
+            valores: gruposOrdenados.map(grupo => calcularAgregacao(
+                grupo.linhas.map(linha => obterValorLinha(linha, mapeamento.coluna)),
+                mapeamento.agregacao || 'none'
+            ))
+        }))
+    };
+}
+
+function obterCoresGraficos() {
+    const estilos = getComputedStyle(document.documentElement);
+    const obter = (variavel, fallback) => estilos.getPropertyValue(variavel).trim() || fallback;
+    return {
+        principal: obter('--verde-escuro', '#1A3017'),
+        secundaria: obter('--madeira', '#B98B5F'),
+        destaque: obter('--dourado', '#C5A47E'),
+        texto: obter('--text', '#243042')
+    };
+}
+
+function montarOpcaoECharts(widget, dados) {
+    const cores = obterCoresGraficos();
+    const paleta = [cores.principal, cores.secundaria, cores.destaque, '#2F6B9A', '#748C68', '#B8563F'];
+    const primeiraSerie = dados.series[0];
+    const formatarTooltip = valor => formatarValorGrafico(valor, primeiraSerie?.formato);
+    const base = {
+        animationDuration: 420,
+        color: paleta,
+        textStyle: { color: cores.texto, fontFamily: 'Arial, sans-serif' },
+        tooltip: { trigger: 'axis', valueFormatter: formatarTooltip },
+        grid: { left: 18, right: 18, top: 22, bottom: 14, containLabel: true }
+    };
+    const seriesCartesianas = dados.series.map(serie => ({
+        name: serie.nome,
+        type: ['line', 'area', 'sparkline'].includes(widget.tipo) ? 'line' : 'bar',
+        smooth: ['line', 'area', 'sparkline'].includes(widget.tipo),
+        areaStyle: widget.tipo === 'area' ? { opacity: 0.18 } : undefined,
+        stack: widget.tipo === 'stacked-bar' ? 'total' : undefined,
+        barMaxWidth: 54,
+        data: serie.valores
+    }));
+
+    if (widget.tipo === 'horizontal-bar' || widget.tipo === 'ranking') {
+        return {
+            ...base,
+            yAxis: { type: 'category', data: dados.categorias, inverse: true, axisTick: { show: false } },
+            xAxis: { type: 'value', axisLabel: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) } },
+            series: seriesCartesianas
+        };
+    }
+    if (widget.tipo === 'pie' || widget.tipo === 'donut') {
+        return {
+            ...base,
+            tooltip: { trigger: 'item', valueFormatter: formatarTooltip },
+            series: [{
+                type: 'pie',
+                radius: widget.tipo === 'donut' ? ['48%', '72%'] : '72%',
+                data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] })),
+                label: { formatter: '{b}: {d}%' }
+            }]
+        };
+    }
+    if (widget.tipo === 'funnel') {
+        return {
+            ...base,
+            tooltip: { trigger: 'item', valueFormatter: formatarTooltip },
+            series: [{
+                type: 'funnel',
+                left: '10%',
+                width: '80%',
+                label: { formatter: '{b}' },
+                data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] }))
+            }]
+        };
+    }
+    if (widget.tipo === 'treemap') {
+        return {
+            ...base,
+            tooltip: { trigger: 'item', valueFormatter: formatarTooltip },
+            series: [{
+                type: 'treemap',
+                roam: false,
+                breadcrumb: { show: false },
+                data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] }))
+            }]
+        };
+    }
+    if (widget.tipo === 'gauge') {
+        return {
+            ...base,
+            series: [{
+                type: 'gauge',
+                progress: { show: true },
+                detail: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) },
+                data: [{ value: primeiraSerie.valores[0], name: primeiraSerie.nome }]
+            }]
+        };
+    }
+    return {
+        ...base,
+        xAxis: { type: 'category', data: dados.categorias, axisTick: { alignWithLabel: true } },
+        yAxis: { type: 'value', axisLabel: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) } },
+        series: seriesCartesianas
+    };
+}
+
+function renderizarTabelaGrafico(container, dados) {
+    const cabecalho = `<th>Dimensao</th>${dados.series.map(serie => `<th>${escapeHtml(serie.nome)}</th>`).join('')}`;
+    const linhas = dados.categorias.map((categoria, index) => `
+        <tr>
+            <td>${escapeHtml(categoria)}</td>
+            ${dados.series.map(serie => `<td>${escapeHtml(formatarValorGrafico(serie.valores[index], serie.formato))}</td>`).join('')}
+        </tr>
+    `).join('');
+    container.innerHTML = `<div class="crm-chart-table-real"><table><thead><tr>${cabecalho}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+}
+
+function limparGraficosDashboard() {
+    observadoresGraficosDashboard.forEach(observador => observador.disconnect());
+    observadoresGraficosDashboard.clear();
+    instanciasGraficosDashboard.forEach(instancia => instancia.dispose());
+    instanciasGraficosDashboard.clear();
+}
+
+function renderizarGraficosDashboard(widgets) {
+    widgets.forEach(widget => {
+        const seletorId = window.CSS?.escape ? window.CSS.escape(widget.id) : String(widget.id).replace(/"/g, '\\"');
+        const container = dashboardCanvas?.querySelector(`[data-chart-widget="${seletorId}"]`);
+        if (!container) return;
+        const dados = prepararDadosGrafico(widget);
+        if (!dados) {
+            container.innerHTML = '<div class="crm-chart-empty">Execute e salve uma consulta para visualizar os dados.</div>';
+            return;
+        }
+        if (widget.tipo === 'kpi') {
+            const serie = dados.series[0];
+            const total = serie.valores.reduce((soma, valor) => soma + converterNumero(valor), 0);
+            container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span>${escapeHtml(serie.nome)}</span></div>`;
+            return;
+        }
+        if (widget.tipo === 'table' || widget.tipo === 'pivot' || !window.echarts) {
+            renderizarTabelaGrafico(container, dados);
+            return;
+        }
+
+        const instancia = window.echarts.init(container);
+        instancia.setOption(montarOpcaoECharts(widget, dados));
+        instanciasGraficosDashboard.set(widget.id, instancia);
+        if (window.ResizeObserver) {
+            const observador = new ResizeObserver(() => instancia.resize());
+            observador.observe(container);
+            observadoresGraficosDashboard.set(widget.id, observador);
+        }
+    });
+}
 
 function obterLayoutWidget(widget, index = 0) {
     const larguraBase = Math.max(260, Number(widget.w || widget.largura || 0));
@@ -305,6 +548,7 @@ function atualizarLayoutWidget(widgetId, layoutParcial) {
 }
 function renderizarDashboard() {
     if (!dashboardCanvas) return;
+    limparGraficosDashboard();
     const editorAtivo = podeEditarCenarios && modoEdicaoCenario;
     const widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
     salvarWidgetsDashboard(widgets);
@@ -320,7 +564,7 @@ function renderizarDashboard() {
                     </div>
                     ${editorAtivo ? '<button type="button" data-edit-widget>Editar</button>' : ''}
                 </div>
-                ${renderizarVisualGrafico(widget.tipo)}
+                ${renderizarVisualGrafico(widget)}
                 <div class="crm-dashboard-widget-meta">
                     <span>${escapeHtml(widget.fonte || 'firebird')}</span>
                     <span>${widget.sql ? 'SQL definido' : 'Aguardando consulta'}</span>
@@ -329,6 +573,7 @@ function renderizarDashboard() {
             </article>
         `;
     }).join('');
+    renderizarGraficosDashboard(widgets);
 }
 
 function obterConfigGrafico(tipo) {
@@ -424,6 +669,27 @@ function montarOpcoesPapel(tipo, selecionado = '') {
     return opcoes.map(papel => `<option value="${papel}"${papel === selecionado ? ' selected' : ''}>${papel}</option>`).join('');
 }
 
+function atualizarCamposMapeamento(row) {
+    if (!row) return;
+    const papel = row.querySelector('[data-map-role]')?.value || 'ignorar';
+    const valorAtivo = papel === 'valor';
+    const dimensaoAtiva = ['dimensao', 'linha', 'coluna'].includes(papel);
+    const campoAgregacao = row.querySelector('[data-map-config="aggregation"]');
+    const campoFormatoValor = row.querySelector('[data-map-config="value-format"]');
+    const campoFormatoData = row.querySelector('[data-map-config="date-format"]');
+    if (campoAgregacao) campoAgregacao.hidden = !valorAtivo;
+    if (campoFormatoValor) campoFormatoValor.hidden = !valorAtivo;
+    if (campoFormatoData) campoFormatoData.hidden = !dimensaoAtiva;
+    if (!valorAtivo) {
+        const agregacao = row.querySelector('[data-map-aggregation]');
+        if (agregacao) agregacao.value = 'none';
+    }
+    if (!dimensaoAtiva) {
+        const formatoData = row.querySelector('[data-map-date-format]');
+        if (formatoData) formatoData.value = 'none';
+    }
+}
+
 function renderizarMapeamentoColunas() {
     if (!columnMappingBox) return;
     const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
@@ -446,7 +712,7 @@ function renderizarMapeamentoColunas() {
                     Uso
                     <select data-map-role>${montarOpcoesPapel(tipo, atual.papel || 'ignorar')}</select>
                 </label>
-                <label>
+                <label data-map-config="aggregation">
                     Agregacao
                     <select data-map-aggregation>
                         <option value="none"${(atual.agregacao || 'none') === 'none' ? ' selected' : ''}>Nenhuma</option>
@@ -458,7 +724,7 @@ function renderizarMapeamentoColunas() {
                         <option value="avg"${atual.agregacao === 'avg' ? ' selected' : ''}>AVG</option>
                     </select>
                 </label>
-                <label>
+                <label data-map-config="value-format">
                     Formato valor
                     <select data-map-value-format>
                         <option value="money"${(atual.formatoValor || 'money') === 'money' ? ' selected' : ''}>Monetario</option>
@@ -467,7 +733,7 @@ function renderizarMapeamentoColunas() {
                         <option value="decimal"${atual.formatoValor === 'decimal' ? ' selected' : ''}>Numerico decimal</option>
                     </select>
                 </label>
-                <label>
+                <label data-map-config="date-format">
                     Formato data
                     <select data-map-date-format>
                         <option value="none"${(atual.formatoData || 'none') === 'none' ? ' selected' : ''}>Nao se aplica</option>
@@ -480,17 +746,23 @@ function renderizarMapeamentoColunas() {
             </article>
         `;
     }).join('');
+    columnMappingBox.querySelectorAll('[data-column-name]').forEach(atualizarCamposMapeamento);
 }
 
 function coletarMapeamentosColunas() {
     if (!columnMappingBox) return [];
-    return Array.from(columnMappingBox.querySelectorAll('[data-column-name]')).map(row => ({
-        coluna: row.dataset.columnName,
-        papel: row.querySelector('[data-map-role]')?.value || 'ignorar',
-        agregacao: row.querySelector('[data-map-aggregation]')?.value || 'none',
-        formatoValor: row.querySelector('[data-map-value-format]')?.value || 'money',
-        formatoData: row.querySelector('[data-map-date-format]')?.value || 'none'
-    })).filter(item => item.papel !== 'ignorar');
+    return Array.from(columnMappingBox.querySelectorAll('[data-column-name]')).map(row => {
+        const papel = row.querySelector('[data-map-role]')?.value || 'ignorar';
+        const valorAtivo = papel === 'valor';
+        const dimensaoAtiva = ['dimensao', 'linha', 'coluna'].includes(papel);
+        return {
+            coluna: row.dataset.columnName,
+            papel,
+            agregacao: valorAtivo ? (row.querySelector('[data-map-aggregation]')?.value || 'none') : 'none',
+            formatoValor: valorAtivo ? (row.querySelector('[data-map-value-format]')?.value || 'decimal') : null,
+            formatoData: dimensaoAtiva ? (row.querySelector('[data-map-date-format]')?.value || 'none') : 'none'
+        };
+    }).filter(item => item.papel !== 'ignorar');
 }
 
 async function testarConsultaWidget() {
@@ -522,12 +794,16 @@ async function testarConsultaWidget() {
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.details || data.error || 'Erro ao executar consulta.');
         colunasConsultaAtual = Array.isArray(data.colunas) ? data.colunas : [];
+        dadosConsultaAtual = Array.isArray(data.amostra) ? data.amostra : [];
+        assinaturaConsultaAtual = obterAssinaturaConsulta(widgetSourceSelect.value, sql);
         renderizarMapeamentoColunas();
         renderizarTabelaConsulta(data);
         renderizarResultadoConsulta(`${colunasConsultaAtual.length} colunas retornadas. ${data.linhas || 0} linhas exibidas.`, 'success');
         return true;
     } catch (error) {
         colunasConsultaAtual = [];
+        dadosConsultaAtual = [];
+        assinaturaConsultaAtual = '';
         renderizarMapeamentoColunas();
         if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
         renderizarResultadoConsulta(error.message || 'Erro ao executar consulta.', 'error');
@@ -542,6 +818,10 @@ function abrirModalWidget(widgetId) {
     const widgets = obterWidgetsDashboard();
     widgetEmEdicao = widgets.find(widget => widget.id === widgetId) || criarWidgetPadrao();
     colunasConsultaAtual = Array.isArray(widgetEmEdicao.colunasConsulta) ? widgetEmEdicao.colunasConsulta : [];
+    dadosConsultaAtual = Array.isArray(widgetEmEdicao.dadosConsulta) ? widgetEmEdicao.dadosConsulta : [];
+    assinaturaConsultaAtual = dadosConsultaAtual.length
+        ? obterAssinaturaConsulta(widgetEmEdicao.fonte, widgetEmEdicao.sql)
+        : '';
 
     if (widgetTypeSelect) {
         widgetTypeSelect.innerHTML = catalogoGraficos.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)}</option>`).join('');
@@ -561,6 +841,8 @@ function fecharModalWidget() {
     if (widgetModal) widgetModal.hidden = true;
     widgetEmEdicao = null;
     colunasConsultaAtual = [];
+    dadosConsultaAtual = [];
+    assinaturaConsultaAtual = '';
 }
 
 function validarMapeamentoWidget(mapeamentos) {
@@ -577,6 +859,12 @@ function validarMapeamentoWidget(mapeamentos) {
 
 function salvarWidgetAtual() {
     if (!widgetEmEdicao) return;
+    const assinaturaEsperada = obterAssinaturaConsulta(widgetSourceSelect?.value, widgetSqlTextarea?.value);
+    if (assinaturaConsultaAtual !== assinaturaEsperada) {
+        renderizarResultadoConsulta('Execute novamente a consulta antes de salvar o cenario.', 'error');
+        setEtapaWidget('sql');
+        return;
+    }
     const mapeamentos = coletarMapeamentosColunas();
     if (!validarMapeamentoWidget(mapeamentos)) return;
     const widgets = obterWidgetsDashboard();
@@ -587,6 +875,8 @@ function salvarWidgetAtual() {
         fonte: widgetSourceSelect?.value || 'firebird',
         sql: widgetSqlTextarea?.value.trim() || '',
         colunasConsulta: colunasConsultaAtual,
+        dadosConsulta: dadosConsultaAtual,
+        consultaAtualizadaEm: new Date().toISOString(),
         mapeamentos
     };
     const index = widgets.findIndex(widget => widget.id === atualizado.id);
@@ -678,13 +968,18 @@ function aplicarModoEdicaoCenario(ativo) {
 function inicializarEditorDashboard() {
     if (dashboardEditor) dashboardEditor.hidden = !podeEditarCenarios;
     aplicarModoEdicaoCenario(false);
+    const echartsScript = document.getElementById('crmEchartsScript');
+    if (!window.echarts && echartsScript) {
+        echartsScript.addEventListener('load', () => renderizarDashboard(), { once: true });
+    }
 
     if (editModeToggle) editModeToggle.addEventListener('click', () => aplicarModoEdicaoCenario(!modoEdicaoCenario));
     if (addWidgetButton) addWidgetButton.addEventListener('click', () => abrirModalWidget());
     if (testWidgetQueryButton) testWidgetQueryButton.addEventListener('click', () => testarConsultaWidget());
     if (nextWidgetStepButton) {
         nextWidgetStepButton.addEventListener('click', async () => {
-            if (!colunasConsultaAtual.length) {
+            const assinaturaEsperada = obterAssinaturaConsulta(widgetSourceSelect?.value, widgetSqlTextarea?.value);
+            if (!colunasConsultaAtual.length || assinaturaConsultaAtual !== assinaturaEsperada) {
                 const ok = await testarConsultaWidget();
                 if (!ok) return;
             }
@@ -692,6 +987,18 @@ function inicializarEditorDashboard() {
         });
     }
     if (prevWidgetStepButton) prevWidgetStepButton.addEventListener('click', () => setEtapaWidget('sql'));
+    if (columnMappingBox) {
+        columnMappingBox.addEventListener('change', event => {
+            if (!event.target.matches('[data-map-role]')) return;
+            atualizarCamposMapeamento(event.target.closest('[data-column-name]'));
+        });
+    }
+    if (widgetTypeSelect) {
+        widgetTypeSelect.addEventListener('change', () => {
+            if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
+            renderizarMapeamentoColunas();
+        });
+    }
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', event => {
