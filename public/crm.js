@@ -151,6 +151,9 @@ let vendedoresRascunho = [];
 let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, subtotais: [] };
 const instanciasGraficosDashboard = new Map();
 const observadoresGraficosDashboard = new Map();
+const estadosDrillDashboard = new Map();
+const contextosDrillDashboard = new Map();
+let sequenciaContextoDrill = 0;
 
 const catalogoGraficos = [
     { id: 'kpi', nome: 'Indicador KPI', roles: ['valor'] },
@@ -741,60 +744,146 @@ function agruparRegistros(registros, campo) {
         const bruto = obterValorLinha(registro, campo.coluna);
         const rotulo = formatarDimensao(bruto, campo.formatoData);
         const chave = JSON.stringify([bruto, rotulo]);
-        if (!grupos.has(chave)) grupos.set(chave, { rotulo, registros: [] });
+        if (!grupos.has(chave)) grupos.set(chave, { valor: bruto, rotulo, registros: [] });
         grupos.get(chave).registros.push(registro);
     });
     return Array.from(grupos.values());
 }
 
-function renderizarArvoreDrillDown(registros, campos, valores, nivel = 0) {
-    if (nivel >= campos.length) {
-        const metricas = valores.map(valor => {
-            const total = calcularAgregacao(
-                registros.map(registro => obterValorLinha(registro, valor.coluna)),
-                valor.agregacao || 'none'
-            );
-            return `<span><b>${escapeHtml(obterApelidoMapeamento(valor))}</b> ${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</span>`;
+function obterCamposDetalheWidget(widget, mapeamentos) {
+    const colunasAtivas = new Set(mapeamentos
+        .filter(item => item.papel !== 'ignorar')
+        .map(item => String(item.coluna).toLowerCase()));
+    const configuracoes = new Map(mapeamentos.map(item => [String(item.coluna).toLowerCase(), item]));
+    return (widget.colunasConsulta || [])
+        .filter(coluna => !colunasAtivas.has(String(coluna).toLowerCase()))
+        .map(coluna => {
+            const configuracao = configuracoes.get(String(coluna).toLowerCase()) || {};
+            return {
+                coluna,
+                apelido: configuracao.apelido || coluna,
+                formatoData: configuracao.formatoData || 'none'
+            };
+        });
+}
+
+function filtrarRegistrosDrill(registros, filtros = []) {
+    return registros.filter(registro => filtros.every(filtro =>
+        String(obterValorLinha(registro, filtro.coluna) ?? '') === String(filtro.valor ?? '')
+    ));
+}
+
+function registrarContextoDrill(widgetId, filtros, campos) {
+    const token = `${widgetId}-${++sequenciaContextoDrill}`;
+    contextosDrillDashboard.set(token, { widgetId, filtros, campos });
+    return token;
+}
+
+function renderizarControleDrill(widget, filtros, campos) {
+    if (!campos.length) return '';
+    const token = registrarContextoDrill(widget.id, filtros, campos);
+    return `
+        <span class="crm-drill-control">
+            <button class="crm-drill-trigger" type="button" data-drill-toggle aria-label="Detalhar por outro campo" title="Detalhar por outro campo">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6.5 7.2v5.3l-3 1.5v-6.8z"></path></svg>
+            </button>
+            <span class="crm-drill-menu" data-drill-menu hidden>
+                <small>Detalhar por</small>
+                ${campos.map(campo => `<button type="button" data-drill-context="${escapeHtml(token)}" data-drill-field="${escapeHtml(campo.coluna)}">${escapeHtml(obterApelidoMapeamento(campo))}</button>`).join('')}
+            </span>
+        </span>
+    `;
+}
+
+function renderizarBreadcrumbDrill(widget, estado) {
+    if (!estado?.campoAtual) return '';
+    const filtros = estado.filtros || [];
+    const caminho = filtros.map(filtro => `<span><b>${escapeHtml(filtro.apelido || filtro.coluna)}:</b> ${escapeHtml(filtro.rotulo)}</span>`).join('');
+    return `
+        <div class="crm-drill-breadcrumb">
+            <button type="button" data-drill-back-widget="${escapeHtml(widget.id)}" aria-label="Voltar um nível" title="Voltar um nível">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+            </button>
+            <div>${caminho}<strong>Detalhe por ${escapeHtml(obterApelidoMapeamento(estado.campoAtual))}</strong></div>
+        </div>
+    `;
+}
+
+function renderizarTabelaSimples(container, widget, registros, camposLinha, camposColuna, valores, camposDetalhe, configuracao) {
+    const dimensoes = [...camposLinha, ...camposColuna];
+    const camposExibidos = [...dimensoes, ...valores];
+    const cabecalho = camposExibidos.map(campo => `<th>${escapeHtml(obterApelidoMapeamento(campo))}</th>`).join('');
+    const corpo = registros.map(registro => {
+        const filtrosLinha = [];
+        const celulasDimensao = dimensoes.map((campo, index) => {
+            const bruto = obterValorLinha(registro, campo.coluna);
+            const rotulo = formatarDimensao(bruto, campo.formatoData);
+            if (campo.papel === 'linha') {
+                filtrosLinha.push({ coluna: campo.coluna, apelido: obterApelidoMapeamento(campo), valor: bruto, rotulo });
+            }
+            const controle = campo.papel === 'linha'
+                ? renderizarControleDrill(widget, filtrosLinha.slice(), camposDetalhe)
+                : '';
+            return `<td class="is-dimension"><span class="crm-dimension-cell"><span>${escapeHtml(rotulo)}</span>${controle}</span></td>`;
         }).join('');
-        return `<div class="crm-drill-values">${metricas}</div>`;
-    }
-    const campo = campos[nivel];
-    return agruparRegistros(registros, campo).map(grupo => `
-        <details class="crm-drill-level">
-            <summary>
-                <span><b>${escapeHtml(obterApelidoMapeamento(campo))}:</b> ${escapeHtml(grupo.rotulo)}</span>
-                <small>${grupo.registros.length} registro${grupo.registros.length === 1 ? '' : 's'}</small>
-            </summary>
-            ${renderizarArvoreDrillDown(grupo.registros, campos, valores, nivel + 1)}
-        </details>
-    `).join('');
+        const celulasValor = valores.map(valor => {
+            const bruto = obterValorLinha(registro, valor.coluna);
+            const formatado = formatarValorGrafico(calcularAgregacao([bruto], valor.agregacao || 'none'), valor.formatoValor);
+            return `<td class="is-value">${escapeHtml(formatado)}</td>`;
+        }).join('');
+        return `<tr>${celulasDimensao}${celulasValor}</tr>`;
+    }).join('');
+    const total = configuracao.totalLinhas ? `
+        <tr class="crm-pivot-grand-total">
+            <td colspan="${Math.max(1, dimensoes.length)}">Total geral</td>
+            ${valores.map(valor => {
+                const agregado = calcularAgregacao(registros.map(registro => obterValorLinha(registro, valor.coluna)), valor.agregacao || 'none');
+                return `<td class="is-value">${escapeHtml(formatarValorGrafico(agregado, valor.formatoValor))}</td>`;
+            }).join('')}
+        </tr>` : '';
+    container.innerHTML = `
+        <div class="crm-chart-table-real">
+            <table class="crm-pivot-table crm-simple-table">
+                <thead><tr>${cabecalho}</tr></thead>
+                <tbody>${corpo}${total}</tbody>
+            </table>
+        </div>
+    `;
 }
 
 function renderizarTabelaGrafico(container, widget) {
-    const registros = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
+    const todosRegistros = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
     const mapeamentos = Array.isArray(widget.mapeamentos) ? widget.mapeamentos : [];
-    const camposLinha = mapeamentos.filter(item => item.papel === 'linha');
+    const camposLinhaConfigurados = mapeamentos.filter(item => item.papel === 'linha');
     const camposColuna = mapeamentos.filter(item => item.papel === 'coluna');
     const valores = mapeamentos.filter(item => item.papel === 'valor');
+    const camposDetalhe = obterCamposDetalheWidget(widget, mapeamentos);
     const configuracao = obterConfiguracaoTabela(widget);
-    if (!registros.length || !camposLinha.length || !valores.length) {
+    const estadoDrill = estadosDrillDashboard.get(widget.id);
+    const filtrosAtivos = estadoDrill?.filtros || [];
+    const registros = filtrarRegistrosDrill(todosRegistros, filtrosAtivos);
+    const camposLinha = estadoDrill?.campoAtual ? [estadoDrill.campoAtual] : camposLinhaConfigurados;
+
+    if (!todosRegistros.length || !camposLinhaConfigurados.length || !valores.length) {
         container.innerHTML = '<div class="crm-chart-empty">Defina ao menos um campo de linha e um campo de valor.</div>';
         return;
     }
+    if (!registros.length) {
+        container.innerHTML = `${renderizarBreadcrumbDrill(widget, estadoDrill)}<div class="crm-chart-empty">Nenhum registro encontrado neste detalhamento.</div>`;
+        return;
+    }
 
-    const colunasMapeadas = new Set(mapeamentos
-        .filter(item => item.papel !== 'ignorar')
-        .map(item => String(item.coluna).toLowerCase()));
-    const aliasesDetalhe = new Map(mapeamentos
-        .filter(item => item.papel === 'ignorar')
-        .map(item => [String(item.coluna).toLowerCase(), item]));
-    const camposDetalhe = (widget.colunasConsulta || [])
-        .filter(coluna => !colunasMapeadas.has(String(coluna).toLowerCase()))
-        .map(coluna => ({
-            coluna,
-            apelido: aliasesDetalhe.get(String(coluna).toLowerCase())?.apelido || coluna,
-            formatoData: aliasesDetalhe.get(String(coluna).toLowerCase())?.formatoData || 'none'
-        }));
+    const colunasFiltradas = new Set(filtrosAtivos.map(filtro => String(filtro.coluna).toLowerCase()));
+    const camposDetalheDisponiveis = camposDetalhe.filter(campo =>
+        !colunasFiltradas.has(String(campo.coluna).toLowerCase())
+        && !camposLinha.some(linha => String(linha.coluna).toLowerCase() === String(campo.coluna).toLowerCase())
+    );
+
+    if (widget.tipo === 'table' && !estadoDrill?.campoAtual) {
+        renderizarTabelaSimples(container, widget, registros, camposLinhaConfigurados, camposColuna, valores, camposDetalheDisponiveis, configuracao);
+        return;
+    }
+
     const colunasDinamicas = camposColuna.length
         ? Array.from(new Map(registros.map(registro => {
             const chave = chaveCamposRegistro(registro, camposColuna);
@@ -815,7 +904,7 @@ function renderizarTabelaGrafico(container, widget) {
            <tr>${colunasDinamicas.concat(totalColunasAtivo ? [{ chave: '__total__' }] : []).map(() => valores.map(valor => `<th>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')).join('')}</tr>`
         : `<tr>${cabecalhoLinhas}${valores.map(valor => `<th>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')}</tr>`;
 
-    const estado = { rotulosAnteriores: [] };
+    const estadoRotulos = { anteriores: [] };
     const renderizarCelulasValor = registrosGrupo => {
         const porColuna = colunasDinamicas.map(coluna => {
             const registrosColuna = temCabecalhoDuplo
@@ -838,34 +927,32 @@ function renderizarTabelaGrafico(container, widget) {
         }).join('') : '';
         return porColuna + totais;
     };
-    const renderizarLinhaBase = (rotulos, registrosGrupo) => {
-        const primeiroRotuloAlterado = rotulos.findIndex((rotulo, index) => estado.rotulosAnteriores[index] !== rotulo);
-        const celulasLinha = rotulos.map((rotulo, index) => {
-            const exibir = configuracao.repetirRotulos || primeiroRotuloAlterado < 0 || index >= primeiroRotuloAlterado;
-            return `<td class="is-dimension">${exibir ? escapeHtml(rotulo) : ''}</td>`;
+    const renderizarLinhaBase = (caminho, registrosGrupo) => {
+        const primeiroAlterado = caminho.findIndex((item, index) => estadoRotulos.anteriores[index] !== item.rotulo);
+        const celulasLinha = caminho.map((item, index) => {
+            const exibir = configuracao.repetirRotulos || primeiroAlterado < 0 || index >= primeiroAlterado;
+            const filtrosContexto = [...filtrosAtivos, ...caminho.slice(0, index + 1).map(parte => ({
+                coluna: parte.campo.coluna,
+                apelido: obterApelidoMapeamento(parte.campo),
+                valor: parte.valor,
+                rotulo: parte.rotulo
+            }))];
+            const controle = renderizarControleDrill(widget, filtrosContexto, camposDetalheDisponiveis);
+            return `<td class="is-dimension"><span class="crm-dimension-cell"><span>${exibir ? escapeHtml(item.rotulo) : ''}</span>${controle}</span></td>`;
         }).join('');
-        estado.rotulosAnteriores = rotulos.slice();
-        const detalhe = camposDetalhe.length ? `
-            <tr class="crm-pivot-drill-row">
-                <td colspan="${camposLinha.length + (colunasDinamicas.length * quantidadeMetricas) + (totalColunasAtivo ? quantidadeMetricas : 0)}">
-                    <details class="crm-pivot-drill">
-                        <summary>Detalhar ${registrosGrupo.length} registro${registrosGrupo.length === 1 ? '' : 's'}</summary>
-                        <div class="crm-drill-tree">${renderizarArvoreDrillDown(registrosGrupo, camposDetalhe, valores)}</div>
-                    </details>
-                </td>
-            </tr>` : '';
-        return `<tr>${celulasLinha}${renderizarCelulasValor(registrosGrupo)}</tr>${detalhe}`;
+        estadoRotulos.anteriores = caminho.map(item => item.rotulo);
+        return `<tr>${celulasLinha}${renderizarCelulasValor(registrosGrupo)}</tr>`;
     };
-    const renderizarNivel = (registrosNivel, nivel = 0, prefixo = []) => {
+    const renderizarNivel = (registrosNivel, nivel = 0, caminho = []) => {
         const campo = camposLinha[nivel];
         return agruparRegistros(registrosNivel, campo).map(grupo => {
-            const rotulos = [...prefixo, grupo.rotulo];
+            const novoCaminho = [...caminho, { campo, valor: grupo.valor, rotulo: grupo.rotulo }];
             let conteudo = nivel === camposLinha.length - 1
-                ? renderizarLinhaBase(rotulos, grupo.registros)
-                : renderizarNivel(grupo.registros, nivel + 1, rotulos);
-            if (configuracao.subtotais.includes(String(campo.coluna)) && nivel < camposLinha.length - 1) {
+                ? renderizarLinhaBase(novoCaminho, grupo.registros)
+                : renderizarNivel(grupo.registros, nivel + 1, novoCaminho);
+            if (!estadoDrill?.campoAtual && configuracao.subtotais.includes(String(campo.coluna)) && nivel < camposLinha.length - 1) {
                 conteudo += `<tr class="crm-pivot-subtotal"><td colspan="${camposLinha.length}">Subtotal ${escapeHtml(obterApelidoMapeamento(campo))}: ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(grupo.registros)}</tr>`;
-                estado.rotulosAnteriores = [];
+                estadoRotulos.anteriores = [];
             }
             return conteudo;
         }).join('');
@@ -876,6 +963,7 @@ function renderizarTabelaGrafico(container, widget) {
         ? `<tr class="crm-pivot-grand-total"><td colspan="${camposLinha.length}">Total geral</td>${renderizarCelulasValor(registros)}</tr>`
         : '';
     container.innerHTML = `
+        ${renderizarBreadcrumbDrill(widget, estadoDrill)}
         <div class="crm-chart-table-real">
             <table class="crm-pivot-table">
                 <thead>${cabecalho}</thead>
@@ -886,6 +974,7 @@ function renderizarTabelaGrafico(container, widget) {
 }
 
 function limparGraficosDashboard() {
+    contextosDrillDashboard.clear();
     observadoresGraficosDashboard.forEach(observador => observador.disconnect());
     observadoresGraficosDashboard.clear();
     instanciasGraficosDashboard.forEach(instancia => instancia.dispose());
@@ -1016,6 +1105,7 @@ function excluirWidgetDashboard(widgetId) {
     const confirmado = window.confirm(`Excluir o grafico "${widget.titulo || obterNomeGrafico(widget.tipo)}"?`);
     if (!confirmado) return;
     salvarWidgetsDashboard(widgets.filter(item => item.id !== widgetId));
+    estadosDrillDashboard.delete(widgetId);
     renderizarDashboard();
 }
 
@@ -1121,7 +1211,7 @@ async function executarWidgetComFiltros(widget, filtros) {
         return {
             ...widget,
             colunasConsulta: Array.isArray(data.colunas) ? data.colunas : [],
-            dadosConsulta: Array.isArray(data.amostra) ? data.amostra : [],
+            dadosConsulta: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []),
             consultaAtualizadaEm: new Date().toISOString()
         };
     } finally {
@@ -1171,6 +1261,7 @@ async function aplicarFiltrosDashboard() {
     });
     if (atualizados) {
         salvarWidgetsDashboard(widgets);
+        estadosDrillDashboard.clear();
         renderizarDashboard();
     }
     const falhas = indices.length - atualizados;
@@ -1406,11 +1497,11 @@ async function testarConsultaWidget() {
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.details || data.error || 'Erro ao executar consulta.');
         colunasConsultaAtual = Array.isArray(data.colunas) ? data.colunas : [];
-        dadosConsultaAtual = Array.isArray(data.amostra) ? data.amostra : [];
+        dadosConsultaAtual = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
         assinaturaConsultaAtual = obterAssinaturaConsulta(widgetSourceSelect.value, sql);
         renderizarMapeamentoColunas();
         renderizarTabelaConsulta(data);
-        renderizarResultadoConsulta(`${colunasConsultaAtual.length} colunas retornadas. ${data.linhas || 0} linhas exibidas.`, 'success');
+        renderizarResultadoConsulta(`${colunasConsultaAtual.length} colunas retornadas. ${data.linhas || 0} linhas disponíveis no painel.`, 'success');
         return true;
     } catch (error) {
         colunasConsultaAtual = [];
@@ -1502,6 +1593,7 @@ function salvarWidgetAtual() {
         widgets.push(atualizado);
     }
     salvarWidgetsDashboard(widgets);
+    estadosDrillDashboard.delete(atualizado.id);
     fecharModalWidget();
     renderizarDashboard();
 }
@@ -1651,6 +1743,40 @@ function inicializarEditorDashboard() {
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', event => {
+            const drillBackButton = event.target.closest('[data-drill-back-widget]');
+            if (drillBackButton) {
+                const widgetId = drillBackButton.dataset.drillBackWidget;
+                const estadoAtual = estadosDrillDashboard.get(widgetId);
+                const historico = Array.isArray(estadoAtual?.historico) ? [...estadoAtual.historico] : [];
+                const anterior = historico.pop();
+                if (anterior) estadosDrillDashboard.set(widgetId, { ...anterior, historico });
+                else estadosDrillDashboard.delete(widgetId);
+                renderizarDashboard();
+                return;
+            }
+
+            const drillFieldButton = event.target.closest('[data-drill-field]');
+            if (drillFieldButton) {
+                const contexto = contextosDrillDashboard.get(drillFieldButton.dataset.drillContext);
+                const campo = contexto?.campos.find(item => String(item.coluna) === String(drillFieldButton.dataset.drillField));
+                if (!contexto || !campo) return;
+                const estadoAtual = estadosDrillDashboard.get(contexto.widgetId);
+                const historico = Array.isArray(estadoAtual?.historico) ? [...estadoAtual.historico] : [];
+                if (estadoAtual?.campoAtual) historico.push({ campoAtual: estadoAtual.campoAtual, filtros: estadoAtual.filtros || [] });
+                estadosDrillDashboard.set(contexto.widgetId, { campoAtual: campo, filtros: contexto.filtros, historico });
+                renderizarDashboard();
+                return;
+            }
+
+            const drillToggle = event.target.closest('[data-drill-toggle]');
+            if (drillToggle) {
+                const menu = drillToggle.parentElement?.querySelector('[data-drill-menu]');
+                dashboardCanvas.querySelectorAll('[data-drill-menu]').forEach(item => { if (item !== menu) item.hidden = true; });
+                if (menu) menu.hidden = !menu.hidden;
+                return;
+            }
+
+            dashboardCanvas.querySelectorAll('[data-drill-menu]').forEach(item => { item.hidden = true; });
             const deleteButton = event.target.closest('[data-delete-widget]');
             if (deleteButton) {
                 const card = deleteButton.closest('[data-widget-id]');

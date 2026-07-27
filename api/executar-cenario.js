@@ -10,7 +10,8 @@ const Firebird = require('node-firebird');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
-const LIMITE_RETORNO = 100;
+const LIMITE_RETORNO = 1000;
+const LIMITE_PREVIA = 100;
 const CONSULTA_TIMEOUT_MS = 15000;
 
 function carregarEditoresCenario() {
@@ -166,8 +167,9 @@ export default async function handler(req, res) {
         res.status(200).json({
             colunas: extrairColunas(linhas),
             linhas: linhas.length,
-            limite: LIMITE_RETORNO,
-            amostra: linhas
+            limite: LIMITE_PREVIA,
+            amostra: linhas.slice(0, LIMITE_PREVIA),
+            dados: linhas
         });
     } catch (error) {
         res.status(500).json({ error: 'Erro ao executar consulta.', details: error.message });

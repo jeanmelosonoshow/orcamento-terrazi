@@ -1756,51 +1756,148 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     color: var(--widget-color, var(--verde-escuro));
 }
 
-.crm-pivot-drill-row > td {
-    padding: 0 10px 7px;
-    background: rgba(255,255,255,0.34);
+/* Contextual table drill-down */
+.crm-dimension-cell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
 }
 
-.crm-pivot-drill summary,
-.crm-drill-level summary {
+.crm-drill-control {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.crm-drill-trigger {
+    width: 18px;
+    min-height: 18px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: currentColor;
     cursor: pointer;
-    color: var(--widget-muted, var(--muted));
-    font-size: 0.72rem;
+    opacity: 0.42;
+}
+
+.crm-dimension-cell:hover .crm-drill-trigger,
+.crm-drill-trigger:focus-visible {
+    background: rgba(197,164,126,0.18);
+    opacity: 0.92;
+}
+
+.crm-drill-trigger svg {
+    width: 11px;
+    height: 11px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.crm-drill-menu {
+    position: absolute;
+    z-index: 12;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 180px;
+    max-height: 220px;
+    overflow: auto;
+    padding: 6px;
+    border: 1px solid var(--widget-line, var(--linha));
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(36,48,66,0.18);
+    color: #243042;
+    text-align: left;
+}
+
+.crm-drill-menu[hidden] {
+    display: none;
+}
+
+.crm-drill-menu small {
+    display: block;
+    padding: 5px 7px;
+    color: #68758c;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.crm-drill-menu button {
+    width: 100%;
+    min-height: 30px;
+    display: block;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #243042;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.76rem;
     font-weight: 700;
+    text-align: left;
 }
 
-.crm-pivot-drill > summary {
-    padding: 5px 0;
+.crm-drill-menu button:hover {
+    background: rgba(197,164,126,0.16);
 }
 
-.crm-drill-tree {
-    display: grid;
-    gap: 5px;
-    padding: 4px 0 8px 12px;
-}
-
-.crm-drill-level {
-    padding-left: 8px;
-    border-left: 2px solid var(--widget-line, var(--linha));
-}
-
-.crm-drill-level summary {
+.crm-drill-breadcrumb {
+    flex: 0 0 auto;
     display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 5px 8px;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border: 1px solid var(--widget-line, var(--linha));
+    border-radius: 6px;
+    background: rgba(255,255,255,0.38);
 }
 
-.crm-drill-level summary small {
-    color: inherit;
-    white-space: nowrap;
-}
-
-.crm-drill-values {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 16px;
-    padding: 6px 10px 8px 22px;
+.crm-drill-breadcrumb > button {
+    width: 26px;
+    min-height: 26px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: rgba(197,164,126,0.18);
     color: var(--widget-color, var(--verde-escuro));
-    font-size: 0.74rem;
+    cursor: pointer;
+}
+
+.crm-drill-breadcrumb svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+}
+
+.crm-drill-breadcrumb > div {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    font-size: 0.72rem;
+}
+
+.crm-drill-breadcrumb span {
+    color: var(--widget-muted, var(--muted));
+}
+
+.crm-drill-breadcrumb strong {
+    color: var(--widget-color, var(--verde-escuro));
 }
