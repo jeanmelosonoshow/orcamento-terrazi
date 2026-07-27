@@ -1575,3 +1575,232 @@ body.crm-scenario-editing .crm-dashboard-canvas {
         position: static;
     }
 }
+
+
+/* Dashboard data-first widgets */
+.crm-dashboard-widget {
+    container-type: size;
+    gap: 10px;
+}
+
+.crm-dashboard-widget-head {
+    flex: 0 0 auto;
+    align-items: center;
+    min-width: 0;
+}
+
+.crm-dashboard-widget-head > strong {
+    min-width: 0;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.crm-chart-real {
+    min-height: 0;
+}
+
+.crm-chart-kpi-real {
+    min-height: 0;
+    padding: 10px;
+}
+
+.crm-chart-kpi-real strong {
+    max-width: 100%;
+    font-size: clamp(1.45rem, 13cqi, 4.8rem);
+    line-height: 1;
+    overflow-wrap: anywhere;
+}
+
+.crm-chart-kpi-real span {
+    font-size: clamp(0.7rem, 3.2cqi, 1rem);
+}
+
+@container (max-width: 330px) {
+    .crm-dashboard-widget {
+        gap: 6px;
+        padding: 11px;
+    }
+
+    .crm-dashboard-widget-head > strong {
+        font-size: 0.86rem;
+    }
+
+    .crm-widget-icon {
+        width: 28px;
+        height: 28px;
+        flex-basis: 28px;
+    }
+
+    .crm-widget-icon svg {
+        width: 17px;
+        height: 17px;
+    }
+}
+
+.crm-column-row {
+    grid-template-columns: minmax(140px, 1.1fr) minmax(140px, 1fr) repeat(auto-fit, minmax(125px, 1fr));
+}
+
+.crm-column-row input[type="text"],
+.crm-column-row select {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font: inherit;
+    padding: 7px 9px;
+}
+
+.crm-table-config {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid var(--linha);
+    border-radius: 8px;
+    background: rgba(197,164,126,0.08);
+}
+
+.crm-table-config[hidden] {
+    display: none;
+}
+
+.crm-table-config-head strong,
+.crm-table-config-head span {
+    display: block;
+}
+
+.crm-table-config-head strong {
+    color: var(--verde-escuro);
+}
+
+.crm-table-config-head span,
+.crm-subtotal-options > span {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.crm-table-config-options,
+.crm-subtotal-options > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+}
+
+.crm-table-config-options label,
+.crm-subtotal-options label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--verde-escuro);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.crm-subtotal-options {
+    display: grid;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--linha);
+}
+
+.crm-subtotal-options > strong {
+    color: var(--verde-escuro);
+    font-size: 0.8rem;
+}
+
+.crm-chart-table-real {
+    min-height: 0;
+    background: rgba(255,255,255,0.78);
+}
+
+.crm-pivot-table {
+    min-width: max-content;
+}
+
+.crm-pivot-table th {
+    z-index: 2;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.crm-pivot-table th:first-child,
+.crm-pivot-table td.is-dimension {
+    text-align: left;
+}
+
+.crm-pivot-table td.is-value {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.crm-pivot-table .is-total,
+.crm-pivot-subtotal,
+.crm-pivot-grand-total {
+    font-weight: 800;
+}
+
+.crm-pivot-subtotal {
+    background: rgba(197,164,126,0.13);
+}
+
+.crm-pivot-grand-total {
+    background: rgba(26,48,23,0.12);
+    color: var(--widget-color, var(--verde-escuro));
+}
+
+.crm-pivot-drill-row > td {
+    padding: 0 10px 7px;
+    background: rgba(255,255,255,0.34);
+}
+
+.crm-pivot-drill summary,
+.crm-drill-level summary {
+    cursor: pointer;
+    color: var(--widget-muted, var(--muted));
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.crm-pivot-drill > summary {
+    padding: 5px 0;
+}
+
+.crm-drill-tree {
+    display: grid;
+    gap: 5px;
+    padding: 4px 0 8px 12px;
+}
+
+.crm-drill-level {
+    padding-left: 8px;
+    border-left: 2px solid var(--widget-line, var(--linha));
+}
+
+.crm-drill-level summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 5px 8px;
+}
+
+.crm-drill-level summary small {
+    color: inherit;
+    white-space: nowrap;
+}
+
+.crm-drill-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 6px 10px 8px 22px;
+    color: var(--widget-color, var(--verde-escuro));
+    font-size: 0.74rem;
+}

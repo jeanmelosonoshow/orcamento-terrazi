@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260727-7">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260727-8">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -291,6 +291,18 @@
 
             <div class="crm-widget-step" data-widget-step="mapping" hidden>
                 <p class="crm-step-note" data-mapping-note>Execute a consulta para carregar as colunas retornadas.</p>
+                <section class="crm-table-config" data-table-config hidden>
+                    <div class="crm-table-config-head">
+                        <strong>Opções da tabela</strong>
+                        <span>Totais, agrupamentos e detalhamento</span>
+                    </div>
+                    <div class="crm-table-config-options">
+                        <label><input type="checkbox" data-table-total-rows> Total geral das linhas</label>
+                        <label><input type="checkbox" data-table-total-columns> Total geral das colunas</label>
+                        <label><input type="checkbox" data-table-repeat-labels> Repetir rótulos dos grupos</label>
+                    </div>
+                    <div class="crm-subtotal-options" data-subtotal-options></div>
+                </section>
                 <div class="crm-column-mapping" data-column-mapping></div>
             </div>
 
@@ -329,6 +341,6 @@
     </div>
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260727-8"></script>
+    <script src="crm.js?v=crm-20260727-9"></script>
 </body>
 </html>

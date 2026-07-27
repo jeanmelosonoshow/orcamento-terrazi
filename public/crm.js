@@ -114,6 +114,11 @@ const queryResultBox = document.querySelector('[data-query-result]');
 const queryTableWrap = document.querySelector('[data-query-table-wrap]');
 const columnMappingBox = document.querySelector('[data-column-mapping]');
 const mappingNote = document.querySelector('[data-mapping-note]');
+const tableConfigBox = document.querySelector('[data-table-config]');
+const tableTotalRowsInput = document.querySelector('[data-table-total-rows]');
+const tableTotalColumnsInput = document.querySelector('[data-table-total-columns]');
+const tableRepeatLabelsInput = document.querySelector('[data-table-repeat-labels]');
+const subtotalOptionsBox = document.querySelector('[data-subtotal-options]');
 const widgetSourceSelect = document.querySelector('[data-widget-source]');
 const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
 const saveWidgetButton = document.querySelector('[data-save-widget]');
@@ -143,6 +148,7 @@ let filiaisDisponiveis = [];
 let vendedoresDisponiveis = [];
 let filiaisRascunho = [];
 let vendedoresRascunho = [];
+let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, subtotais: [] };
 const instanciasGraficosDashboard = new Map();
 const observadoresGraficosDashboard = new Map();
 
@@ -164,8 +170,8 @@ const catalogoGraficos = [
     { id: 'scatter', nome: 'Dispersao', roles: ['dimensao', 'valor'] },
     { id: 'bubble', nome: 'Bolhas', roles: ['dimensao', 'valor'] },
     { id: 'ranking', nome: 'Ranking', roles: ['dimensao', 'valor'] },
-    { id: 'table', nome: 'Tabela', roles: ['dimensao', 'linha', 'coluna', 'valor'] },
-    { id: 'pivot', nome: 'Tabela dinamica', roles: ['linha', 'coluna', 'valor'] },
+    { id: 'table', nome: 'Tabela', roles: ['linha', 'coluna', 'valor'], required: ['linha', 'valor'] },
+    { id: 'pivot', nome: 'Tabela dinamica', roles: ['linha', 'coluna', 'valor'], required: ['linha', 'valor'] },
     { id: 'waterfall', nome: 'Cascata', roles: ['dimensao', 'valor'] },
     { id: 'histogram', nome: 'Histograma', roles: ['dimensao', 'valor'] },
     { id: 'bullet', nome: 'Meta x realizado', roles: ['dimensao', 'valor'] },
@@ -496,10 +502,15 @@ function calcularAgregacao(valores, agregacao = 'none') {
     return numeros[0];
 }
 
+function obterApelidoMapeamento(mapeamento) {
+    return String(mapeamento?.apelido || mapeamento?.coluna || '').trim();
+}
+
 function prepararDadosGrafico(widget) {
     const linhas = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
     const mapeamentos = Array.isArray(widget.mapeamentos) ? widget.mapeamentos : [];
     const dimensao = mapeamentos.find(item => ['dimensao', 'linha'].includes(item.papel));
+    const coluna = mapeamentos.find(item => item.papel === 'coluna');
     const valores = mapeamentos.filter(item => item.papel === 'valor');
     if (!linhas.length || !valores.length) return null;
 
@@ -513,16 +524,29 @@ function prepararDadosGrafico(widget) {
     });
 
     const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => a.ordem - b.ordem);
+    const membrosColuna = coluna
+        ? Array.from(new Set(linhas.map(linha => formatarDimensao(obterValorLinha(linha, coluna.coluna), coluna.formatoData))))
+        : [null];
+    const series = valores.flatMap(mapeamento => membrosColuna.map(membro => ({
+        nome: membro === null
+            ? obterApelidoMapeamento(mapeamento)
+            : (valores.length === 1 ? membro : `${obterApelidoMapeamento(mapeamento)} - ${membro}`),
+        formato: mapeamento.formatoValor || 'decimal',
+        valores: gruposOrdenados.map(grupo => {
+            const linhasSerie = membro === null
+                ? grupo.linhas
+                : grupo.linhas.filter(linha => formatarDimensao(obterValorLinha(linha, coluna.coluna), coluna.formatoData) === membro);
+            return calcularAgregacao(
+                linhasSerie.map(linha => obterValorLinha(linha, mapeamento.coluna)),
+                mapeamento.agregacao || 'none'
+            );
+        })
+    })));
+
     return {
         categorias: gruposOrdenados.map(grupo => grupo.rotulo),
-        series: valores.map(mapeamento => ({
-            nome: mapeamento.coluna,
-            formato: mapeamento.formatoValor || 'decimal',
-            valores: gruposOrdenados.map(grupo => calcularAgregacao(
-                grupo.linhas.map(linha => obterValorLinha(linha, mapeamento.coluna)),
-                mapeamento.agregacao || 'none'
-            ))
-        }))
+        nomeDimensao: dimensao ? obterApelidoMapeamento(dimensao) : '',
+        series
     };
 }
 
@@ -537,60 +561,113 @@ function obterCoresGraficos() {
     };
 }
 
-function montarOpcaoECharts(widget, dados) {
+function montarOpcaoECharts(widget, dados, container) {
     const cores = obterCoresGraficos();
     const paleta = obterPaletaWidget(widget);
     const aparencia = obterAparenciaWidget(widget);
     const baseContraste = aparencia.fundoTipo === 'solid' ? aparencia.fundoCor : aparencia.gradienteInicio;
     const textoGrafico = aparencia.fundoTipo === 'light' ? cores.texto : obterContrasteCor(baseContraste);
     const primeiraSerie = dados.series[0];
+    const largura = container?.clientWidth || 480;
+    const altura = container?.clientHeight || 280;
+    const compacto = largura < 390 || altura < 230;
+    const muitasCategorias = dados.categorias.length > (compacto ? 6 : 12);
     const formatarTooltip = valor => formatarValorGrafico(valor, primeiraSerie?.formato);
     const base = {
-        animationDuration: 420,
+        animationDuration: 360,
+        animationDurationUpdate: 220,
         color: paleta,
-        textStyle: { color: textoGrafico, fontFamily: 'Arial, sans-serif' },
-        tooltip: { trigger: 'axis', valueFormatter: formatarTooltip },
-        grid: { left: 18, right: 18, top: 22, bottom: 14, containLabel: true }
+        textStyle: { color: textoGrafico, fontFamily: 'Inter, Arial, sans-serif', fontSize: compacto ? 10 : 12 },
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            backgroundColor: 'rgba(255,255,255,0.96)',
+            borderColor: 'rgba(23,48,74,0.16)',
+            textStyle: { color: cores.texto },
+            valueFormatter: formatarTooltip
+        },
+        legend: {
+            show: dados.series.length > 1 && !compacto,
+            type: 'scroll',
+            top: 0,
+            textStyle: { color: textoGrafico }
+        },
+        grid: {
+            left: compacto ? 8 : 16,
+            right: compacto ? 8 : 16,
+            top: dados.series.length > 1 && !compacto ? 34 : 14,
+            bottom: muitasCategorias ? 38 : 12,
+            containLabel: true
+        }
     };
-    const seriesCartesianas = dados.series.map(serie => ({
+    const seriesCartesianas = dados.series.map((serie, index) => ({
         name: serie.nome,
-        type: ['line', 'area', 'sparkline'].includes(widget.tipo) ? 'line' : 'bar',
-        smooth: ['line', 'area', 'sparkline'].includes(widget.tipo),
+        type: widget.tipo === 'combo' && index > 0
+            ? 'line'
+            : (['line', 'area', 'sparkline'].includes(widget.tipo) ? 'line' : 'bar'),
+        smooth: ['line', 'area', 'sparkline', 'combo'].includes(widget.tipo),
+        symbolSize: compacto ? 5 : 7,
         areaStyle: widget.tipo === 'area' ? { opacity: 0.18 } : undefined,
         stack: widget.tipo === 'stacked-bar' ? 'total' : undefined,
-        barMaxWidth: 54,
+        barMaxWidth: compacto ? 30 : 52,
+        label: {
+            show: !compacto && dados.categorias.length <= 8,
+            position: widget.tipo === 'horizontal-bar' || widget.tipo === 'ranking' ? 'right' : 'top',
+            formatter: params => formatarValorGrafico(params.value, serie.formato),
+            color: textoGrafico
+        },
+        emphasis: { focus: 'series' },
         data: serie.valores
     }));
 
     if (widget.tipo === 'horizontal-bar' || widget.tipo === 'ranking') {
         return {
             ...base,
-            yAxis: { type: 'category', data: dados.categorias, inverse: true, axisTick: { show: false } },
-            xAxis: { type: 'value', axisLabel: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) } },
+            grid: { ...base.grid, bottom: 10 },
+            yAxis: {
+                type: 'category',
+                data: dados.categorias,
+                inverse: true,
+                axisTick: { show: false },
+                axisLabel: { hideOverlap: true, width: Math.max(70, Math.round(largura * 0.28)), overflow: 'truncate' }
+            },
+            xAxis: {
+                type: 'value',
+                splitLine: { lineStyle: { color: 'rgba(120,130,145,0.14)' } },
+                axisLabel: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) }
+            },
+            dataZoom: muitasCategorias ? [{ type: 'inside', yAxisIndex: 0 }, { type: 'slider', yAxisIndex: 0, width: 8, right: 2 }] : [],
             series: seriesCartesianas
         };
     }
     if (widget.tipo === 'pie' || widget.tipo === 'donut') {
         return {
             ...base,
-            tooltip: { trigger: 'item', valueFormatter: formatarTooltip },
+            legend: { show: !compacto, type: 'scroll', orient: largura > 560 ? 'vertical' : 'horizontal', right: largura > 560 ? 0 : 'auto' },
+            tooltip: { ...base.tooltip, trigger: 'item' },
             series: [{
                 type: 'pie',
-                radius: widget.tipo === 'donut' ? ['48%', '72%'] : '72%',
+                radius: widget.tipo === 'donut' ? ['44%', '70%'] : '68%',
+                center: largura > 560 ? ['42%', '52%'] : ['50%', '54%'],
+                avoidLabelOverlap: true,
                 data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] })),
-                label: { formatter: '{b}: {d}%' }
+                label: { show: !compacto, formatter: '{b}\n{d}%', overflow: 'truncate' },
+                emphasis: { scale: true, scaleSize: 8 }
             }]
         };
     }
     if (widget.tipo === 'funnel') {
         return {
             ...base,
-            tooltip: { trigger: 'item', valueFormatter: formatarTooltip },
+            tooltip: { ...base.tooltip, trigger: 'item' },
             series: [{
                 type: 'funnel',
-                left: '10%',
-                width: '80%',
-                label: { formatter: '{b}' },
+                left: compacto ? '4%' : '10%',
+                width: compacto ? '92%' : '80%',
+                top: 8,
+                bottom: 8,
+                minSize: '10%',
+                label: { show: !compacto, formatter: '{b}' },
                 data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] }))
             }]
         };
@@ -598,11 +675,13 @@ function montarOpcaoECharts(widget, dados) {
     if (widget.tipo === 'treemap') {
         return {
             ...base,
-            tooltip: { trigger: 'item', valueFormatter: formatarTooltip },
+            tooltip: { ...base.tooltip, trigger: 'item' },
             series: [{
                 type: 'treemap',
                 roam: false,
                 breadcrumb: { show: false },
+                label: { show: !compacto, overflow: 'truncate' },
+                upperLabel: { show: false },
                 data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] }))
             }]
         };
@@ -612,29 +691,198 @@ function montarOpcaoECharts(widget, dados) {
             ...base,
             series: [{
                 type: 'gauge',
-                progress: { show: true },
-                detail: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) },
+                radius: compacto ? '82%' : '92%',
+                progress: { show: true, roundCap: true },
+                axisLabel: { show: !compacto },
+                detail: {
+                    fontSize: compacto ? 16 : 24,
+                    formatter: value => formatarValorGrafico(value, primeiraSerie.formato)
+                },
                 data: [{ value: primeiraSerie.valores[0], name: primeiraSerie.nome }]
             }]
         };
     }
     return {
         ...base,
-        xAxis: { type: 'category', data: dados.categorias, axisTick: { alignWithLabel: true } },
-        yAxis: { type: 'value', axisLabel: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) } },
+        xAxis: {
+            type: 'category',
+            name: compacto ? '' : dados.nomeDimensao,
+            data: dados.categorias,
+            axisTick: { alignWithLabel: true },
+            axisLabel: { hideOverlap: true, rotate: muitasCategorias ? 28 : 0, overflow: 'truncate', width: compacto ? 54 : 90 }
+        },
+        yAxis: {
+            type: 'value',
+            splitLine: { lineStyle: { color: 'rgba(120,130,145,0.14)' } },
+            axisLabel: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) }
+        },
+        dataZoom: muitasCategorias ? [{ type: 'inside', xAxisIndex: 0 }, { type: 'slider', xAxisIndex: 0, height: 12, bottom: 0 }] : [],
         series: seriesCartesianas
     };
 }
 
-function renderizarTabelaGrafico(container, dados) {
-    const cabecalho = `<th>Dimensao</th>${dados.series.map(serie => `<th>${escapeHtml(serie.nome)}</th>`).join('')}`;
-    const linhas = dados.categorias.map((categoria, index) => `
-        <tr>
-            <td>${escapeHtml(categoria)}</td>
-            ${dados.series.map(serie => `<td>${escapeHtml(formatarValorGrafico(serie.valores[index], serie.formato))}</td>`).join('')}
-        </tr>
+function obterConfiguracaoTabela(widget = {}) {
+    const atual = widget.tabela && typeof widget.tabela === 'object' ? widget.tabela : {};
+    return {
+        totalLinhas: Boolean(atual.totalLinhas),
+        totalColunas: Boolean(atual.totalColunas),
+        repetirRotulos: Boolean(atual.repetirRotulos),
+        subtotais: Array.isArray(atual.subtotais) ? atual.subtotais.map(String) : []
+    };
+}
+
+function chaveCamposRegistro(registro, campos) {
+    return JSON.stringify(campos.map(campo => obterValorLinha(registro, campo.coluna)));
+}
+
+function agruparRegistros(registros, campo) {
+    const grupos = new Map();
+    registros.forEach(registro => {
+        const bruto = obterValorLinha(registro, campo.coluna);
+        const rotulo = formatarDimensao(bruto, campo.formatoData);
+        const chave = JSON.stringify([bruto, rotulo]);
+        if (!grupos.has(chave)) grupos.set(chave, { rotulo, registros: [] });
+        grupos.get(chave).registros.push(registro);
+    });
+    return Array.from(grupos.values());
+}
+
+function renderizarArvoreDrillDown(registros, campos, valores, nivel = 0) {
+    if (nivel >= campos.length) {
+        const metricas = valores.map(valor => {
+            const total = calcularAgregacao(
+                registros.map(registro => obterValorLinha(registro, valor.coluna)),
+                valor.agregacao || 'none'
+            );
+            return `<span><b>${escapeHtml(obterApelidoMapeamento(valor))}</b> ${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</span>`;
+        }).join('');
+        return `<div class="crm-drill-values">${metricas}</div>`;
+    }
+    const campo = campos[nivel];
+    return agruparRegistros(registros, campo).map(grupo => `
+        <details class="crm-drill-level">
+            <summary>
+                <span><b>${escapeHtml(obterApelidoMapeamento(campo))}:</b> ${escapeHtml(grupo.rotulo)}</span>
+                <small>${grupo.registros.length} registro${grupo.registros.length === 1 ? '' : 's'}</small>
+            </summary>
+            ${renderizarArvoreDrillDown(grupo.registros, campos, valores, nivel + 1)}
+        </details>
     `).join('');
-    container.innerHTML = `<div class="crm-chart-table-real"><table><thead><tr>${cabecalho}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+}
+
+function renderizarTabelaGrafico(container, widget) {
+    const registros = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
+    const mapeamentos = Array.isArray(widget.mapeamentos) ? widget.mapeamentos : [];
+    const camposLinha = mapeamentos.filter(item => item.papel === 'linha');
+    const camposColuna = mapeamentos.filter(item => item.papel === 'coluna');
+    const valores = mapeamentos.filter(item => item.papel === 'valor');
+    const configuracao = obterConfiguracaoTabela(widget);
+    if (!registros.length || !camposLinha.length || !valores.length) {
+        container.innerHTML = '<div class="crm-chart-empty">Defina ao menos um campo de linha e um campo de valor.</div>';
+        return;
+    }
+
+    const colunasMapeadas = new Set(mapeamentos
+        .filter(item => item.papel !== 'ignorar')
+        .map(item => String(item.coluna).toLowerCase()));
+    const aliasesDetalhe = new Map(mapeamentos
+        .filter(item => item.papel === 'ignorar')
+        .map(item => [String(item.coluna).toLowerCase(), item]));
+    const camposDetalhe = (widget.colunasConsulta || [])
+        .filter(coluna => !colunasMapeadas.has(String(coluna).toLowerCase()))
+        .map(coluna => ({
+            coluna,
+            apelido: aliasesDetalhe.get(String(coluna).toLowerCase())?.apelido || coluna,
+            formatoData: aliasesDetalhe.get(String(coluna).toLowerCase())?.formatoData || 'none'
+        }));
+    const colunasDinamicas = camposColuna.length
+        ? Array.from(new Map(registros.map(registro => {
+            const chave = chaveCamposRegistro(registro, camposColuna);
+            const rotulo = camposColuna
+                .map(campo => formatarDimensao(obterValorLinha(registro, campo.coluna), campo.formatoData))
+                .join(' / ');
+            return [chave, { chave, rotulo }];
+        })).values())
+        : [{ chave: '__sem_coluna__', rotulo: '' }];
+    const temCabecalhoDuplo = camposColuna.length > 0;
+    const totalColunasAtivo = configuracao.totalColunas && temCabecalhoDuplo;
+    const quantidadeMetricas = valores.length;
+    const cabecalhoLinhas = camposLinha.map(campo =>
+        `<th${temCabecalhoDuplo ? ' rowspan="2"' : ''}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`
+    ).join('');
+    const cabecalho = temCabecalhoDuplo
+        ? `<tr>${cabecalhoLinhas}${colunasDinamicas.map(coluna => `<th colspan="${quantidadeMetricas}">${escapeHtml(coluna.rotulo)}</th>`).join('')}${totalColunasAtivo ? `<th colspan="${quantidadeMetricas}">Total geral</th>` : ''}</tr>
+           <tr>${colunasDinamicas.concat(totalColunasAtivo ? [{ chave: '__total__' }] : []).map(() => valores.map(valor => `<th>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')).join('')}</tr>`
+        : `<tr>${cabecalhoLinhas}${valores.map(valor => `<th>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')}</tr>`;
+
+    const estado = { rotulosAnteriores: [] };
+    const renderizarCelulasValor = registrosGrupo => {
+        const porColuna = colunasDinamicas.map(coluna => {
+            const registrosColuna = temCabecalhoDuplo
+                ? registrosGrupo.filter(registro => chaveCamposRegistro(registro, camposColuna) === coluna.chave)
+                : registrosGrupo;
+            return valores.map(valor => {
+                const total = calcularAgregacao(
+                    registrosColuna.map(registro => obterValorLinha(registro, valor.coluna)),
+                    valor.agregacao || 'none'
+                );
+                return `<td class="is-value">${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</td>`;
+            }).join('');
+        }).join('');
+        const totais = totalColunasAtivo ? valores.map(valor => {
+            const total = calcularAgregacao(
+                registrosGrupo.map(registro => obterValorLinha(registro, valor.coluna)),
+                valor.agregacao || 'none'
+            );
+            return `<td class="is-value is-total">${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</td>`;
+        }).join('') : '';
+        return porColuna + totais;
+    };
+    const renderizarLinhaBase = (rotulos, registrosGrupo) => {
+        const primeiroRotuloAlterado = rotulos.findIndex((rotulo, index) => estado.rotulosAnteriores[index] !== rotulo);
+        const celulasLinha = rotulos.map((rotulo, index) => {
+            const exibir = configuracao.repetirRotulos || primeiroRotuloAlterado < 0 || index >= primeiroRotuloAlterado;
+            return `<td class="is-dimension">${exibir ? escapeHtml(rotulo) : ''}</td>`;
+        }).join('');
+        estado.rotulosAnteriores = rotulos.slice();
+        const detalhe = camposDetalhe.length ? `
+            <tr class="crm-pivot-drill-row">
+                <td colspan="${camposLinha.length + (colunasDinamicas.length * quantidadeMetricas) + (totalColunasAtivo ? quantidadeMetricas : 0)}">
+                    <details class="crm-pivot-drill">
+                        <summary>Detalhar ${registrosGrupo.length} registro${registrosGrupo.length === 1 ? '' : 's'}</summary>
+                        <div class="crm-drill-tree">${renderizarArvoreDrillDown(registrosGrupo, camposDetalhe, valores)}</div>
+                    </details>
+                </td>
+            </tr>` : '';
+        return `<tr>${celulasLinha}${renderizarCelulasValor(registrosGrupo)}</tr>${detalhe}`;
+    };
+    const renderizarNivel = (registrosNivel, nivel = 0, prefixo = []) => {
+        const campo = camposLinha[nivel];
+        return agruparRegistros(registrosNivel, campo).map(grupo => {
+            const rotulos = [...prefixo, grupo.rotulo];
+            let conteudo = nivel === camposLinha.length - 1
+                ? renderizarLinhaBase(rotulos, grupo.registros)
+                : renderizarNivel(grupo.registros, nivel + 1, rotulos);
+            if (configuracao.subtotais.includes(String(campo.coluna)) && nivel < camposLinha.length - 1) {
+                conteudo += `<tr class="crm-pivot-subtotal"><td colspan="${camposLinha.length}">Subtotal ${escapeHtml(obterApelidoMapeamento(campo))}: ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(grupo.registros)}</tr>`;
+                estado.rotulosAnteriores = [];
+            }
+            return conteudo;
+        }).join('');
+    };
+
+    const corpo = renderizarNivel(registros);
+    const totalGeral = configuracao.totalLinhas
+        ? `<tr class="crm-pivot-grand-total"><td colspan="${camposLinha.length}">Total geral</td>${renderizarCelulasValor(registros)}</tr>`
+        : '';
+    container.innerHTML = `
+        <div class="crm-chart-table-real">
+            <table class="crm-pivot-table">
+                <thead>${cabecalho}</thead>
+                <tbody>${corpo}${totalGeral}</tbody>
+            </table>
+        </div>
+    `;
 }
 
 function limparGraficosDashboard() {
@@ -649,6 +897,10 @@ function renderizarGraficosDashboard(widgets) {
         const seletorId = window.CSS?.escape ? window.CSS.escape(widget.id) : String(widget.id).replace(/"/g, '\\"');
         const container = dashboardCanvas?.querySelector(`[data-chart-widget="${seletorId}"]`);
         if (!container) return;
+        if (widget.tipo === 'table' || widget.tipo === 'pivot') {
+            renderizarTabelaGrafico(container, widget);
+            return;
+        }
         const dados = prepararDadosGrafico(widget);
         if (!dados) {
             container.innerHTML = '<div class="crm-chart-empty">Execute e salve uma consulta para visualizar os dados.</div>';
@@ -660,16 +912,23 @@ function renderizarGraficosDashboard(widgets) {
             container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span>${escapeHtml(serie.nome)}</span></div>`;
             return;
         }
-        if (widget.tipo === 'table' || widget.tipo === 'pivot' || !window.echarts) {
-            renderizarTabelaGrafico(container, dados);
+        if (!window.echarts) {
+            container.innerHTML = '<div class="crm-chart-empty">Biblioteca de gráficos indisponível.</div>';
             return;
         }
 
-        const instancia = window.echarts.init(container);
-        instancia.setOption(montarOpcaoECharts(widget, dados));
+        const instancia = window.echarts.init(container, null, { renderer: 'canvas' });
+        instancia.setOption(montarOpcaoECharts(widget, dados, container), true);
         instanciasGraficosDashboard.set(widget.id, instancia);
         if (window.ResizeObserver) {
-            const observador = new ResizeObserver(() => instancia.resize());
+            let framePendente = 0;
+            const observador = new ResizeObserver(() => {
+                cancelAnimationFrame(framePendente);
+                framePendente = requestAnimationFrame(() => {
+                    instancia.resize();
+                    instancia.setOption(montarOpcaoECharts(widget, dados, container), { notMerge: false, lazyUpdate: true });
+                });
+            });
             observador.observe(container);
             observadoresGraficosDashboard.set(widget.id, observador);
         }
@@ -782,10 +1041,7 @@ function renderizarDashboard() {
             <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     ${renderizarIconeWidget(obterAparenciaWidget(widget).icone)}
-                    <div>
-                        <span>${escapeHtml(obterNomeGrafico(widget.tipo))}</span>
-                        <strong>${escapeHtml(widget.titulo)}</strong>
-                    </div>
+                    <strong>${escapeHtml(widget.titulo)}</strong>
                     ${editorAtivo ? `
                         <div class="crm-dashboard-widget-actions">
                             <button type="button" data-edit-widget>Editar</button>
@@ -794,10 +1050,6 @@ function renderizarDashboard() {
                     ` : ''}
                 </div>
                 ${renderizarVisualGrafico(widget)}
-                <div class="crm-dashboard-widget-meta">
-                    <span>${escapeHtml(widget.fonte || 'firebird')}</span>
-                    <span>${widget.sql ? 'SQL definido' : 'Aguardando consulta'}</span>
-                </div>
                 ${editorAtivo ? '<span class="crm-dashboard-resize" data-resize-widget aria-hidden="true"></span>' : ''}
             </article>
         `;
@@ -811,6 +1063,11 @@ function obterConfigGrafico(tipo) {
 
 function obterPapeisGrafico(tipo) {
     return obterConfigGrafico(tipo).roles || ['dimensao', 'valor'];
+}
+
+function obterPapeisObrigatoriosGrafico(tipo) {
+    const configuracao = obterConfigGrafico(tipo);
+    return configuracao.required || configuracao.roles || ['dimensao', 'valor'];
 }
 
 function setEtapaWidget(etapa) {
@@ -1005,6 +1262,39 @@ function atualizarCamposMapeamento(row) {
     }
 }
 
+function coletarConfiguracaoTabela() {
+    configuracaoTabelaAtual = {
+        totalLinhas: Boolean(tableTotalRowsInput?.checked),
+        totalColunas: Boolean(tableTotalColumnsInput?.checked),
+        repetirRotulos: Boolean(tableRepeatLabelsInput?.checked),
+        subtotais: subtotalOptionsBox
+            ? Array.from(subtotalOptionsBox.querySelectorAll('[data-subtotal-field]:checked')).map(input => input.value)
+            : configuracaoTabelaAtual.subtotais
+    };
+    return configuracaoTabelaAtual;
+}
+
+function renderizarConfiguracaoTabela() {
+    if (!tableConfigBox) return;
+    const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
+    const ativa = tipo === 'table' || tipo === 'pivot';
+    tableConfigBox.hidden = !ativa;
+    if (!ativa) return;
+    if (tableTotalRowsInput) tableTotalRowsInput.checked = configuracaoTabelaAtual.totalLinhas;
+    if (tableTotalColumnsInput) tableTotalColumnsInput.checked = configuracaoTabelaAtual.totalColunas;
+    if (tableRepeatLabelsInput) tableRepeatLabelsInput.checked = configuracaoTabelaAtual.repetirRotulos;
+    if (!subtotalOptionsBox) return;
+    const linhas = coletarMapeamentosColunas().filter(item => item.papel === 'linha');
+    subtotalOptionsBox.innerHTML = linhas.length > 1
+        ? `<strong>Subtotais por dimensão</strong><div>${linhas.slice(0, -1).map(campo => `
+            <label>
+                <input type="checkbox" value="${escapeHtml(campo.coluna)}"${configuracaoTabelaAtual.subtotais.includes(String(campo.coluna)) ? ' checked' : ''} data-subtotal-field>
+                ${escapeHtml(obterApelidoMapeamento(campo))}
+            </label>
+        `).join('')}</div>`
+        : '<span>Adicione mais de um campo de linha para configurar subtotais.</span>';
+}
+
 function renderizarMapeamentoColunas() {
     if (!columnMappingBox) return;
     const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
@@ -1013,6 +1303,7 @@ function renderizarMapeamentoColunas() {
 
     if (!colunasConsultaAtual.length) {
         columnMappingBox.innerHTML = '';
+        if (tableConfigBox) tableConfigBox.hidden = true;
         if (mappingNote) mappingNote.textContent = 'Execute a consulta para carregar as colunas retornadas.';
         return;
     }
@@ -1023,6 +1314,10 @@ function renderizarMapeamentoColunas() {
         return `
             <article class="crm-column-row" data-column-name="${escapeHtml(coluna)}">
                 <strong>${escapeHtml(coluna)}</strong>
+                <label>
+                    Apelido do rótulo
+                    <input type="text" value="${escapeHtml(atual.apelido || coluna)}" data-map-alias>
+                </label>
                 <label>
                     Uso
                     <select data-map-role>${montarOpcoesPapel(tipo, atual.papel || 'ignorar')}</select>
@@ -1062,6 +1357,7 @@ function renderizarMapeamentoColunas() {
         `;
     }).join('');
     columnMappingBox.querySelectorAll('[data-column-name]').forEach(atualizarCamposMapeamento);
+    renderizarConfiguracaoTabela();
 }
 
 function coletarMapeamentosColunas() {
@@ -1072,12 +1368,13 @@ function coletarMapeamentosColunas() {
         const dimensaoAtiva = ['dimensao', 'linha', 'coluna'].includes(papel);
         return {
             coluna: row.dataset.columnName,
+            apelido: row.querySelector('[data-map-alias]')?.value.trim() || row.dataset.columnName,
             papel,
             agregacao: valorAtivo ? (row.querySelector('[data-map-aggregation]')?.value || 'none') : 'none',
             formatoValor: valorAtivo ? (row.querySelector('[data-map-value-format]')?.value || 'decimal') : null,
             formatoData: dimensaoAtiva ? (row.querySelector('[data-map-date-format]')?.value || 'none') : 'none'
         };
-    }).filter(item => item.papel !== 'ignorar');
+    });
 }
 
 async function testarConsultaWidget() {
@@ -1142,6 +1439,7 @@ function abrirModalWidget(widgetId) {
         widgetTypeSelect.innerHTML = catalogoGraficos.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)}</option>`).join('');
         widgetTypeSelect.value = widgetEmEdicao.tipo;
     }
+    configuracaoTabelaAtual = obterConfiguracaoTabela(widgetEmEdicao);
     if (widgetTitleInput) widgetTitleInput.value = widgetEmEdicao.titulo || '';
     if (widgetSourceSelect) widgetSourceSelect.value = widgetEmEdicao.fonte || 'firebird';
     if (widgetSqlTextarea) widgetSqlTextarea.value = widgetEmEdicao.sql || '';
@@ -1163,7 +1461,7 @@ function fecharModalWidget() {
 
 function validarMapeamentoWidget(mapeamentos) {
     const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
-    const papeis = obterPapeisGrafico(tipo);
+    const papeis = obterPapeisObrigatoriosGrafico(tipo);
     const faltantes = papeis.filter(papel => !mapeamentos.some(item => item.papel === papel));
     if (faltantes.length) {
         renderizarResultadoConsulta(`Falta definir: ${faltantes.join(', ')}.`, 'error');
@@ -1194,6 +1492,7 @@ function salvarWidgetAtual() {
         dadosConsulta: dadosConsultaAtual,
         consultaAtualizadaEm: new Date().toISOString(),
         mapeamentos,
+        tabela: coletarConfiguracaoTabela(),
         aparencia: coletarAparenciaWidget()
     };
     const index = widgets.findIndex(widget => widget.id === atualizado.id);
@@ -1322,8 +1621,13 @@ function inicializarEditorDashboard() {
         columnMappingBox.addEventListener('change', event => {
             if (!event.target.matches('[data-map-role]')) return;
             atualizarCamposMapeamento(event.target.closest('[data-column-name]'));
+            configuracaoTabelaAtual.subtotais = configuracaoTabelaAtual.subtotais.filter(coluna =>
+                coletarMapeamentosColunas().some(item => item.papel === 'linha' && String(item.coluna) === String(coluna))
+            );
+            renderizarConfiguracaoTabela();
         });
     }
+    if (tableConfigBox) tableConfigBox.addEventListener('change', coletarConfiguracaoTabela);
     if (widgetTypeSelect) {
         widgetTypeSelect.addEventListener('change', () => {
             if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
