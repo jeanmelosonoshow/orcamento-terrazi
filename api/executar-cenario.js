@@ -1,11 +1,15 @@
 import { db } from '@vercel/postgres';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+
 const require = createRequire(import.meta.url);
 const Firebird = require('node-firebird');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
-
+const LIMITE_RETORNO = 100;
 
 function carregarEditoresCenario() {
     try {
@@ -21,6 +25,7 @@ function usuarioPodeEditarCenario(usuario = {}) {
     const idFuncionario = String(usuario.idfuncionario || usuario.id_funcionario || usuario.IDFUNCIONARIO || '').trim();
     return Boolean(idFuncionario && carregarEditoresCenario().includes(idFuncionario));
 }
+
 function getFirebirdOptions() {
     return {
         host: process.env.DB_HOST_FB,
@@ -91,7 +96,7 @@ function executarFirebird(sql, valores) {
             dbConn.query(sql, valores, function(queryErr, result) {
                 dbConn.detach();
                 if (queryErr) return reject(queryErr);
-                resolve(Array.isArray(result) ? result.slice(0, 25) : []);
+                resolve(Array.isArray(result) ? result.slice(0, LIMITE_RETORNO) : []);
             });
         });
     });
@@ -107,6 +112,7 @@ export default async function handler(req, res) {
 
     const { fonte = 'firebird', sql, filtros = {}, usuario = {} } = req.body || {};
     if (!usuarioPodeEditarCenario(usuario)) return res.status(403).json({ error: 'Usuario sem permissao para testar cenarios.' });
+
     const erroValidacao = validarSqlLeitura(sql);
     if (erroValidacao) return res.status(400).json({ error: erroValidacao });
 
@@ -119,7 +125,7 @@ export default async function handler(req, res) {
             const client = await db.connect();
             try {
                 const result = await client.query(preparado.sql, preparado.valores);
-                linhas = result.rows.slice(0, 25);
+                linhas = result.rows.slice(0, LIMITE_RETORNO);
             } finally {
                 client.release();
             }
@@ -130,10 +136,10 @@ export default async function handler(req, res) {
         res.status(200).json({
             colunas: extrairColunas(linhas),
             linhas: linhas.length,
-            amostra: linhas.slice(0, 5)
+            limite: LIMITE_RETORNO,
+            amostra: linhas
         });
     } catch (error) {
         res.status(500).json({ error: 'Erro ao executar consulta.', details: error.message });
     }
 }
-

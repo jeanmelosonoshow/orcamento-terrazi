@@ -1010,3 +1010,111 @@ body.crm-budget-mode .crm-budget-frame-wrap {
         grid-template-columns: 1fr;
     }
 }
+
+/* Scenario edit mode */
+.crm-edit-mode-toggle {
+    background: rgba(255,255,255,0.86) !important;
+    color: var(--verde-escuro) !important;
+    border: 1px solid var(--linha) !important;
+}
+
+.crm-dashboard-editor > div,
+.crm-dashboard-editor [data-add-widget] {
+    display: none;
+}
+
+body.crm-scenario-editing .crm-dashboard-editor {
+    background: linear-gradient(135deg, rgba(255,248,225,0.96), rgba(255,255,255,0.86));
+    border-color: var(--dourado);
+    box-shadow: 0 16px 40px rgba(197,164,126,0.20);
+}
+
+body.crm-scenario-editing .crm-dashboard-editor > div,
+body.crm-scenario-editing .crm-dashboard-editor [data-add-widget] {
+    display: block;
+}
+
+body.crm-scenario-editing .crm-edit-mode-toggle {
+    background: var(--dourado) !important;
+    color: var(--verde-escuro) !important;
+}
+
+body.crm-scenario-editing .crm-dashboard-canvas {
+    border-style: solid;
+    background:
+        linear-gradient(90deg, rgba(197,164,126,0.14) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(197,164,126,0.14) 1px, transparent 1px),
+        rgba(255,251,239,0.62);
+    background-size: 24px 24px;
+}
+
+.crm-modal-card {
+    width: min(96vw, 1280px);
+}
+
+.crm-sql-field textarea,
+.crm-widget-step [data-widget-sql] {
+    width: 100%;
+    min-height: 310px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.crm-query-table-wrap {
+    margin-top: 12px;
+    max-height: 300px;
+    overflow: auto;
+    border: 1px solid var(--linha);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.crm-query-table-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--linha);
+    background: #fff;
+    color: var(--verde-escuro);
+}
+
+.crm-query-table-head span {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.crm-query-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.crm-query-table th,
+.crm-query-table td {
+    max-width: 260px;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.crm-query-table th {
+    position: sticky;
+    top: 41px;
+    z-index: 1;
+    background: rgba(244,239,230,0.96);
+    color: var(--verde-escuro);
+    font-weight: 800;
+}
+
+@media (min-width: 900px) {
+    .crm-widget-step .crm-modal-grid-compact {
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.7fr);
+    }
+}

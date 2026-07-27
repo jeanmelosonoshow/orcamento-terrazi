@@ -50,6 +50,7 @@ const testWidgetQueryButton = document.querySelector('[data-test-widget-query]')
 const nextWidgetStepButton = document.querySelector('[data-next-widget-step]');
 const prevWidgetStepButton = document.querySelector('[data-prev-widget-step]');
 const queryResultBox = document.querySelector('[data-query-result]');
+const queryTableWrap = document.querySelector('[data-query-table-wrap]');
 const columnMappingBox = document.querySelector('[data-column-mapping]');
 const mappingNote = document.querySelector('[data-mapping-note]');
 const widgetSourceSelect = document.querySelector('[data-widget-source]');
@@ -58,6 +59,9 @@ const saveWidgetButton = document.querySelector('[data-save-widget]');
 const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
 const dashboardStorageKey = 'crmDashboardScenario:v1';
 let widgetEmEdicao = null;
+let colunasConsultaAtual = [];
+let etapaWidgetAtual = 'sql';
+let modoEdicaoCenario = false;
 
 const catalogoGraficos = [
     { id: 'kpi', nome: 'Indicador KPI', roles: ['valor'] },
@@ -245,6 +249,7 @@ function atualizarLayoutWidget(widgetId, layoutParcial) {
 }
 function renderizarDashboard() {
     if (!dashboardCanvas) return;
+    const editorAtivo = podeEditarCenarios && modoEdicaoCenario;
     const widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
     salvarWidgetsDashboard(widgets);
     atualizarAlturaCanvas(widgets);
@@ -257,14 +262,14 @@ function renderizarDashboard() {
                         <span>${escapeHtml(obterNomeGrafico(widget.tipo))}</span>
                         <strong>${escapeHtml(widget.titulo)}</strong>
                     </div>
-                    ${podeEditarCenarios ? '<button type="button" data-edit-widget>Editar</button>' : ''}
+                    ${editorAtivo ? '<button type="button" data-edit-widget>Editar</button>' : ''}
                 </div>
                 ${renderizarVisualGrafico(widget.tipo)}
                 <div class="crm-dashboard-widget-meta">
                     <span>${escapeHtml(widget.fonte || 'firebird')}</span>
                     <span>${widget.sql ? 'SQL definido' : 'Aguardando consulta'}</span>
                 </div>
-                ${podeEditarCenarios ? '<span class="crm-dashboard-resize" data-resize-widget aria-hidden="true"></span>' : ''}
+                ${editorAtivo ? '<span class="crm-dashboard-resize" data-resize-widget aria-hidden="true"></span>' : ''}
             </article>
         `;
     }).join('');
@@ -309,6 +314,36 @@ function renderizarResultadoConsulta(mensagem, tipo = 'info') {
     queryResultBox.hidden = false;
     queryResultBox.className = `crm-query-result is-${tipo}`;
     queryResultBox.textContent = mensagem;
+    if (tipo === 'error' && queryTableWrap) {
+        queryTableWrap.hidden = true;
+        queryTableWrap.innerHTML = '';
+    }
+}
+
+function renderizarTabelaConsulta(dados = {}) {
+    if (!queryTableWrap) return;
+    const colunas = Array.isArray(dados.colunas) ? dados.colunas : [];
+    const linhas = Array.isArray(dados.amostra) ? dados.amostra : [];
+
+    if (!colunas.length) {
+        queryTableWrap.hidden = false;
+        queryTableWrap.innerHTML = '<div class="crm-query-table-empty">Consulta executada sem colunas retornadas.</div>';
+        return;
+    }
+
+    const cabecalho = colunas.map(coluna => `<th>${escapeHtml(coluna)}</th>`).join('');
+    const corpo = linhas.length
+        ? linhas.map(linha => `<tr>${colunas.map(coluna => `<td>${escapeHtml(linha?.[coluna] ?? '')}</td>`).join('')}</tr>`).join('')
+        : `<tr><td colspan="${colunas.length}">Consulta executada sem linhas para exibir.</td></tr>`;
+
+    queryTableWrap.hidden = false;
+    queryTableWrap.innerHTML = `
+        <div class="crm-query-table-head">Previa da consulta: ${linhas.length} de ate ${dados.limite || 100} linhas</div>
+        <table class="crm-query-table">
+            <thead><tr>${cabecalho}</tr></thead>
+            <tbody>${corpo}</tbody>
+        </table>
+    `;
 }
 
 function montarOpcoesPapel(tipo, selecionado = '') {
@@ -407,14 +442,16 @@ async function testarConsultaWidget() {
             })
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Erro ao executar consulta.');
+        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao executar consulta.');
         colunasConsultaAtual = Array.isArray(data.colunas) ? data.colunas : [];
         renderizarMapeamentoColunas();
-        renderizarResultadoConsulta(`${colunasConsultaAtual.length} colunas retornadas. ${data.linhas || 0} linhas de amostra.`, 'success');
+        renderizarTabelaConsulta(data);
+        renderizarResultadoConsulta(`${colunasConsultaAtual.length} colunas retornadas. ${data.linhas || 0} linhas exibidas.`, 'success');
         return true;
     } catch (error) {
         colunasConsultaAtual = [];
         renderizarMapeamentoColunas();
+        if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
         renderizarResultadoConsulta(error.message || 'Erro ao executar consulta.', 'error');
         return false;
     }
@@ -434,6 +471,7 @@ function abrirModalWidget(widgetId) {
     if (widgetSourceSelect) widgetSourceSelect.value = widgetEmEdicao.fonte || 'firebird';
     if (widgetSqlTextarea) widgetSqlTextarea.value = widgetEmEdicao.sql || '';
     if (queryResultBox) queryResultBox.hidden = true;
+    if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
     renderizarMapeamentoColunas();
     setEtapaWidget('sql');
     widgetModal.hidden = false;
@@ -486,6 +524,7 @@ function inicializarInteracaoLivreDashboard() {
     if (!dashboardCanvas || !podeEditarCenarios) return;
 
     dashboardCanvas.addEventListener('pointerdown', event => {
+        if (!modoEdicaoCenario) return;
         const card = event.target.closest('[data-widget-id]');
         if (!card) return;
         if (event.target.closest('[data-edit-widget]')) return;
@@ -546,11 +585,33 @@ function inicializarInteracaoLivreDashboard() {
         card.addEventListener('pointercancel', soltar);
     });
 }
+
+function aplicarModoEdicaoCenario(ativo) {
+    modoEdicaoCenario = Boolean(ativo && podeEditarCenarios);
+    document.body.classList.toggle('crm-scenario-editing', modoEdicaoCenario);
+    if (editModeToggle) {
+        editModeToggle.textContent = modoEdicaoCenario ? 'Concluir edição' : 'Editar cenario';
+        editModeToggle.setAttribute('aria-pressed', String(modoEdicaoCenario));
+    }
+    renderizarDashboard();
+}
 function inicializarEditorDashboard() {
     if (dashboardEditor) dashboardEditor.hidden = !podeEditarCenarios;
-    renderizarDashboard();
+    aplicarModoEdicaoCenario(false);
 
+    if (editModeToggle) editModeToggle.addEventListener('click', () => aplicarModoEdicaoCenario(!modoEdicaoCenario));
     if (addWidgetButton) addWidgetButton.addEventListener('click', () => abrirModalWidget());
+    if (testWidgetQueryButton) testWidgetQueryButton.addEventListener('click', () => testarConsultaWidget());
+    if (nextWidgetStepButton) {
+        nextWidgetStepButton.addEventListener('click', async () => {
+            if (!colunasConsultaAtual.length) {
+                const ok = await testarConsultaWidget();
+                if (!ok) return;
+            }
+            setEtapaWidget('mapping');
+        });
+    }
+    if (prevWidgetStepButton) prevWidgetStepButton.addEventListener('click', () => setEtapaWidget('sql'));
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', event => {
@@ -937,27 +998,3 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
