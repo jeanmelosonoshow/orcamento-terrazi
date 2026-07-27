@@ -1,6 +1,9 @@
 // 0. VERIFICAÇÃO DE LOGIN
 const usuarioLogadoRaw = sessionStorage.getItem('usuarioLogado');
-if (!usuarioLogadoRaw) { window.location.href = 'login.html'; }
+if (!usuarioLogadoRaw) {
+    window.top.location.replace('login.html');
+    throw new Error('Sessao nao autenticada.');
+}
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
 const ORCAMENTO_CONFIG = window.ORCAMENTO_CONFIG || {};
 
@@ -1130,6 +1133,7 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
 
 
 

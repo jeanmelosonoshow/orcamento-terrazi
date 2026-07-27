@@ -1,6 +1,7 @@
 const usuarioLogadoRaw = sessionStorage.getItem('usuarioLogado');
 if (!usuarioLogadoRaw) {
-    window.location.href = 'login.html';
+    window.top.location.replace('login.html');
+    throw new Error('Sessao nao autenticada.');
 }
 
 const usuarioLogado = JSON.parse(usuarioLogadoRaw || '{}');
@@ -467,6 +468,7 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
 
 
 

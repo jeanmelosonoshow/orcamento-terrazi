@@ -1,5 +1,9 @@
-const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
-if (!usuarioLogado) { window.location.href = 'login.html'; }
+const usuarioLogadoRaw = sessionStorage.getItem('usuarioLogado');
+if (!usuarioLogadoRaw) {
+    window.top.location.replace('login.html');
+    throw new Error('Sessao nao autenticada.');
+}
+const usuarioLogado = JSON.parse(usuarioLogadoRaw);
 
 window.todosOrcamentos = [];
 let orcamentosFiltrados = [];
@@ -496,4 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
     carregarHistorico();
 });
+
+
 
