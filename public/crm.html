@@ -223,91 +223,68 @@
                 <button type="button" class="crm-icon-button" aria-label="Fechar" data-close-widget-modal>×</button>
             </div>
 
-            <div class="crm-modal-grid">
-                <label>
-                    Titulo
-                    <input type="text" data-widget-title placeholder="Ex: Faturamento por filial">
-                </label>
-                <label>
-                    Tipo de grafico
-                    <select data-widget-type></select>
-                </label>
-                <label>
-                    Largura
-                    <select data-widget-cols>
-                        <option value="3">3 colunas</option>
-                        <option value="4">4 colunas</option>
-                        <option value="6">6 colunas</option>
-                        <option value="8">8 colunas</option>
-                        <option value="12">12 colunas</option>
-                    </select>
-                </label>
-                <label>
-                    Altura
-                    <select data-widget-rows>
-                        <option value="1">Baixa</option>
-                        <option value="2">Media</option>
-                        <option value="3">Alta</option>
-                    </select>
-                </label>
-                <label>
-                    Dimensao
-                    <input type="text" data-widget-dimension placeholder="Coluna de categoria/data">
-                </label>
-                <label>
-                    Linha
-                    <input type="text" data-widget-row placeholder="Opcional">
-                </label>
-                <label>
-                    Coluna
-                    <input type="text" data-widget-column placeholder="Opcional">
-                </label>
-                <label>
-                    Valor
-                    <input type="text" data-widget-value placeholder="Coluna numerica">
-                </label>
-                <label>
-                    Formato do valor
-                    <select data-widget-value-format>
-                        <option value="money">Monetario</option>
-                        <option value="percent">Percentual</option>
-                        <option value="integer">Inteiro</option>
-                        <option value="decimal">Decimal</option>
-                    </select>
-                </label>
-                <label>
-                    Formato da data
-                    <select data-widget-date-format>
-                        <option value="none">Nao se aplica</option>
-                        <option value="day">Dia</option>
-                        <option value="month">Mes</option>
-                        <option value="quarter">Trimestre</option>
-                        <option value="year">Ano</option>
-                    </select>
-                </label>
-                <label>
-                    Fonte de dados
-                    <select data-widget-source>
-                        <option value="firebird">Firebird</option>
-                        <option value="postgres">Postgres</option>
-                    </select>
-                </label>
+            <div class="crm-modal-steps" aria-label="Etapas da configuracao">
+                <span class="is-active" data-step-indicator="sql">1. Consulta</span>
+                <span data-step-indicator="mapping">2. Colunas</span>
+            </div>
+
+            <div class="crm-widget-step" data-widget-step="sql">
+                <div class="crm-modal-grid crm-modal-grid-compact">
+                    <label>
+                        Titulo
+                        <input type="text" data-widget-title placeholder="Ex: Faturamento por filial">
+                    </label>
+                    <label>
+                        Tipo de grafico
+                        <select data-widget-type></select>
+                    </label>
+                    <label>
+                        Fonte de dados
+                        <select data-widget-source>
+                            <option value="firebird">Firebird</option>
+                            <option value="postgres">Postgres</option>
+                        </select>
+                    </label>
+                </div>
+
                 <label class="crm-sql-field">
                     Console SQL
-                    <textarea data-widget-sql spellcheck="false" placeholder="Digite apenas SELECT. A execucao real sera conectada na proxima etapa com validacao."></textarea>
+                    <textarea data-widget-sql spellcheck="false" placeholder="Use SELECT e parametros como :data_inicial, :data_final, :filiais, :vendedores, :idfuncionario, :idfilial e :idvendedor."></textarea>
                 </label>
+
+                <div class="crm-query-help">
+                    <strong>Parametros disponiveis</strong>
+                    <span>:data_inicial</span>
+                    <span>:data_final</span>
+                    <span>:filiais</span>
+                    <span>:vendedores</span>
+                    <span>:idfuncionario</span>
+                    <span>:idfilial</span>
+                    <span>:idvendedor</span>
+                </div>
+
+                <div class="crm-query-result" data-query-result hidden></div>
+            </div>
+
+            <div class="crm-widget-step" data-widget-step="mapping" hidden>
+                <p class="crm-step-note" data-mapping-note>Execute a consulta para carregar as colunas retornadas.</p>
+                <div class="crm-column-mapping" data-column-mapping></div>
             </div>
 
             <div class="crm-modal-actions">
                 <button type="button" class="crm-secondary-button" data-close-widget-modal>Cancelar</button>
-                <button type="button" data-save-widget>Salvar cenario</button>
+                <button type="button" class="crm-secondary-button" data-prev-widget-step hidden>Voltar</button>
+                <button type="button" class="crm-secondary-button" data-test-widget-query>Executar teste</button>
+                <button type="button" data-next-widget-step>Proximo</button>
+                <button type="button" data-save-widget hidden>Salvar cenario</button>
             </div>
         </section>
     </div>
-    <script src="theme-loader.js?v=crm-20260727-2"></script>
-    <script src="crm.js?v=crm-20260727-2"></script>
+    <script src="theme-loader.js?v=crm-20260727-3"></script>
+    <script src="crm.js?v=crm-20260727-3"></script>
 </body>
 </html>
+
 
 
 

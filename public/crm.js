@@ -44,14 +44,14 @@ const addWidgetButton = document.querySelector('[data-add-widget]');
 const widgetModal = document.querySelector('[data-widget-modal]');
 const widgetTypeSelect = document.querySelector('[data-widget-type]');
 const widgetTitleInput = document.querySelector('[data-widget-title]');
-const widgetColsSelect = document.querySelector('[data-widget-cols]');
-const widgetRowsSelect = document.querySelector('[data-widget-rows]');
-const widgetDimensionInput = document.querySelector('[data-widget-dimension]');
-const widgetRowInput = document.querySelector('[data-widget-row]');
-const widgetColumnInput = document.querySelector('[data-widget-column]');
-const widgetValueInput = document.querySelector('[data-widget-value]');
-const widgetValueFormatSelect = document.querySelector('[data-widget-value-format]');
-const widgetDateFormatSelect = document.querySelector('[data-widget-date-format]');
+const widgetSteps = Array.from(document.querySelectorAll('[data-widget-step]'));
+const widgetStepIndicators = Array.from(document.querySelectorAll('[data-step-indicator]'));
+const testWidgetQueryButton = document.querySelector('[data-test-widget-query]');
+const nextWidgetStepButton = document.querySelector('[data-next-widget-step]');
+const prevWidgetStepButton = document.querySelector('[data-prev-widget-step]');
+const queryResultBox = document.querySelector('[data-query-result]');
+const columnMappingBox = document.querySelector('[data-column-mapping]');
+const mappingNote = document.querySelector('[data-mapping-note]');
 const widgetSourceSelect = document.querySelector('[data-widget-source]');
 const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
 const saveWidgetButton = document.querySelector('[data-save-widget]');
@@ -60,31 +60,31 @@ const dashboardStorageKey = 'crmDashboardScenario:v1';
 let widgetEmEdicao = null;
 
 const catalogoGraficos = [
-    { id: 'kpi', nome: 'Indicador KPI' },
-    { id: 'bar', nome: 'Barras verticais' },
-    { id: 'horizontal-bar', nome: 'Barras horizontais' },
-    { id: 'grouped-bar', nome: 'Barras agrupadas' },
-    { id: 'stacked-bar', nome: 'Barras empilhadas' },
-    { id: 'line', nome: 'Linha' },
-    { id: 'area', nome: 'Area' },
-    { id: 'combo', nome: 'Combinado barras e linha' },
-    { id: 'pie', nome: 'Pizza' },
-    { id: 'donut', nome: 'Rosca' },
-    { id: 'gauge', nome: 'Velocimetro' },
-    { id: 'funnel', nome: 'Funil' },
-    { id: 'treemap', nome: 'Mapa de arvore' },
-    { id: 'heatmap', nome: 'Mapa de calor' },
-    { id: 'scatter', nome: 'Dispersao' },
-    { id: 'bubble', nome: 'Bolhas' },
-    { id: 'ranking', nome: 'Ranking' },
-    { id: 'table', nome: 'Tabela' },
-    { id: 'pivot', nome: 'Tabela dinamica' },
-    { id: 'waterfall', nome: 'Cascata' },
-    { id: 'histogram', nome: 'Histograma' },
-    { id: 'bullet', nome: 'Meta x realizado' },
-    { id: 'sparkline', nome: 'Mini linha' },
-    { id: 'calendar', nome: 'Calendario de calor' },
-    { id: 'cohort', nome: 'Coorte' }
+    { id: 'kpi', nome: 'Indicador KPI', roles: ['valor'] },
+    { id: 'bar', nome: 'Barras verticais', roles: ['dimensao', 'valor'] },
+    { id: 'horizontal-bar', nome: 'Barras horizontais', roles: ['dimensao', 'valor'] },
+    { id: 'grouped-bar', nome: 'Barras agrupadas', roles: ['dimensao', 'coluna', 'valor'] },
+    { id: 'stacked-bar', nome: 'Barras empilhadas', roles: ['dimensao', 'coluna', 'valor'] },
+    { id: 'line', nome: 'Linha', roles: ['dimensao', 'valor'] },
+    { id: 'area', nome: 'Area', roles: ['dimensao', 'valor'] },
+    { id: 'combo', nome: 'Combinado barras e linha', roles: ['dimensao', 'valor'] },
+    { id: 'pie', nome: 'Pizza', roles: ['dimensao', 'valor'] },
+    { id: 'donut', nome: 'Rosca', roles: ['dimensao', 'valor'] },
+    { id: 'gauge', nome: 'Velocimetro', roles: ['valor'] },
+    { id: 'funnel', nome: 'Funil', roles: ['dimensao', 'valor'] },
+    { id: 'treemap', nome: 'Mapa de arvore', roles: ['dimensao', 'valor'] },
+    { id: 'heatmap', nome: 'Mapa de calor', roles: ['linha', 'coluna', 'valor'] },
+    { id: 'scatter', nome: 'Dispersao', roles: ['dimensao', 'valor'] },
+    { id: 'bubble', nome: 'Bolhas', roles: ['dimensao', 'valor'] },
+    { id: 'ranking', nome: 'Ranking', roles: ['dimensao', 'valor'] },
+    { id: 'table', nome: 'Tabela', roles: ['dimensao', 'linha', 'coluna', 'valor'] },
+    { id: 'pivot', nome: 'Tabela dinamica', roles: ['linha', 'coluna', 'valor'] },
+    { id: 'waterfall', nome: 'Cascata', roles: ['dimensao', 'valor'] },
+    { id: 'histogram', nome: 'Histograma', roles: ['dimensao', 'valor'] },
+    { id: 'bullet', nome: 'Meta x realizado', roles: ['dimensao', 'valor'] },
+    { id: 'sparkline', nome: 'Mini linha', roles: ['dimensao', 'valor'] },
+    { id: 'calendar', nome: 'Calendario de calor', roles: ['dimensao', 'valor'] },
+    { id: 'cohort', nome: 'Coorte', roles: ['linha', 'coluna', 'valor'] }
 ];
 
 function obterIniciais(nomeCompleto) {
@@ -153,14 +153,11 @@ function criarWidgetPadrao(tipo = 'bar') {
         id: `grafico-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         titulo: itemCatalogo.nome,
         tipo: itemCatalogo.id,
-        colunas: 6,
-        linhas: 2,
-        dimensao: '',
-        linha: '',
-        coluna: '',
-        valor: '',
-        formatoValor: 'money',
-        formatoData: 'none',
+        x: 0,
+        y: 0,
+        w: 420,
+        h: 300,
+        mapeamentos: [],
         fonte: 'firebird',
         sql: ''
     };
@@ -273,51 +270,206 @@ function renderizarDashboard() {
     }).join('');
 }
 
+function obterConfigGrafico(tipo) {
+    return catalogoGraficos.find(item => item.id === tipo) || catalogoGraficos[1];
+}
+
+function obterPapeisGrafico(tipo) {
+    return obterConfigGrafico(tipo).roles || ['dimensao', 'valor'];
+}
+
+function setEtapaWidget(etapa) {
+    etapaWidgetAtual = etapa;
+    widgetSteps.forEach(step => {
+        step.hidden = step.dataset.widgetStep !== etapa;
+    });
+    widgetStepIndicators.forEach(indicator => {
+        indicator.classList.toggle('is-active', indicator.dataset.stepIndicator === etapa);
+    });
+    if (prevWidgetStepButton) prevWidgetStepButton.hidden = etapa === 'sql';
+    if (testWidgetQueryButton) testWidgetQueryButton.hidden = etapa !== 'sql';
+    if (nextWidgetStepButton) nextWidgetStepButton.hidden = etapa !== 'sql';
+    if (saveWidgetButton) saveWidgetButton.hidden = etapa !== 'mapping';
+}
+
+function obterFiltrosCenario() {
+    return {
+        dataInicial: crmDataInicial?.value || '',
+        dataFinal: crmDataFinal?.value || '',
+        filiais: getFiliaisSelecionadas(),
+        vendedores: getVendedoresSelecionados(),
+        idfuncionario: idFuncionarioLogado || '',
+        idfilial: filialId || '',
+        idvendedor: idVendedorLogado || ''
+    };
+}
+
+function renderizarResultadoConsulta(mensagem, tipo = 'info') {
+    if (!queryResultBox) return;
+    queryResultBox.hidden = false;
+    queryResultBox.className = `crm-query-result is-${tipo}`;
+    queryResultBox.textContent = mensagem;
+}
+
+function montarOpcoesPapel(tipo, selecionado = '') {
+    const papeis = obterPapeisGrafico(tipo);
+    const opcoes = ['ignorar', ...papeis];
+    return opcoes.map(papel => `<option value="${papel}"${papel === selecionado ? ' selected' : ''}>${papel}</option>`).join('');
+}
+
+function renderizarMapeamentoColunas() {
+    if (!columnMappingBox) return;
+    const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
+    const existentes = Array.isArray(widgetEmEdicao?.mapeamentos) ? widgetEmEdicao.mapeamentos : [];
+    const porNome = new Map(existentes.map(item => [String(item.coluna).toLowerCase(), item]));
+
+    if (!colunasConsultaAtual.length) {
+        columnMappingBox.innerHTML = '';
+        if (mappingNote) mappingNote.textContent = 'Execute a consulta para carregar as colunas retornadas.';
+        return;
+    }
+
+    if (mappingNote) mappingNote.textContent = 'Defina como cada coluna retornada deve ser usada no grafico.';
+    columnMappingBox.innerHTML = colunasConsultaAtual.map(coluna => {
+        const atual = porNome.get(String(coluna).toLowerCase()) || {};
+        return `
+            <article class="crm-column-row" data-column-name="${escapeHtml(coluna)}">
+                <strong>${escapeHtml(coluna)}</strong>
+                <label>
+                    Uso
+                    <select data-map-role>${montarOpcoesPapel(tipo, atual.papel || 'ignorar')}</select>
+                </label>
+                <label>
+                    Agregacao
+                    <select data-map-aggregation>
+                        <option value="none"${(atual.agregacao || 'none') === 'none' ? ' selected' : ''}>Nenhuma</option>
+                        <option value="sum"${atual.agregacao === 'sum' ? ' selected' : ''}>SUM</option>
+                        <option value="count"${atual.agregacao === 'count' ? ' selected' : ''}>COUNT</option>
+                        <option value="count_distinct"${atual.agregacao === 'count_distinct' ? ' selected' : ''}>COUNT DISTINCT</option>
+                        <option value="min"${atual.agregacao === 'min' ? ' selected' : ''}>MIN</option>
+                        <option value="max"${atual.agregacao === 'max' ? ' selected' : ''}>MAX</option>
+                        <option value="avg"${atual.agregacao === 'avg' ? ' selected' : ''}>AVG</option>
+                    </select>
+                </label>
+                <label>
+                    Formato valor
+                    <select data-map-value-format>
+                        <option value="money"${(atual.formatoValor || 'money') === 'money' ? ' selected' : ''}>Monetario</option>
+                        <option value="percent"${atual.formatoValor === 'percent' ? ' selected' : ''}>Percentual</option>
+                        <option value="integer"${atual.formatoValor === 'integer' ? ' selected' : ''}>Numerico inteiro</option>
+                        <option value="decimal"${atual.formatoValor === 'decimal' ? ' selected' : ''}>Numerico decimal</option>
+                    </select>
+                </label>
+                <label>
+                    Formato data
+                    <select data-map-date-format>
+                        <option value="none"${(atual.formatoData || 'none') === 'none' ? ' selected' : ''}>Nao se aplica</option>
+                        <option value="day"${atual.formatoData === 'day' ? ' selected' : ''}>Dia</option>
+                        <option value="month"${atual.formatoData === 'month' ? ' selected' : ''}>Mes</option>
+                        <option value="quarter"${atual.formatoData === 'quarter' ? ' selected' : ''}>Trimestre</option>
+                        <option value="year"${atual.formatoData === 'year' ? ' selected' : ''}>Ano</option>
+                    </select>
+                </label>
+            </article>
+        `;
+    }).join('');
+}
+
+function coletarMapeamentosColunas() {
+    if (!columnMappingBox) return [];
+    return Array.from(columnMappingBox.querySelectorAll('[data-column-name]')).map(row => ({
+        coluna: row.dataset.columnName,
+        papel: row.querySelector('[data-map-role]')?.value || 'ignorar',
+        agregacao: row.querySelector('[data-map-aggregation]')?.value || 'none',
+        formatoValor: row.querySelector('[data-map-value-format]')?.value || 'money',
+        formatoData: row.querySelector('[data-map-date-format]')?.value || 'none'
+    })).filter(item => item.papel !== 'ignorar');
+}
+
+async function testarConsultaWidget() {
+    if (!widgetSqlTextarea || !widgetSourceSelect) return false;
+    const sql = widgetSqlTextarea.value.trim();
+    if (!sql) {
+        renderizarResultadoConsulta('Digite uma consulta SELECT para testar.', 'error');
+        return false;
+    }
+
+    renderizarResultadoConsulta('Executando consulta...', 'info');
+    try {
+        const response = await fetch('/api/executar-cenario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fonte: widgetSourceSelect.value,
+                sql,
+                filtros: obterFiltrosCenario(),
+                usuario: { idfuncionario: idFuncionarioLogado }
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Erro ao executar consulta.');
+        colunasConsultaAtual = Array.isArray(data.colunas) ? data.colunas : [];
+        renderizarMapeamentoColunas();
+        renderizarResultadoConsulta(`${colunasConsultaAtual.length} colunas retornadas. ${data.linhas || 0} linhas de amostra.`, 'success');
+        return true;
+    } catch (error) {
+        colunasConsultaAtual = [];
+        renderizarMapeamentoColunas();
+        renderizarResultadoConsulta(error.message || 'Erro ao executar consulta.', 'error');
+        return false;
+    }
+}
+
 function abrirModalWidget(widgetId) {
     if (!widgetModal) return;
     const widgets = obterWidgetsDashboard();
     widgetEmEdicao = widgets.find(widget => widget.id === widgetId) || criarWidgetPadrao();
+    colunasConsultaAtual = Array.isArray(widgetEmEdicao.colunasConsulta) ? widgetEmEdicao.colunasConsulta : [];
 
     if (widgetTypeSelect) {
         widgetTypeSelect.innerHTML = catalogoGraficos.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)}</option>`).join('');
         widgetTypeSelect.value = widgetEmEdicao.tipo;
     }
     if (widgetTitleInput) widgetTitleInput.value = widgetEmEdicao.titulo || '';
-    if (widgetColsSelect) widgetColsSelect.value = String(widgetEmEdicao.colunas || 6);
-    if (widgetRowsSelect) widgetRowsSelect.value = String(widgetEmEdicao.linhas || 2);
-    if (widgetDimensionInput) widgetDimensionInput.value = widgetEmEdicao.dimensao || '';
-    if (widgetRowInput) widgetRowInput.value = widgetEmEdicao.linha || '';
-    if (widgetColumnInput) widgetColumnInput.value = widgetEmEdicao.coluna || '';
-    if (widgetValueInput) widgetValueInput.value = widgetEmEdicao.valor || '';
-    if (widgetValueFormatSelect) widgetValueFormatSelect.value = widgetEmEdicao.formatoValor || 'money';
-    if (widgetDateFormatSelect) widgetDateFormatSelect.value = widgetEmEdicao.formatoData || 'none';
     if (widgetSourceSelect) widgetSourceSelect.value = widgetEmEdicao.fonte || 'firebird';
     if (widgetSqlTextarea) widgetSqlTextarea.value = widgetEmEdicao.sql || '';
+    if (queryResultBox) queryResultBox.hidden = true;
+    renderizarMapeamentoColunas();
+    setEtapaWidget('sql');
     widgetModal.hidden = false;
 }
 
 function fecharModalWidget() {
     if (widgetModal) widgetModal.hidden = true;
     widgetEmEdicao = null;
+    colunasConsultaAtual = [];
+}
+
+function validarMapeamentoWidget(mapeamentos) {
+    const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
+    const papeis = obterPapeisGrafico(tipo);
+    const faltantes = papeis.filter(papel => !mapeamentos.some(item => item.papel === papel));
+    if (faltantes.length) {
+        renderizarResultadoConsulta(`Falta definir: ${faltantes.join(', ')}.`, 'error');
+        setEtapaWidget('mapping');
+        return false;
+    }
+    return true;
 }
 
 function salvarWidgetAtual() {
     if (!widgetEmEdicao) return;
+    const mapeamentos = coletarMapeamentosColunas();
+    if (!validarMapeamentoWidget(mapeamentos)) return;
     const widgets = obterWidgetsDashboard();
     const atualizado = {
         ...widgetEmEdicao,
         titulo: widgetTitleInput?.value.trim() || obterNomeGrafico(widgetTypeSelect?.value),
         tipo: widgetTypeSelect?.value || 'bar',
-        colunas: Number(widgetColsSelect?.value || 6),
-        linhas: Number(widgetRowsSelect?.value || 2),
-        dimensao: widgetDimensionInput?.value.trim() || '',
-        linha: widgetRowInput?.value.trim() || '',
-        coluna: widgetColumnInput?.value.trim() || '',
-        valor: widgetValueInput?.value.trim() || '',
-        formatoValor: widgetValueFormatSelect?.value || 'money',
-        formatoData: widgetDateFormatSelect?.value || 'none',
         fonte: widgetSourceSelect?.value || 'firebird',
-        sql: widgetSqlTextarea?.value.trim() || ''
+        sql: widgetSqlTextarea?.value.trim() || '',
+        colunasConsulta: colunasConsultaAtual,
+        mapeamentos
     };
     const index = widgets.findIndex(widget => widget.id === atualizado.id);
     if (index >= 0) {
@@ -329,7 +481,6 @@ function salvarWidgetAtual() {
     fecharModalWidget();
     renderizarDashboard();
 }
-
 
 function inicializarInteracaoLivreDashboard() {
     if (!dashboardCanvas || !podeEditarCenarios) return;
@@ -786,6 +937,12 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
+
+
+
+
 
 
 
