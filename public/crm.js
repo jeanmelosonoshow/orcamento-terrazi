@@ -17,6 +17,49 @@ const categoriasTraduzidas = {
     CX: 'CAIXA'
 };
 const categoriasPorNome = Object.fromEntries(Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => [nomeCategoria, codigo]));
+function obterViewPorHash(hash) {
+    return hash === '#orcamentos' ? 'orcamentos' : 'visao-geral';
+}
+
+function ativarView(viewName, hash = window.location.hash || '#visao-geral') {
+    document.body.classList.toggle('crm-budget-mode', viewName === 'orcamentos');
+    document.querySelectorAll('[data-crm-view]').forEach(view => {
+        view.hidden = view.dataset.crmView !== viewName;
+    });
+    document.querySelectorAll('[data-crm-view-link]').forEach(link => {
+        const href = link.getAttribute('href') || '#visao-geral';
+        const isActive = viewName === 'orcamentos'
+            ? href === '#orcamentos'
+            : href === hash || (!hash && href === '#visao-geral');
+        link.classList.toggle('is-active', isActive);
+    });
+    if (viewName === 'orcamentos') {
+        try { definirPaginaOrcamento(); } catch (error) {}
+    }
+    if (viewName === 'visao-geral' && hash && hash !== '#visao-geral') {
+        const target = document.querySelector(hash);
+        if (target) setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+    }
+}
+
+document.addEventListener('click', event => {
+    const link = event.target.closest('[data-crm-view-link]');
+    if (!link) return;
+    const hash = link.getAttribute('href') || '#visao-geral';
+    if (!hash.startsWith('#')) return;
+    event.preventDefault();
+    if (window.location.hash !== hash) {
+        window.location.hash = hash;
+    } else {
+        ativarView(obterViewPorHash(hash), hash);
+    }
+}, true);
+
+window.addEventListener('hashchange', () => {
+    const hash = window.location.hash || '#visao-geral';
+    ativarView(obterViewPorHash(hash), hash);
+});
+
 const categoriaRaw = String(usuarioLogado.categoria || usuarioLogado.CATEGORIA || '').trim().toUpperCase();
 const categoriaCodigo = categoriasTraduzidas[categoriaRaw] ? categoriaRaw : (categoriasPorNome[categoriaRaw] || categoriaRaw);
 const categoria = categoriasTraduzidas[categoriaCodigo] || categoriaCodigo || 'USUÁRIO';
@@ -951,52 +994,6 @@ async function definirPaginaOrcamento() {
 
 definirPaginaOrcamento();
 
-const viewLinks = Array.from(document.querySelectorAll('[data-crm-view-link]'));
-const views = Array.from(document.querySelectorAll('[data-crm-view]'));
-
-function obterViewPorHash(hash) {
-    return hash === '#orcamentos' ? 'orcamentos' : 'visao-geral';
-}
-
-function ativarView(viewName, hash = window.location.hash || '#visao-geral') {
-    document.body.classList.toggle('crm-budget-mode', viewName === 'orcamentos');
-
-    views.forEach(view => {
-        view.hidden = view.dataset.crmView !== viewName;
-    });
-
-    viewLinks.forEach(link => {
-        const isActive = viewName === 'orcamentos'
-            ? link.getAttribute('href') === '#orcamentos'
-            : link.getAttribute('href') === hash || (!hash && link.getAttribute('href') === '#visao-geral');
-        link.classList.toggle('is-active', isActive);
-    });
-
-    if (viewName === 'visao-geral' && hash && hash !== '#visao-geral') {
-        const target = document.querySelector(hash);
-        if (target) setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
-    }
-}
-
-viewLinks.forEach(link => {
-    link.addEventListener('click', event => {
-        const hash = link.getAttribute('href') || '#visao-geral';
-        if (!hash.startsWith('#')) return;
-
-        event.preventDefault();
-        if (window.location.hash !== hash) {
-            window.location.hash = hash;
-        } else {
-            ativarView(obterViewPorHash(hash), hash);
-        }
-    });
-});
-
-window.addEventListener('hashchange', () => {
-    const hash = window.location.hash || '#visao-geral';
-    ativarView(obterViewPorHash(hash), hash);
-});
-
 ativarView(obterViewPorHash(window.location.hash || '#visao-geral'), window.location.hash || '#visao-geral');
 
 const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
@@ -1008,5 +1005,7 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
+
+
 
 
