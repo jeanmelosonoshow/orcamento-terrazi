@@ -2,6 +2,7 @@ import { createRequire } from 'module';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createSessionToken } from '../lib/session-token.js';
 const require = createRequire(import.meta.url);
 const Firebird = require('node-firebird');
 const crypto = require('crypto');
@@ -12,6 +13,7 @@ const permissionsPaths = [
     path.join(__dirname, 'crm-permissions.json'),
     path.join(__dirname, '..', 'config', 'crm-permissions.json')
 ];
+const FIREBIRD_TIMEOUT_MS = 12000;
 
 function carregarPermissoes() {
     const fallback = {
@@ -69,11 +71,29 @@ export default async function handler(req, res) {
     };
 
     return new Promise((resolve) => {
+        let finalizado = false;
+        let conexao = null;
+
+        const finalizar = (status, payload) => {
+            if (finalizado) return;
+            finalizado = true;
+            clearTimeout(timeout);
+            try { if (conexao) conexao.detach(); } catch (error) {}
+            res.status(status).json(payload);
+            resolve();
+        };
+
+        const timeout = setTimeout(() => {
+            finalizar(504, { autorizado: false, erro: 'Tempo limite ao conectar no Firebird.' });
+        }, FIREBIRD_TIMEOUT_MS);
+
         Firebird.attach(options, function(err, db) {
-            if (err) {
-                res.status(500).json({ autorizado: false, erro: 'Falha ao conectar no Firebird local.' });
-                return resolve();
+            if (finalizado) {
+                try { if (db) db.detach(); } catch (error) {}
+                return;
             }
+            if (err) return finalizar(500, { autorizado: false, erro: 'Falha ao conectar no Firebird.' });
+            conexao = db;
 
             const placeholders = categoriasPermitidas.map(() => '?').join(',');
             const sql = `
@@ -90,31 +110,32 @@ export default async function handler(req, res) {
                   AND CATEGORIA IN (${placeholders})
             `;
 
-            db.query(sql, [usuario, senhaHash, ...categoriasPermitidas], function(err, result) {
-                db.detach();
-
-                if (err) {
-                    res.status(500).json({ autorizado: false, erro: 'Erro na consulta ao Firebird.' });
-                    return resolve();
+            db.query(sql, [usuario, senhaHash, ...categoriasPermitidas], function(queryError, result) {
+                if (queryError) return finalizar(500, { autorizado: false, erro: 'Erro na consulta ao Firebird.' });
+                if (!result || !result.length) {
+                    return finalizar(401, { autorizado: false, mensagem: 'Usuário ou senha inválidos.' });
                 }
 
-                if (result && result.length > 0) {
+                try {
                     const idFuncionario = result[0].ID_FUNCIONARIO;
                     const podeEditarCenarios = permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
-                    res.status(200).json({
-                        autorizado: true,
+                    const sessionUser = {
                         idfuncionario: idFuncionario,
-                        nomefuncionario: result[0].NOME_FUNCIONARIO,
                         categoria: result[0].CATEGORIA,
                         idfilial: result[0].ID_FILIAL,
-                        idvendedor: result[0].ID_VENDEDOR,
+                        idvendedor: result[0].ID_VENDEDOR
+                    };
+                    finalizar(200, {
+                        autorizado: true,
+                        ...sessionUser,
+                        nomefuncionario: result[0].NOME_FUNCIONARIO,
                         podeEditarCenarios,
-                        canEditScenarios: podeEditarCenarios
+                        canEditScenarios: podeEditarCenarios,
+                        sessionToken: createSessionToken(sessionUser)
                     });
-                } else {
-                    res.status(401).json({ autorizado: false, mensagem: 'Usuário ou senha inválidos.' });
+                } catch (tokenError) {
+                    finalizar(500, { autorizado: false, erro: 'Falha na configuracao segura da sessao.' });
                 }
-                resolve();
             });
         });
     });

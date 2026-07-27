@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { requireRequestSession } from '../lib/session-token.js';
 
 const require = createRequire(import.meta.url);
 const Firebird = require('node-firebird');
@@ -10,6 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
 const LIMITE_RETORNO = 100;
+const CONSULTA_TIMEOUT_MS = 15000;
 
 function carregarEditoresCenario() {
     try {
@@ -21,8 +23,7 @@ function carregarEditoresCenario() {
     }
 }
 
-function usuarioPodeEditarCenario(usuario = {}) {
-    const idFuncionario = String(usuario.idfuncionario || usuario.id_funcionario || usuario.IDFUNCIONARIO || '').trim();
+function usuarioPodeEditarCenario(idFuncionario) {
     return Boolean(idFuncionario && carregarEditoresCenario().includes(idFuncionario));
 }
 
@@ -91,27 +92,50 @@ function extrairColunas(linhas) {
 
 function executarFirebird(sql, valores) {
     return new Promise((resolve, reject) => {
+        let finalizado = false;
+        let conexao = null;
+        const timeout = setTimeout(() => {
+            if (finalizado) return;
+            finalizado = true;
+            try { if (conexao) conexao.detach(); } catch (error) {}
+            reject(new Error('Tempo limite ao executar consulta no Firebird.'));
+        }, CONSULTA_TIMEOUT_MS);
+
+        const finalizar = (erro, linhas = []) => {
+            if (finalizado) return;
+            finalizado = true;
+            clearTimeout(timeout);
+            try { if (conexao) conexao.detach(); } catch (detachError) {}
+            if (erro) return reject(erro);
+            resolve(Array.isArray(linhas) ? linhas.slice(0, LIMITE_RETORNO) : []);
+        };
+
         Firebird.attach(getFirebirdOptions(), function(err, dbConn) {
-            if (err) return reject(err);
+            if (finalizado) {
+                try { if (dbConn) dbConn.detach(); } catch (detachError) {}
+                return;
+            }
+            if (err) return finalizar(err);
+            conexao = dbConn;
             dbConn.query(sql, valores, function(queryErr, result) {
-                dbConn.detach();
-                if (queryErr) return reject(queryErr);
-                resolve(Array.isArray(result) ? result.slice(0, LIMITE_RETORNO) : []);
+                finalizar(queryErr, result);
             });
         });
     });
 }
 
 export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo nao permitido.' });
 
-    const { fonte = 'firebird', sql, filtros = {}, usuario = {} } = req.body || {};
-    if (!usuarioPodeEditarCenario(usuario)) return res.status(403).json({ error: 'Usuario sem permissao para testar cenarios.' });
+    const session = requireRequestSession(req, res);
+    if (!session) return;
+    const { fonte = 'firebird', sql, filtros = {} } = req.body || {};
+    if (!usuarioPodeEditarCenario(String(session.sub))) return res.status(403).json({ error: 'Usuario sem permissao para testar cenarios.' });
 
     const erroValidacao = validarSqlLeitura(sql);
     if (erroValidacao) return res.status(400).json({ error: erroValidacao });
@@ -124,8 +148,14 @@ export default async function handler(req, res) {
         if (fonteNormalizada === 'postgres') {
             const client = await db.connect();
             try {
+                await client.query('BEGIN READ ONLY');
+                await client.query(`SET LOCAL statement_timeout = ${CONSULTA_TIMEOUT_MS}`);
                 const result = await client.query(preparado.sql, preparado.valores);
                 linhas = result.rows.slice(0, LIMITE_RETORNO);
+                await client.query('COMMIT');
+            } catch (error) {
+                try { await client.query('ROLLBACK'); } catch (rollbackError) {}
+                throw error;
             } finally {
                 client.release();
             }

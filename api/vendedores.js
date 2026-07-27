@@ -1,4 +1,5 @@
 import { createRequire } from 'module';
+import { requireRequestSession } from '../lib/session-token.js';
 const require = createRequire(import.meta.url);
 const Firebird = require('node-firebird');
 const FIREBIRD_TIMEOUT_MS = 12000;
@@ -28,9 +29,9 @@ function normalizarVendedor(row) {
 }
 
 export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'GET') return res.status(405).json({ error: 'Metodo nao permitido' });
@@ -42,10 +43,12 @@ export default async function handler(req, res) {
         DIRETOR: 'DI',
         CAIXA: 'CX'
     };
-    const categoriaRaw = String(req.query.categoria || '').trim().toUpperCase();
+    const session = requireRequestSession(req, res);
+    if (!session) return;
+    const categoriaRaw = String(session.categoria || '').trim().toUpperCase();
     const categoria = categoriasTraduzidas[categoriaRaw] || categoriaRaw;
-    const idfuncionario = Number(req.query.idfuncionario || 0);
-    const idfilial = String(req.query.idfilial || '').trim();
+    const idfuncionario = Number(session.sub || 0);
+    const idfilial = String(session.idfilial || '').trim();
     const filiaisSelecionadas = String(req.query.filiais || '')
         .split(',')
         .map(filial => filial.trim())

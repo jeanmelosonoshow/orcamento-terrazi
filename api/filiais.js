@@ -1,4 +1,5 @@
 import { createRequire } from 'module';
+import { requireRequestSession } from '../lib/session-token.js';
 const require = createRequire(import.meta.url);
 const Firebird = require('node-firebird');
 const FIREBIRD_TIMEOUT_MS = 12000;
@@ -23,16 +24,18 @@ function normalizarFilial(row) {
 }
 
 export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
 
-    const categoria = String(req.query.categoria || '').trim().toUpperCase();
-    const idfuncionario = Number(req.query.idfuncionario || 0);
-    const idfilial = String(req.query.idfilial || '').trim();
+    const session = requireRequestSession(req, res);
+    if (!session) return;
+    const categoria = String(session.categoria || '').trim().toUpperCase();
+    const idfuncionario = Number(session.sub || 0);
+    const idfilial = String(session.idfilial || '').trim();
 
     let sql = `
         SELECT IDFILIAL, NOMEFILIAL

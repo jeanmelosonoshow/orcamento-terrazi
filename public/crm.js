@@ -5,6 +5,17 @@ if (!usuarioLogadoRaw) {
 }
 
 const usuarioLogado = JSON.parse(usuarioLogadoRaw || '{}');
+if (!usuarioLogado.sessionToken) {
+    sessionStorage.clear();
+    window.top.location.replace('login.html');
+    throw new Error('Sessao anterior ao novo controle de acesso. Entre novamente.');
+}
+
+window.fazerLogout = () => {
+    sessionStorage.clear();
+    window.top.location.replace('login.html');
+};
+
 const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
 const filialId = String(usuarioLogado.idfilial || usuarioLogado.id_filial || '').trim().toUpperCase();
 const idFuncionarioLogado = usuarioLogado.idfuncionario || usuarioLogado.id_funcionario || usuarioLogado.IDFUNCIONARIO || '';
@@ -83,6 +94,7 @@ const crmVendedorOptions = document.querySelector('[data-vendedor-options]');
 const podeEditarCenarios = Boolean(usuarioLogado.podeEditarCenarios || usuarioLogado.canEditScenarios);
 const dashboardEditor = document.querySelector('[data-dashboard-editor]');
 const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');
+const editModeToggle = document.querySelector('[data-edit-mode-toggle]');
 const addWidgetButton = document.querySelector('[data-add-widget]');
 const widgetModal = document.querySelector('[data-widget-modal]');
 const widgetTypeSelect = document.querySelector('[data-widget-type]');
@@ -100,6 +112,7 @@ const widgetSourceSelect = document.querySelector('[data-widget-source]');
 const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
 const saveWidgetButton = document.querySelector('[data-save-widget]');
 const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
+const budgetFrame = document.querySelector('[data-budget-frame]');
 const dashboardStorageKey = 'crmDashboardScenario:v1';
 let widgetEmEdicao = null;
 let colunasConsultaAtual = [];
@@ -355,9 +368,13 @@ function obterFiltrosCenario() {
 function fetchJsonComTimeout(url, timeoutMs = 15000) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    return fetch(url, { signal: controller.signal })
+    const headers = usuarioLogado.sessionToken
+        ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` }
+        : {};
+    return fetch(url, { signal: controller.signal, headers })
         .then(async response => {
             const data = await response.json().catch(() => ({}));
+            if (response.status === 401) window.fazerLogout();
             if (!response.ok) throw new Error(data.error || data.details || 'Erro ao carregar dados.');
             return data;
         })
@@ -485,18 +502,24 @@ async function testarConsultaWidget() {
     }
 
     renderizarResultadoConsulta('Executando consulta...', 'info');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
         const response = await fetch('/api/executar-cenario', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {})
+            },
             body: JSON.stringify({
                 fonte: widgetSourceSelect.value,
                 sql,
-                filtros: obterFiltrosCenario(),
-                usuario: { idfuncionario: idFuncionarioLogado }
+                filtros: obterFiltrosCenario()
             })
         });
         const data = await response.json();
+        if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.details || data.error || 'Erro ao executar consulta.');
         colunasConsultaAtual = Array.isArray(data.colunas) ? data.colunas : [];
         renderizarMapeamentoColunas();
@@ -509,6 +532,8 @@ async function testarConsultaWidget() {
         if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
         renderizarResultadoConsulta(error.message || 'Erro ao executar consulta.', 'error');
         return false;
+    } finally {
+        clearTimeout(timeout);
     }
 }
 
@@ -833,16 +858,16 @@ async function carregarVendedores() {
         renderizarOpcoesVendedores(vendedores);
         crmVendedorTrigger.disabled = false;
 
-        crmVendedorTrigger.addEventListener('click', () => {
+        crmVendedorTrigger.onclick = () => {
             crmVendedorPanel.hidden = !crmVendedorPanel.hidden;
             if (!crmVendedorPanel.hidden && crmVendedorSearch) crmVendedorSearch.focus();
-        });
+        };
 
         if (crmVendedorSearch) {
-            crmVendedorSearch.addEventListener('input', () => renderizarOpcoesVendedores(vendedores, crmVendedorSearch.value));
+            crmVendedorSearch.oninput = () => renderizarOpcoesVendedores(vendedores, crmVendedorSearch.value);
         }
 
-        crmVendedorOptions.addEventListener('change', event => {
+        crmVendedorOptions.onchange = event => {
             if (!event.target.matches('[data-vendedor-checkbox]')) return;
             const valor = String(event.target.value);
             const selecionadosAtuais = new Set(getVendedoresSelecionados());
@@ -855,7 +880,7 @@ async function carregarVendedores() {
             setVendedoresSelecionados(novaSelecao.length ? novaSelecao : [String(vendedores[0].idvendedor)]);
             atualizarResumoVendedores(vendedores, getVendedoresSelecionados());
             renderizarOpcoesVendedores(vendedores, crmVendedorSearch?.value || '');
-        });
+        };
     } catch (error) {
         crmVendedorTrigger.textContent = 'Erro ao carregar vendedores';
         crmVendedorTrigger.disabled = true;
@@ -915,18 +940,18 @@ async function carregarFiliais() {
         }
 
         if (crmFilialTrigger && crmFilialPanel) {
-            crmFilialTrigger.addEventListener('click', () => {
+            crmFilialTrigger.onclick = () => {
                 crmFilialPanel.hidden = !crmFilialPanel.hidden;
                 if (!crmFilialPanel.hidden && crmFilialSearch) crmFilialSearch.focus();
-            });
+            };
         }
 
         if (crmFilialSearch) {
-            crmFilialSearch.addEventListener('input', () => renderizarOpcoesFiliais(filiais, crmFilialSearch.value));
+            crmFilialSearch.oninput = () => renderizarOpcoesFiliais(filiais, crmFilialSearch.value);
         }
 
         if (crmFilialOptions) {
-            crmFilialOptions.addEventListener('change', event => {
+            crmFilialOptions.onchange = event => {
                 if (!event.target.matches('[data-filial-checkbox]')) return;
                 const valor = String(event.target.value);
                 const selecionadasAtuais = new Set(getFiliaisSelecionadas());
@@ -941,7 +966,7 @@ async function carregarFiliais() {
                 renderizarOpcoesFiliais(filiais, crmFilialSearch?.value || '');
                 definirPaginaOrcamento();
                 carregarVendedores();
-            });
+            };
         }
     } catch (error) {
         crmFilialTrigger.textContent = 'Erro ao carregar filiais';
@@ -951,21 +976,12 @@ async function carregarFiliais() {
     }
 }
 
-inicializarEditorDashboard();
-inicializarPeriodo();
-carregarFiliais().then(() => carregarVendedores());
 document.addEventListener('click', event => {
     if (event.target.closest('[data-filial-multiselect]') || event.target.closest('[data-vendedor-multiselect]')) return;
     if (crmFilialPanel) crmFilialPanel.hidden = true;
     if (crmVendedorPanel) crmVendedorPanel.hidden = true;
 });
 
-window.fazerLogout = () => {
-    sessionStorage.clear();
-    window.location.href = 'login.html';
-};
-
-const budgetFrame = document.querySelector('[data-budget-frame]');
 async function definirPaginaOrcamento() {
     if (!budgetFrame) return;
     let budgetPage = 'index.html';
@@ -983,7 +999,7 @@ async function definirPaginaOrcamento() {
         budgetPage = 'index.html';
     }
 
-        const budgetUrl = `${budgetPage}?theme=${encodeURIComponent(window.crmBudgetThemeName || '')}&v=${Date.now()}`;
+    const budgetUrl = `${budgetPage}?theme=${encodeURIComponent(window.crmBudgetThemeName || '')}&v=${Date.now()}`;
     const currentPage = budgetFrame.dataset.currentBudgetPage || '';
     const nextPageKey = `${budgetPage}:${window.crmBudgetThemeName || ''}`;
     if (currentPage !== nextPageKey) {
@@ -992,9 +1008,33 @@ async function definirPaginaOrcamento() {
     }
 }
 
-definirPaginaOrcamento();
+function iniciarModulo(nomeModulo, inicializador) {
+    try {
+        const resultado = inicializador();
+        if (resultado && typeof resultado.catch === 'function') {
+            resultado.catch(error => console.error(`[CRM] Falha no modulo ${nomeModulo}:`, error));
+        }
+        return resultado;
+    } catch (error) {
+        console.error(`[CRM] Falha no modulo ${nomeModulo}:`, error);
+        return null;
+    }
+}
 
-ativarView(obterViewPorHash(window.location.hash || '#visao-geral'), window.location.hash || '#visao-geral');
+function inicializarAplicacao() {
+    const hashInicial = window.location.hash || '#visao-geral';
+
+    iniciarModulo('navegacao', () => ativarView(obterViewPorHash(hashInicial), hashInicial));
+    iniciarModulo('orcamentos', definirPaginaOrcamento);
+    iniciarModulo('periodo', inicializarPeriodo);
+    iniciarModulo('editor de cenarios', inicializarEditorDashboard);
+    iniciarModulo('filtros', async () => {
+        await carregarFiliais();
+        await carregarVendedores();
+    });
+}
+
+inicializarAplicacao();
 
 const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
 if (sidebarToggle) {

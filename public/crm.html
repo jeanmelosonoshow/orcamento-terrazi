@@ -5,7 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         (function () {
-            if (!sessionStorage.getItem('usuarioLogado')) {
+            const raw = sessionStorage.getItem('usuarioLogado');
+            let usuario = null;
+            try {
+                usuario = raw ? JSON.parse(raw) : null;
+            } catch (error) {
+                usuario = null;
+            }
+            if (!usuario || !usuario.sessionToken) {
+                sessionStorage.clear();
                 document.write('<style>body{display:none!important}</style>');
                 window.top.location.replace('login.html');
             }
