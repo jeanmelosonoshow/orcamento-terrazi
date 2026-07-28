@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { requireRequestSession } from '../lib/session-token.js';
 import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
+import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
@@ -34,41 +35,6 @@ function validarSqlLeitura(sql) {
         return 'A consulta de cenario permite apenas leitura.';
     }
     return '';
-}
-
-function normalizarLista(valor) {
-    if (Array.isArray(valor)) return valor.map(item => String(item).trim()).filter(Boolean);
-    return String(valor || '').split(',').map(item => item.trim()).filter(Boolean);
-}
-
-function prepararSql(sql, fonte, filtros = {}) {
-    const valores = [];
-    const marcador = () => fonte === 'postgres' ? `$${valores.length}` : '?';
-    const adicionarValor = valor => {
-        valores.push(valor === undefined || valor === '' ? null : valor);
-        return marcador();
-    };
-    const adicionarLista = valor => {
-        const lista = normalizarLista(valor);
-        if (!lista.length) {
-            valores.push('__SEM_VALOR__');
-            return marcador();
-        }
-        return lista.map(item => adicionarValor(item)).join(',');
-    };
-
-    const mapa = {
-        data_inicial: () => adicionarValor(filtros.dataInicial),
-        data_final: () => adicionarValor(filtros.dataFinal),
-        idfuncionario: () => adicionarValor(filtros.idfuncionario),
-        idfilial: () => adicionarValor(filtros.idfilial),
-        idvendedor: () => adicionarValor(filtros.idvendedor),
-        filiais: () => adicionarLista(filtros.filiais),
-        vendedores: () => adicionarLista(filtros.vendedores)
-    };
-
-    const texto = String(sql).replace(/:(data_inicial|data_final|idfuncionario|idfilial|idvendedor|filiais|vendedores)\b/g, (_, nome) => mapa[nome]());
-    return { sql: texto, valores };
 }
 
 function citarIdentificador(nome) {
@@ -160,7 +126,8 @@ export default async function handler(req, res) {
 
     const fonteNormalizada = String(fonte).toLowerCase() === 'postgres' ? 'postgres' : 'firebird';
     try {
-        const preparadoBase = prepararSql(sql, fonteNormalizada, filtros);
+        const contextoConsulta = montarContextoConsulta(filtros, session);
+        const preparadoBase = prepararSqlCenario(sql, fonteNormalizada, contextoConsulta);
         const preparado = prepararConsultaVisual(preparadoBase, fonteNormalizada, visualizacao);
         let linhas = [];
         if (fonteNormalizada === 'postgres') {

@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "vercel dev"
+    "start": "vercel dev",
+    "test": "node --test"
   },
   "dependencies": {
     "@vercel/postgres": "^0.5.0",
