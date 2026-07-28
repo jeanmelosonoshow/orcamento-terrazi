@@ -1082,6 +1082,46 @@ function limparGraficosDashboard() {
     instanciasGraficosDashboard.clear();
 }
 
+function ajustarConteudoKpi(container) {
+    const painel = container?.querySelector('.crm-chart-kpi-real');
+    const valor = painel?.querySelector('strong');
+    const rotulo = painel?.querySelector('span');
+    if (!painel || !valor || !rotulo) return;
+
+    const estilo = getComputedStyle(painel);
+    const largura = Math.max(
+        0,
+        painel.clientWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight)
+    );
+    const altura = Math.max(
+        0,
+        painel.clientHeight - parseFloat(estilo.paddingTop) - parseFloat(estilo.paddingBottom)
+    );
+    if (!largura) return;
+
+    const tamanhoRotulo = Math.max(10, Math.min(16, largura / 24, altura ? altura / 8 : 10));
+    rotulo.style.fontSize = `${tamanhoRotulo}px`;
+    const espacoRotulo = rotulo.getBoundingClientRect().height + 6;
+    const alturaValor = altura ? Math.max(12, altura - espacoRotulo) : Number.POSITIVE_INFINITY;
+    let minimo = 12;
+    let maximo = Math.max(minimo, Math.min(96, largura * 0.28, alturaValor * 0.92));
+    let melhor = minimo;
+
+    valor.style.whiteSpace = 'nowrap';
+    for (let tentativa = 0; tentativa < 9; tentativa += 1) {
+        const tamanho = (minimo + maximo) / 2;
+        valor.style.fontSize = `${tamanho}px`;
+        const cabe = valor.scrollWidth <= largura + 1 && valor.scrollHeight <= alturaValor + 1;
+        if (cabe) {
+            melhor = tamanho;
+            minimo = tamanho;
+        } else {
+            maximo = tamanho;
+        }
+    }
+    valor.style.fontSize = `${Math.floor(melhor)}px`;
+}
+
 function renderizarGraficosDashboard(widgets) {
     widgets.forEach(widget => {
         const seletorId = window.CSS?.escape ? window.CSS.escape(widget.id) : String(widget.id).replace(/"/g, '\\"');
@@ -1100,6 +1140,16 @@ function renderizarGraficosDashboard(widgets) {
             const serie = dados.series[0];
             const total = serie.valores.reduce((soma, valor) => soma + converterNumero(valor), 0);
             container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span>${escapeHtml(serie.nome)}</span></div>`;
+            ajustarConteudoKpi(container);
+            if (window.ResizeObserver) {
+                let framePendente = 0;
+                const observador = new ResizeObserver(() => {
+                    cancelAnimationFrame(framePendente);
+                    framePendente = requestAnimationFrame(() => ajustarConteudoKpi(container));
+                });
+                observador.observe(container);
+                observadoresGraficosDashboard.set(widget.id, observador);
+            }
             return;
         }
         if (!window.echarts) {
