@@ -138,7 +138,8 @@ export default async function handler(req, res) {
             linhas = await executarConsultaFirebird(preparado.sql, preparado.valores, {
                 operacao: 'executar-cenario',
                 timeoutMs: CONSULTA_TIMEOUT_MS,
-                limite: LIMITE_RETORNO
+                limite: LIMITE_RETORNO,
+                permitirFallbackCharset: true
             });
         }
 
