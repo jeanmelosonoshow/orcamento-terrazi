@@ -2,11 +2,8 @@ import { db } from '@vercel/postgres';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import { requireRequestSession } from '../lib/session-token.js';
-
-const require = createRequire(import.meta.url);
-const Firebird = require('node-firebird');
+import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
@@ -26,18 +23,6 @@ function carregarEditoresCenario() {
 
 function usuarioPodeEditarCenario(idFuncionario) {
     return Boolean(idFuncionario && carregarEditoresCenario().includes(idFuncionario));
-}
-
-function getFirebirdOptions() {
-    return {
-        host: process.env.DB_HOST_FB,
-        port: process.env.DB_PORT_FB,
-        database: process.env.DB_PATH_FB,
-        user: process.env.DB_USER_FB,
-        password: process.env.DB_PASSWORD_FB,
-        lowercase_keys: false,
-        pageSize: 4096
-    };
 }
 
 function validarSqlLeitura(sql) {
@@ -157,40 +142,6 @@ function extrairColunas(linhas) {
     return Object.keys(linhas[0]);
 }
 
-function executarFirebird(sql, valores) {
-    return new Promise((resolve, reject) => {
-        let finalizado = false;
-        let conexao = null;
-        const timeout = setTimeout(() => {
-            if (finalizado) return;
-            finalizado = true;
-            try { if (conexao) conexao.detach(); } catch (error) {}
-            reject(new Error('Tempo limite ao executar consulta no Firebird.'));
-        }, CONSULTA_TIMEOUT_MS);
-
-        const finalizar = (erro, linhas = []) => {
-            if (finalizado) return;
-            finalizado = true;
-            clearTimeout(timeout);
-            try { if (conexao) conexao.detach(); } catch (detachError) {}
-            if (erro) return reject(erro);
-            resolve(Array.isArray(linhas) ? linhas.slice(0, LIMITE_RETORNO) : []);
-        };
-
-        Firebird.attach(getFirebirdOptions(), function(err, dbConn) {
-            if (finalizado) {
-                try { if (dbConn) dbConn.detach(); } catch (detachError) {}
-                return;
-            }
-            if (err) return finalizar(err);
-            conexao = dbConn;
-            dbConn.query(sql, valores, function(queryErr, result) {
-                finalizar(queryErr, result);
-            });
-        });
-    });
-}
-
 export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -227,7 +178,11 @@ export default async function handler(req, res) {
                 client.release();
             }
         } else {
-            linhas = await executarFirebird(preparado.sql, preparado.valores);
+            linhas = await executarConsultaFirebird(preparado.sql, preparado.valores, {
+                operacao: 'executar-cenario',
+                timeoutMs: CONSULTA_TIMEOUT_MS,
+                limite: LIMITE_RETORNO
+            });
         }
 
         res.status(200).json({
@@ -238,6 +193,11 @@ export default async function handler(req, res) {
             dados: linhas
         });
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao executar consulta.', details: error.message });
+        const status = fonteNormalizada === 'firebird' ? statusHttpErroFirebird(error) : 500;
+        if (status >= 503) res.setHeader('Retry-After', '1');
+        res.status(status).json({
+            error: status >= 503 ? 'Banco temporariamente indisponível. Tente novamente.' : 'Erro ao executar consulta.',
+            details: status >= 503 ? undefined : error.message
+        });
     }
 }

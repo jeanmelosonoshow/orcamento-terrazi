@@ -3,8 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createSessionToken } from '../lib/session-token.js';
+import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
 const require = createRequire(import.meta.url);
-const Firebird = require('node-firebird');
 const crypto = require('crypto');
 
 const __filename = fileURLToPath(import.meta.url);
@@ -60,85 +60,57 @@ export default async function handler(req, res) {
     const categoriasPermitidas = permissoes.allowedLoginCategories;
     const senhaHash = crypto.createHash('md5').update(senha).digest('hex').toLowerCase();
 
-    const options = {
-        host: process.env.DB_HOST_FB,
-        port: process.env.DB_PORT_FB,
-        database: process.env.DB_PATH_FB,
-        user: process.env.DB_USER_FB,
-        password: process.env.DB_PASSWORD_FB,
-        lowercase_keys: false,
-        pageSize: 4096
-    };
+    const placeholders = categoriasPermitidas.map(() => '?').join(',');
+    const sql = `
+        SELECT
+            IDFUNCIONARIO AS ID_FUNCIONARIO,
+            NOMEFUNCIONARIO AS NOME_FUNCIONARIO,
+            CATEGORIA,
+            IDFILIAL AS ID_FILIAL,
+            IDVENDEDOR AS ID_VENDEDOR
+        FROM FUNCIONARIO
+        WHERE LOGIN = ?
+          AND SENHAWEB = ?
+          AND STATUS = 'A'
+          AND CATEGORIA IN (${placeholders})
+    `;
 
-    return new Promise((resolve) => {
-        let finalizado = false;
-        let conexao = null;
+    try {
+        const result = await executarConsultaFirebird(
+            sql,
+            [usuario, senhaHash, ...categoriasPermitidas],
+            { operacao: 'login', timeoutMs: FIREBIRD_TIMEOUT_MS }
+        );
+        if (!result.length) {
+            return res.status(401).json({ autorizado: false, mensagem: 'Usuário ou senha inválidos.' });
+        }
 
-        const finalizar = (status, payload) => {
-            if (finalizado) return;
-            finalizado = true;
-            clearTimeout(timeout);
-            try { if (conexao) conexao.detach(); } catch (error) {}
-            res.status(status).json(payload);
-            resolve();
+        const idFuncionario = result[0].ID_FUNCIONARIO;
+        const podeEditarCenarios = permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
+        const sessionUser = {
+            idfuncionario: idFuncionario,
+            categoria: result[0].CATEGORIA,
+            idfilial: result[0].ID_FILIAL,
+            idvendedor: result[0].ID_VENDEDOR
         };
-
-        const timeout = setTimeout(() => {
-            finalizar(504, { autorizado: false, erro: 'Tempo limite ao conectar no Firebird.' });
-        }, FIREBIRD_TIMEOUT_MS);
-
-        Firebird.attach(options, function(err, db) {
-            if (finalizado) {
-                try { if (db) db.detach(); } catch (error) {}
-                return;
-            }
-            if (err) return finalizar(500, { autorizado: false, erro: 'Falha ao conectar no Firebird.' });
-            conexao = db;
-
-            const placeholders = categoriasPermitidas.map(() => '?').join(',');
-            const sql = `
-                SELECT
-                    IDFUNCIONARIO AS ID_FUNCIONARIO,
-                    NOMEFUNCIONARIO AS NOME_FUNCIONARIO,
-                    CATEGORIA,
-                    IDFILIAL AS ID_FILIAL,
-                    IDVENDEDOR AS ID_VENDEDOR
-                FROM FUNCIONARIO
-                WHERE LOGIN = ?
-                  AND SENHAWEB = ?
-                  AND STATUS = 'A'
-                  AND CATEGORIA IN (${placeholders})
-            `;
-
-            db.query(sql, [usuario, senhaHash, ...categoriasPermitidas], function(queryError, result) {
-                if (queryError) return finalizar(500, { autorizado: false, erro: 'Erro na consulta ao Firebird.' });
-                if (!result || !result.length) {
-                    return finalizar(401, { autorizado: false, mensagem: 'Usuário ou senha inválidos.' });
-                }
-
-                try {
-                    const idFuncionario = result[0].ID_FUNCIONARIO;
-                    const podeEditarCenarios = permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
-                    const sessionUser = {
-                        idfuncionario: idFuncionario,
-                        categoria: result[0].CATEGORIA,
-                        idfilial: result[0].ID_FILIAL,
-                        idvendedor: result[0].ID_VENDEDOR
-                    };
-                    finalizar(200, {
-                        autorizado: true,
-                        ...sessionUser,
-                        nomefuncionario: result[0].NOME_FUNCIONARIO,
-                        podeEditarCenarios,
-                        canEditScenarios: podeEditarCenarios,
-                        sessionToken: createSessionToken(sessionUser)
-                    });
-                } catch (tokenError) {
-                    finalizar(500, { autorizado: false, erro: 'Falha na configuracao segura da sessao.' });
-                }
-            });
+        return res.status(200).json({
+            autorizado: true,
+            ...sessionUser,
+            nomefuncionario: result[0].NOME_FUNCIONARIO,
+            podeEditarCenarios,
+            canEditScenarios: podeEditarCenarios,
+            sessionToken: createSessionToken(sessionUser)
         });
-    });
+    } catch (error) {
+        const status = statusHttpErroFirebird(error);
+        if (status >= 503) res.setHeader('Retry-After', '1');
+        return res.status(status).json({
+            autorizado: false,
+            erro: status >= 503
+                ? 'Banco temporariamente indisponível. Tente novamente.'
+                : 'Erro ao consultar o Firebird.'
+        });
+    }
 }
 
 

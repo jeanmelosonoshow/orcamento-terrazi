@@ -10,7 +10,7 @@
   "dependencies": {
     "@vercel/postgres": "^0.5.0",
     "node-fetch": "^3.3.2",
-    "node-firebird": "^1.1.6"
+    "node-firebird": "^2.14.0"
   },
   "engines": {
     "node": "22.x"

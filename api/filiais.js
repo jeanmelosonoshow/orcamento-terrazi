@@ -1,20 +1,6 @@
-import { createRequire } from 'module';
 import { requireRequestSession } from '../lib/session-token.js';
-const require = createRequire(import.meta.url);
-const Firebird = require('node-firebird');
+import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
 const FIREBIRD_TIMEOUT_MS = 12000;
-
-function getFirebirdOptions() {
-    return {
-        host: process.env.DB_HOST_FB,
-        port: process.env.DB_PORT_FB,
-        database: process.env.DB_PATH_FB,
-        user: process.env.DB_USER_FB,
-        password: process.env.DB_PASSWORD_FB,
-        lowercase_keys: false,
-        pageSize: 4096
-    };
-}
 
 function normalizarFilial(row) {
     return {
@@ -54,34 +40,20 @@ export default async function handler(req, res) {
 
     sql += ' ORDER BY NOMEFILIAL';
 
-    return new Promise((resolve) => {
-        let finalizado = false;
-        let conexao = null;
-        const finalizar = (status, payload) => {
-            if (finalizado) return;
-            finalizado = true;
-            clearTimeout(timeout);
-            try { if (conexao) conexao.detach(); } catch (error) {}
-            res.status(status).json(payload);
-            resolve();
-        };
-        const timeout = setTimeout(() => {
-            finalizar(504, { error: 'Tempo limite ao consultar filiais.' });
-        }, FIREBIRD_TIMEOUT_MS);
-
-        Firebird.attach(getFirebirdOptions(), function(err, db) {
-            if (finalizado) {
-                try { if (db) db.detach(); } catch (error) {}
-                return;
-            }
-            if (err) return finalizar(500, { error: 'Falha ao conectar no Firebird.' });
-            conexao = db;
-
-            db.query(sql, params, function(queryErr, result) {
-                if (queryErr) return finalizar(500, { error: 'Erro ao consultar filiais.', details: queryErr.message });
-                finalizar(200, { filiais: (result || []).map(normalizarFilial) });
-            });
+    try {
+        const result = await executarConsultaFirebird(sql, params, {
+            operacao: 'listar-filiais',
+            timeoutMs: FIREBIRD_TIMEOUT_MS
         });
-    });
+        return res.status(200).json({ filiais: result.map(normalizarFilial) });
+    } catch (error) {
+        const status = statusHttpErroFirebird(error);
+        if (status >= 503) res.setHeader('Retry-After', '1');
+        return res.status(status).json({
+            error: status >= 503
+                ? 'Banco temporariamente indisponível. Tente novamente.'
+                : 'Erro ao consultar filiais.'
+        });
+    }
 }
 
