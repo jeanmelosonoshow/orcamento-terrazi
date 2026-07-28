@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260728-19">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260728-20">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -258,7 +258,7 @@
                         Tipo de grafico
                         <select data-widget-type></select>
                     </label>
-                    <label>
+                    <label data-widget-source-field>
                         Fonte de dados
                         <select data-widget-source>
                             <option value="firebird">Firebird</option>
@@ -267,22 +267,52 @@
                     </label>
                 </div>
 
-                <label class="crm-sql-field">
-                    Console SQL
-                    <textarea data-widget-sql spellcheck="false" placeholder="Use SELECT e parametros como :categoria, :data_inicial, :data_final, :filiais, :vendedores, :idfuncionario, :idfilial e :idvendedor."></textarea>
-                </label>
+                <div data-widget-query-config>
+                    <label class="crm-sql-field">
+                        Console SQL
+                        <textarea data-widget-sql spellcheck="false" placeholder="Use SELECT e parametros como :categoria, :data_inicial, :data_final, :filiais, :vendedores, :idfuncionario, :idfilial e :idvendedor."></textarea>
+                    </label>
 
-                <div class="crm-query-help">
-                    <strong>Parametros disponiveis</strong>
-                    <span>:categoria</span>
-                    <span>:data_inicial</span>
-                    <span>:data_final</span>
-                    <span>:filiais</span>
-                    <span>:vendedores</span>
-                    <span>:idfuncionario</span>
-                    <span>:idfilial</span>
-                    <span>:idvendedor</span>
+                    <div class="crm-query-help">
+                        <strong>Parametros disponiveis</strong>
+                        <span>:categoria</span>
+                        <span>:data_inicial</span>
+                        <span>:data_final</span>
+                        <span>:filiais</span>
+                        <span>:vendedores</span>
+                        <span>:idfuncionario</span>
+                        <span>:idfilial</span>
+                        <span>:idvendedor</span>
+                    </div>
                 </div>
+
+                <section class="crm-calculation-config" data-calculation-config hidden>
+                    <div class="crm-calculation-config-head">
+                        <span class="crm-eyebrow">Indicador derivado</span>
+                        <strong>Calculo entre KPIs</strong>
+                    </div>
+                    <label class="crm-formula-field">
+                        Formula
+                        <textarea data-kpi-formula spellcheck="false" placeholder="[faturamento] / [meta-faturamento] * 100"></textarea>
+                    </label>
+                    <div class="crm-kpi-reference-list" data-kpi-reference-list></div>
+                    <div class="crm-calculation-output">
+                        <label>
+                            Formato da saida
+                            <select data-kpi-output-format>
+                                <option value="money">Monetario</option>
+                                <option value="percent">Percentual</option>
+                                <option value="integer">Numero inteiro</option>
+                                <option value="decimal">Numero decimal</option>
+                            </select>
+                        </label>
+                        <label>
+                            Rotulo do resultado
+                            <input type="text" value="Resultado calculado" data-kpi-output-label>
+                        </label>
+                    </div>
+                    <div class="crm-formula-status" data-kpi-formula-status hidden></div>
+                </section>
 
                 <div class="crm-query-result" data-query-result hidden></div>
                 <div class="crm-query-table-wrap" data-query-table-wrap hidden></div>
@@ -377,7 +407,8 @@
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
     <script src="assets/icons/widget-icons.js?v=crm-20260728-1"></script>
     <script src="assets/charts/chart-renderers.js?v=crm-20260728-1"></script>
+    <script src="assets/charts/kpi-calculator.js?v=crm-20260728-1"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260728-21"></script>
+    <script src="crm.js?v=crm-20260728-22"></script>
 </body>
 </html>

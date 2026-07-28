@@ -120,6 +120,14 @@ const tableTotalColumnsInput = document.querySelector('[data-table-total-columns
 const tableRepeatLabelsInput = document.querySelector('[data-table-repeat-labels]');
 const subtotalOptionsBox = document.querySelector('[data-subtotal-options]');
 const widgetSourceSelect = document.querySelector('[data-widget-source]');
+const widgetSourceField = document.querySelector('[data-widget-source-field]');
+const widgetQueryConfig = document.querySelector('[data-widget-query-config]');
+const calculationConfig = document.querySelector('[data-calculation-config]');
+const kpiFormulaInput = document.querySelector('[data-kpi-formula]');
+const kpiReferenceList = document.querySelector('[data-kpi-reference-list]');
+const kpiOutputFormatSelect = document.querySelector('[data-kpi-output-format]');
+const kpiOutputLabelInput = document.querySelector('[data-kpi-output-label]');
+const kpiFormulaStatus = document.querySelector('[data-kpi-formula-status]');
 const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
 const saveWidgetButton = document.querySelector('[data-save-widget]');
 const widgetBackgroundModeSelect = document.querySelector('[data-widget-background-mode]');
@@ -169,6 +177,8 @@ let sequenciaContextoDrill = 0;
 
 const catalogoGraficos = [
     { id: 'kpi', nome: 'Indicador KPI', roles: ['valor'] },
+    { id: 'kpi-target', nome: 'KPI com meta', roles: ['valor', 'meta'], required: ['valor', 'meta'] },
+    { id: 'kpi-calculated', nome: 'KPI calculado', roles: [], required: [], calculated: true },
     { id: 'bar', nome: 'Barras verticais', roles: ['dimensao', 'valor'] },
     { id: 'horizontal-bar', nome: 'Barras horizontais', roles: ['dimensao', 'valor'] },
     { id: 'grouped-bar', nome: 'Barras agrupadas', roles: ['dimensao', 'coluna', 'valor'] },
@@ -189,7 +199,7 @@ const catalogoGraficos = [
     { id: 'pivot', nome: 'Tabela dinamica', roles: ['linha', 'coluna', 'valor'], required: ['linha', 'valor'] },
     { id: 'waterfall', nome: 'Cascata', roles: ['dimensao', 'valor'] },
     { id: 'histogram', nome: 'Histograma', roles: ['dimensao', 'valor'] },
-    { id: 'bullet', nome: 'Meta x realizado', roles: ['dimensao', 'valor'] },
+    { id: 'bullet', nome: 'Meta x realizado', roles: ['dimensao', 'valor', 'meta'], required: ['dimensao', 'valor', 'meta'] },
     { id: 'sparkline', nome: 'Mini linha', roles: ['dimensao', 'valor'] },
     { id: 'calendar', nome: 'Calendario de calor', roles: ['dimensao', 'valor'] },
     { id: 'cohort', nome: 'Coorte', roles: ['linha', 'coluna', 'valor'] }
@@ -292,6 +302,7 @@ function criarWidgetPadrao(tipo = 'bar') {
         mapeamentos: [],
         fonte: 'firebird',
         sql: '',
+        calculo: { formula: '', formatoSaida: 'decimal', rotulo: 'Resultado calculado' },
         aparencia: { ...aparenciaWidgetPadrao }
     };
 }
@@ -475,8 +486,16 @@ function renderizarPreviaAparencia() {
         </div>`;
     const containerPrevia = appearancePreview.querySelector('[data-appearance-chart]');
     if (!containerPrevia) return;
-    if (tipo === 'kpi') {
-        containerPrevia.innerHTML = '<div class="crm-preview-kpi"><strong>R$ 128.450</strong><span>Resultado</span></div>';
+    if (tipo === 'kpi' || tipo === 'kpi-target' || tipo === 'kpi-calculated') {
+        if (tipo === 'kpi-target') {
+            containerPrevia.innerHTML = '<div class="crm-preview-kpi is-target"><strong>R$ 128.450</strong><span>Realizado</span><small>Meta: R$ 150.000 <b>85,63%</b></small></div>';
+        } else {
+            const configuracao = tipo === 'kpi-calculated' ? coletarConfiguracaoKpiCalculado() : null;
+            const valorPrevia = tipo === 'kpi-calculated' ? obterValorPreviaKpiCalculado(configuracao) : null;
+            const valor = valorPrevia?.erro ? '--' : formatarValorGrafico(valorPrevia?.valor ?? 128450, configuracao?.formatoSaida || 'money');
+            const rotulo = configuracao?.rotulo || (tipo === 'kpi-calculated' ? 'Resultado calculado' : 'Resultado');
+            containerPrevia.innerHTML = `<div class="crm-preview-kpi"><strong>${escapeHtml(valor)}</strong><span>${escapeHtml(rotulo)}</span></div>`;
+        }
         return;
     }
     if (tipo === 'table' || tipo === 'pivot') {
@@ -587,6 +606,8 @@ function prepararDadosGrafico(widget) {
     const dimensao = mapeamentos.find(item => ['dimensao', 'linha'].includes(item.papel));
     const coluna = mapeamentos.find(item => item.papel === 'coluna');
     const valores = mapeamentos.filter(item => item.papel === 'valor');
+    const metas = mapeamentos.filter(item => item.papel === 'meta');
+    const medidas = [...valores, ...metas];
     if (!linhas.length || !valores.length) return null;
 
     const grupos = new Map();
@@ -622,10 +643,10 @@ function prepararDadosGrafico(widget) {
                 return obterOrdenacaoCampo(coluna) === 'desc' ? -comparacao : (obterOrdenacaoCampo(coluna) === 'asc' ? comparacao : 0);
             })
         : [null];
-    const series = valores.flatMap(mapeamento => membrosColuna.map(membro => ({
+    const series = medidas.flatMap(mapeamento => membrosColuna.map(membro => ({
         nome: membro === null
             ? obterApelidoMapeamento(mapeamento)
-            : (valores.length === 1 ? membro : `${obterApelidoMapeamento(mapeamento)} - ${membro}`),
+            : (medidas.length === 1 ? membro : `${obterApelidoMapeamento(mapeamento)} - ${membro}`),
         formato: mapeamento.formatoValor || 'decimal',
         valores: gruposOrdenados.map(grupo => {
             const linhasSerie = membro === null
@@ -643,6 +664,210 @@ function prepararDadosGrafico(widget) {
         nomeDimensao: dimensao ? obterApelidoMapeamento(dimensao) : '',
         series
     };
+}
+
+const tiposKpiCalculaveis = new Set(['kpi', 'kpi-target', 'kpi-calculated']);
+
+function ehKpiCalculado(tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo) {
+    return tipo === 'kpi-calculated';
+}
+
+function criarReferenciaIndicador(widget) {
+    const base = String(widget?.titulo || widget?.id || 'indicador')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return base || 'indicador';
+}
+
+function atribuirReferenciasIndicadores(widgets) {
+    const usados = new Set();
+    return widgets.map(widget => {
+        if (!tiposKpiCalculaveis.has(widget.tipo)) return widget;
+        let referencia = String(widget.referenciaCalculo || '').trim();
+        if (!referencia || usados.has(referencia.toLowerCase())) {
+            const base = criarReferenciaIndicador(widget);
+            referencia = base;
+            let sufixo = 2;
+            while (usados.has(referencia.toLowerCase())) {
+                referencia = `${base}-${sufixo}`;
+                sufixo += 1;
+            }
+        }
+        usados.add(referencia.toLowerCase());
+        return { ...widget, referenciaCalculo: referencia };
+    });
+}
+
+function coletarConfiguracaoKpiCalculado() {
+    return {
+        formula: kpiFormulaInput?.value.trim() || '',
+        formatoSaida: kpiOutputFormatSelect?.value || 'decimal',
+        rotulo: kpiOutputLabelInput?.value.trim() || 'Resultado calculado'
+    };
+}
+
+function obterIndicadoresParaCalculo(widgetAtual = widgetEmEdicao) {
+    return atribuirReferenciasIndicadores(obterWidgetsDashboard())
+        .filter(widget => tiposKpiCalculaveis.has(widget.tipo) && widget.id !== widgetAtual?.id);
+}
+
+function formulaKpiPossuiCiclo(configuracao, widgetAtual = widgetEmEdicao) {
+    if (!widgetAtual) return false;
+    let widgets = atribuirReferenciasIndicadores(obterWidgetsDashboard());
+    const existente = widgets.find(widget => widget.id === widgetAtual.id);
+    const candidato = {
+        ...(existente || widgetAtual),
+        tipo: 'kpi-calculated',
+        calculo: configuracao
+    };
+    const indice = widgets.findIndex(widget => widget.id === candidato.id);
+    if (indice >= 0) widgets[indice] = candidato;
+    else widgets.push(candidato);
+    widgets = atribuirReferenciasIndicadores(widgets);
+    const porReferencia = new Map(widgets.map(widget => [String(widget.referenciaCalculo || '').toLowerCase(), widget]));
+    const concluidos = new Set();
+
+    function visitar(widget, caminho) {
+        if (caminho.has(widget.id)) return true;
+        if (concluidos.has(widget.id) || widget.tipo !== 'kpi-calculated') return false;
+        const proximoCaminho = new Set(caminho);
+        proximoCaminho.add(widget.id);
+        const referencias = window.CRM_KPI_CALCULATOR.extrairReferencias(widget.calculo?.formula || '');
+        for (const referencia of referencias) {
+            const dependencia = porReferencia.get(referencia.toLowerCase());
+            if (dependencia && visitar(dependencia, proximoCaminho)) return true;
+        }
+        concluidos.add(widget.id);
+        return false;
+    }
+
+    const candidatoNormalizado = widgets.find(widget => widget.id === candidato.id);
+    return candidatoNormalizado ? visitar(candidatoNormalizado, new Set()) : false;
+}
+
+function validarFormulaKpi(configuracao, widgetAtual = widgetEmEdicao) {
+    if (!window.CRM_KPI_CALCULATOR) return { ok: false, erro: 'Avaliador de formulas indisponivel.' };
+    try {
+        const referencias = window.CRM_KPI_CALCULATOR.extrairReferencias(configuracao?.formula || '');
+        if (!referencias.length) throw new Error('Inclua ao menos um indicador na formula.');
+        const disponiveis = new Map(obterIndicadoresParaCalculo(widgetAtual).map(widget => [widget.referenciaCalculo.toLowerCase(), widget]));
+        const ausentes = referencias.filter(referencia => !disponiveis.has(referencia.toLowerCase()));
+        if (ausentes.length) throw new Error(`Indicador nao encontrado: ${ausentes.join(', ')}.`);
+        const valoresTeste = Object.fromEntries(referencias.map(referencia => [referencia, 1]));
+        window.CRM_KPI_CALCULATOR.avaliar(configuracao.formula, valoresTeste);
+        if (formulaKpiPossuiCiclo(configuracao, widgetAtual)) {
+            throw new Error('A formula cria uma referencia circular entre indicadores.');
+        }
+        return { ok: true, referencias };
+    } catch (error) {
+        return { ok: false, erro: error.message || 'Formula invalida.' };
+    }
+}
+
+function obterValorIndicador(widget, widgets, pilha = []) {
+    if (!widget) throw new Error('Indicador nao encontrado.');
+    if (pilha.includes(widget.id)) throw new Error('Existe uma referencia circular entre os KPIs calculados.');
+    if (widget.tipo !== 'kpi-calculated') {
+        const dados = prepararDadosGrafico(widget);
+        const serie = dados?.series?.[0];
+        if (!serie) throw new Error(`O indicador ${widget.titulo || widget.id} ainda nao possui dados.`);
+        return serie.valores.reduce((soma, valor) => soma + converterNumero(valor), 0);
+    }
+
+    const configuracao = widget.calculo || {};
+    const referencias = window.CRM_KPI_CALCULATOR.extrairReferencias(configuracao.formula || '');
+    const porReferencia = new Map(widgets.map(item => [String(item.referenciaCalculo || '').toLowerCase(), item]));
+    const valores = {};
+    referencias.forEach(referencia => {
+        const dependencia = porReferencia.get(referencia.toLowerCase());
+        if (!dependencia) throw new Error(`Indicador nao encontrado: ${referencia}.`);
+        valores[referencia] = obterValorIndicador(dependencia, widgets, [...pilha, widget.id]);
+    });
+    return window.CRM_KPI_CALCULATOR.avaliar(configuracao.formula, valores);
+}
+
+function obterResultadoKpiCalculado(widget, widgets = atribuirReferenciasIndicadores(obterWidgetsDashboard())) {
+    try {
+        return { valor: obterValorIndicador(widget, widgets), erro: '' };
+    } catch (error) {
+        return { valor: 0, erro: error.message || 'Nao foi possivel calcular o indicador.' };
+    }
+}
+
+function obterValorPreviaKpiCalculado(configuracao) {
+    const validacao = validarFormulaKpi(configuracao);
+    if (!validacao.ok) return { valor: 0, erro: validacao.erro };
+    const widgets = atribuirReferenciasIndicadores(obterWidgetsDashboard());
+    const temporario = {
+        ...(widgetEmEdicao || criarWidgetPadrao('kpi-calculated')),
+        tipo: 'kpi-calculated',
+        calculo: configuracao
+    };
+    return obterResultadoKpiCalculado(temporario, widgets);
+}
+
+function atualizarStatusFormulaKpi() {
+    if (!kpiFormulaStatus || !ehKpiCalculado()) return;
+    const configuracao = coletarConfiguracaoKpiCalculado();
+    if (!configuracao.formula) {
+        kpiFormulaStatus.hidden = true;
+        return;
+    }
+    const validacao = validarFormulaKpi(configuracao);
+    const resultado = validacao.ok ? obterValorPreviaKpiCalculado(configuracao) : { erro: validacao.erro };
+    kpiFormulaStatus.hidden = false;
+    kpiFormulaStatus.className = `crm-formula-status ${resultado.erro ? 'is-error' : 'is-success'}`;
+    kpiFormulaStatus.textContent = resultado.erro
+        ? resultado.erro
+        : `Resultado atual: ${formatarValorGrafico(resultado.valor, configuracao.formatoSaida)}`;
+}
+
+function inserirReferenciaKpi(referencia) {
+    if (!kpiFormulaInput) return;
+    const token = `[${referencia}]`;
+    const inicio = kpiFormulaInput.selectionStart ?? kpiFormulaInput.value.length;
+    const fim = kpiFormulaInput.selectionEnd ?? inicio;
+    const prefixo = inicio > 0 && !/\s|[+\-*/^(]/.test(kpiFormulaInput.value[inicio - 1]) ? ' ' : '';
+    const sufixo = fim < kpiFormulaInput.value.length && !/\s|[+\-*/^)]/.test(kpiFormulaInput.value[fim]) ? ' ' : '';
+    kpiFormulaInput.setRangeText(prefixo + token + sufixo, inicio, fim, 'end');
+    kpiFormulaInput.focus();
+    atualizarStatusFormulaKpi();
+    renderizarPreviaAparencia();
+}
+
+function renderizarReferenciasKpi() {
+    if (!kpiReferenceList) return;
+    const indicadores = obterIndicadoresParaCalculo();
+    kpiReferenceList.innerHTML = indicadores.length
+        ? `<strong>Indicadores disponiveis</strong><div>${indicadores.map(widget => `<button type="button" data-kpi-reference="${escapeHtml(widget.referenciaCalculo)}" title="Inserir [${escapeHtml(widget.referenciaCalculo)}]">${escapeHtml(widget.titulo || widget.referenciaCalculo)}</button>`).join('')}</div>`
+        : '<span>Nenhum outro KPI disponivel neste cenario.</span>';
+}
+
+function carregarConfiguracaoKpiCalculado(widget) {
+    const configuracao = widget?.calculo || {};
+    if (kpiFormulaInput) kpiFormulaInput.value = configuracao.formula || '';
+    if (kpiOutputFormatSelect) kpiOutputFormatSelect.value = configuracao.formatoSaida || 'decimal';
+    if (kpiOutputLabelInput) kpiOutputLabelInput.value = configuracao.rotulo || 'Resultado calculado';
+    renderizarReferenciasKpi();
+    atualizarStatusFormulaKpi();
+}
+
+function atualizarModoConfiguracaoWidget() {
+    const calculado = ehKpiCalculado();
+    if (widgetSourceField) widgetSourceField.hidden = calculado;
+    if (widgetQueryConfig) widgetQueryConfig.hidden = calculado;
+    if (calculationConfig) calculationConfig.hidden = !calculado;
+    const indicadorConsulta = widgetStepIndicators.find(item => item.dataset.stepIndicator === 'sql');
+    const indicadorMapeamento = widgetStepIndicators.find(item => item.dataset.stepIndicator === 'mapping');
+    const indicadorAparencia = widgetStepIndicators.find(item => item.dataset.stepIndicator === 'appearance');
+    if (indicadorConsulta) indicadorConsulta.textContent = calculado ? '1. Calculo' : '1. Consulta';
+    if (indicadorMapeamento) indicadorMapeamento.hidden = calculado;
+    if (indicadorAparencia) indicadorAparencia.textContent = calculado ? '2. Aparencia' : '3. Aparencia';
+    if (nextWidgetStepButton) nextWidgetStepButton.textContent = calculado ? 'Aparencia' : 'Proximo';
+    renderizarReferenciasKpi();
 }
 
 function obterCoresGraficos() {
@@ -1160,7 +1385,8 @@ function limparGraficosDashboard() {
 function ajustarConteudoKpi(container) {
     const painel = container?.querySelector('.crm-chart-kpi-real');
     const valor = painel?.querySelector('strong');
-    const rotulo = painel?.querySelector('span');
+    const rotulo = painel?.querySelector('.crm-kpi-label');
+    const detalhe = painel?.querySelector('.crm-kpi-target-detail');
     if (!painel || !valor || !rotulo) return;
 
     const estilo = getComputedStyle(painel);
@@ -1176,8 +1402,11 @@ function ajustarConteudoKpi(container) {
 
     const tamanhoRotulo = Math.max(10, Math.min(16, largura / 24, altura ? altura / 8 : 10));
     rotulo.style.fontSize = `${tamanhoRotulo}px`;
-    const espacoRotulo = rotulo.getBoundingClientRect().height + 6;
-    const alturaValor = altura ? Math.max(12, altura - espacoRotulo) : Number.POSITIVE_INFINITY;
+    if (detalhe) detalhe.style.fontSize = `${Math.max(9, Math.min(13, tamanhoRotulo * 0.82))}px`;
+    const espacoAuxiliar = rotulo.getBoundingClientRect().height
+        + (detalhe ? detalhe.getBoundingClientRect().height + 4 : 0)
+        + 6;
+    const alturaValor = altura ? Math.max(12, altura - espacoAuxiliar) : Number.POSITIVE_INFINITY;
     let minimo = 12;
     let maximo = Math.max(minimo, Math.min(96, largura * 0.28, alturaValor * 0.92));
     let melhor = minimo;
@@ -1197,6 +1426,18 @@ function ajustarConteudoKpi(container) {
     valor.style.fontSize = `${Math.floor(melhor)}px`;
 }
 
+function observarAjusteKpi(container, widgetId) {
+    ajustarConteudoKpi(container);
+    if (!window.ResizeObserver) return;
+    let framePendente = 0;
+    const observador = new ResizeObserver(() => {
+        cancelAnimationFrame(framePendente);
+        framePendente = requestAnimationFrame(() => ajustarConteudoKpi(container));
+    });
+    observador.observe(container);
+    observadoresGraficosDashboard.set(widgetId, observador);
+}
+
 function renderizarGraficosDashboard(widgets) {
     widgets.forEach(widget => {
         const seletorId = window.CSS?.escape ? window.CSS.escape(widget.id) : String(widget.id).replace(/"/g, '\\"');
@@ -1206,29 +1447,44 @@ function renderizarGraficosDashboard(widgets) {
             renderizarTabelaGrafico(container, widget);
             return;
         }
+        if (widget.tipo === 'kpi-calculated') {
+            const configuracao = widget.calculo || {};
+            const resultado = obterResultadoKpiCalculado(widget, widgets);
+            if (resultado.erro) {
+                container.innerHTML = `<div class="crm-chart-empty">${escapeHtml(resultado.erro)}</div>`;
+                return;
+            }
+            container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(resultado.valor, configuracao.formatoSaida || 'decimal'))}</strong><span class="crm-kpi-label">${escapeHtml(configuracao.rotulo || 'Resultado calculado')}</span></div>`;
+            observarAjusteKpi(container, widget.id);
+            return;
+        }
         const dados = prepararDadosGrafico(widget);
         if (!dados) {
             container.innerHTML = '<div class="crm-chart-empty">Execute e salve uma consulta para visualizar os dados.</div>';
             return;
         }
-        if (widget.tipo === 'kpi') {
+        if (widget.tipo === 'kpi' || widget.tipo === 'kpi-target') {
             const serie = dados.series[0];
             const total = serie.valores.reduce((soma, valor) => soma + converterNumero(valor), 0);
-            container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span>${escapeHtml(serie.nome)}</span></div>`;
-            ajustarConteudoKpi(container);
-            if (window.ResizeObserver) {
-                let framePendente = 0;
-                const observador = new ResizeObserver(() => {
-                    cancelAnimationFrame(framePendente);
-                    framePendente = requestAnimationFrame(() => ajustarConteudoKpi(container));
-                });
-                observador.observe(container);
-                observadoresGraficosDashboard.set(widget.id, observador);
+            if (widget.tipo === 'kpi-target') {
+                const serieMeta = dados.series[1];
+                if (!serieMeta) {
+                    container.innerHTML = '<div class="crm-chart-empty">Defina o campo Meta no mapeamento.</div>';
+                    return;
+                }
+                const meta = serieMeta.valores.reduce((soma, valor) => soma + converterNumero(valor), 0);
+                const percentual = meta ? (total / meta) * 100 : null;
+                const atingida = percentual !== null && percentual >= 100;
+                const percentualTexto = percentual === null ? 'Sem percentual' : formatarValorGrafico(percentual, 'percent');
+                container.innerHTML = `<div class="crm-chart-kpi-real is-target ${atingida ? 'is-reached' : 'is-pending'}"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span><small class="crm-kpi-target-detail"><span>Meta: ${escapeHtml(formatarValorGrafico(meta, serieMeta.formato || serie.formato))}</span><b>${escapeHtml(percentualTexto)}</b></small></div>`;
+            } else {
+                container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span></div>`;
             }
+            observarAjusteKpi(container, widget.id);
             return;
         }
         if (!window.echarts) {
-            container.innerHTML = '<div class="crm-chart-empty">Biblioteca de gráficos indisponível.</div>';
+            container.innerHTML = '<div class="crm-chart-empty">Biblioteca de graficos indisponivel.</div>';
             return;
         }
 
@@ -1275,7 +1531,7 @@ function obterLayoutWidget(widget, index = 0) {
 }
 
 function normalizarWidgetsDashboard(widgets) {
-    return widgets.map((widget, index) => ({
+    return atribuirReferenciasIndicadores(widgets).map((widget, index) => ({
         ...widget,
         aparencia: obterAparenciaWidget(widget),
         ...obterLayoutWidget(widget, index)
@@ -1364,9 +1620,7 @@ function renderizarDashboard() {
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     <strong>${escapeHtml(widget.titulo)}</strong>
                     <div class="crm-dashboard-widget-actions">
-                        <button type="button" class="crm-widget-query-button" data-view-widget-sql aria-label="Ver consulta SQL" title="Ver consulta SQL">
-                            ${renderizarIconeOlho()}
-                        </button>
+                        ${widget.sql ? `<button type="button" class="crm-widget-query-button" data-view-widget-sql aria-label="Ver consulta SQL" title="Ver consulta SQL">${renderizarIconeOlho()}</button>` : ''}
                         ${editorAtivo ? `
                             <button type="button" data-edit-widget>Editar</button>
                             <button type="button" class="crm-danger-button" data-delete-widget>Excluir</button>
@@ -1567,6 +1821,7 @@ function obterPapeisObrigatoriosGrafico(tipo) {
 
 function setEtapaWidget(etapa) {
     etapaWidgetAtual = etapa;
+    const calculado = ehKpiCalculado();
     widgetSteps.forEach(step => {
         step.hidden = step.dataset.widgetStep !== etapa;
     });
@@ -1574,7 +1829,7 @@ function setEtapaWidget(etapa) {
         indicator.classList.toggle('is-active', indicator.dataset.stepIndicator === etapa);
     });
     if (prevWidgetStepButton) prevWidgetStepButton.hidden = etapa === 'sql';
-    if (testWidgetQueryButton) testWidgetQueryButton.hidden = etapa !== 'sql';
+    if (testWidgetQueryButton) testWidgetQueryButton.hidden = etapa !== 'sql' || calculado;
     if (nextWidgetStepButton) nextWidgetStepButton.hidden = etapa !== 'sql';
     if (nextAppearanceStepButton) nextAppearanceStepButton.hidden = etapa !== 'mapping';
     if (saveWidgetButton) saveWidgetButton.hidden = etapa !== 'appearance';
@@ -1870,13 +2125,14 @@ function renderizarTabelaConsulta(dados = {}) {
 function montarOpcoesPapel(tipo, selecionado = '') {
     const papeis = obterPapeisGrafico(tipo);
     const opcoes = ['ignorar', ...papeis];
-    return opcoes.map(papel => `<option value="${papel}"${papel === selecionado ? ' selected' : ''}>${papel}</option>`).join('');
+    const rotulos = { ignorar: 'Ignorar', dimensao: 'Dimensao', linha: 'Linha', coluna: 'Coluna', valor: 'Realizado / valor', meta: 'Meta' };
+    return opcoes.map(papel => `<option value="${papel}"${papel === selecionado ? ' selected' : ''}>${rotulos[papel] || papel}</option>`).join('');
 }
 
 function atualizarCamposMapeamento(row) {
     if (!row) return;
     const papel = row.querySelector('[data-map-role]')?.value || 'ignorar';
-    const valorAtivo = papel === 'valor';
+    const valorAtivo = papel === 'valor' || papel === 'meta';
     const dimensaoAtiva = ['dimensao', 'linha', 'coluna'].includes(papel);
     const campoAgregacao = row.querySelector('[data-map-config="aggregation"]');
     const campoFormatoValor = row.querySelector('[data-map-config="value-format"]');
@@ -1957,9 +2213,9 @@ function renderizarMapeamentoColunas() {
                 <label>
                     Alinhamento
                     <select data-map-alignment data-user-defined="${atual.alinhamento ? 'true' : 'false'}">
-                        <option value="left"${obterAlinhamentoCampo(atual, atual.papel === 'valor' ? 'right' : 'left') === 'left' ? ' selected' : ''}>Esquerda</option>
-                        <option value="center"${obterAlinhamentoCampo(atual, atual.papel === 'valor' ? 'right' : 'left') === 'center' ? ' selected' : ''}>Centro</option>
-                        <option value="right"${obterAlinhamentoCampo(atual, atual.papel === 'valor' ? 'right' : 'left') === 'right' ? ' selected' : ''}>Direita</option>
+                        <option value="left"${obterAlinhamentoCampo(atual, ['valor', 'meta'].includes(atual.papel) ? 'right' : 'left') === 'left' ? ' selected' : ''}>Esquerda</option>
+                        <option value="center"${obterAlinhamentoCampo(atual, ['valor', 'meta'].includes(atual.papel) ? 'right' : 'left') === 'center' ? ' selected' : ''}>Centro</option>
+                        <option value="right"${obterAlinhamentoCampo(atual, ['valor', 'meta'].includes(atual.papel) ? 'right' : 'left') === 'right' ? ' selected' : ''}>Direita</option>
                     </select>
                 </label>
                 <label>
@@ -2012,7 +2268,7 @@ function coletarMapeamentosColunas() {
     if (!columnMappingBox) return [];
     return Array.from(columnMappingBox.querySelectorAll('[data-column-name]')).map(row => {
         const papel = row.querySelector('[data-map-role]')?.value || 'ignorar';
-        const valorAtivo = papel === 'valor';
+        const valorAtivo = papel === 'valor' || papel === 'meta';
         const dimensaoAtiva = ['dimensao', 'linha', 'coluna'].includes(papel);
         return {
             coluna: row.dataset.columnName,
@@ -2077,7 +2333,8 @@ async function testarConsultaWidget() {
 
 function abrirModalWidget(widgetId) {
     if (!widgetModal) return;
-    const widgets = obterWidgetsDashboard();
+    const widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
+    salvarWidgetsDashboard(widgets);
     widgetEmEdicao = widgets.find(widget => widget.id === widgetId) || criarWidgetPadrao();
     colunasConsultaAtual = Array.isArray(widgetEmEdicao.colunasConsulta) ? widgetEmEdicao.colunasConsulta : [];
     dadosConsultaAtual = Array.isArray(widgetEmEdicao.dadosConsulta) ? widgetEmEdicao.dadosConsulta : [];
@@ -2096,7 +2353,9 @@ function abrirModalWidget(widgetId) {
     if (queryResultBox) queryResultBox.hidden = true;
     if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
     renderizarMapeamentoColunas();
+    carregarConfiguracaoKpiCalculado(widgetEmEdicao);
     carregarAparenciaWidget(widgetEmEdicao);
+    atualizarModoConfiguracaoWidget();
     setEtapaWidget('sql');
     widgetModal.hidden = false;
 }
@@ -2127,25 +2386,38 @@ function validarMapeamentoWidget(mapeamentos) {
 
 function salvarWidgetAtual() {
     if (!widgetEmEdicao) return;
-    const assinaturaEsperada = obterAssinaturaConsulta(widgetSourceSelect?.value, widgetSqlTextarea?.value);
-    if (assinaturaConsultaAtual !== assinaturaEsperada) {
-        renderizarResultadoConsulta('Execute novamente a consulta antes de salvar o cenario.', 'error');
-        setEtapaWidget('sql');
-        return;
+    const calculado = ehKpiCalculado();
+    const configuracaoCalculo = coletarConfiguracaoKpiCalculado();
+    if (calculado) {
+        const validacao = validarFormulaKpi(configuracaoCalculo);
+        if (!validacao.ok) {
+            atualizarStatusFormulaKpi();
+            setEtapaWidget('sql');
+            kpiFormulaInput?.focus();
+            return;
+        }
+    } else {
+        const assinaturaEsperada = obterAssinaturaConsulta(widgetSourceSelect?.value, widgetSqlTextarea?.value);
+        if (assinaturaConsultaAtual !== assinaturaEsperada) {
+            renderizarResultadoConsulta('Execute novamente a consulta antes de salvar o cenario.', 'error');
+            setEtapaWidget('sql');
+            return;
+        }
     }
-    const mapeamentos = coletarMapeamentosColunas();
-    if (!validarMapeamentoWidget(mapeamentos)) return;
-    const widgets = obterWidgetsDashboard();
+    const mapeamentos = calculado ? [] : coletarMapeamentosColunas();
+    if (!calculado && !validarMapeamentoWidget(mapeamentos)) return;
+    let widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
     const atualizado = {
         ...widgetEmEdicao,
         titulo: widgetTitleInput?.value.trim() || obterNomeGrafico(widgetTypeSelect?.value),
         tipo: widgetTypeSelect?.value || 'bar',
-        fonte: widgetSourceSelect?.value || 'firebird',
-        sql: widgetSqlTextarea?.value.trim() || '',
-        colunasConsulta: colunasConsultaAtual,
-        dadosConsulta: dadosConsultaAtual,
-        consultaAtualizadaEm: new Date().toISOString(),
+        fonte: calculado ? '' : (widgetSourceSelect?.value || 'firebird'),
+        sql: calculado ? '' : (widgetSqlTextarea?.value.trim() || ''),
+        colunasConsulta: calculado ? [] : colunasConsultaAtual,
+        dadosConsulta: calculado ? [] : dadosConsultaAtual,
+        consultaAtualizadaEm: calculado ? null : new Date().toISOString(),
         mapeamentos,
+        calculo: calculado ? configuracaoCalculo : (widgetEmEdicao.calculo || null),
         tabela: coletarConfiguracaoTabela(),
         aparencia: coletarAparenciaWidget()
     };
@@ -2155,6 +2427,7 @@ function salvarWidgetAtual() {
     } else {
         widgets.push(atualizado);
     }
+    widgets = atribuirReferenciasIndicadores(widgets);
     salvarWidgetsDashboard(widgets);
     estadosDrillDashboard.delete(atualizado.id);
     fecharModalWidget();
@@ -2251,6 +2524,18 @@ function inicializarEditorDashboard() {
     if (testWidgetQueryButton) testWidgetQueryButton.addEventListener('click', () => testarConsultaWidget());
     if (nextWidgetStepButton) {
         nextWidgetStepButton.addEventListener('click', async () => {
+            if (ehKpiCalculado()) {
+                const configuracao = coletarConfiguracaoKpiCalculado();
+                const validacao = validarFormulaKpi(configuracao);
+                if (!validacao.ok) {
+                    atualizarStatusFormulaKpi();
+                    kpiFormulaInput?.focus();
+                    return;
+                }
+                if (widgetEmEdicao) widgetEmEdicao.calculo = configuracao;
+                setEtapaWidget('appearance');
+                return;
+            }
             const assinaturaEsperada = obterAssinaturaConsulta(widgetSourceSelect?.value, widgetSqlTextarea?.value);
             if (!colunasConsultaAtual.length || assinaturaConsultaAtual !== assinaturaEsperada) {
                 const ok = await testarConsultaWidget();
@@ -2270,7 +2555,7 @@ function inicializarEditorDashboard() {
     }
     if (prevWidgetStepButton) {
         prevWidgetStepButton.addEventListener('click', () => {
-            setEtapaWidget(etapaWidgetAtual === 'appearance' ? 'mapping' : 'sql');
+            setEtapaWidget(etapaWidgetAtual === 'appearance' ? (ehKpiCalculado() ? 'sql' : 'mapping') : 'sql');
         });
     }
     if (columnMappingBox) {
@@ -2283,7 +2568,7 @@ function inicializarEditorDashboard() {
             const row = event.target.closest('[data-column-name]');
             const alinhamento = row?.querySelector('[data-map-alignment]');
             if (alinhamento && alinhamento.dataset.userDefined !== 'true') {
-                alinhamento.value = event.target.value === 'valor' ? 'right' : 'left';
+                alinhamento.value = ['valor', 'meta'].includes(event.target.value) ? 'right' : 'left';
             }
             atualizarCamposMapeamento(row);
             configuracaoTabelaAtual.subtotais = configuracaoTabelaAtual.subtotais.filter(coluna =>
@@ -2296,11 +2581,29 @@ function inicializarEditorDashboard() {
     if (widgetTypeSelect) {
         widgetTypeSelect.addEventListener('change', () => {
             if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
+            atualizarModoConfiguracaoWidget();
             renderizarMapeamentoColunas();
             renderizarPreviaAparencia();
         });
     }
     if (widgetTitleInput) widgetTitleInput.addEventListener('input', renderizarPreviaAparencia);
+    [kpiFormulaInput, kpiOutputFormatSelect, kpiOutputLabelInput].forEach(campo => {
+        if (!campo) return;
+        campo.addEventListener('input', () => {
+            atualizarStatusFormulaKpi();
+            renderizarPreviaAparencia();
+        });
+        campo.addEventListener('change', () => {
+            atualizarStatusFormulaKpi();
+            renderizarPreviaAparencia();
+        });
+    });
+    if (kpiReferenceList) {
+        kpiReferenceList.addEventListener('click', event => {
+            const botao = event.target.closest('[data-kpi-reference]');
+            if (botao) inserirReferenciaKpi(botao.dataset.kpiReference);
+        });
+    }
     [
         widgetBackgroundModeSelect,
         widgetAlignmentSelect,

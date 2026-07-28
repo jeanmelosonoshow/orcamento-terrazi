@@ -2270,3 +2270,173 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     position: relative;
     z-index: 1;
 }
+
+
+/* KPI targets and calculated indicators */
+.crm-calculation-config {
+    display: grid;
+    gap: 14px;
+    margin-top: 16px;
+    padding: 18px;
+    border: 1px solid var(--linha);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.66);
+}
+
+.crm-calculation-config[hidden],
+[data-widget-source-field][hidden],
+[data-widget-query-config][hidden] {
+    display: none;
+}
+
+.crm-calculation-config-head {
+    display: grid;
+    gap: 3px;
+}
+
+.crm-calculation-config-head strong {
+    color: var(--verde-escuro);
+    font-size: 1.05rem;
+}
+
+.crm-formula-field {
+    display: grid;
+    gap: 7px;
+    color: var(--accent, #B66A42);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.crm-formula-field textarea {
+    width: 100%;
+    min-height: 118px;
+    resize: vertical;
+    padding: 12px;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font: 0.9rem/1.55 Consolas, 'Courier New', monospace;
+    text-transform: none;
+}
+
+.crm-kpi-reference-list {
+    display: grid;
+    gap: 8px;
+}
+
+.crm-kpi-reference-list > strong,
+.crm-kpi-reference-list > span {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.crm-kpi-reference-list > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.crm-kpi-reference-list button {
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font-weight: 750;
+}
+
+.crm-kpi-reference-list button:hover {
+    border-color: var(--dourado);
+    background: rgba(197, 164, 126, 0.12);
+}
+
+.crm-calculation-output {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.7fr) minmax(240px, 1.3fr);
+    gap: 12px;
+}
+
+.crm-calculation-output label {
+    display: grid;
+    gap: 7px;
+    color: var(--accent, #B66A42);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.crm-formula-status {
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 750;
+}
+
+.crm-formula-status.is-success {
+    background: rgba(43, 116, 76, 0.10);
+    color: #25633f;
+}
+
+.crm-formula-status.is-error {
+    background: rgba(201, 66, 50, 0.10);
+    color: #a83224;
+}
+
+.crm-chart-kpi-real.is-target {
+    grid-template-rows: minmax(0, auto) auto auto;
+}
+
+.crm-kpi-target-detail {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 6px;
+    border-top: 1px solid var(--widget-line, var(--linha));
+    color: var(--widget-muted, var(--muted));
+    line-height: 1.25;
+}
+
+.crm-kpi-target-detail span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.crm-kpi-target-detail b {
+    flex: 0 0 auto;
+    color: var(--widget-color, var(--verde-escuro));
+}
+
+.crm-chart-kpi-real.is-reached .crm-kpi-target-detail b {
+    color: #2b744c;
+}
+
+.crm-chart-kpi-real.is-pending .crm-kpi-target-detail b {
+    color: #b8563f;
+}
+
+.crm-preview-kpi.is-target small {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 5px;
+    border-top: 1px solid var(--widget-line, var(--linha));
+    color: var(--widget-muted, var(--muted));
+    font-size: 0.65rem;
+}
+
+.crm-preview-kpi.is-target small b {
+    color: var(--widget-color, var(--verde-escuro));
+}
+
+@media (max-width: 720px) {
+    .crm-calculation-output {
+        grid-template-columns: 1fr;
+    }
+}
