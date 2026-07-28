@@ -55,3 +55,44 @@ test('aceita parametros sem diferenciar maiusculas no Postgres', () => {
     );
     assert.deepEqual(preparado.valores, ['VD', '01']);
 });
+
+
+test('prepara parametros nomeados dentro de EXECUTE BLOCK Firebird', () => {
+    const preparado = prepararSqlCenario(
+        `EXECUTE BLOCK
+RETURNS (TOTAL NUMERIC(18,2))
+AS
+BEGIN
+  SELECT SUM(V.SUBTOTAL)
+    FROM VENDAS V
+   WHERE V.DATA BETWEEN :data_inicial AND :data_final
+     AND V.IDFILIAL IN (:filiais)
+    INTO :TOTAL;
+  SUSPEND;
+END`,
+        'firebird',
+        { dataInicial: '2026-07-01', dataFinal: '2026-07-28', filiais: ['01', '02'] }
+    );
+
+    assert.match(preparado.sql, /CRM_SYS_DATA_INICIAL VARCHAR\(10\) = \?/);
+    assert.match(preparado.sql, /CRM_SYS_FILIAIS_1 VARCHAR\(50\) = \?/);
+    assert.match(preparado.sql, /BETWEEN CAST\(:CRM_SYS_DATA_INICIAL AS DATE\) AND CAST\(:CRM_SYS_DATA_FINAL AS DATE\)/);
+    assert.match(preparado.sql, /IN \(:CRM_SYS_FILIAIS_1,:CRM_SYS_FILIAIS_2\)/);
+    assert.deepEqual(preparado.valores, ['2026-07-01', '2026-07-28', '01', '02']);
+});
+
+test('reaproveita o mesmo parametro quando ele aparece mais de uma vez no bloco', () => {
+    const preparado = prepararSqlCenario(
+        `EXECUTE BLOCK RETURNS (IDFILIAL VARCHAR(2)) AS
+BEGIN
+  IF (:idfilial = :idfilial) THEN IDFILIAL = :idfilial;
+  SUSPEND;
+END`,
+        'firebird',
+        { idfilial: '01' }
+    );
+
+    assert.equal((preparado.sql.match(/CRM_SYS_IDFILIAL VARCHAR\(50\) = \?/g) || []).length, 1);
+    assert.equal((preparado.sql.match(/:CRM_SYS_IDFILIAL/g) || []).length, 3);
+    assert.deepEqual(preparado.valores, ['01']);
+});

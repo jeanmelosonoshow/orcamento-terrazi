@@ -2287,7 +2287,7 @@ async function testarConsultaWidget() {
     if (!widgetSqlTextarea || !widgetSourceSelect) return false;
     const sql = widgetSqlTextarea.value.trim();
     if (!sql) {
-        renderizarResultadoConsulta('Digite uma consulta SELECT para testar.', 'error');
+        renderizarResultadoConsulta('Digite uma consulta SQL para testar.', 'error');
         return false;
     }
 

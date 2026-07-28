@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { requireRequestSession } from '../lib/session-token.js';
 import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
+import { sqlEhExecuteBlock, validarSqlLeitura } from '../lib/scenario-sql-validation.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
@@ -26,17 +27,6 @@ function usuarioPodeEditarCenario(idFuncionario) {
     return Boolean(idFuncionario && carregarEditoresCenario().includes(idFuncionario));
 }
 
-function validarSqlLeitura(sql) {
-    const texto = String(sql || '').trim();
-    const normalizado = texto.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--.*$/gm, ' ').trim().toLowerCase();
-    if (!/^(select|with)\b/.test(normalizado)) return 'Use apenas consultas SELECT ou WITH.';
-    if (normalizado.includes(';')) return 'Remova ponto e virgula. Execute apenas uma consulta por vez.';
-    if (/\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|execute|merge)\b/.test(normalizado)) {
-        return 'A consulta de cenario permite apenas leitura.';
-    }
-    return '';
-}
-
 function citarIdentificador(nome) {
     const valor = String(nome || '').trim();
     if (!valor) throw new Error('Campo de agrupamento invalido.');
@@ -56,6 +46,7 @@ function normalizarCamposVisualizacao(campos) {
 
 function prepararConsultaVisual(preparado, fonte, visualizacao = {}) {
     if (!visualizacao || visualizacao.agrupar !== true) return preparado;
+    if (sqlEhExecuteBlock(preparado.sql)) return preparado;
     const dimensoes = normalizarCamposVisualizacao([
         ...(Array.isArray(visualizacao.dimensoes) ? visualizacao.dimensoes : []),
         ...(Array.isArray(visualizacao.colunas) ? visualizacao.colunas : [])
@@ -121,10 +112,9 @@ export default async function handler(req, res) {
     const { fonte = 'firebird', sql, filtros = {}, visualizacao = null } = req.body || {};
     if (!usuarioPodeEditarCenario(String(session.sub))) return res.status(403).json({ error: 'Usuario sem permissao para testar cenarios.' });
 
-    const erroValidacao = validarSqlLeitura(sql);
-    if (erroValidacao) return res.status(400).json({ error: erroValidacao });
-
     const fonteNormalizada = String(fonte).toLowerCase() === 'postgres' ? 'postgres' : 'firebird';
+    const erroValidacao = validarSqlLeitura(sql, fonteNormalizada);
+    if (erroValidacao) return res.status(400).json({ error: erroValidacao });
     try {
         const contextoConsulta = montarContextoConsulta(filtros, session);
         const preparadoBase = prepararSqlCenario(sql, fonteNormalizada, contextoConsulta);
