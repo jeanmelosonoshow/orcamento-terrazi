@@ -129,6 +129,44 @@ body {
     align-content: center;
 }
 
+.crm-page-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin-bottom: 2px;
+    color: var(--verde-escuro);
+}
+
+.crm-page-title-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 20px;
+    color: var(--accent, #B66A42);
+}
+
+.crm-page-title-icon svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.crm-page-title h1 {
+    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1rem;
+    line-height: 1.25;
+    color: inherit;
+}
+
 .crm-branch-control label {
     color: var(--accent, #B66A42);
     font-size: 0.68rem;
