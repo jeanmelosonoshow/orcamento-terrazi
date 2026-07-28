@@ -131,6 +131,7 @@ const widgetSolidColorField = document.querySelector('[data-widget-solid-color-f
 const widgetGradientFields = Array.from(document.querySelectorAll('[data-widget-gradient-field]'));
 const widgetPaletteOptions = document.querySelector('[data-widget-palette-options]');
 const widgetIconOptions = document.querySelector('[data-widget-icon-options]');
+const widgetIconColorInput = document.querySelector('[data-widget-icon-color]');
 const appearancePreview = document.querySelector('[data-appearance-preview]');
 const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
 const sqlViewerModal = document.querySelector('[data-sql-viewer-modal]');
@@ -163,6 +164,7 @@ const instanciasGraficosDashboard = new Map();
 const observadoresGraficosDashboard = new Map();
 const estadosDrillDashboard = new Map();
 const contextosDrillDashboard = new Map();
+let instanciaPreviaAparencia = null;
 let sequenciaContextoDrill = 0;
 
 const catalogoGraficos = [
@@ -203,19 +205,9 @@ const paletasGraficos = [
     { id: 'soft', nome: 'Suave', cores: ['#729EA1', '#B5BD89', '#DFBE99', '#EC9192', '#DBAFC1', '#9A8C98'] }
 ];
 
-const iconesWidgets = [
-    { id: 'none', nome: 'Sem icone', svg: '' },
-    { id: 'money', nome: 'Financeiro', svg: '<circle cx="12" cy="12" r="9"></circle><path d="M16 8.5c-.8-.8-2-1.2-3.4-1.2-1.9 0-3.1.9-3.1 2.2 0 3.4 6.7 1.6 6.7 5 0 1.4-1.4 2.4-3.5 2.4-1.5 0-2.9-.5-3.8-1.4"></path><path d="M12.5 5.5v13"></path>' },
-    { id: 'chart', nome: 'Desempenho', svg: '<path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path>' },
-    { id: 'trend', nome: 'Crescimento', svg: '<path d="m3 17 6-6 4 4 8-9"></path><path d="M15 6h6v6"></path>' },
-    { id: 'target', nome: 'Meta', svg: '<circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1"></circle>' },
-    { id: 'users', nome: 'Clientes', svg: '<path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 20v-1.5a4 4 0 0 0-3-3.8"></path><path d="M16 3.3a4 4 0 0 1 0 7.4"></path>' },
-    { id: 'store', nome: 'Filial', svg: '<path d="M3 10h18"></path><path d="m5 10 1-6h12l1 6"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path>' },
-    { id: 'cart', nome: 'Vendas', svg: '<circle cx="9" cy="20" r="1"></circle><circle cx="19" cy="20" r="1"></circle><path d="M3 4h2l2.5 11h11l2-7H6"></path>' },
-    { id: 'calendar', nome: 'Periodo', svg: '<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path>' },
-    { id: 'star', nome: 'Destaque', svg: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"></path>' },
-    { id: 'percent', nome: 'Conversao', svg: '<path d="m19 5-14 14"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle>' }
-];
+const iconesWidgets = Array.isArray(window.CRM_WIDGET_ICONS) && window.CRM_WIDGET_ICONS.length
+    ? window.CRM_WIDGET_ICONS
+    : [{ id: 'none', nome: 'Sem icone', grupo: 'Geral', svg: '' }];
 
 const aparenciaWidgetPadrao = Object.freeze({
     fundoTipo: 'light',
@@ -224,6 +216,7 @@ const aparenciaWidgetPadrao = Object.freeze({
     gradienteFim: '#1A3017',
     paleta: 'brand',
     icone: 'none',
+    iconeCor: '#C5A47E',
     alinhamento: 'left'
 });
 function obterIniciais(nomeCompleto) {
@@ -344,6 +337,7 @@ function obterAparenciaWidget(widget = {}) {
         gradienteFim: normalizarCorHex(atual.gradienteFim, aparenciaWidgetPadrao.gradienteFim),
         paleta: paletasGraficos.some(item => item.id === atual.paleta) ? atual.paleta : aparenciaWidgetPadrao.paleta,
         icone: iconesWidgets.some(item => item.id === atual.icone) ? atual.icone : aparenciaWidgetPadrao.icone,
+        iconeCor: normalizarCorHex(atual.iconeCor, aparenciaWidgetPadrao.iconeCor),
         alinhamento: ['left', 'center', 'right'].includes(atual.alinhamento) ? atual.alinhamento : aparenciaWidgetPadrao.alinhamento
     };
 }
@@ -386,7 +380,7 @@ function obterEstiloAparenciaWidget(widget = {}) {
     const textoSuave = texto === '#FFFFFF' ? 'rgba(255,255,255,0.72)' : 'rgba(23,48,74,0.66)';
     const linha = texto === '#FFFFFF' ? 'rgba(255,255,255,0.20)' : 'rgba(23,48,74,0.13)';
     const alinhamentoFlex = { left: 'start', center: 'center', right: 'end' }[aparencia.alinhamento] || 'start';
-    return `--widget-background:${fundo};--widget-color:${texto};--widget-muted:${textoSuave};--widget-line:${linha};--widget-accent:${paleta[0]};--widget-align:${aparencia.alinhamento};--widget-justify:${alinhamentoFlex};`;
+    return `--widget-background:${fundo};--widget-color:${texto};--widget-muted:${textoSuave};--widget-line:${linha};--widget-accent:${paleta[0]};--widget-icon-color:${aparencia.iconeCor};--widget-align:${aparencia.alinhamento};--widget-justify:${alinhamentoFlex};`;
 }
 
 function coletarAparenciaWidget() {
@@ -398,6 +392,7 @@ function coletarAparenciaWidget() {
             gradienteFim: widgetGradientEndInput?.value,
             paleta: widgetPaletteOptions?.querySelector('input:checked')?.value || 'brand',
             icone: widgetIconOptions?.querySelector('input:checked')?.value || 'none',
+            iconeCor: widgetIconColorInput?.value || aparenciaWidgetPadrao.iconeCor,
             alinhamento: widgetAlignmentSelect?.value || 'left'
         }
     });
@@ -407,6 +402,9 @@ function atualizarCamposAparencia() {
     const modo = widgetBackgroundModeSelect?.value || 'light';
     if (widgetSolidColorField) widgetSolidColorField.hidden = modo !== 'solid';
     widgetGradientFields.forEach(campo => { campo.hidden = modo !== 'gradient'; });
+    if (widgetIconOptions && widgetIconColorInput) {
+        widgetIconOptions.style.setProperty('--widget-icon-color', normalizarCorHex(widgetIconColorInput.value, aparenciaWidgetPadrao.iconeCor));
+    }
     renderizarPreviaAparencia();
 }
 
@@ -418,23 +416,81 @@ function renderizarOpcoesAparencia(aparencia) {
         }).join('');
     }
     if (widgetIconOptions) {
-        widgetIconOptions.innerHTML = iconesWidgets.map(icone => `<label class="crm-icon-option"><input type="radio" name="widget-icon" value="${escapeHtml(icone.id)}"${icone.id === aparencia.icone ? ' checked' : ''}><span>${icone.svg ? renderizarIconeWidget(icone.id) : '<span class="crm-no-icon">--</span>'}<small>${escapeHtml(icone.nome)}</small></span></label>`).join('');
+        const gruposIcones = iconesWidgets.reduce((grupos, icone) => {
+            const grupo = icone.grupo || 'Geral';
+            if (!grupos.has(grupo)) grupos.set(grupo, []);
+            grupos.get(grupo).push(icone);
+            return grupos;
+        }, new Map());
+        widgetIconOptions.style.setProperty('--widget-icon-color', aparencia.iconeCor);
+        widgetIconOptions.innerHTML = Array.from(gruposIcones, ([grupo, icones]) => `
+            <section class="crm-icon-group">
+                <strong>${escapeHtml(grupo)}</strong>
+                <div class="crm-icon-group-grid">
+                    ${icones.map(icone => `<label class="crm-icon-option"><input type="radio" name="widget-icon" value="${escapeHtml(icone.id)}"${icone.id === aparencia.icone ? ' checked' : ''}><span>${icone.svg ? renderizarIconeWidget(icone.id) : '<span class="crm-no-icon">--</span>'}<small>${escapeHtml(icone.nome)}</small></span></label>`).join('')}
+                </div>
+            </section>`).join('');
     }
+}
+
+function criarDadosPreviaGrafico(tipo) {
+    const categorias = tipo === 'calendar'
+        ? ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04', '2026-07-05', '2026-07-06', '2026-07-07']
+        : ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
+    if (tipo === 'heatmap' || tipo === 'cohort') {
+        return {
+            categorias: ['Grupo A', 'Grupo B', 'Grupo C', 'Grupo D'],
+            nomeDimensao: 'Grupo',
+            series: [
+                { nome: 'Etapa 1', formato: 'decimal', valores: [100, 88, 76, 64] },
+                { nome: 'Etapa 2', formato: 'decimal', valores: [82, 70, 61, 49] },
+                { nome: 'Etapa 3', formato: 'decimal', valores: [64, 52, 44, 35] },
+                { nome: 'Etapa 4', formato: 'decimal', valores: [48, 39, 31, 24] }
+            ]
+        };
+    }
+    const principal = { nome: 'Realizado', formato: 'decimal', valores: [42, 68, 54, 84, 63, 76] };
+    const secundaria = { nome: tipo === 'bullet' ? 'Meta' : 'Comparativo', formato: 'decimal', valores: [50, 60, 62, 72, 70, 82] };
+    return { categorias, nomeDimensao: 'Periodo', series: [principal, secundaria] };
 }
 
 function renderizarPreviaAparencia() {
     if (!appearancePreview) return;
+    if (instanciaPreviaAparencia) {
+        instanciaPreviaAparencia.dispose();
+        instanciaPreviaAparencia = null;
+    }
     const aparencia = coletarAparenciaWidget();
-    const widgetPrevia = { ...(widgetEmEdicao || {}), aparencia };
-    const paleta = obterPaletaWidget(widgetPrevia);
+    const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
+    const widgetPrevia = { ...(widgetEmEdicao || {}), tipo, aparencia };
+    const titulo = widgetTitleInput?.value.trim() || 'Titulo do indicador';
     appearancePreview.innerHTML = `
         <div class="crm-appearance-preview-card" style="${obterEstiloAparenciaWidget(widgetPrevia)}">
-            ${renderizarIconeWidget(aparencia.icone, 'is-preview')}
-            <small>${escapeHtml(obterNomeGrafico(widgetTypeSelect?.value || widgetPrevia.tipo))}</small>
-            <strong>${escapeHtml(widgetTitleInput?.value.trim() || 'Titulo do indicador')}</strong>
-            <span>Conteudo ajustavel ao tamanho do card</span>
-            <div class="crm-appearance-preview-bars">${[42, 68, 54, 84, 63].map((altura, index) => `<i style="height:${altura}%;background:${paleta[index % paleta.length]}"></i>`).join('')}</div>
+            <small>${escapeHtml(obterNomeGrafico(tipo))}</small>
+            <strong>${escapeHtml(titulo)}</strong>
+            <div class="crm-appearance-preview-result">
+                ${renderizarIconeWidget(aparencia.icone, 'is-preview')}
+                <div class="crm-appearance-preview-chart" data-appearance-chart></div>
+            </div>
         </div>`;
+    const containerPrevia = appearancePreview.querySelector('[data-appearance-chart]');
+    if (!containerPrevia) return;
+    if (tipo === 'kpi') {
+        containerPrevia.innerHTML = '<div class="crm-preview-kpi"><strong>R$ 128.450</strong><span>Resultado</span></div>';
+        return;
+    }
+    if (tipo === 'table' || tipo === 'pivot') {
+        containerPrevia.innerHTML = '<div class="crm-preview-table"><b>Categoria</b><b>Total</b><span>Filial 01</span><span>84.320</span><span>Filial 02</span><span>63.740</span><strong>Total</strong><strong>148.060</strong></div>';
+        return;
+    }
+    if (!window.echarts) {
+        containerPrevia.innerHTML = '<span class="crm-chart-empty">Previa indisponivel.</span>';
+        return;
+    }
+    const dadosPrevia = criarDadosPreviaGrafico(tipo);
+    instanciaPreviaAparencia = window.echarts.init(containerPrevia, null, { renderer: 'canvas' });
+    instanciaPreviaAparencia.setOption(montarOpcaoECharts(widgetPrevia, dadosPrevia, containerPrevia), true);
+    requestAnimationFrame(() => instanciaPreviaAparencia?.resize());
 }
 
 function carregarAparenciaWidget(widget) {
@@ -444,6 +500,7 @@ function carregarAparenciaWidget(widget) {
     if (widgetBackgroundColorInput) widgetBackgroundColorInput.value = aparencia.fundoCor;
     if (widgetGradientStartInput) widgetGradientStartInput.value = aparencia.gradienteInicio;
     if (widgetGradientEndInput) widgetGradientEndInput.value = aparencia.gradienteFim;
+    if (widgetIconColorInput) widgetIconColorInput.value = aparencia.iconeCor;
     renderizarOpcoesAparencia(aparencia);
     atualizarCamposAparencia();
 }
@@ -614,6 +671,8 @@ function montarOpcaoECharts(widget, dados, container) {
     const base = {
         animationDuration: 360,
         animationDurationUpdate: 220,
+        animationEasing: 'cubicOut',
+        aria: { enabled: true, show: true },
         color: paleta,
         textStyle: { color: textoGrafico, fontFamily: 'Inter, Arial, sans-serif', fontSize: compacto ? 10 : 12 },
         tooltip: {
@@ -658,7 +717,7 @@ function montarOpcaoECharts(widget, dados, container) {
         data: serie.valores
     }));
 
-    if (widget.tipo === 'horizontal-bar' || widget.tipo === 'ranking') {
+    if (widget.tipo === 'horizontal-bar') {
         return {
             ...base,
             grid: { ...base.grid, bottom: 10 },
@@ -740,6 +799,22 @@ function montarOpcaoECharts(widget, dados, container) {
             }]
         };
     }
+    const renderizadorEspecializado = window.CRM_CHART_RENDERERS?.[widget.tipo];
+    if (typeof renderizadorEspecializado === 'function') {
+        return renderizadorEspecializado({
+            widget,
+            dados,
+            container,
+            base,
+            paleta,
+            textoGrafico,
+            compacto,
+            muitasCategorias,
+            formatar: formatarValorGrafico,
+            converterNumero
+        });
+    }
+
     return {
         ...base,
         xAxis: {
@@ -1282,10 +1357,11 @@ function renderizarDashboard() {
     }
     dashboardCanvas.innerHTML = widgets.map((widget, index) => {
         const layout = obterLayoutWidget(widget, index);
+        const aparencia = obterAparenciaWidget(widget);
+        const icone = renderizarIconeWidget(aparencia.icone, 'is-result');
         return `
-            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-align="${escapeHtml(obterAparenciaWidget(widget).alinhamento)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
+            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-align="${escapeHtml(aparencia.alinhamento)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
-                    ${renderizarIconeWidget(obterAparenciaWidget(widget).icone)}
                     <strong>${escapeHtml(widget.titulo)}</strong>
                     <div class="crm-dashboard-widget-actions">
                         <button type="button" class="crm-widget-query-button" data-view-widget-sql aria-label="Ver consulta SQL" title="Ver consulta SQL">
@@ -1297,7 +1373,10 @@ function renderizarDashboard() {
                         ` : ''}
                     </div>
                 </div>
-                ${renderizarVisualGrafico(widget)}
+                <div class="crm-dashboard-widget-result${icone ? ' has-icon' : ''}">
+                    ${icone}
+                    ${renderizarVisualGrafico(widget)}
+                </div>
                 ${editorAtivo ? '<span class="crm-dashboard-resize" data-resize-widget aria-hidden="true"></span>' : ''}
             </article>
         `;
@@ -2024,6 +2103,10 @@ function abrirModalWidget(widgetId) {
 
 function fecharModalWidget() {
     if (widgetModal) widgetModal.hidden = true;
+    if (instanciaPreviaAparencia) {
+        instanciaPreviaAparencia.dispose();
+        instanciaPreviaAparencia = null;
+    }
     widgetEmEdicao = null;
     colunasConsultaAtual = [];
     dadosConsultaAtual = [];
@@ -2223,7 +2306,8 @@ function inicializarEditorDashboard() {
         widgetAlignmentSelect,
         widgetBackgroundColorInput,
         widgetGradientStartInput,
-        widgetGradientEndInput
+        widgetGradientEndInput,
+        widgetIconColorInput
     ].forEach(campo => {
         if (!campo) return;
         campo.addEventListener('input', atualizarCamposAparencia);
