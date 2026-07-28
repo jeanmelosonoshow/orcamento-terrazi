@@ -1309,12 +1309,13 @@ function obterNomesParametrosSql(sql) {
 }
 
 function formatarValorParametroSql(valor) {
+    const formatarLiteral = item => `'${String(item).replace(/'/g, "''")}'`;
     if (Array.isArray(valor)) {
         if (!valor.length) return '<em>Sem valor</em>';
-        return escapeHtml(`[${valor.map(item => String(item)).join(', ')}]`);
+        return escapeHtml(valor.map(formatarLiteral).join(','));
     }
     if (valor === null || valor === undefined || valor === '') return '<em>Sem valor</em>';
-    return escapeHtml(valor);
+    return escapeHtml(formatarLiteral(valor));
 }
 
 function renderizarParametrosVisualizadorSql(sql) {
