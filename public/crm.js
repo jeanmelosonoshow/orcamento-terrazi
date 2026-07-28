@@ -137,6 +137,7 @@ const sqlViewerModal = document.querySelector('[data-sql-viewer-modal]');
 const sqlViewerTitle = document.querySelector('[data-sql-viewer-title]');
 const sqlViewerEditor = document.querySelector('[data-sql-viewer-editor]');
 const sqlViewerStatus = document.querySelector('[data-sql-viewer-status]');
+const sqlViewerParameters = document.querySelector('[data-sql-viewer-parameters]');
 const indentSqlViewerButton = document.querySelector('[data-indent-sql-viewer]');
 const copySqlViewerButton = document.querySelector('[data-copy-sql-viewer]');
 const pasteSqlViewerButton = document.querySelector('[data-paste-sql-viewer]');
@@ -1265,9 +1266,80 @@ function abrirVisualizadorSql(widgetId) {
     if (!widget || !sqlViewerModal || !sqlViewerEditor) return;
     if (sqlViewerTitle) sqlViewerTitle.textContent = widget.titulo || 'Consulta SQL';
     sqlViewerEditor.value = String(widget.sql || '');
+    renderizarParametrosVisualizadorSql(widget.sql);
     atualizarStatusVisualizadorSql('');
     sqlViewerModal.hidden = false;
     requestAnimationFrame(() => sqlViewerEditor.focus());
+}
+
+function obterSessaoAssinadaVisualizadorSql() {
+    try {
+        const payload = String(usuarioLogado.sessionToken || '').split('.')[0];
+        const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const normalizado = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+        const bytes = Uint8Array.from(atob(normalizado), caractere => caractere.charCodeAt(0));
+        return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (error) {
+        return {
+            categoria: categoriaCodigo,
+            sub: idFuncionarioLogado,
+            idfilial: filialId,
+            idvendedor: idVendedorLogado
+        };
+    }
+}
+
+function obterNomesParametrosSql(sql) {
+    const permitidos = new Set([
+        'categoria', 'data_inicial', 'data_final', 'filiais',
+        'vendedores', 'idfuncionario', 'idfilial', 'idvendedor'
+    ]);
+    const pesquisavel = String(sql || '').replace(
+        /('(?:''|[^'])*'|"(?:""|[^"])*"|--[^\r\n]*|\/\*[\s\S]*?\*\/)/g,
+        ' '
+    );
+    const encontrados = [];
+    const padrao = /:([a-z_][a-z0-9_]*)\b/gi;
+    let resultado = null;
+    while ((resultado = padrao.exec(pesquisavel)) !== null) {
+        const nome = resultado[1].toLowerCase();
+        if (permitidos.has(nome) && !encontrados.includes(nome)) encontrados.push(nome);
+    }
+    return encontrados;
+}
+
+function formatarValorParametroSql(valor) {
+    if (Array.isArray(valor)) {
+        if (!valor.length) return '<em>Sem valor</em>';
+        return escapeHtml(`[${valor.map(item => String(item)).join(', ')}]`);
+    }
+    if (valor === null || valor === undefined || valor === '') return '<em>Sem valor</em>';
+    return escapeHtml(valor);
+}
+
+function renderizarParametrosVisualizadorSql(sql) {
+    if (!sqlViewerParameters) return;
+    const filtros = obterFiltrosCenario();
+    const sessao = obterSessaoAssinadaVisualizadorSql();
+    const valores = {
+        categoria: String(sessao.categoria || '').trim().toUpperCase(),
+        data_inicial: filtros.dataInicial,
+        data_final: filtros.dataFinal,
+        filiais: filtros.filiais,
+        vendedores: filtros.vendedores,
+        idfuncionario: String(sessao.sub || '').trim(),
+        idfilial: String(sessao.idfilial || '').trim(),
+        idvendedor: String(sessao.idvendedor || '').trim()
+    };
+    const nomes = obterNomesParametrosSql(sql);
+    sqlViewerParameters.innerHTML = nomes.length
+        ? nomes.map(nome => `
+            <div class="crm-sql-viewer-parameter">
+                <code>:${escapeHtml(nome)}</code>
+                <span>${formatarValorParametroSql(valores[nome])}</span>
+            </div>
+        `).join('')
+        : '<span class="crm-sql-viewer-parameter-empty">Nenhum parâmetro utilizado.</span>';
 }
 
 function fecharVisualizadorSql() {

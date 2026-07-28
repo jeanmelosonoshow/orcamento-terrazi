@@ -1170,6 +1170,71 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     tab-size: 4;
 }
 
+.crm-sql-viewer-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 0.34fr);
+    gap: 16px;
+}
+
+.crm-sql-viewer-parameters {
+    min-width: 0;
+    padding-left: 16px;
+    border-left: 1px solid var(--linha);
+}
+
+.crm-sql-viewer-parameters > strong {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--verde-escuro);
+    font-size: 0.82rem;
+}
+
+.crm-sql-viewer-parameter-list {
+    display: grid;
+    gap: 8px;
+    max-height: min(56vh, 520px);
+    overflow: auto;
+}
+
+.crm-sql-viewer-parameter {
+    display: grid;
+    gap: 4px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(228,216,200,0.72);
+}
+
+.crm-sql-viewer-parameter code {
+    color: var(--accent, #B66A42);
+    font: 700 0.74rem Consolas, 'Courier New', monospace;
+}
+
+.crm-sql-viewer-parameter span,
+.crm-sql-viewer-parameter-empty {
+    color: var(--verde-escuro);
+    font: 0.78rem/1.4 Consolas, 'Courier New', monospace;
+    overflow-wrap: anywhere;
+}
+
+.crm-sql-viewer-parameter em {
+    color: var(--muted);
+}
+
+@media (max-width: 760px) {
+    .crm-sql-viewer-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .crm-sql-viewer-parameters {
+        padding: 14px 0 0;
+        border-top: 1px solid var(--linha);
+        border-left: 0;
+    }
+
+    .crm-sql-viewer-parameter-list {
+        max-height: 180px;
+    }
+}
+
 .crm-secondary-button {
     background: #fff !important;
     color: var(--verde-escuro) !important;

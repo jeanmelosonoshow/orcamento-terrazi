@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260728-16">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260728-17">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -364,11 +364,17 @@
                 </button>
                 <span class="crm-sql-viewer-status" data-sql-viewer-status aria-live="polite"></span>
             </div>
-            <textarea class="crm-sql-viewer-editor" data-sql-viewer-editor spellcheck="false" aria-label="Consulta SQL"></textarea>
+            <div class="crm-sql-viewer-layout">
+                <textarea class="crm-sql-viewer-editor" data-sql-viewer-editor spellcheck="false" aria-label="Consulta SQL"></textarea>
+                <section class="crm-sql-viewer-parameters" aria-label="Parâmetros utilizados">
+                    <strong>Parâmetros utilizados</strong>
+                    <div class="crm-sql-viewer-parameter-list" data-sql-viewer-parameters></div>
+                </section>
+            </div>
         </section>
     </div>
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260728-17"></script>
+    <script src="crm.js?v=crm-20260728-18"></script>
 </body>
 </html>
