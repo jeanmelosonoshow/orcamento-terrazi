@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260728-13">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260728-16">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -339,8 +339,36 @@
             </div>
         </section>
     </div>
+    <div class="crm-modal" data-sql-viewer-modal hidden>
+        <div class="crm-modal-backdrop" data-close-sql-viewer></div>
+        <section class="crm-modal-card crm-sql-viewer-card" role="dialog" aria-modal="true" aria-labelledby="crmSqlViewerTitle">
+            <div class="crm-modal-head">
+                <div>
+                    <span class="crm-eyebrow">Consulta SQL</span>
+                    <h2 id="crmSqlViewerTitle" data-sql-viewer-title>Consulta</h2>
+                </div>
+                <button type="button" class="crm-icon-button" aria-label="Fechar" title="Fechar" data-close-sql-viewer>×</button>
+            </div>
+            <div class="crm-sql-viewer-toolbar">
+                <button type="button" data-indent-sql-viewer>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M8 12h12M4 18h16"></path><path d="m4 10 2 2-2 2"></path></svg>
+                    <span>Indentar</span>
+                </button>
+                <button type="button" data-copy-sql-viewer>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <span>Copiar</span>
+                </button>
+                <button type="button" data-paste-sql-viewer>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6"></path><path d="M9 3h6a2 2 0 0 1 2 2v2H7V5a2 2 0 0 1 2-2Z"></path><path d="M7 5H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path></svg>
+                    <span>Colar</span>
+                </button>
+                <span class="crm-sql-viewer-status" data-sql-viewer-status aria-live="polite"></span>
+            </div>
+            <textarea class="crm-sql-viewer-editor" data-sql-viewer-editor spellcheck="false" aria-label="Consulta SQL"></textarea>
+        </section>
+    </div>
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260727-15"></script>
+    <script src="crm.js?v=crm-20260728-17"></script>
 </body>
 </html>

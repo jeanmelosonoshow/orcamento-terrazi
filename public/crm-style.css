@@ -751,6 +751,32 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     gap: 7px;
 }
 
+.crm-dashboard-widget-head .crm-widget-query-button {
+    width: 34px;
+    min-height: 34px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 34px;
+    border: 1px solid var(--widget-line, var(--linha));
+    background: rgba(255,255,255,0.2);
+    color: var(--widget-color, var(--verde-escuro));
+}
+
+.crm-dashboard-widget-head .crm-widget-query-button:hover {
+    background: rgba(255,255,255,0.42);
+}
+
+.crm-widget-query-button svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .crm-dashboard-widget-head .crm-danger-button {
     background: #A83224;
 }
@@ -1074,6 +1100,74 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     font-family: Consolas, 'Courier New', monospace;
     text-transform: none;
     letter-spacing: 0;
+}
+
+.crm-modal-card.crm-sql-viewer-card {
+    width: min(calc(100vw - 36px), 980px);
+}
+
+.crm-sql-viewer-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 18px 0 10px;
+}
+
+.crm-sql-viewer-toolbar button {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--verde-escuro);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+    padding: 0 12px;
+}
+
+.crm-sql-viewer-toolbar button:hover {
+    background: rgba(197,164,126,0.12);
+}
+
+.crm-sql-viewer-toolbar svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.crm-sql-viewer-status {
+    min-height: 18px;
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.crm-sql-viewer-status.is-error {
+    color: #9d342b;
+}
+
+.crm-sql-viewer-editor {
+    width: 100%;
+    min-height: min(56vh, 520px);
+    resize: vertical;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font: 0.86rem/1.55 Consolas, 'Courier New', monospace;
+    letter-spacing: 0;
+    padding: 14px;
+    tab-size: 4;
 }
 
 .crm-secondary-button {

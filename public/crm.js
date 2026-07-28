@@ -133,6 +133,14 @@ const widgetPaletteOptions = document.querySelector('[data-widget-palette-option
 const widgetIconOptions = document.querySelector('[data-widget-icon-options]');
 const appearancePreview = document.querySelector('[data-appearance-preview]');
 const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
+const sqlViewerModal = document.querySelector('[data-sql-viewer-modal]');
+const sqlViewerTitle = document.querySelector('[data-sql-viewer-title]');
+const sqlViewerEditor = document.querySelector('[data-sql-viewer-editor]');
+const sqlViewerStatus = document.querySelector('[data-sql-viewer-status]');
+const indentSqlViewerButton = document.querySelector('[data-indent-sql-viewer]');
+const copySqlViewerButton = document.querySelector('[data-copy-sql-viewer]');
+const pasteSqlViewerButton = document.querySelector('[data-paste-sql-viewer]');
+const closeSqlViewerButtons = Array.from(document.querySelectorAll('[data-close-sql-viewer]'));
 const budgetFrame = document.querySelector('[data-budget-frame]');
 const dashboardStorageKey = 'crmDashboardScenario:v1';
 const dashboardCanvasHeightKey = 'crmDashboardCanvasHeight:v1';
@@ -1201,6 +1209,10 @@ function excluirWidgetDashboard(widgetId) {
     renderizarDashboard();
 }
 
+function renderizarIconeOlho() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+}
+
 function renderizarDashboard() {
     if (!dashboardCanvas) return;
     limparGraficosDashboard();
@@ -1224,12 +1236,15 @@ function renderizarDashboard() {
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     ${renderizarIconeWidget(obterAparenciaWidget(widget).icone)}
                     <strong>${escapeHtml(widget.titulo)}</strong>
-                    ${editorAtivo ? `
-                        <div class="crm-dashboard-widget-actions">
+                    <div class="crm-dashboard-widget-actions">
+                        <button type="button" class="crm-widget-query-button" data-view-widget-sql aria-label="Ver consulta SQL" title="Ver consulta SQL">
+                            ${renderizarIconeOlho()}
+                        </button>
+                        ${editorAtivo ? `
                             <button type="button" data-edit-widget>Editar</button>
                             <button type="button" class="crm-danger-button" data-delete-widget>Excluir</button>
-                        </div>
-                    ` : ''}
+                        ` : ''}
+                    </div>
                 </div>
                 ${renderizarVisualGrafico(widget)}
                 ${editorAtivo ? '<span class="crm-dashboard-resize" data-resize-widget aria-hidden="true"></span>' : ''}
@@ -1237,6 +1252,102 @@ function renderizarDashboard() {
         `;
     }).join('');
     renderizarGraficosDashboard(widgets);
+}
+
+function atualizarStatusVisualizadorSql(mensagem, erro = false) {
+    if (!sqlViewerStatus) return;
+    sqlViewerStatus.textContent = mensagem;
+    sqlViewerStatus.classList.toggle('is-error', erro);
+}
+
+function abrirVisualizadorSql(widgetId) {
+    const widget = obterWidgetsDashboard().find(item => item.id === widgetId);
+    if (!widget || !sqlViewerModal || !sqlViewerEditor) return;
+    if (sqlViewerTitle) sqlViewerTitle.textContent = widget.titulo || 'Consulta SQL';
+    sqlViewerEditor.value = String(widget.sql || '');
+    atualizarStatusVisualizadorSql('');
+    sqlViewerModal.hidden = false;
+    requestAnimationFrame(() => sqlViewerEditor.focus());
+}
+
+function fecharVisualizadorSql() {
+    if (!sqlViewerModal) return;
+    sqlViewerModal.hidden = true;
+    atualizarStatusVisualizadorSql('');
+}
+
+function formatarSqlVisualizador(sql) {
+    const protegidos = [];
+    let protegido = String(sql || '').replace(
+        /('(?:''|[^'])*'|"(?:""|[^"])*"|--[^\r\n]*|\/\*[\s\S]*?\*\/)/g,
+        trecho => `__CRM_SQL_${protegidos.push(trecho) - 1}__`
+    );
+    protegido = protegido.replace(
+        /\bBETWEEN\s+([^\s]+)\s+AND\s+([^\s,)]+)/gi,
+        trecho => `__CRM_SQL_${protegidos.push(trecho.replace(/^between/i, 'BETWEEN').replace(/\s+and\s+/i, ' AND ')) - 1}__`
+    );
+    const palavras = [
+        'UNION ALL', 'LEFT OUTER JOIN', 'RIGHT OUTER JOIN', 'FULL OUTER JOIN',
+        'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'INNER JOIN', 'GROUP BY', 'ORDER BY',
+        'UNION', 'SELECT', 'FROM', 'WHERE', 'HAVING', 'JOIN', 'ON', 'AND', 'OR',
+        'WHEN', 'ELSE', 'END', 'LIMIT', 'OFFSET'
+    ];
+    const padrao = new RegExp(`\\b(${palavras.join('|').replace(/ /g, '\\s+')})\\b`, 'gi');
+    const linhas = protegido
+        .replace(/\s+/g, ' ')
+        .replace(padrao, (_, palavra) => `\n${palavra.toUpperCase().replace(/\s+/g, ' ')}`)
+        .trim()
+        .split('\n')
+        .map(linha => linha.trim())
+        .filter(Boolean);
+    let nivel = 0;
+    const formatado = linhas.map(linha => {
+        const fechamentosIniciais = (linha.match(/^\)+/)?.[0].length || 0);
+        nivel = Math.max(0, nivel - fechamentosIniciais);
+        const resultado = `${'    '.repeat(nivel)}${linha}`;
+        const aberturas = (linha.match(/\(/g) || []).length;
+        const fechamentos = (linha.match(/\)/g) || []).length - fechamentosIniciais;
+        nivel = Math.max(0, nivel + aberturas - fechamentos);
+        return resultado;
+    }).join('\n');
+    return protegidos.reduceRight(
+        (resultado, trecho, indice) => resultado.replaceAll(`__CRM_SQL_${indice}__`, trecho),
+        formatado
+    );
+}
+
+function indentarSqlVisualizador() {
+    if (!sqlViewerEditor) return;
+    sqlViewerEditor.value = formatarSqlVisualizador(sqlViewerEditor.value);
+    atualizarStatusVisualizadorSql('Consulta indentada.');
+    sqlViewerEditor.focus();
+}
+
+async function copiarSqlVisualizador() {
+    if (!sqlViewerEditor) return;
+    try {
+        await navigator.clipboard.writeText(sqlViewerEditor.value);
+        atualizarStatusVisualizadorSql('Consulta copiada.');
+    } catch (error) {
+        sqlViewerEditor.select();
+        const copiado = document.execCommand('copy');
+        atualizarStatusVisualizadorSql(copiado ? 'Consulta copiada.' : 'Não foi possível copiar.', !copiado);
+    }
+}
+
+async function colarSqlVisualizador() {
+    if (!sqlViewerEditor) return;
+    try {
+        const texto = await navigator.clipboard.readText();
+        const inicio = sqlViewerEditor.selectionStart;
+        const fim = sqlViewerEditor.selectionEnd;
+        sqlViewerEditor.setRangeText(texto, inicio, fim, 'end');
+        atualizarStatusVisualizadorSql('Conteúdo colado.');
+        sqlViewerEditor.focus();
+    } catch (error) {
+        atualizarStatusVisualizadorSql('Permita o acesso à área de transferência para colar.', true);
+        sqlViewerEditor.focus();
+    }
 }
 
 function obterConfigGrafico(tipo) {
@@ -2030,6 +2141,12 @@ function inicializarEditorDashboard() {
             }
 
             dashboardCanvas.querySelectorAll('[data-drill-menu]').forEach(item => { item.hidden = true; });
+            const viewSqlButton = event.target.closest('[data-view-widget-sql]');
+            if (viewSqlButton) {
+                const card = viewSqlButton.closest('[data-widget-id]');
+                if (card) abrirVisualizadorSql(card.dataset.widgetId);
+                return;
+            }
             const deleteButton = event.target.closest('[data-delete-widget]');
             if (deleteButton) {
                 const card = deleteButton.closest('[data-widget-id]');
@@ -2045,6 +2162,13 @@ function inicializarEditorDashboard() {
     }
 
     closeWidgetButtons.forEach(button => button.addEventListener('click', fecharModalWidget));
+    closeSqlViewerButtons.forEach(button => button.addEventListener('click', fecharVisualizadorSql));
+    if (indentSqlViewerButton) indentSqlViewerButton.addEventListener('click', indentarSqlVisualizador);
+    if (copySqlViewerButton) copySqlViewerButton.addEventListener('click', copiarSqlVisualizador);
+    if (pasteSqlViewerButton) pasteSqlViewerButton.addEventListener('click', colarSqlVisualizador);
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && sqlViewerModal && !sqlViewerModal.hidden) fecharVisualizadorSql();
+    });
     if (saveWidgetButton) saveWidgetButton.addEventListener('click', salvarWidgetAtual);
 }
 function formatarDataInput(data) {
