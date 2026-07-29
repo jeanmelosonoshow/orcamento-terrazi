@@ -1982,7 +1982,7 @@ async function atualizarDadosMapeadosWidget(mapeamentos) {
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.details || data.error || 'Erro ao calcular os dados no banco.');
         dadosConsultaAtual = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
-        if (widgetEmEdicao) widgetEmEdicao.dadosConsultaAgregados = visualizacao.resultadoAgregado === true;
+        if (widgetEmEdicao) widgetEmEdicao.dadosConsultaAgregados = data.resultadoAgregado === true;
         renderizarResultadoConsulta(`${data.linhas || dadosConsultaAtual.length} resultado(s) calculado(s) no banco.`, 'success');
         return true;
     } catch (error) {
@@ -2086,7 +2086,7 @@ async function executarWidgetComFiltros(widget, filtros) {
             ...widget,
             colunasConsulta: Array.isArray(data.colunas) ? data.colunas : [],
             dadosConsulta: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []),
-            dadosConsultaAgregados: visualizacao?.resultadoAgregado === true,
+            dadosConsultaAgregados: data.resultadoAgregado === true,
             consultaAtualizadaEm: new Date().toISOString()
         };
     } finally {

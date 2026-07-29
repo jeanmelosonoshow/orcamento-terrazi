@@ -6,7 +6,7 @@ import { requireRequestSession } from '../lib/session-token.js';
 import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
 import { validarSqlLeitura } from '../lib/scenario-sql-validation.js';
-import { prepararConsultaVisual } from '../lib/scenario-visual-query.js';
+import { aplicarVisualizacaoEmMemoria, prepararConsultaVisual } from '../lib/scenario-visual-query.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
@@ -72,17 +72,22 @@ export default async function handler(req, res) {
             linhas = await executarConsultaFirebird(preparado.sql, preparado.valores, {
                 operacao: 'executar-cenario',
                 timeoutMs: CONSULTA_TIMEOUT_MS,
-                limite: LIMITE_RETORNO,
+                limite: preparado.agregarEmMemoria ? undefined : LIMITE_RETORNO,
                 permitirFallbackCharset: true
             });
         }
+        if (preparado.agregarEmMemoria) {
+            linhas = aplicarVisualizacaoEmMemoria(linhas, visualizacao).slice(0, LIMITE_RETORNO);
+        }
+        const resultadoAgregado = preparado.resultadoAgregado === true || preparado.agregarEmMemoria === true;
 
         res.status(200).json({
             colunas: extrairColunas(linhas),
             linhas: linhas.length,
             limite: LIMITE_PREVIA,
             amostra: linhas.slice(0, LIMITE_PREVIA),
-            dados: linhas
+            dados: linhas,
+            resultadoAgregado
         });
     } catch (error) {
         const status = fonteNormalizada === 'firebird' ? statusHttpErroFirebird(error) : 500;
