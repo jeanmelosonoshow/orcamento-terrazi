@@ -3,8 +3,8 @@
     "loginPermitido": ["VD", "GR", "SU", "DI", "CX"]
   },
   "cenarios": {
-    "editoresIdFuncionario": ["752","142"]
+    "editoresIdFuncionario": ["142"]
   },
   "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
-  "scenarioEditorFuncionarioIds": ["752","142"]
+  "scenarioEditorFuncionarioIds": ["142"]
 }
