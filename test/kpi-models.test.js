@@ -20,3 +20,11 @@ test('editor carrega o avaliador e os controles de formula e mascara', async () 
     assert.match(html, /data-kpi-output-format/);
     assert.match(html, /kpi-calculator.js/);
 });
+
+
+test('KPI agregado executa COUNT DISTINCT no banco sem contar novamente no navegador', async () => {
+    const fonte = await readFile(crmJsUrl, 'utf8');
+    assert.ok(fonte.includes("const ehKpiAgregado = ['kpi', 'kpi-target'].includes(tipo)"));
+    assert.ok(fonte.includes('resultadoAgregado: ehKpiAgregado'));
+    assert.ok(fonte.includes("widget.dadosConsultaAgregados ? 'none'"));
+});

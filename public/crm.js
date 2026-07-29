@@ -308,6 +308,7 @@ function criarWidgetPadrao(tipo = 'bar') {
         fonte: 'firebird',
         sql: '',
         calculo: { formula: '', formatoSaida: 'decimal', rotulo: 'Resultado calculado' },
+        dadosConsultaAgregados: false,
         categoriasPermitidas: categoriasDashboard.map(item => item.codigo),
         aparencia: { ...aparenciaWidgetPadrao }
     };
@@ -614,6 +615,7 @@ function prepararDadosGrafico(widget) {
     const valores = mapeamentos.filter(item => item.papel === 'valor');
     const metas = mapeamentos.filter(item => item.papel === 'meta');
     const medidas = [...valores, ...metas];
+    const agregacaoDados = mapeamento => widget.dadosConsultaAgregados ? 'none' : (mapeamento.agregacao || 'none');
     if (!linhas.length || !valores.length) return null;
 
     const grupos = new Map();
@@ -635,8 +637,8 @@ function prepararDadosGrafico(widget) {
             if (comparacao !== 0) return direcaoDimensao === 'desc' ? -comparacao : comparacao;
         }
         for (const valor of valoresOrdenados) {
-            const agregadoA = calcularAgregacao(a.linhas.map(linha => obterValorLinha(linha, valor.coluna)), valor.agregacao || 'none');
-            const agregadoB = calcularAgregacao(b.linhas.map(linha => obterValorLinha(linha, valor.coluna)), valor.agregacao || 'none');
+            const agregadoA = calcularAgregacao(a.linhas.map(linha => obterValorLinha(linha, valor.coluna)), agregacaoDados(valor));
+            const agregadoB = calcularAgregacao(b.linhas.map(linha => obterValorLinha(linha, valor.coluna)), agregacaoDados(valor));
             const comparacao = compararValoresOrdenacao(agregadoA, agregadoB);
             if (comparacao !== 0) return obterOrdenacaoCampo(valor) === 'desc' ? -comparacao : comparacao;
         }
@@ -660,7 +662,7 @@ function prepararDadosGrafico(widget) {
                 : grupo.linhas.filter(linha => formatarDimensao(obterValorLinha(linha, coluna.coluna), coluna.formatoData) === membro);
             return calcularAgregacao(
                 linhasSerie.map(linha => obterValorLinha(linha, mapeamento.coluna)),
-                mapeamento.agregacao || 'none'
+                agregacaoDados(mapeamento)
             );
         })
     })));
@@ -1911,16 +1913,25 @@ function obterFiltrosCenario() {
 }
 
 function montarVisualizacaoWidget(widget, opcoes = {}) {
-    if (String(widget?.tipo) !== 'pivot') return null;
+    const tipo = String(widget?.tipo || '');
+    const ehPivot = tipo === 'pivot';
+    const ehKpiAgregado = ['kpi', 'kpi-target'].includes(tipo);
+    if (!ehPivot && !ehKpiAgregado) return null;
+
     const mapeamentos = Array.isArray(widget.mapeamentos) ? widget.mapeamentos : [];
-    const dimensoes = opcoes.campoDrill
-        ? [opcoes.campoDrill]
-        : mapeamentos.filter(item => item.papel === 'linha');
-    const colunas = mapeamentos.filter(item => item.papel === 'coluna');
-    const valores = mapeamentos.filter(item => item.papel === 'valor');
-    if (!dimensoes.length || !valores.length) return null;
+    const dimensoes = ehPivot
+        ? (opcoes.campoDrill ? [opcoes.campoDrill] : mapeamentos.filter(item => item.papel === 'linha'))
+        : [];
+    const colunas = ehPivot ? mapeamentos.filter(item => item.papel === 'coluna') : [];
+    const valores = ehPivot
+        ? mapeamentos.filter(item => item.papel === 'valor')
+        : mapeamentos.filter(item => ['valor', 'meta'].includes(item.papel));
+    const possuiAgregacao = valores.some(item => String(item.agregacao || 'none') !== 'none');
+    if (!valores.length || (ehPivot && !dimensoes.length) || (ehKpiAgregado && !possuiAgregacao)) return null;
+
     return {
         agrupar: true,
+        resultadoAgregado: ehKpiAgregado,
         dimensoes: dimensoes.map(item => ({ coluna: item.coluna, ordenacao: obterOrdenacaoCampo(item) })),
         colunas: colunas.map(item => ({ coluna: item.coluna, ordenacao: obterOrdenacaoCampo(item) })),
         valores: valores.map(item => ({
@@ -1936,7 +1947,6 @@ function montarVisualizacaoWidget(widget, opcoes = {}) {
 
 async function atualizarDadosMapeadosWidget(mapeamentos) {
     const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
-    if (tipo !== 'pivot') return true;
     const widgetTemporario = {
         ...(widgetEmEdicao || {}),
         tipo,
@@ -1945,8 +1955,11 @@ async function atualizarDadosMapeadosWidget(mapeamentos) {
         sql: widgetSqlTextarea?.value.trim() || ''
     };
     const visualizacao = montarVisualizacaoWidget(widgetTemporario);
-    if (!visualizacao) return true;
-    renderizarResultadoConsulta('Agrupando todos os registros no banco...', 'info');
+    if (!visualizacao) {
+        if (widgetEmEdicao) widgetEmEdicao.dadosConsultaAgregados = false;
+        return true;
+    }
+    renderizarResultadoConsulta('Calculando todos os registros no banco...', 'info');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
@@ -1966,12 +1979,13 @@ async function atualizarDadosMapeadosWidget(mapeamentos) {
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
-        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao agrupar a tabela dinâmica.');
+        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao calcular os dados no banco.');
         dadosConsultaAtual = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
-        renderizarResultadoConsulta(`${data.linhas || dadosConsultaAtual.length} grupos calculados no banco.`, 'success');
+        if (widgetEmEdicao) widgetEmEdicao.dadosConsultaAgregados = visualizacao.resultadoAgregado === true;
+        renderizarResultadoConsulta(`${data.linhas || dadosConsultaAtual.length} resultado(s) calculado(s) no banco.`, 'success');
         return true;
     } catch (error) {
-        renderizarResultadoConsulta(error.name === 'AbortError' ? 'Tempo limite ao agrupar a tabela dinâmica.' : error.message, 'error');
+        renderizarResultadoConsulta(error.name === 'AbortError' ? 'Tempo limite ao calcular os dados.' : error.message, 'error');
         return false;
     } finally {
         clearTimeout(timeout);
@@ -2046,6 +2060,7 @@ function widgetUtilizaFiltrosVisiveis(widget) {
 }
 
 async function executarWidgetComFiltros(widget, filtros) {
+    const visualizacao = montarVisualizacaoWidget(widget);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
@@ -2060,7 +2075,7 @@ async function executarWidgetComFiltros(widget, filtros) {
                 fonte: widget.fonte || 'firebird',
                 sql: widget.sql,
                 filtros,
-                visualizacao: montarVisualizacaoWidget(widget)
+                visualizacao
             })
         });
         const data = await response.json().catch(() => ({}));
@@ -2070,6 +2085,7 @@ async function executarWidgetComFiltros(widget, filtros) {
             ...widget,
             colunasConsulta: Array.isArray(data.colunas) ? data.colunas : [],
             dadosConsulta: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []),
+            dadosConsultaAgregados: visualizacao?.resultadoAgregado === true,
             consultaAtualizadaEm: new Date().toISOString()
         };
     } finally {
