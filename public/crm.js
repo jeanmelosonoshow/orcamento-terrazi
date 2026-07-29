@@ -97,6 +97,14 @@ const crmVendedorOptions = document.querySelector('[data-vendedor-options]');
 const applyFiltersButton = document.querySelector('[data-apply-filters]');
 const resetFiltersButton = document.querySelector('[data-reset-filters]');
 const filterStatus = document.querySelector('[data-filter-status]');
+
+function aplicarVisibilidadeFiltrosPorCategoria() {
+    if (crmFilialFilter) crmFilialFilter.hidden = categoriaSemFiltrosFilialVendedor;
+    if (crmSellerFilter && categoriaSemFiltrosFilialVendedor) crmSellerFilter.hidden = true;
+}
+
+aplicarVisibilidadeFiltrosPorCategoria();
+
 const podeEditarCenarios = Boolean(usuarioLogado.podeEditarCenarios || usuarioLogado.canEditScenarios);
 const dashboardEditor = document.querySelector('[data-dashboard-editor]');
 const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');

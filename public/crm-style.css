@@ -573,6 +573,10 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     display: grid;
     gap: 7px;
 }
+
+.crm-filial-filter[hidden] {
+    display: none;
+}
 @media (min-width: 760px) {
     body {
         display: grid;

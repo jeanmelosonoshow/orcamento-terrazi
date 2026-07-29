@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const html = fs.readFileSync(new URL('../public/crm.html', import.meta.url), 'utf8');
 const script = fs.readFileSync(new URL('../public/crm.js', import.meta.url), 'utf8');
+const style = fs.readFileSync(new URL('../public/crm-style.css', import.meta.url), 'utf8');
 
 test('painel oferece acao compacta para restaurar filtros', () => {
     assert.match(html, /data-reset-filters/);
@@ -40,4 +41,6 @@ test('VD e CX ocultam filial e vendedor e nao enviam listas aos cards', () => {
     assert.ok(script.includes('filiais: categoriaSemFiltrosFilialVendedor ? []'));
     assert.ok(script.includes("categoriaCodigo === 'VD'"));
     assert.ok(script.includes("categoriaCodigo === 'CX'"));
+    assert.match(script, /aplicarVisibilidadeFiltrosPorCategoria\(\);/);
+    assert.match(style, /\.crm-filial-filter\[hidden\]\s*\{\s*display:\s*none;/);
 });

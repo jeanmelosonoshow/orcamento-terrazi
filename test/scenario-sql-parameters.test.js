@@ -119,3 +119,61 @@ test('caixa ignora listas e usa somente sua filial autenticada', () => {
     assert.equal(contexto.idfilial, '19');
     assert.equal(contexto.idvendedor, '');
 });
+
+test('aceita o nome completo da categoria ao montar o contexto', () => {
+    const contexto = montarContextoConsulta(
+        { filiais: ['99'], vendedores: ['999'] },
+        { categoria: 'Vendedor', sub: '10', idfilial: '01', idvendedor: '632' }
+    );
+
+    assert.equal(contexto.categoria, 'VD');
+    assert.deepEqual(contexto.filiais, []);
+    assert.deepEqual(contexto.vendedores, []);
+    assert.equal(contexto.idfilial, '');
+    assert.equal(contexto.idvendedor, '632');
+});
+
+test('vendedor neutraliza filtros de listas e mantem identidade e periodo', () => {
+    const preparado = prepararSqlCenario(
+        `SELECT * FROM VENDAS V
+WHERE V.DATA BETWEEN :data_inicial AND :data_final
+  AND V.IDFILIAL IN (:filiais)
+  AND V.IDVENDEDOR IN (:vendedores)
+  AND V.IDVENDEDOR = :idvendedor`,
+        'firebird',
+        {
+            categoria: 'VD',
+            dataInicial: '2026-07-01',
+            dataFinal: '2026-07-29',
+            idvendedor: '632',
+            filiais: [],
+            vendedores: []
+        }
+    );
+
+    assert.doesNotMatch(preparado.sql, /:filiais|:vendedores|__SEM_VALOR__/i);
+    assert.equal((preparado.sql.match(/1 = 1/g) || []).length, 2);
+    assert.deepEqual(preparado.valores, ['2026-07-01', '2026-07-29', '632']);
+});
+
+test('caixa neutraliza listas dentro de execute block e mantem sua filial', () => {
+    const preparado = prepararSqlCenario(
+        `EXECUTE BLOCK RETURNS (TOTAL INTEGER) AS
+BEGIN
+  SELECT COUNT(*)
+    FROM VENDAS V
+   WHERE V.IDFILIAL IN (:filiais)
+     AND V.IDVENDEDOR IN (:vendedores)
+     AND V.IDFILIAL = :idfilial
+    INTO :TOTAL;
+  SUSPEND;
+END`,
+        'firebird',
+        { categoria: 'CX', idfilial: '19', filiais: [], vendedores: [] }
+    );
+
+    assert.doesNotMatch(preparado.sql, /CRM_SYS_FILIAIS|CRM_SYS_VENDEDORES|__SEM_VALOR__/);
+    assert.equal((preparado.sql.match(/1 = 1/g) || []).length, 2);
+    assert.match(preparado.sql, /CRM_SYS_IDFILIAL VARCHAR\(50\) = \?/);
+    assert.deepEqual(preparado.valores, ['19']);
+});
