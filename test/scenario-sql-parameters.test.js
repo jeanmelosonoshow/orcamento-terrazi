@@ -96,3 +96,26 @@ END`,
     assert.equal((preparado.sql.match(/:CRM_SYS_IDFILIAL/g) || []).length, 3);
     assert.deepEqual(preparado.valores, ['01']);
 });
+
+
+test('vendedor ignora listas e usa somente sua identidade de vendedor', () => {
+    const contexto = montarContextoConsulta(
+        { filiais: ['99'], vendedores: ['999'] },
+        { categoria: 'VD', sub: '10', idfilial: '01', idvendedor: '632' }
+    );
+    assert.deepEqual(contexto.filiais, []);
+    assert.deepEqual(contexto.vendedores, []);
+    assert.equal(contexto.idfilial, '');
+    assert.equal(contexto.idvendedor, '632');
+});
+
+test('caixa ignora listas e usa somente sua filial autenticada', () => {
+    const contexto = montarContextoConsulta(
+        { filiais: ['99'], vendedores: ['999'] },
+        { categoria: 'CX', sub: '11', idfilial: '19', idvendedor: '777' }
+    );
+    assert.deepEqual(contexto.filiais, []);
+    assert.deepEqual(contexto.vendedores, []);
+    assert.equal(contexto.idfilial, '19');
+    assert.equal(contexto.idvendedor, '');
+});

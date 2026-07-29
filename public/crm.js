@@ -75,6 +75,7 @@ window.addEventListener('hashchange', () => {
 const categoriaRaw = String(usuarioLogado.categoria || usuarioLogado.CATEGORIA || '').trim().toUpperCase();
 const categoriaCodigo = categoriasTraduzidas[categoriaRaw] ? categoriaRaw : (categoriasPorNome[categoriaRaw] || categoriaRaw);
 const categoria = categoriasTraduzidas[categoriaCodigo] || categoriaCodigo || 'USUÁRIO';
+const categoriaSemFiltrosFilialVendedor = ['VD', 'CX'].includes(categoriaCodigo);
 
 const crmUserName = document.getElementById('crmUserName');
 const crmUserMeta = document.getElementById('crmUserMeta');
@@ -82,6 +83,7 @@ const crmUserFilial = document.getElementById('crmUserFilial');
 const crmUserInitials = document.getElementById('crmUserInitials');
 const crmDataInicial = document.querySelector('[data-date-start]');
 const crmDataFinal = document.querySelector('[data-date-end]');
+const crmFilialFilter = document.querySelector('[data-filial-filter]');
 const crmFilialTrigger = document.querySelector('[data-filial-trigger]');
 const crmFilialPanel = document.querySelector('[data-filial-panel]');
 const crmFilialSearch = document.querySelector('[data-filial-search]');
@@ -1928,11 +1930,11 @@ function obterFiltrosCenario() {
     return {
         dataInicial: sessionStorage.getItem('crmDataInicial') || crmDataInicial?.value || '',
         dataFinal: sessionStorage.getItem('crmDataFinal') || crmDataFinal?.value || '',
-        filiais: getFiliaisSelecionadas(),
-        vendedores: getVendedoresSelecionados(),
+        filiais: categoriaSemFiltrosFilialVendedor ? [] : getFiliaisSelecionadas(),
+        vendedores: categoriaSemFiltrosFilialVendedor ? [] : getVendedoresSelecionados(),
         idfuncionario: idFuncionarioLogado || '',
-        idfilial: filialId || '',
-        idvendedor: idVendedorLogado || ''
+        idfilial: categoriaCodigo === 'VD' ? '' : (filialId || ''),
+        idvendedor: categoriaCodigo === 'CX' ? '' : (idVendedorLogado || '')
     };
 }
 
@@ -2085,7 +2087,12 @@ async function executarDrillDownWidget(contexto, campo) {
 
 function widgetUtilizaFiltrosVisiveis(widget) {
     const consultas = Array.isArray(widget?.consultas) && widget.consultas.length ? widget.consultas : [{ sql: widget?.sql || '' }];
-    return consultas.some(consulta => /:(data_inicial|data_final|filiais|vendedores)\b/i.test(String(consulta.sql || '')));
+    const parametros = categoriaCodigo === 'VD'
+        ? /:(data_inicial|data_final|idvendedor)\b/i
+        : (categoriaCodigo === 'CX'
+            ? /:(data_inicial|data_final|idfilial)\b/i
+            : /:(data_inicial|data_final|filiais|vendedores)\b/i);
+    return consultas.some(consulta => parametros.test(String(consulta.sql || '')));
 }
 
 async function executarWidgetComFiltros(widget, filtros) {
@@ -2122,7 +2129,7 @@ async function aplicarFiltrosDashboard() {
     const dataFinal = crmDataFinal?.value || '';
     if (!dataInicial || !dataFinal) return atualizarStatusFiltros('Informe as duas datas.', true);
     if (dataInicial > dataFinal) return atualizarStatusFiltros('A data inicial deve ser anterior a data final.', true);
-    if (filiaisDisponiveis.length && !filiaisRascunho.length) return atualizarStatusFiltros('Selecione ao menos uma filial.', true);
+    if (!crmFilialFilter?.hidden && filiaisDisponiveis.length && !filiaisRascunho.length) return atualizarStatusFiltros('Selecione ao menos uma filial.', true);
     if (!crmSellerFilter?.hidden && vendedoresDisponiveis.length && !vendedoresRascunho.length) {
         return atualizarStatusFiltros('Selecione ao menos um vendedor.', true);
     }
@@ -3006,8 +3013,9 @@ async function carregarVendedores(selecionarTodos = false) {
 
     if (!podeFiltrarVendedor) {
         crmSellerFilter.hidden = true;
-        vendedoresRascunho = idVendedorLogado ? [String(idVendedorLogado)] : [];
-        setVendedoresSelecionados(vendedoresRascunho);
+        vendedoresDisponiveis = [];
+        vendedoresRascunho = [];
+        sessionStorage.removeItem('crmVendedoresSelecionados');
         return;
     }
 
@@ -3069,6 +3077,16 @@ async function carregarVendedores(selecionarTodos = false) {
 
 async function carregarFiliais() {
     if (!crmFilialTrigger || !crmFilialReadonly) return;
+    if (categoriaSemFiltrosFilialVendedor) {
+        if (crmFilialFilter) crmFilialFilter.hidden = true;
+        filiaisDisponiveis = [];
+        filiaisRascunho = [];
+        sessionStorage.removeItem('crmFiliaisSelecionadas');
+        sessionStorage.removeItem('crmFilialSelecionada');
+        atualizarFilialUsuario(usuarioLogado.nomefilial);
+        return;
+    }
+    if (crmFilialFilter) crmFilialFilter.hidden = false;
     const podeSelecionar = ['DI', 'SU'].includes(categoriaCodigo);
     crmFilialTrigger.disabled = true;
     crmFilialTrigger.textContent = 'Carregando filiais...';

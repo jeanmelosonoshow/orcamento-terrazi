@@ -31,3 +31,13 @@ test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => 
     assert.match(rotina, /await carregarVendedores\(true\)/);
     assert.match(rotina, /await aplicarFiltrosDashboard\(\)/);
 });
+
+
+test('VD e CX ocultam filial e vendedor e nao enviam listas aos cards', () => {
+    assert.match(html, /data-filial-filter/);
+    assert.ok(script.includes("const categoriaSemFiltrosFilialVendedor = ['VD', 'CX'].includes(categoriaCodigo)"));
+    assert.ok(script.includes('if (crmFilialFilter) crmFilialFilter.hidden = true'));
+    assert.ok(script.includes('filiais: categoriaSemFiltrosFilialVendedor ? []'));
+    assert.ok(script.includes("categoriaCodigo === 'VD'"));
+    assert.ok(script.includes("categoriaCodigo === 'CX'"));
+});
