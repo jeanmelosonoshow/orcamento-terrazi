@@ -28,6 +28,7 @@ const categoriasTraduzidas = {
     CX: 'CAIXA'
 };
 const categoriasPorNome = Object.fromEntries(Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => [nomeCategoria, codigo]));
+const categoriasDashboard = window.CRM_DASHBOARD_LAYOUT?.categorias || Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => ({ codigo, nome: nomeCategoria }));
 function obterViewPorHash(hash) {
     return hash === '#orcamentos' ? 'orcamentos' : 'visao-geral';
 }
@@ -140,6 +141,8 @@ const widgetGradientFields = Array.from(document.querySelectorAll('[data-widget-
 const widgetPaletteOptions = document.querySelector('[data-widget-palette-options]');
 const widgetIconOptions = document.querySelector('[data-widget-icon-options]');
 const widgetIconColorInput = document.querySelector('[data-widget-icon-color]');
+const widgetCategoryOptions = document.querySelector('[data-widget-category-options]');
+const widgetCategoryError = document.querySelector('[data-widget-category-error]');
 const appearancePreview = document.querySelector('[data-appearance-preview]');
 const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
 const sqlViewerModal = document.querySelector('[data-sql-viewer-modal]');
@@ -174,6 +177,8 @@ const estadosDrillDashboard = new Map();
 const contextosDrillDashboard = new Map();
 let instanciaPreviaAparencia = null;
 let sequenciaContextoDrill = 0;
+let observadorTamanhoDashboard = null;
+let larguraDashboardObservada = 0;
 
 const catalogoGraficos = [
     { id: 'kpi', nome: 'Indicador KPI', roles: ['valor'] },
@@ -303,6 +308,7 @@ function criarWidgetPadrao(tipo = 'bar') {
         fonte: 'firebird',
         sql: '',
         calculo: { formula: '', formatoSaida: 'decimal', rotulo: 'Resultado calculado' },
+        categoriasPermitidas: categoriasDashboard.map(item => item.codigo),
         aparencia: { ...aparenciaWidgetPadrao }
     };
 }
@@ -1438,7 +1444,7 @@ function observarAjusteKpi(container, widgetId) {
     observadoresGraficosDashboard.set(widgetId, observador);
 }
 
-function renderizarGraficosDashboard(widgets) {
+function renderizarGraficosDashboard(widgets, widgetsCalculo = widgets) {
     widgets.forEach(widget => {
         const seletorId = window.CSS?.escape ? window.CSS.escape(widget.id) : String(widget.id).replace(/"/g, '\\"');
         const container = dashboardCanvas?.querySelector(`[data-chart-widget="${seletorId}"]`);
@@ -1449,7 +1455,7 @@ function renderizarGraficosDashboard(widgets) {
         }
         if (widget.tipo === 'kpi-calculated') {
             const configuracao = widget.calculo || {};
-            const resultado = obterResultadoKpiCalculado(widget, widgets);
+            const resultado = obterResultadoKpiCalculado(widget, widgetsCalculo);
             if (resultado.erro) {
                 container.innerHTML = `<div class="crm-chart-empty">${escapeHtml(resultado.erro)}</div>`;
                 return;
@@ -1530,12 +1536,62 @@ function obterLayoutWidget(widget, index = 0) {
     };
 }
 
+function obterCategoriasPermitidasWidget(widget = {}) {
+    if (window.CRM_DASHBOARD_LAYOUT?.normalizarCategoriasPermitidas) {
+        return window.CRM_DASHBOARD_LAYOUT.normalizarCategoriasPermitidas(widget.categoriasPermitidas);
+    }
+    if (!Array.isArray(widget.categoriasPermitidas)) return categoriasDashboard.map(item => item.codigo);
+    const validas = new Set(categoriasDashboard.map(item => item.codigo));
+    return Array.from(new Set(widget.categoriasPermitidas.map(String).map(item => item.toUpperCase()).filter(item => validas.has(item))));
+}
+
+function widgetVisivelParaCategoria(widget, codigo = categoriaCodigo) {
+    if (window.CRM_DASHBOARD_LAYOUT?.widgetVisivelParaCategoria) {
+        return window.CRM_DASHBOARD_LAYOUT.widgetVisivelParaCategoria(widget, codigo);
+    }
+    return obterCategoriasPermitidasWidget(widget).includes(String(codigo || '').toUpperCase());
+}
+
 function normalizarWidgetsDashboard(widgets) {
     return atribuirReferenciasIndicadores(widgets).map((widget, index) => ({
         ...widget,
+        categoriasPermitidas: obterCategoriasPermitidasWidget(widget),
         aparencia: obterAparenciaWidget(widget),
         ...obterLayoutWidget(widget, index)
     }));
+}
+
+function obterLayoutsRenderizacao(widgets) {
+    const layoutsBase = widgets.map((widget, index) => ({ id: widget.id, ...obterLayoutWidget(widget, index) }));
+    const larguraCanvas = dashboardCanvas?.clientWidth || 0;
+    const layouts = larguraCanvas > 0 && window.CRM_DASHBOARD_LAYOUT?.ajustarLargurasDireita
+        ? window.CRM_DASHBOARD_LAYOUT.ajustarLargurasDireita(layoutsBase, larguraCanvas)
+        : layoutsBase;
+    return new Map(layouts.map(layout => [layout.id, layout]));
+}
+
+function renderizarCategoriasWidget(widget) {
+    if (!widgetCategoryOptions) return;
+    const selecionadas = new Set(obterCategoriasPermitidasWidget(widget));
+    const todasSelecionadas = categoriasDashboard.every(item => selecionadas.has(item.codigo));
+    widgetCategoryOptions.innerHTML = `
+        <label class="crm-category-option is-all">
+            <input type="checkbox" data-widget-category-all${todasSelecionadas ? ' checked' : ''}>
+            <span>Todas as categorias</span>
+        </label>
+        ${categoriasDashboard.map(item => `
+            <label class="crm-category-option">
+                <input type="checkbox" value="${escapeHtml(item.codigo)}" data-widget-category${selecionadas.has(item.codigo) ? ' checked' : ''}>
+                <span>${escapeHtml(item.nome)}</span>
+            </label>
+        `).join('')}
+    `;
+    if (widgetCategoryError) widgetCategoryError.hidden = selecionadas.size > 0;
+}
+
+function coletarCategoriasWidget() {
+    if (!widgetCategoryOptions) return categoriasDashboard.map(item => item.codigo);
+    return Array.from(widgetCategoryOptions.querySelectorAll('[data-widget-category]:checked'), input => input.value);
 }
 
 function obterAlturaCanvasPreferida() {
@@ -1599,20 +1655,24 @@ function renderizarDashboard() {
     if (!dashboardCanvas) return;
     limparGraficosDashboard();
     const editorAtivo = podeEditarCenarios && modoEdicaoCenario;
-    const widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
-    salvarWidgetsDashboard(widgets);
+    const todosWidgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
+    salvarWidgetsDashboard(todosWidgets);
+    const widgets = editorAtivo
+        ? todosWidgets
+        : todosWidgets.filter(widget => widgetVisivelParaCategoria(widget));
+    const layoutsRenderizacao = obterLayoutsRenderizacao(widgets);
     atualizarAlturaCanvas(widgets);
     if (!widgets.length) {
         dashboardCanvas.innerHTML = `
             <div class="crm-dashboard-empty">
                 <strong>Nenhum grafico neste painel</strong>
-                <span>${editorAtivo ? 'Use Adicionar grafico para criar um novo indicador.' : 'Os indicadores ainda nao foram configurados.'}</span>
+                <span>${editorAtivo ? 'Use Adicionar grafico para criar um novo indicador.' : 'Nao ha indicadores disponiveis para seu perfil.'}</span>
             </div>
         `;
         return;
     }
     dashboardCanvas.innerHTML = widgets.map((widget, index) => {
-        const layout = obterLayoutWidget(widget, index);
+        const layout = layoutsRenderizacao.get(widget.id) || obterLayoutWidget(widget, index);
         const aparencia = obterAparenciaWidget(widget);
         const icone = renderizarIconeWidget(aparencia.icone, 'is-result');
         return `
@@ -1635,7 +1695,7 @@ function renderizarDashboard() {
             </article>
         `;
     }).join('');
-    renderizarGraficosDashboard(widgets);
+    renderizarGraficosDashboard(widgets, todosWidgets);
 }
 
 function atualizarStatusVisualizadorSql(mensagem, erro = false) {
@@ -2355,6 +2415,7 @@ function abrirModalWidget(widgetId) {
     renderizarMapeamentoColunas();
     carregarConfiguracaoKpiCalculado(widgetEmEdicao);
     carregarAparenciaWidget(widgetEmEdicao);
+    renderizarCategoriasWidget(widgetEmEdicao);
     atualizarModoConfiguracaoWidget();
     setEtapaWidget('sql');
     widgetModal.hidden = false;
@@ -2406,6 +2467,12 @@ function salvarWidgetAtual() {
     }
     const mapeamentos = calculado ? [] : coletarMapeamentosColunas();
     if (!calculado && !validarMapeamentoWidget(mapeamentos)) return;
+    const categoriasPermitidas = coletarCategoriasWidget();
+    if (!categoriasPermitidas.length) {
+        if (widgetCategoryError) widgetCategoryError.hidden = false;
+        setEtapaWidget('appearance');
+        return;
+    }
     let widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
     const atualizado = {
         ...widgetEmEdicao,
@@ -2418,6 +2485,7 @@ function salvarWidgetAtual() {
         consultaAtualizadaEm: calculado ? null : new Date().toISOString(),
         mapeamentos,
         calculo: calculado ? configuracaoCalculo : (widgetEmEdicao.calculo || null),
+        categoriasPermitidas,
         tabela: coletarConfiguracaoTabela(),
         aparencia: coletarAparenciaWidget()
     };
@@ -2492,6 +2560,7 @@ function inicializarInteracaoLivreDashboard() {
                 w: Math.round(card.offsetWidth),
                 h: Math.round(card.offsetHeight)
             });
+            renderizarDashboard();
         }
 
         card.addEventListener('pointermove', mover);
@@ -2618,6 +2687,18 @@ function inicializarEditorDashboard() {
     });
     if (widgetPaletteOptions) widgetPaletteOptions.addEventListener('change', renderizarPreviaAparencia);
     if (widgetIconOptions) widgetIconOptions.addEventListener('change', renderizarPreviaAparencia);
+    if (widgetCategoryOptions) {
+        widgetCategoryOptions.addEventListener('change', event => {
+            const opcoes = Array.from(widgetCategoryOptions.querySelectorAll('[data-widget-category]'));
+            const opcaoTodas = widgetCategoryOptions.querySelector('[data-widget-category-all]');
+            if (event.target.matches('[data-widget-category-all]')) {
+                opcoes.forEach(opcao => { opcao.checked = event.target.checked; });
+            } else if (opcaoTodas) {
+                opcaoTodas.checked = opcoes.length > 0 && opcoes.every(opcao => opcao.checked);
+            }
+            if (widgetCategoryError) widgetCategoryError.hidden = opcoes.some(opcao => opcao.checked);
+        });
+    }
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', async event => {
@@ -2669,6 +2750,18 @@ function inicializarEditorDashboard() {
             if (card) abrirModalWidget(card.dataset.widgetId);
         });
         inicializarInteracaoLivreDashboard();
+        if (window.ResizeObserver && !observadorTamanhoDashboard) {
+            larguraDashboardObservada = Math.round(dashboardCanvas.clientWidth || 0);
+            let frameDashboard = 0;
+            observadorTamanhoDashboard = new ResizeObserver(() => {
+                const novaLargura = Math.round(dashboardCanvas.clientWidth || 0);
+                if (!novaLargura || novaLargura === larguraDashboardObservada) return;
+                larguraDashboardObservada = novaLargura;
+                cancelAnimationFrame(frameDashboard);
+                frameDashboard = requestAnimationFrame(renderizarDashboard);
+            });
+            observadorTamanhoDashboard.observe(dashboardCanvas);
+        }
     }
 
     closeWidgetButtons.forEach(button => button.addEventListener('click', fecharModalWidget));
