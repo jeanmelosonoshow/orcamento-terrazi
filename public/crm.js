@@ -93,6 +93,7 @@ const crmVendedorPanel = document.querySelector('[data-vendedor-panel]');
 const crmVendedorSearch = document.querySelector('[data-vendedor-search]');
 const crmVendedorOptions = document.querySelector('[data-vendedor-options]');
 const applyFiltersButton = document.querySelector('[data-apply-filters]');
+const resetFiltersButton = document.querySelector('[data-reset-filters]');
 const filterStatus = document.querySelector('[data-filter-status]');
 const podeEditarCenarios = Boolean(usuarioLogado.podeEditarCenarios || usuarioLogado.canEditScenarios);
 const dashboardEditor = document.querySelector('[data-dashboard-editor]');
@@ -2125,6 +2126,7 @@ async function aplicarFiltrosDashboard() {
         applyFiltersButton.disabled = true;
         applyFiltersButton.textContent = 'Aplicando...';
     }
+    if (resetFiltersButton) resetFiltersButton.disabled = true;
     atualizarStatusFiltros('Atualizando ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + '...');
     const resultados = await Promise.allSettled(indices.map(index => executarWidgetComFiltros(widgets[index], obterFiltrosCenario())));
     let atualizados = 0;
@@ -2145,6 +2147,7 @@ async function aplicarFiltrosDashboard() {
         applyFiltersButton.disabled = false;
         applyFiltersButton.textContent = 'Aplicar';
     }
+    if (resetFiltersButton) resetFiltersButton.disabled = false;
 }
 
 function fetchJsonComTimeout(url, timeoutMs = 15000) {
@@ -2810,6 +2813,39 @@ function inicializarPeriodo() {
     sessionStorage.setItem('crmDataFinal', dataFinal);
 }
 
+function limparFiltrosPersistidos() {
+    [
+        'crmDataInicial',
+        'crmDataFinal',
+        'crmFiliaisSelecionadas',
+        'crmFilialSelecionada',
+        'crmVendedoresSelecionados'
+    ].forEach(chave => sessionStorage.removeItem(chave));
+}
+
+async function restaurarFiltrosPadrao() {
+    if (resetFiltersButton) resetFiltersButton.disabled = true;
+    atualizarStatusFiltros('Restaurando filtros padrão...');
+    limparFiltrosPersistidos();
+    filiaisRascunho = [];
+    vendedoresRascunho = [];
+    if (crmFilialSearch) crmFilialSearch.value = '';
+    if (crmVendedorSearch) crmVendedorSearch.value = '';
+    if (crmFilialPanel) crmFilialPanel.hidden = true;
+    if (crmVendedorPanel) crmVendedorPanel.hidden = true;
+    inicializarPeriodo();
+
+    try {
+        await carregarFiliais();
+        await carregarVendedores(true);
+        await aplicarFiltrosDashboard();
+    } catch (error) {
+        atualizarStatusFiltros('Não foi possível restaurar os filtros.', true);
+    } finally {
+        if (resetFiltersButton) resetFiltersButton.disabled = false;
+    }
+}
+
 function escapeHtml(valor) {
     return String(valor || '')
         .replace(/&/g, '&amp;')
@@ -3117,6 +3153,7 @@ function iniciarModulo(nomeModulo, inicializador) {
 function inicializarAplicacao() {
     const hashInicial = window.location.hash || '#visao-geral';
 
+    limparFiltrosPersistidos();
     iniciarModulo('navegacao', () => ativarView(obterViewPorHash(hashInicial), hashInicial));
     iniciarModulo('orcamentos', definirPaginaOrcamento);
     iniciarModulo('periodo', inicializarPeriodo);
@@ -3125,7 +3162,9 @@ function inicializarAplicacao() {
         await carregarFiliais();
         await carregarVendedores();
         if (applyFiltersButton) applyFiltersButton.addEventListener('click', aplicarFiltrosDashboard);
+        if (resetFiltersButton) resetFiltersButton.addEventListener('click', restaurarFiltrosPadrao);
         [crmDataInicial, crmDataFinal].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('')));
+        await aplicarFiltrosDashboard();
     });
 }
 

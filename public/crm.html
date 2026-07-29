@@ -108,7 +108,15 @@
                 </div>
                 <div class="crm-filter-actions">
                     <span class="crm-filter-status" data-filter-status aria-live="polite"></span>
-                    <button class="crm-apply-filters" type="button" data-apply-filters>Aplicar</button>
+                    <div class="crm-filter-action-buttons">
+                        <button class="crm-reset-filters" type="button" data-reset-filters aria-label="Limpar filtros" title="Voltar aos filtros padrão">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+                                <path d="M3 4v6h6"></path>
+                            </svg>
+                        </button>
+                        <button class="crm-apply-filters" type="button" data-apply-filters>Aplicar</button>
+                    </div>
                 </div>
             </div>
             <div class="crm-user-box">
@@ -415,6 +423,6 @@
     <script src="assets/charts/kpi-calculator.js?v=crm-20260728-1"></script>
     <script src="assets/dashboard/dashboard-layout.js?v=crm-20260729-1"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260729-25"></script>
+    <script src="crm.js?v=crm-20260729-26"></script>
 </body>
 </html>
