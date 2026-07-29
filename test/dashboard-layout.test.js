@@ -59,4 +59,6 @@ test('a tela integra o seletor de categorias e o modulo responsivo', async () =>
     assert.match(javascript, /categoriasPermitidas/);
     assert.match(javascript, /ajustarLargurasDireita/);
     assert.ok(javascript.includes('todosWidgets.filter(widget => widgetVisivelParaCategoria(widget))'));
+    assert.ok(javascript.includes('const layoutsRenderizacao = editorAtivo'));
+    assert.ok(javascript.includes(': obterLayoutsRenderizacao(widgets)'));
 });

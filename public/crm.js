@@ -1660,7 +1660,9 @@ function renderizarDashboard() {
     const widgets = editorAtivo
         ? todosWidgets
         : todosWidgets.filter(widget => widgetVisivelParaCategoria(widget));
-    const layoutsRenderizacao = obterLayoutsRenderizacao(widgets);
+    const layoutsRenderizacao = editorAtivo
+        ? new Map(widgets.map((widget, index) => [widget.id, obterLayoutWidget(widget, index)]))
+        : obterLayoutsRenderizacao(widgets);
     atualizarAlturaCanvas(widgets);
     if (!widgets.length) {
         dashboardCanvas.innerHTML = `
