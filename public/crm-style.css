@@ -2536,3 +2536,15 @@ body.crm-scenario-editing .crm-dashboard-canvas {
         grid-template-columns: 1fr;
     }
 }
+
+.crm-query-source-head { display: flex; align-items: end; gap: 10px; margin-bottom: 10px; }
+.crm-query-source-head label { flex: 1; }
+.crm-query-source-head button, .crm-calculated-fields-head button { min-height: 38px; border: 1px solid var(--linha); border-radius: 6px; background: #fff; color: var(--verde-escuro); font-weight: 800; cursor: pointer; padding: 0 12px; }
+.crm-secondary-query, .crm-query-combination, .crm-calculated-fields { margin-top: 14px; padding: 14px; border: 1px solid var(--linha); border-radius: 6px; background: rgba(255,255,255,.62); }
+.crm-query-combination > div { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-top: 10px; }
+.crm-calculated-fields-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.crm-calculated-fields-head div { display: grid; gap: 2px; }
+.crm-calculated-fields-head span { color: var(--muted); font-size: .78rem; }
+.crm-calculated-field-row { display: grid; grid-template-columns: minmax(150px,.55fr) minmax(280px,1.45fr) 40px; gap: 8px; align-items: end; margin-top: 10px; }
+.crm-calculated-field-row button { width: 40px; height: 40px; border: 1px solid #c96b62; border-radius: 6px; background: #fff; color: #9d342b; cursor: pointer; }
+@media (max-width: 760px) { .crm-query-source-head, .crm-calculated-fields-head { align-items: stretch; flex-direction: column; } .crm-query-combination > div, .crm-calculated-field-row { grid-template-columns: 1fr; } }

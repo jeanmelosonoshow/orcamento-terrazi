@@ -131,6 +131,22 @@ const kpiOutputFormatSelect = document.querySelector('[data-kpi-output-format]')
 const kpiOutputLabelInput = document.querySelector('[data-kpi-output-label]');
 const kpiFormulaStatus = document.querySelector('[data-kpi-formula-status]');
 const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
+const widgetQueryAliasInput = document.querySelector('[data-widget-query-alias]');
+const addSecondaryQueryButton = document.querySelector('[data-add-secondary-query]');
+const secondaryQueryBox = document.querySelector('[data-secondary-query]');
+const secondaryQueryAliasInput = document.querySelector('[data-secondary-query-alias]');
+const secondaryQuerySourceSelect = document.querySelector('[data-secondary-query-source]');
+const secondaryQuerySqlTextarea = document.querySelector('[data-secondary-query-sql]');
+const removeSecondaryQueryButton = document.querySelector('[data-remove-secondary-query]');
+const queryCombinationBox = document.querySelector('[data-query-combination]');
+const queryCombinationModeSelect = document.querySelector('[data-query-combination-mode]');
+const primaryKeySelect = document.querySelector('[data-primary-key]');
+const secondaryKeySelect = document.querySelector('[data-secondary-key]');
+const primaryKeyField = document.querySelector('[data-primary-key-field]');
+const secondaryKeyField = document.querySelector('[data-secondary-key-field]');
+const calculatedFieldsBox = document.querySelector('[data-calculated-fields]');
+const calculatedFieldList = document.querySelector('[data-calculated-field-list]');
+const addCalculatedFieldButton = document.querySelector('[data-add-calculated-field]');
 const saveWidgetButton = document.querySelector('[data-save-widget]');
 const widgetBackgroundModeSelect = document.querySelector('[data-widget-background-mode]');
 const widgetAlignmentSelect = document.querySelector('[data-widget-alignment]');
@@ -165,6 +181,7 @@ let widgetEmEdicao = null;
 let colunasConsultaAtual = [];
 let dadosConsultaAtual = [];
 let assinaturaConsultaAtual = '';
+let resultadosConsultasAtuais = [];
 let etapaWidgetAtual = 'sql';
 let modoEdicaoCenario = false;
 let filiaisDisponiveis = [];
@@ -308,6 +325,9 @@ function criarWidgetPadrao(tipo = 'bar') {
         mapeamentos: [],
         fonte: 'firebird',
         sql: '',
+        consultas: [],
+        combinacaoConsultas: { modo: 'single', chavePrincipal: '', chaveSecundaria: '' },
+        camposCalculados: [],
         calculo: { formula: '', formatoSaida: 'decimal', rotulo: 'Resultado calculado' },
         dadosConsultaAgregados: false,
         categoriasPermitidas: categoriasDashboard.map(item => item.codigo),
@@ -1109,6 +1129,7 @@ function agruparRegistros(registros, campo, valores = []) {
 }
 
 function obterCamposDetalheWidget(widget, mapeamentos) {
+    if (Array.isArray(widget.consultas) && widget.consultas.length > 1) return [];
     const colunasAtivas = new Set(mapeamentos
         .filter(item => item.papel !== 'ignorar')
         .map(item => String(item.coluna).toLowerCase()));
@@ -1685,7 +1706,7 @@ function renderizarDashboard() {
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     <strong>${escapeHtml(widget.titulo)}</strong>
                     <div class="crm-dashboard-widget-actions">
-                        ${widget.sql ? `<button type="button" class="crm-widget-query-button" data-view-widget-sql aria-label="Ver consulta SQL" title="Ver consulta SQL">${renderizarIconeOlho()}</button>` : ''}
+                        ${(widget.sql || widget.consultas?.length) ? `<button type="button" class="crm-widget-query-button" data-view-widget-sql aria-label="Ver consulta SQL" title="Ver consulta SQL">${renderizarIconeOlho()}</button>` : ''}
                         ${editorAtivo ? `
                             <button type="button" data-edit-widget>Editar</button>
                             <button type="button" class="crm-danger-button" data-delete-widget>Excluir</button>
@@ -1713,8 +1734,10 @@ function abrirVisualizadorSql(widgetId) {
     const widget = obterWidgetsDashboard().find(item => item.id === widgetId);
     if (!widget || !sqlViewerModal || !sqlViewerEditor) return;
     if (sqlViewerTitle) sqlViewerTitle.textContent = widget.titulo || 'Consulta SQL';
-    sqlViewerEditor.value = String(widget.sql || '');
-    renderizarParametrosVisualizadorSql(widget.sql);
+    const consultasSql = Array.isArray(widget.consultas) && widget.consultas.length ? widget.consultas : [{ alias: 'principal', fonte: widget.fonte, sql: widget.sql }];
+    const sqlComposto = consultasSql.map((consulta, indice) => `/* CONSULTA ${indice + 1}: ${consulta.alias || 'consulta'} - ${consulta.fonte || 'firebird'} */\n${consulta.sql || ''}`).join('\n\n');
+    sqlViewerEditor.value = sqlComposto;
+    renderizarParametrosVisualizadorSql(sqlComposto);
     atualizarStatusVisualizadorSql('');
     sqlViewerModal.hidden = false;
     requestAnimationFrame(() => sqlViewerEditor.focus());
@@ -1947,6 +1970,10 @@ function montarVisualizacaoWidget(widget, opcoes = {}) {
 }
 
 async function atualizarDadosMapeadosWidget(mapeamentos) {
+    if (coletarConsultasEditor().length > 1) {
+        try { recombinarConsultasEditor(); if (widgetEmEdicao) widgetEmEdicao.dadosConsultaAgregados = false; return true; }
+        catch (error) { renderizarResultadoConsulta(error.message, 'error'); return false; }
+    }
     const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
     const widgetTemporario = {
         ...(widgetEmEdicao || {}),
@@ -2057,41 +2084,31 @@ async function executarDrillDownWidget(contexto, campo) {
 }
 
 function widgetUtilizaFiltrosVisiveis(widget) {
-    return /:(data_inicial|data_final|filiais|vendedores)\b/i.test(String(widget?.sql || ''));
+    const consultas = Array.isArray(widget?.consultas) && widget.consultas.length ? widget.consultas : [{ sql: widget?.sql || '' }];
+    return consultas.some(consulta => /:(data_inicial|data_final|filiais|vendedores)\b/i.test(String(consulta.sql || '')));
 }
 
 async function executarWidgetComFiltros(widget, filtros) {
+    const consultas = Array.isArray(widget.consultas) && widget.consultas.length ? widget.consultas : [];
+    if (consultas.length > 1) {
+        const resultados = await Promise.all(consultas.map(consulta => executarConsultaConfigurada(consulta, filtros)));
+        const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
+        return { ...widget, colunasConsulta: combinado.colunas, dadosConsulta: combinado.dados, dadosConsultaAgregados: false, consultaAtualizadaEm: new Date().toISOString() };
+    }
     const visualizacao = montarVisualizacaoWidget(widget);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
         const response = await fetch('/api/executar-cenario', {
-            method: 'POST',
-            signal: controller.signal,
-            headers: {
-                'Content-Type': 'application/json',
-                ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
-            },
-            body: JSON.stringify({
-                fonte: widget.fonte || 'firebird',
-                sql: widget.sql,
-                filtros,
-                visualizacao
-            })
+            method: 'POST', signal: controller.signal,
+            headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}) },
+            body: JSON.stringify({ fonte: widget.fonte || 'firebird', sql: widget.sql, filtros, visualizacao })
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.details || data.error || 'Erro ao atualizar o card.');
-        return {
-            ...widget,
-            colunasConsulta: Array.isArray(data.colunas) ? data.colunas : [],
-            dadosConsulta: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []),
-            dadosConsultaAgregados: data.resultadoAgregado === true,
-            consultaAtualizadaEm: new Date().toISOString()
-        };
-    } finally {
-        clearTimeout(timeout);
-    }
+        return { ...widget, colunasConsulta: Array.isArray(data.colunas) ? data.colunas : [], dadosConsulta: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []), dadosConsultaAgregados: data.resultadoAgregado === true, consultaAtualizadaEm: new Date().toISOString() };
+    } finally { clearTimeout(timeout); }
 }
 
 function atualizarStatusFiltros(mensagem, erro = false) {
@@ -2364,54 +2381,50 @@ function coletarMapeamentosColunas() {
     });
 }
 
-async function testarConsultaWidget() {
-    if (!widgetSqlTextarea || !widgetSourceSelect) return false;
-    const sql = widgetSqlTextarea.value.trim();
-    if (!sql) {
-        renderizarResultadoConsulta('Digite uma consulta SQL para testar.', 'error');
-        return false;
-    }
 
-    renderizarResultadoConsulta('Executando consulta...', 'info');
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+function consultaSecundariaAtiva() { return Boolean(secondaryQueryBox && !secondaryQueryBox.hidden); }
+function coletarConsultasEditor() {
+    const consultas = [{ alias: widgetQueryAliasInput?.value.trim() || 'principal', fonte: widgetSourceSelect?.value || 'firebird', sql: widgetSqlTextarea?.value.trim() || '' }];
+    if (consultaSecundariaAtiva()) consultas.push({ alias: secondaryQueryAliasInput?.value.trim() || 'secundaria', fonte: secondaryQuerySourceSelect?.value || 'postgres', sql: secondaryQuerySqlTextarea?.value.trim() || '' });
+    return consultas;
+}
+function coletarCombinacaoEditor() { return { modo: queryCombinationModeSelect?.value || 'single', chavePrincipal: primaryKeySelect?.value || '', chaveSecundaria: secondaryKeySelect?.value || '' }; }
+function coletarCamposCalculadosEditor() { return calculatedFieldList ? Array.from(calculatedFieldList.querySelectorAll('[data-calculated-field-row]')).map(row => ({ nome: row.querySelector('[data-calculated-name]')?.value.trim() || '', formula: row.querySelector('[data-calculated-formula]')?.value.trim() || '' })) : []; }
+function assinaturaConsultasEditor() { return JSON.stringify({ consultas: coletarConsultasEditor(), combinacao: coletarCombinacaoEditor(), camposCalculados: coletarCamposCalculadosEditor() }); }
+function preencherSelectCampos(select, colunas, selecionado) { if (!select) return; const lista = [...(colunas || [])]; if (selecionado && !lista.some(coluna => String(coluna) === String(selecionado))) lista.unshift(selecionado); select.innerHTML = '<option value="">Selecione...</option>' + lista.map(coluna => `<option value="${escapeHtml(coluna)}"${String(coluna) === String(selecionado) ? ' selected' : ''}>${escapeHtml(coluna)}</option>`).join(''); }
+function atualizarControlesCombinacao() { const ativa = consultaSecundariaAtiva(); if (queryCombinationBox) queryCombinationBox.hidden = !ativa; const porChave = ativa && queryCombinationModeSelect?.value === 'key'; if (primaryKeyField) primaryKeyField.hidden = !porChave; if (secondaryKeyField) secondaryKeyField.hidden = !porChave; if (calculatedFieldsBox) calculatedFieldsBox.hidden = !ativa; }
+function renderizarCamposCalculados(campos = []) { if (!calculatedFieldList) return; calculatedFieldList.innerHTML = campos.map(campo => `<div class="crm-calculated-field-row" data-calculated-field-row><label>Nome do campo<input type="text" value="${escapeHtml(campo.nome || '')}" data-calculated-name placeholder="ATINGIMENTO"></label><label>Fórmula<input type="text" value="${escapeHtml(campo.formula || '')}" data-calculated-formula placeholder="[principal.TOTAL] / [secundaria.META] * 100"></label><button type="button" data-remove-calculated-field aria-label="Remover campo" title="Remover campo">×</button></div>`).join(''); }
+async function executarConsultaConfigurada(consulta, filtros, visualizacao = null) { const response = await fetch('/api/executar-cenario', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {}) }, body: JSON.stringify({ fonte: consulta.fonte, sql: consulta.sql, filtros, visualizacao }) }); const data = await response.json().catch(() => ({})); if (response.status === 401) window.fazerLogout(); if (!response.ok) throw new Error(data.details || data.error || `Erro na consulta ${consulta.alias}.`); return { ...consulta, colunas: Array.isArray(data.colunas) ? data.colunas : [], dados: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []) }; }
+function combinarConsultas(resultados, combinacao, camposCalculados) { if (!window.CRM_COMPOSITE_DATASETS) throw new Error('Combinador de consultas indisponível.'); return window.CRM_COMPOSITE_DATASETS.combinar(resultados, combinacao, camposCalculados, window.CRM_KPI_CALCULATOR?.avaliar); }
+function recombinarConsultasEditor() { const combinado = combinarConsultas(resultadosConsultasAtuais, coletarCombinacaoEditor(), coletarCamposCalculadosEditor()); colunasConsultaAtual = combinado.colunas; dadosConsultaAtual = combinado.dados; renderizarMapeamentoColunas(); renderizarTabelaConsulta({ colunas: combinado.colunas, amostra: combinado.dados.slice(0, 100), dados: combinado.dados, linhas: combinado.dados.length }); return combinado; }
+
+async function testarConsultaWidget() {
+    const consultas = coletarConsultasEditor();
+    if (consultas.some(consulta => !consulta.sql)) { renderizarResultadoConsulta('Digite o SQL de todas as consultas.', 'error'); return false; }
+    const aliases = consultas.map(consulta => consulta.alias.toLowerCase());
+    if (new Set(aliases).size !== aliases.length) { renderizarResultadoConsulta('Use apelidos diferentes para as consultas.', 'error'); return false; }
+    renderizarResultadoConsulta('Executando ' + consultas.length + ' consulta(s)...', 'info');
     try {
-        const response = await fetch('/api/executar-cenario', {
-            method: 'POST',
-            signal: controller.signal,
-            headers: {
-                'Content-Type': 'application/json',
-                ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {})
-            },
-            body: JSON.stringify({
-                fonte: widgetSourceSelect.value,
-                sql,
-                filtros: obterFiltrosCenario()
-            })
-        });
-        const data = await response.json();
-        if (response.status === 401) window.fazerLogout();
-        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao executar consulta.');
-        colunasConsultaAtual = Array.isArray(data.colunas) ? data.colunas : [];
-        dadosConsultaAtual = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
-        assinaturaConsultaAtual = obterAssinaturaConsulta(widgetSourceSelect.value, sql);
-        renderizarMapeamentoColunas();
-        renderizarTabelaConsulta(data);
-        renderizarResultadoConsulta(`${colunasConsultaAtual.length} colunas retornadas. ${data.linhas || 0} linhas disponíveis no painel.`, 'success');
+        resultadosConsultasAtuais = await Promise.all(consultas.map(consulta => executarConsultaConfigurada(consulta, obterFiltrosCenario())));
+        const combinacaoSalva = coletarCombinacaoEditor();
+        preencherSelectCampos(primaryKeySelect, resultadosConsultasAtuais[0]?.colunas, combinacaoSalva.chavePrincipal);
+        preencherSelectCampos(secondaryKeySelect, resultadosConsultasAtuais[1]?.colunas, combinacaoSalva.chaveSecundaria);
+        if (resultadosConsultasAtuais.length > 1 && resultadosConsultasAtuais.some(item => item.dados.length > 1) && queryCombinationModeSelect?.value === 'single') {
+            queryCombinationModeSelect.value = 'key';
+            const comuns = resultadosConsultasAtuais[0].colunas.filter(coluna => resultadosConsultasAtuais[1].colunas.some(item => String(item).toLowerCase() === String(coluna).toLowerCase()));
+            if (comuns[0]) { primaryKeySelect.value = comuns[0]; secondaryKeySelect.value = resultadosConsultasAtuais[1].colunas.find(item => String(item).toLowerCase() === String(comuns[0]).toLowerCase()) || ''; }
+        }
+        atualizarControlesCombinacao();
+        const combinado = recombinarConsultasEditor();
+        assinaturaConsultaAtual = assinaturaConsultasEditor();
+        renderizarResultadoConsulta(combinado.colunas.length + ' colunas combinadas. ' + combinado.dados.length + ' linhas disponíveis.', 'success');
         return true;
     } catch (error) {
-        colunasConsultaAtual = [];
-        dadosConsultaAtual = [];
-        assinaturaConsultaAtual = '';
-        renderizarMapeamentoColunas();
+        colunasConsultaAtual = []; dadosConsultaAtual = []; assinaturaConsultaAtual = ''; renderizarMapeamentoColunas();
         if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
-        renderizarResultadoConsulta(error.message || 'Erro ao executar consulta.', 'error');
-        return false;
-    } finally {
-        clearTimeout(timeout);
+        renderizarResultadoConsulta(error.message || 'Erro ao executar consultas.', 'error'); return false;
     }
 }
-
 function abrirModalWidget(widgetId) {
     if (!widgetModal) return;
     const widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
@@ -2419,9 +2432,8 @@ function abrirModalWidget(widgetId) {
     widgetEmEdicao = widgets.find(widget => widget.id === widgetId) || criarWidgetPadrao();
     colunasConsultaAtual = Array.isArray(widgetEmEdicao.colunasConsulta) ? widgetEmEdicao.colunasConsulta : [];
     dadosConsultaAtual = Array.isArray(widgetEmEdicao.dadosConsulta) ? widgetEmEdicao.dadosConsulta : [];
-    assinaturaConsultaAtual = dadosConsultaAtual.length
-        ? obterAssinaturaConsulta(widgetEmEdicao.fonte, widgetEmEdicao.sql)
-        : '';
+    assinaturaConsultaAtual = '';
+    resultadosConsultasAtuais = [];
 
     if (widgetTypeSelect) {
         widgetTypeSelect.innerHTML = catalogoGraficos.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)}</option>`).join('');
@@ -2429,8 +2441,25 @@ function abrirModalWidget(widgetId) {
     }
     configuracaoTabelaAtual = obterConfiguracaoTabela(widgetEmEdicao);
     if (widgetTitleInput) widgetTitleInput.value = widgetEmEdicao.titulo || '';
-    if (widgetSourceSelect) widgetSourceSelect.value = widgetEmEdicao.fonte || 'firebird';
-    if (widgetSqlTextarea) widgetSqlTextarea.value = widgetEmEdicao.sql || '';
+    const consultasWidget = Array.isArray(widgetEmEdicao.consultas) && widgetEmEdicao.consultas.length
+        ? widgetEmEdicao.consultas
+        : [{ alias: 'principal', fonte: widgetEmEdicao.fonte || 'firebird', sql: widgetEmEdicao.sql || '' }];
+    const principalWidget = consultasWidget[0];
+    const secundariaWidget = consultasWidget[1];
+    if (widgetSourceSelect) widgetSourceSelect.value = principalWidget.fonte || 'firebird';
+    if (widgetSqlTextarea) widgetSqlTextarea.value = principalWidget.sql || '';
+    if (widgetQueryAliasInput) widgetQueryAliasInput.value = principalWidget.alias || 'principal';
+    if (secondaryQueryBox) secondaryQueryBox.hidden = !secundariaWidget;
+    if (secondaryQueryAliasInput) secondaryQueryAliasInput.value = secundariaWidget?.alias || 'secundaria';
+    if (secondaryQuerySourceSelect) secondaryQuerySourceSelect.value = secundariaWidget?.fonte || 'postgres';
+    if (secondaryQuerySqlTextarea) secondaryQuerySqlTextarea.value = secundariaWidget?.sql || '';
+    const combinacaoWidget = widgetEmEdicao.combinacaoConsultas || { modo: 'single' };
+    if (queryCombinationModeSelect) queryCombinationModeSelect.value = combinacaoWidget.modo || 'single';
+    preencherSelectCampos(primaryKeySelect, [], combinacaoWidget.chavePrincipal);
+    preencherSelectCampos(secondaryKeySelect, [], combinacaoWidget.chaveSecundaria);
+    renderizarCamposCalculados(widgetEmEdicao.camposCalculados || []);
+    atualizarControlesCombinacao();
+    assinaturaConsultaAtual = dadosConsultaAtual.length ? assinaturaConsultasEditor() : '';
     if (queryResultBox) queryResultBox.hidden = true;
     if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
     renderizarMapeamentoColunas();
@@ -2452,6 +2481,7 @@ function fecharModalWidget() {
     colunasConsultaAtual = [];
     dadosConsultaAtual = [];
     assinaturaConsultaAtual = '';
+    resultadosConsultasAtuais = [];
 }
 
 function validarMapeamentoWidget(mapeamentos) {
@@ -2479,7 +2509,7 @@ function salvarWidgetAtual() {
             return;
         }
     } else {
-        const assinaturaEsperada = obterAssinaturaConsulta(widgetSourceSelect?.value, widgetSqlTextarea?.value);
+        const assinaturaEsperada = assinaturaConsultasEditor();
         if (assinaturaConsultaAtual !== assinaturaEsperada) {
             renderizarResultadoConsulta('Execute novamente a consulta antes de salvar o cenario.', 'error');
             setEtapaWidget('sql');
@@ -2495,12 +2525,16 @@ function salvarWidgetAtual() {
         return;
     }
     let widgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
+    const consultasEditor = calculado ? [] : coletarConsultasEditor();
     const atualizado = {
         ...widgetEmEdicao,
         titulo: widgetTitleInput?.value.trim() || obterNomeGrafico(widgetTypeSelect?.value),
         tipo: widgetTypeSelect?.value || 'bar',
-        fonte: calculado ? '' : (widgetSourceSelect?.value || 'firebird'),
-        sql: calculado ? '' : (widgetSqlTextarea?.value.trim() || ''),
+        fonte: calculado ? '' : (consultasEditor[0]?.fonte || 'firebird'),
+        sql: calculado ? '' : (consultasEditor[0]?.sql || ''),
+        consultas: consultasEditor,
+        combinacaoConsultas: calculado ? null : coletarCombinacaoEditor(),
+        camposCalculados: calculado ? [] : coletarCamposCalculadosEditor(),
         colunasConsulta: calculado ? [] : colunasConsultaAtual,
         dadosConsulta: calculado ? [] : dadosConsultaAtual,
         consultaAtualizadaEm: calculado ? null : new Date().toISOString(),
@@ -2612,6 +2646,15 @@ function inicializarEditorDashboard() {
     if (decreaseCanvasHeightButton) decreaseCanvasHeightButton.addEventListener('click', () => ajustarAlturaCanvas(-1));
     if (increaseCanvasHeightButton) increaseCanvasHeightButton.addEventListener('click', () => ajustarAlturaCanvas(1));
     if (testWidgetQueryButton) testWidgetQueryButton.addEventListener('click', () => testarConsultaWidget());
+    if (addSecondaryQueryButton) addSecondaryQueryButton.addEventListener('click', () => { secondaryQueryBox.hidden = false; atualizarControlesCombinacao(); assinaturaConsultaAtual = ''; });
+    if (removeSecondaryQueryButton) removeSecondaryQueryButton.addEventListener('click', () => { secondaryQueryBox.hidden = true; resultadosConsultasAtuais = resultadosConsultasAtuais.slice(0, 1); renderizarCamposCalculados([]); atualizarControlesCombinacao(); assinaturaConsultaAtual = ''; });
+    const recombinarAposConfiguracao = () => { atualizarControlesCombinacao(); if (!resultadosConsultasAtuais.length) return; try { recombinarConsultasEditor(); assinaturaConsultaAtual = assinaturaConsultasEditor(); renderizarResultadoConsulta('Resultados combinados novamente.', 'success'); } catch (error) { assinaturaConsultaAtual = ''; renderizarResultadoConsulta(error.message, 'error'); } };
+    [queryCombinationModeSelect, primaryKeySelect, secondaryKeySelect].forEach(campo => campo?.addEventListener('change', recombinarAposConfiguracao));
+    if (addCalculatedFieldButton) addCalculatedFieldButton.addEventListener('click', () => { renderizarCamposCalculados([...coletarCamposCalculadosEditor(), { nome: '', formula: '' }]); });
+    if (calculatedFieldList) {
+        calculatedFieldList.addEventListener('click', event => { const botao = event.target.closest('[data-remove-calculated-field]'); if (!botao) return; botao.closest('[data-calculated-field-row]')?.remove(); recombinarAposConfiguracao(); });
+        calculatedFieldList.addEventListener('change', recombinarAposConfiguracao);
+    }
     if (nextWidgetStepButton) {
         nextWidgetStepButton.addEventListener('click', async () => {
             if (ehKpiCalculado()) {
@@ -2626,7 +2669,7 @@ function inicializarEditorDashboard() {
                 setEtapaWidget('appearance');
                 return;
             }
-            const assinaturaEsperada = obterAssinaturaConsulta(widgetSourceSelect?.value, widgetSqlTextarea?.value);
+            const assinaturaEsperada = assinaturaConsultasEditor();
             if (!colunasConsultaAtual.length || assinaturaConsultaAtual !== assinaturaEsperada) {
                 const ok = await testarConsultaWidget();
                 if (!ok) return;

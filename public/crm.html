@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260728-20">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260729-21">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -276,10 +276,30 @@
                 </div>
 
                 <div data-widget-query-config>
+                    <div class="crm-query-source-head">
+                        <label>Apelido da consulta<input type="text" value="principal" data-widget-query-alias></label>
+                        <button type="button" data-add-secondary-query>+ Adicionar consulta</button>
+                    </div>
                     <label class="crm-sql-field">
                         Console SQL
                         <textarea data-widget-sql spellcheck="false" placeholder="Use SELECT, WITH ou EXECUTE BLOCK retornavel e parametros como :categoria, :data_inicial, :data_final, :filiais, :vendedores, :idfuncionario, :idfilial e :idvendedor."></textarea>
                     </label>
+                    <section class="crm-secondary-query" data-secondary-query hidden>
+                        <div class="crm-query-source-head">
+                            <label>Apelido da consulta<input type="text" value="secundaria" data-secondary-query-alias></label>
+                            <label>Fonte de dados<select data-secondary-query-source><option value="firebird">Firebird</option><option value="postgres">Postgres</option></select></label>
+                            <button type="button" data-remove-secondary-query aria-label="Remover segunda consulta" title="Remover segunda consulta">×</button>
+                        </div>
+                        <label class="crm-sql-field">Console SQL 2<textarea data-secondary-query-sql spellcheck="false" placeholder="Consulta do segundo banco."></textarea></label>
+                    </section>
+                    <section class="crm-query-combination" data-query-combination hidden>
+                        <strong>Combinação dos resultados</strong>
+                        <div>
+                            <label>Modo<select data-query-combination-mode><option value="single">Resultado único</option><option value="key">Relacionar por campo</option></select></label>
+                            <label data-primary-key-field hidden>Campo da consulta principal<select data-primary-key></select></label>
+                            <label data-secondary-key-field hidden>Campo da segunda consulta<select data-secondary-key></select></label>
+                        </div>
+                    </section>
 
                     <div class="crm-query-help">
                         <strong>Parametros disponiveis</strong>
@@ -328,6 +348,10 @@
 
             <div class="crm-widget-step" data-widget-step="mapping" hidden>
                 <p class="crm-step-note" data-mapping-note>Execute a consulta para carregar as colunas retornadas.</p>
+                <section class="crm-calculated-fields" data-calculated-fields hidden>
+                    <div class="crm-calculated-fields-head"><div><strong>Campos calculados</strong><span>Use referências como [principal.TOTAL]</span></div><button type="button" data-add-calculated-field>+ Adicionar campo</button></div>
+                    <div data-calculated-field-list></div>
+                </section>
                 <section class="crm-table-config" data-table-config hidden>
                     <div class="crm-table-config-head">
                         <strong>Opções da tabela</strong>
@@ -421,8 +445,9 @@
     <script src="assets/icons/widget-icons.js?v=crm-20260728-1"></script>
     <script src="assets/charts/chart-renderers.js?v=crm-20260728-1"></script>
     <script src="assets/charts/kpi-calculator.js?v=crm-20260728-1"></script>
+    <script src="assets/charts/composite-datasets.js?v=crm-20260729-1"></script>
     <script src="assets/dashboard/dashboard-layout.js?v=crm-20260729-1"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260729-27"></script>
+    <script src="crm.js?v=crm-20260729-28"></script>
 </body>
 </html>
