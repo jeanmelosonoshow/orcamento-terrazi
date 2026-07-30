@@ -2748,7 +2748,7 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 }
 
 .crm-dashboard-widget-result {
-    align-items: center;
+    align-items: stretch;
 }
 
 .crm-dashboard-widget[data-widget-type="kpi"] .crm-chart-kpi-real,
@@ -2789,6 +2789,36 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 
 .crm-dashboard-widget-result.has-icon .crm-chart-kpi-real strong {
     line-height: 1.05;
+}
+
+.crm-kpi-target-detail {
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--widget-line, var(--linha));
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--widget-accent, var(--dourado)) 8%, transparent);
+}
+
+.crm-kpi-target-detail > span,
+.crm-kpi-target-detail > b {
+    display: grid;
+    gap: 2px;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+}
+
+.crm-kpi-target-detail > b {
+    justify-items: end;
+    font-size: 1.08em;
+}
+
+.crm-kpi-target-detail i {
+    color: var(--widget-muted, var(--muted));
+    font-size: 0.68em;
+    font-style: normal;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .crm-static-kpi,

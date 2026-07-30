@@ -1497,13 +1497,13 @@ function ajustarConteudoKpi(container) {
 
     const tamanhoRotulo = Math.max(10, Math.min(16, largura / 24, altura ? altura / 8 : 10));
     rotulo.style.fontSize = `${tamanhoRotulo}px`;
-    if (detalhe) detalhe.style.fontSize = `${Math.max(9, Math.min(13, tamanhoRotulo * 0.82))}px`;
+    if (detalhe) detalhe.style.fontSize = `${Math.max(10, Math.min(15, tamanhoRotulo * 0.95))}px`;
     const espacoAuxiliar = rotulo.getBoundingClientRect().height
         + (detalhe ? detalhe.getBoundingClientRect().height + 4 : 0)
         + 6;
     const alturaValor = altura ? Math.max(12, altura - espacoAuxiliar) : Number.POSITIVE_INFINITY;
     let minimo = 12;
-    let maximo = Math.max(minimo, Math.min(96, largura * 0.28, alturaValor * 0.92));
+    let maximo = Math.max(minimo, Math.min(128, largura * 0.38, alturaValor * 0.92));
     let melhor = minimo;
 
     valor.style.whiteSpace = 'nowrap';
@@ -1571,7 +1571,7 @@ function renderizarGraficosDashboard(widgets, widgetsCalculo = widgets) {
                 const percentual = meta ? (total / meta) * 100 : null;
                 const atingida = percentual !== null && percentual >= 100;
                 const percentualTexto = percentual === null ? 'Sem percentual' : formatarValorGrafico(percentual, 'percent');
-                container.innerHTML = `<div class="crm-chart-kpi-real is-target ${atingida ? 'is-reached' : 'is-pending'}"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span><small class="crm-kpi-target-detail"><span>Meta: ${escapeHtml(formatarValorGrafico(meta, serieMeta.formato || serie.formato))}</span><b>${escapeHtml(percentualTexto)}</b></small></div>`;
+                container.innerHTML = `<div class="crm-chart-kpi-real is-target ${atingida ? 'is-reached' : 'is-pending'}"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span><small class="crm-kpi-target-detail"><span><i>Meta</i>${escapeHtml(formatarValorGrafico(meta, serieMeta.formato || serie.formato))}</span><b><i>Atingimento</i>${escapeHtml(percentualTexto)}</b></small></div>`;
             } else {
                 container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span></div>`;
             }
