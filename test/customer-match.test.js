@@ -7,6 +7,7 @@ const index = fs.readFileSync(new URL('../public/index.html', import.meta.url), 
 const indexSonoShow = fs.readFileSync(new URL('../public/index-sonoshow.html', import.meta.url), 'utf8');
 const script = fs.readFileSync(new URL('../public/script.js', import.meta.url), 'utf8');
 const salvar = fs.readFileSync(new URL('../api/salvar-orcamento.js', import.meta.url), 'utf8');
+const buscarCliente = fs.readFileSync(new URL('../api/buscar-cliente.js', import.meta.url), 'utf8');
 
 test('normaliza os identificadores usados na correspondencia de cliente', () => {
     assert.deepEqual(normalizarBuscaCliente({
@@ -37,4 +38,8 @@ test('o fluxo consulta cliente, preenche o formulario e salva email_cliente', ()
     assert.match(script, /cust_email: normalizarEmailCliente/);
     assert.ok(salvar.includes('email_cliente = $5'));
     assert.match(salvar, /email_cliente,/i);
+});
+
+test('a busca recupera o orcamento mais recente entre os registros correspondentes', () => {
+    assert.match(buscarCliente, /ORDER BY DATA_CRIACAO DESC NULLS LAST, ID DESC, PONTUACAO DESC/);
 });

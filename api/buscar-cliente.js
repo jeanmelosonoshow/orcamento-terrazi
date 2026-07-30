@@ -34,7 +34,7 @@ export default async function handler(req, res) {
                   )
             )
             SELECT * FROM candidatos
-            ORDER BY PONTUACAO DESC, DATA_CRIACAO DESC NULLS LAST, ID DESC
+            ORDER BY DATA_CRIACAO DESC NULLS LAST, ID DESC, PONTUACAO DESC
             LIMIT 1
         `, [identificadores.cpf, identificadores.telefone, identificadores.email, ignorarId]);
 
