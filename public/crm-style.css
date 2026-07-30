@@ -2113,6 +2113,7 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 }
 
 .crm-table-config-head span,
+.crm-group-options > span,
 .crm-subtotal-options > span {
     margin-top: 3px;
     color: var(--muted);
@@ -2120,6 +2121,7 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 }
 
 .crm-table-config-options,
+.crm-group-options > div,
 .crm-subtotal-options > div {
     display: flex;
     flex-wrap: wrap;
@@ -2127,6 +2129,7 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 }
 
 .crm-table-config-options label,
+.crm-group-options label,
 .crm-subtotal-options label {
     display: inline-flex;
     align-items: center;
@@ -2136,6 +2139,7 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     font-weight: 700;
 }
 
+.crm-group-options,
 .crm-subtotal-options {
     display: grid;
     gap: 8px;
@@ -2143,6 +2147,7 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     border-top: 1px solid var(--linha);
 }
 
+.crm-group-options > strong,
 .crm-subtotal-options > strong {
     color: var(--verde-escuro);
     font-size: 0.8rem;
@@ -2187,6 +2192,67 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 .crm-pivot-grand-total {
     background: rgba(26,48,23,0.12);
     color: var(--widget-color, var(--verde-escuro));
+}
+.crm-group-options[hidden] {
+    display: none;
+}
+
+.crm-group-options > span,
+.crm-subtotal-options > span {
+    display: block;
+}
+
+.crm-pivot-table.is-sectioned {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.crm-pivot-group-band th {
+    position: static;
+    padding: 9px 10px 8px calc(10px + (var(--group-level, 0) * 18px));
+    border-top: 2px solid var(--widget-accent, var(--dourado));
+    border-bottom: 1px solid var(--widget-line, var(--linha));
+    background: color-mix(in srgb, var(--widget-accent, var(--dourado)) 20%, var(--widget-background, #fff));
+    text-align: left;
+}
+
+.crm-pivot-group-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.crm-pivot-group-title small {
+    color: var(--widget-muted, var(--muted));
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.crm-pivot-group-title strong {
+    color: var(--widget-color, var(--verde-escuro));
+    font-size: 0.88rem;
+}
+
+.crm-pivot-group-title .crm-drill-control {
+    margin-left: 2px;
+}
+
+.crm-pivot-group-columns th {
+    position: static;
+    background: color-mix(in srgb, var(--widget-background, #fff) 92%, var(--widget-accent, var(--dourado)));
+    color: var(--widget-color, var(--verde-escuro));
+    font-size: 0.72rem;
+}
+
+.crm-pivot-table.is-sectioned .crm-pivot-subtotal td {
+    border-top: 1px solid color-mix(in srgb, var(--widget-accent, var(--dourado)) 45%, transparent);
+}
+
+.crm-pivot-group-summary td:first-child {
+    color: var(--widget-muted, var(--muted));
+    font-weight: 700;
 }
 
 /* Contextual table drill-down */

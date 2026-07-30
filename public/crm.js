@@ -146,6 +146,7 @@ const tableTotalRowsInput = document.querySelector('[data-table-total-rows]');
 const tableTotalColumnsInput = document.querySelector('[data-table-total-columns]');
 const tableRepeatLabelsInput = document.querySelector('[data-table-repeat-labels]');
 const subtotalOptionsBox = document.querySelector('[data-subtotal-options]');
+const groupOptionsBox = document.querySelector('[data-group-options]');
 const widgetSourceSelect = document.querySelector('[data-widget-source]');
 const widgetSourceField = document.querySelector('[data-widget-source-field]');
 const widgetQueryConfig = document.querySelector('[data-widget-query-config]');
@@ -222,7 +223,7 @@ let filiaisDisponiveis = [];
 let vendedoresDisponiveis = [];
 let filiaisRascunho = [];
 let vendedoresRascunho = [];
-let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, subtotais: [] };
+let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, agrupamentos: [], subtotais: [] };
 const instanciasGraficosDashboard = new Map();
 const observadoresGraficosDashboard = new Map();
 const estadosDrillDashboard = new Map();
@@ -1159,6 +1160,7 @@ function obterConfiguracaoTabela(widget = {}) {
         totalLinhas: Boolean(atual.totalLinhas),
         totalColunas: Boolean(atual.totalColunas),
         repetirRotulos: Boolean(atual.repetirRotulos),
+        agrupamentos: Array.isArray(atual.agrupamentos) ? atual.agrupamentos.map(String) : [],
         subtotais: Array.isArray(atual.subtotais) ? atual.subtotais.map(String) : []
     };
 }
@@ -1344,6 +1346,11 @@ function renderizarTabelaGrafico(container, widget) {
     const valores = mapeamentos.filter(item => item.papel === 'valor');
     const camposDetalhe = obterCamposDetalheWidget(widget, mapeamentos);
     const configuracao = obterConfiguracaoTabela(widget);
+    const camposAgrupamento = estadoDrill?.campoAtual
+        ? []
+        : camposLinhaConfigurados.filter(campo => configuracao.agrupamentos.includes(String(campo.coluna)));
+    const chavesAgrupamento = new Set(camposAgrupamento.map(campo => String(campo.coluna)));
+    const camposLinhaDetalhe = camposLinhaConfigurados.filter(campo => !chavesAgrupamento.has(String(campo.coluna)));
     const filtrosAtivos = estadoDrill?.filtros || [];
     const camposLinha = estadoDrill?.campoAtual ? [estadoDrill.campoAtual] : camposLinhaConfigurados;
     const camposOrdenacao = estadoDrill?.campoAtual
@@ -1391,15 +1398,20 @@ function renderizarTabelaGrafico(container, widget) {
     const temCabecalhoDuplo = camposColuna.length > 0;
     const totalColunasAtivo = configuracao.totalColunas && temCabecalhoDuplo;
     const quantidadeMetricas = valores.length;
-    const cabecalhoLinhas = camposLinha.map(campo =>
-        `<th${atributoAlinhamentoCampo(campo)}${temCabecalhoDuplo ? ' rowspan="2"' : ''}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`
-    ).join('');
     const campoColunaPrincipal = camposColuna[0];
-    const cabecalho = temCabecalhoDuplo
-        ? `<tr>${cabecalhoLinhas}${colunasDinamicas.map(coluna => `<th${atributoAlinhamentoCampo(campoColunaPrincipal, 'center')} colspan="${quantidadeMetricas}">${escapeHtml(coluna.rotulo)}</th>`).join('')}${totalColunasAtivo ? `<th colspan="${quantidadeMetricas}">Total geral</th>` : ''}</tr>
-           <tr>${colunasDinamicas.concat(totalColunasAtivo ? [{ chave: '__total__' }] : []).map(() => valores.map(valor => `<th${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')).join('')}</tr>`
-        : `<tr>${cabecalhoLinhas}${valores.map(valor => `<th${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')}</tr>`;
-
+    const montarCabecalho = camposCabecalho => {
+        const dimensoesCabecalho = camposCabecalho.length
+            ? camposCabecalho
+            : [{ coluna: '__resumo__', apelido: 'Resumo', alinhamento: 'left' }];
+        const cabecalhoLinhas = dimensoesCabecalho.map(campo =>
+            `<th${atributoAlinhamentoCampo(campo)}${temCabecalhoDuplo ? ' rowspan="2"' : ''}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`
+        ).join('');
+        return temCabecalhoDuplo
+            ? `<tr>${cabecalhoLinhas}${colunasDinamicas.map(coluna => `<th${atributoAlinhamentoCampo(campoColunaPrincipal, 'center')} colspan="${quantidadeMetricas}">${escapeHtml(coluna.rotulo)}</th>`).join('')}${totalColunasAtivo ? `<th colspan="${quantidadeMetricas}">Total geral</th>` : ''}</tr>
+               <tr>${colunasDinamicas.concat(totalColunasAtivo ? [{ chave: '__total__' }] : []).map(() => valores.map(valor => `<th${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')).join('')}</tr>`
+            : `<tr>${cabecalhoLinhas}${valores.map(valor => `<th${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')}</tr>`;
+    };
+    const cabecalho = montarCabecalho(camposLinha);
     const estadoRotulos = { anteriores: [] };
     const renderizarCelulasValor = registrosGrupo => {
         const porColuna = colunasDinamicas.map(coluna => {
@@ -1454,15 +1466,80 @@ function renderizarTabelaGrafico(container, widget) {
         }).join('');
     };
 
-    const corpo = renderizarNivel(registros);
+    const quantidadeCelulasValor = (colunasDinamicas.length * quantidadeMetricas)
+        + (totalColunasAtivo ? quantidadeMetricas : 0);
+    const quantidadeDimensoesDetalhe = Math.max(1, camposLinhaDetalhe.length);
+    const quantidadeColunasAgrupadas = quantidadeDimensoesDetalhe + quantidadeCelulasValor;
+
+    const filtrosDoCaminho = caminho => [...filtrosAtivos, ...caminho.map(parte => ({
+        coluna: parte.campo.coluna,
+        apelido: obterApelidoMapeamento(parte.campo),
+        valor: parte.valor,
+        rotulo: parte.rotulo
+    }))];
+
+    const renderizarLinhaDetalheAgrupada = (caminhoGrupo, caminhoDetalhe, registrosGrupo) => {
+        if (!caminhoDetalhe.length) {
+            return `<tr class="crm-pivot-group-summary"><td class="is-dimension">Resultado</td>${renderizarCelulasValor(registrosGrupo)}</tr>`;
+        }
+        const primeiroAlterado = caminhoDetalhe.findIndex((item, index) => estadoRotulos.anteriores[index] !== item.rotulo);
+        const celulas = caminhoDetalhe.map((item, index) => {
+            const exibir = configuracao.repetirRotulos || primeiroAlterado < 0 || index >= primeiroAlterado;
+            const controle = renderizarControleDrill(
+                widget,
+                filtrosDoCaminho([...caminhoGrupo, ...caminhoDetalhe.slice(0, index + 1)]),
+                camposDetalheDisponiveis
+            );
+            return `<td class="is-dimension"${atributoAlinhamentoCampo(item.campo)}><span class="crm-dimension-cell"><span>${exibir ? escapeHtml(item.rotulo) : ''}</span>${controle}</span></td>`;
+        }).join('');
+        estadoRotulos.anteriores = caminhoDetalhe.map(item => item.rotulo);
+        return `<tr>${celulas}${renderizarCelulasValor(registrosGrupo)}</tr>`;
+    };
+
+    const renderizarDetalhesAgrupados = (registrosGrupo, caminhoGrupo, nivel = 0, caminhoDetalhe = []) => {
+        if (!camposLinhaDetalhe.length) return renderizarLinhaDetalheAgrupada(caminhoGrupo, [], registrosGrupo);
+        const campo = camposLinhaDetalhe[nivel];
+        return agruparRegistros(registrosGrupo, campo, valores).map(grupo => {
+            const novoCaminho = [...caminhoDetalhe, { campo, valor: grupo.valor, rotulo: grupo.rotulo }];
+            return nivel === camposLinhaDetalhe.length - 1
+                ? renderizarLinhaDetalheAgrupada(caminhoGrupo, novoCaminho, grupo.registros)
+                : renderizarDetalhesAgrupados(grupo.registros, caminhoGrupo, nivel + 1, novoCaminho);
+        }).join('');
+    };
+
+    const renderizarAgrupamentos = (registrosGrupo, nivel = 0, caminhoGrupo = []) => {
+        const campo = camposAgrupamento[nivel];
+        return agruparRegistros(registrosGrupo, campo, valores).map(grupo => {
+            const novoCaminho = [...caminhoGrupo, { campo, valor: grupo.valor, rotulo: grupo.rotulo }];
+            const controle = renderizarControleDrill(widget, filtrosDoCaminho(novoCaminho), camposDetalheDisponiveis);
+            const faixaGrupo = `<tr class="crm-pivot-group-band" style="--group-level:${nivel}"><th colspan="${quantidadeColunasAgrupadas}"><span class="crm-pivot-group-title"><small>${escapeHtml(obterApelidoMapeamento(campo))}</small><strong>${escapeHtml(grupo.rotulo)}</strong>${controle}</span></th></tr>`;
+            estadoRotulos.anteriores = [];
+            const conteudo = nivel === camposAgrupamento.length - 1
+                ? `${montarCabecalho(camposLinhaDetalhe).replace(/<tr>/g, '<tr class="crm-pivot-group-columns">')}${renderizarDetalhesAgrupados(grupo.registros, novoCaminho)}`
+                : renderizarAgrupamentos(grupo.registros, nivel + 1, novoCaminho);
+            const subtotal = configuracao.subtotais.includes(String(campo.coluna))
+                ? `<tr class="crm-pivot-subtotal"><td${atributoAlinhamentoCampo(campo)} colspan="${quantidadeDimensoesDetalhe}">Subtotal ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(grupo.registros)}</tr>`
+                : '';
+            estadoRotulos.anteriores = [];
+            return faixaGrupo + conteudo + subtotal;
+        }).join('');
+    };
+    const possuiAgrupamentos = camposAgrupamento.length > 0;
+    const corpo = possuiAgrupamentos
+        ? renderizarAgrupamentos(registros)
+        : renderizarNivel(registros);
+    const campoRotuloTotal = possuiAgrupamentos
+        ? (camposLinhaDetalhe[0] || camposAgrupamento[0])
+        : camposLinha[0];
+    const colspanTotal = possuiAgrupamentos ? quantidadeDimensoesDetalhe : camposLinha.length;
     const totalGeral = configuracao.totalLinhas
-        ? `<tr class="crm-pivot-grand-total"><td${atributoAlinhamentoCampo(camposLinha[0])} colspan="${camposLinha.length}">Total geral</td>${renderizarCelulasValor(registros)}</tr>`
+        ? `<tr class="crm-pivot-grand-total"><td${atributoAlinhamentoCampo(campoRotuloTotal)} colspan="${colspanTotal}">Total geral</td>${renderizarCelulasValor(registros)}</tr>`
         : '';
     container.innerHTML = `
         ${renderizarBreadcrumbDrill(widget, estadoDrill)}
         <div class="crm-chart-table-real">
-            <table class="crm-pivot-table">
-                <thead>${cabecalho}</thead>
+            <table class="crm-pivot-table${possuiAgrupamentos ? ' is-sectioned' : ''}">
+                ${possuiAgrupamentos ? '' : `<thead>${cabecalho}</thead>`}
                 <tbody>${corpo}${totalGeral}</tbody>
             </table>
         </div>
@@ -2328,6 +2405,9 @@ function coletarConfiguracaoTabela() {
         totalLinhas: Boolean(tableTotalRowsInput?.checked),
         totalColunas: Boolean(tableTotalColumnsInput?.checked),
         repetirRotulos: Boolean(tableRepeatLabelsInput?.checked),
+        agrupamentos: groupOptionsBox
+            ? Array.from(groupOptionsBox.querySelectorAll('[data-group-field]:checked')).map(input => input.value)
+            : configuracaoTabelaAtual.agrupamentos,
         subtotais: subtotalOptionsBox
             ? Array.from(subtotalOptionsBox.querySelectorAll('[data-subtotal-field]:checked')).map(input => input.value)
             : configuracaoTabelaAtual.subtotais
@@ -2339,21 +2419,46 @@ function renderizarConfiguracaoTabela() {
     if (!tableConfigBox) return;
     const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
     const ativa = tipo === 'table' || tipo === 'pivot';
+    const ehPivot = tipo === 'pivot';
     tableConfigBox.hidden = !ativa;
     if (!ativa) return;
     if (tableTotalRowsInput) tableTotalRowsInput.checked = configuracaoTabelaAtual.totalLinhas;
     if (tableTotalColumnsInput) tableTotalColumnsInput.checked = configuracaoTabelaAtual.totalColunas;
     if (tableRepeatLabelsInput) tableRepeatLabelsInput.checked = configuracaoTabelaAtual.repetirRotulos;
-    if (!subtotalOptionsBox) return;
+
     const linhas = coletarMapeamentosColunas().filter(item => item.papel === 'linha');
-    subtotalOptionsBox.innerHTML = linhas.length > 1
-        ? `<strong>Subtotais por dimensão</strong><div>${linhas.slice(0, -1).map(campo => `
+    const colunasLinha = new Set(linhas.map(campo => String(campo.coluna)));
+    configuracaoTabelaAtual.agrupamentos = configuracaoTabelaAtual.agrupamentos.filter(coluna => colunasLinha.has(String(coluna)));
+
+    if (groupOptionsBox) {
+        groupOptionsBox.hidden = !ehPivot;
+        groupOptionsBox.innerHTML = !ehPivot
+            ? ''
+            : linhas.length > 1
+                ? `<strong>Agrupamentos em seções</strong><span>Os campos marcados criam faixas de grupo; os demais permanecem como detalhes.</span><div>${linhas.map(campo => `
+                    <label>
+                        <input type="checkbox" value="${escapeHtml(campo.coluna)}"${configuracaoTabelaAtual.agrupamentos.includes(String(campo.coluna)) ? ' checked' : ''} data-group-field>
+                        ${escapeHtml(obterApelidoMapeamento(campo))}
+                    </label>
+                `).join('')}</div>`
+                : '<span>Adicione ao menos dois campos de linha para criar seções agrupadas.</span>';
+    }
+
+    if (!subtotalOptionsBox) return;
+    const camposSubtotal = configuracaoTabelaAtual.agrupamentos.length
+        ? linhas.filter(campo => configuracaoTabelaAtual.agrupamentos.includes(String(campo.coluna)))
+        : linhas.slice(0, -1);
+    configuracaoTabelaAtual.subtotais = configuracaoTabelaAtual.subtotais.filter(coluna =>
+        camposSubtotal.some(campo => String(campo.coluna) === String(coluna))
+    );
+    subtotalOptionsBox.innerHTML = camposSubtotal.length
+        ? `<strong>${configuracaoTabelaAtual.agrupamentos.length ? 'Subtotais dos agrupamentos' : 'Subtotais por dimensão'}</strong><span>Marque cada nível que deve gerar uma linha de subtotal.</span><div>${camposSubtotal.map(campo => `
             <label>
                 <input type="checkbox" value="${escapeHtml(campo.coluna)}"${configuracaoTabelaAtual.subtotais.includes(String(campo.coluna)) ? ' checked' : ''} data-subtotal-field>
                 ${escapeHtml(obterApelidoMapeamento(campo))}
             </label>
         `).join('')}</div>`
-        : '<span>Adicione mais de um campo de linha para configurar subtotais.</span>';
+        : '<span>Selecione um agrupamento para configurar subtotais.</span>';
 }
 
 function renderizarMapeamentoColunas() {
@@ -2779,13 +2884,18 @@ function inicializarEditorDashboard() {
                 alinhamento.value = ['valor', 'meta'].includes(event.target.value) ? 'right' : 'left';
             }
             atualizarCamposMapeamento(row);
-            configuracaoTabelaAtual.subtotais = configuracaoTabelaAtual.subtotais.filter(coluna =>
-                coletarMapeamentosColunas().some(item => item.papel === 'linha' && String(item.coluna) === String(coluna))
-            );
+            const colunasLinhaAtuais = coletarMapeamentosColunas()
+                .filter(item => item.papel === 'linha')
+                .map(item => String(item.coluna));
+            configuracaoTabelaAtual.agrupamentos = configuracaoTabelaAtual.agrupamentos.filter(coluna => colunasLinhaAtuais.includes(String(coluna)));
+            configuracaoTabelaAtual.subtotais = configuracaoTabelaAtual.subtotais.filter(coluna => colunasLinhaAtuais.includes(String(coluna)));
             renderizarConfiguracaoTabela();
         });
     }
-    if (tableConfigBox) tableConfigBox.addEventListener('change', coletarConfiguracaoTabela);
+    if (tableConfigBox) tableConfigBox.addEventListener('change', event => {
+        coletarConfiguracaoTabela();
+        if (event.target.matches('[data-group-field]')) renderizarConfiguracaoTabela();
+    });
     if (widgetTypeSelect) {
         widgetTypeSelect.addEventListener('change', () => {
             if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
