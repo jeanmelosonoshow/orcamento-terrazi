@@ -1502,15 +1502,20 @@ function ajustarConteudoKpi(container) {
         + (detalhe ? detalhe.getBoundingClientRect().height + 4 : 0)
         + 6;
     const alturaValor = altura ? Math.max(12, altura - espacoAuxiliar) : Number.POSITIVE_INFINITY;
+    const limiteAlturaValor = detalhe && altura
+        ? Math.max(30, altura * 0.48)
+        : alturaValor * 0.92;
+    const fatorLargura = detalhe ? 0.46 : 0.38;
     let minimo = 12;
-    let maximo = Math.max(minimo, Math.min(128, largura * 0.38, alturaValor * 0.92));
+    let maximo = Math.max(minimo, Math.min(128, largura * fatorLargura, limiteAlturaValor));
     let melhor = minimo;
 
     valor.style.whiteSpace = 'nowrap';
     for (let tentativa = 0; tentativa < 9; tentativa += 1) {
         const tamanho = (minimo + maximo) / 2;
         valor.style.fontSize = `${tamanho}px`;
-        const cabe = valor.scrollWidth <= largura + 1 && valor.scrollHeight <= alturaValor + 1;
+        const cabeNaAltura = detalhe || valor.scrollHeight <= alturaValor + 1;
+        const cabe = valor.scrollWidth <= largura + 1 && cabeNaAltura;
         if (cabe) {
             melhor = tamanho;
             minimo = tamanho;
