@@ -32,6 +32,8 @@ const categoriasDashboard = window.CRM_DASHBOARD_LAYOUT?.categorias || Object.en
 const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao', 'orcamentos']);
 const crmBiViews = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao']);
 let dashboardContextoAtivo = 'visao-geral';
+const DASHBOARD_QUERY_CONCURRENCY = 2;
+const DASHBOARD_REQUEST_TIMEOUT_MS = 30000;
 
 function obterViewPorHash(hash) {
     const view = String(hash || '#visao-geral').replace(/^#/, '');
@@ -2136,7 +2138,7 @@ async function atualizarDadosMapeadosWidget(mapeamentos) {
     }
     renderizarResultadoConsulta('Calculando todos os registros no banco...', 'info');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const timeout = setTimeout(() => controller.abort(), DASHBOARD_REQUEST_TIMEOUT_MS);
     try {
         const response = await fetch('/api/executar-cenario', {
             method: 'POST',
@@ -2188,7 +2190,7 @@ async function executarDrillDownWidget(contexto, campo) {
     });
     renderizarDashboard();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const timeout = setTimeout(() => controller.abort(), DASHBOARD_REQUEST_TIMEOUT_MS);
     try {
         const response = await fetch('/api/executar-cenario', {
             method: 'POST',
@@ -2243,13 +2245,16 @@ function widgetUtilizaFiltrosVisiveis(widget) {
 async function executarWidgetComFiltros(widget, filtros) {
     const consultas = Array.isArray(widget.consultas) && widget.consultas.length ? widget.consultas : [];
     if (consultas.length > 1) {
-        const resultados = await Promise.all(consultas.map(consulta => executarConsultaConfigurada(consulta, filtros)));
+        const resultados = [];
+        for (const consulta of consultas) {
+            resultados.push(await executarConsultaConfigurada(consulta, filtros));
+        }
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
         return { ...widget, colunasConsulta: combinado.colunas, dadosConsulta: combinado.dados, dadosConsultaAgregados: false, consultaAtualizadaEm: new Date().toISOString() };
     }
     const visualizacao = montarVisualizacaoWidget(widget);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const timeout = setTimeout(() => controller.abort(), DASHBOARD_REQUEST_TIMEOUT_MS);
     try {
         const response = await fetch('/api/executar-cenario', {
             method: 'POST', signal: controller.signal,
@@ -2267,6 +2272,25 @@ function atualizarStatusFiltros(mensagem, erro = false) {
     if (!filterStatus) return;
     filterStatus.textContent = mensagem;
     filterStatus.classList.toggle('is-error', erro);
+}
+
+async function executarComConcorrenciaLimitada(itens, limite, executor) {
+    const resultados = new Array(itens.length);
+    let proximoIndice = 0;
+    const quantidadeWorkers = Math.min(Math.max(1, limite), itens.length);
+    const worker = async () => {
+        while (proximoIndice < itens.length) {
+            const indice = proximoIndice;
+            proximoIndice += 1;
+            try {
+                resultados[indice] = { status: 'fulfilled', value: await executor(itens[indice], indice) };
+            } catch (reason) {
+                resultados[indice] = { status: 'rejected', reason };
+            }
+        }
+    };
+    await Promise.all(Array.from({ length: quantidadeWorkers }, () => worker()));
+    return resultados;
 }
 
 async function aplicarFiltrosDashboard() {
@@ -2297,7 +2321,12 @@ async function aplicarFiltrosDashboard() {
     }
     if (resetFiltersButton) resetFiltersButton.disabled = true;
     atualizarStatusFiltros('Atualizando ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + '...');
-    const resultados = await Promise.allSettled(indices.map(index => executarWidgetComFiltros(widgets[index], obterFiltrosCenario())));
+    const filtrosConsulta = obterFiltrosCenario();
+    const resultados = await executarComConcorrenciaLimitada(
+        indices,
+        DASHBOARD_QUERY_CONCURRENCY,
+        index => executarWidgetComFiltros(widgets[index], filtrosConsulta)
+    );
     let atualizados = 0;
     resultados.forEach((resultado, posicao) => {
         if (resultado.status !== 'fulfilled') return;

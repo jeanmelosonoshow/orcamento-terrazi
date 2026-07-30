@@ -15,13 +15,18 @@ Opcoes de estabilidade:
 
 - `FB_POOL_SIZE`: conexoes por instancia, padrao `3`
 - `FB_CONNECT_RETRIES`: novas tentativas apos falha transitoria, padrao `2`
-- `FB_CONNECT_TIMEOUT_MS`: limite para obter conexao, padrao `7000`
+- `FB_CONNECT_TIMEOUT_MS`: limite de cada tentativa de login no Firebird, padrao `10000`
+- `FB_ACQUIRE_TIMEOUT_MS`: limite para aguardar uma conexao livre no pool, padrao `12000`
 - `FB_QUERY_TIMEOUT_MS`: limite geral de consulta, padrao `15000`
 - `FB_POOL_IDLE_MS`: tempo ocioso antes de fechar conexao, padrao `30000`
 - `FB_POOL_LIFETIME_MS`: vida maxima da conexao, padrao `900000`
 - `FB_POOL_MAX_USES`: usos antes de reciclar a conexao, padrao `1000`
 - `DB_CHARSET_FB`: codificacao principal, padrao `UTF8`; deve coincidir com a conexao usada no IBExpert
 - `DB_CHARSET_FB_FALLBACK`: alternativa para consultas de cenario com texto legado, padrao `NONE`; use `OFF` para desativar
+
+O painel limita automaticamente a quantidade de consultas simultaneas. Evite aumentar `FB_POOL_SIZE`
+sem conferir `MaxUserConnections` e a capacidade do servidor Firebird; mais conexoes podem aumentar
+a incidencia de falhas de login em vez de melhorar o desempenho.
 
 O erro Firebird `335545106` e generico. Se persistir mesmo com o pool,
 consultar `firebird.log` no servidor e conferir `AuthServer`, `WireCrypt`,
