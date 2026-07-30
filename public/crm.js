@@ -29,29 +29,43 @@ const categoriasTraduzidas = {
 };
 const categoriasPorNome = Object.fromEntries(Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => [nomeCategoria, codigo]));
 const categoriasDashboard = window.CRM_DASHBOARD_LAYOUT?.categorias || Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => ({ codigo, nome: nomeCategoria }));
+const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao', 'orcamentos']);
+const crmBiViews = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao']);
+let dashboardContextoAtivo = 'visao-geral';
+
 function obterViewPorHash(hash) {
-    return hash === '#orcamentos' ? 'orcamentos' : 'visao-geral';
+    const view = String(hash || '#visao-geral').replace(/^#/, '');
+    return crmViewsDisponiveis.has(view) ? view : 'visao-geral';
 }
 
-function ativarView(viewName, hash = window.location.hash || '#visao-geral') {
-    document.body.classList.toggle('crm-budget-mode', viewName === 'orcamentos');
+function atualizarTituloView(viewName) {
+    const linkAtivo = document.querySelector('[data-crm-view-link="' + viewName + '"]');
+    const titulo = linkAtivo?.lastElementChild?.textContent?.trim() || 'Visão Geral';
+    const tituloPagina = document.querySelector('.crm-page-title h1');
+    const iconePagina = document.querySelector('.crm-page-title-icon');
+    const iconeMenu = linkAtivo?.querySelector('.crm-menu-icon');
+    if (tituloPagina) tituloPagina.textContent = titulo;
+    if (iconePagina && iconeMenu) iconePagina.innerHTML = iconeMenu.innerHTML;
+}
+
+function ativarView(viewName) {
+    const viewValida = crmViewsDisponiveis.has(viewName) ? viewName : 'visao-geral';
+    const orcamentosAtivo = viewValida === 'orcamentos';
+    document.body.classList.toggle('crm-budget-mode', orcamentosAtivo);
     document.querySelectorAll('[data-crm-view]').forEach(view => {
-        view.hidden = view.dataset.crmView !== viewName;
+        view.hidden = view.dataset.crmView !== viewValida;
     });
     document.querySelectorAll('[data-crm-view-link]').forEach(link => {
-        const href = link.getAttribute('href') || '#visao-geral';
-        const isActive = viewName === 'orcamentos'
-            ? href === '#orcamentos'
-            : href === hash || (!hash && href === '#visao-geral');
-        link.classList.toggle('is-active', isActive);
+        link.classList.toggle('is-active', link.dataset.crmViewLink === viewValida);
     });
-    if (viewName === 'orcamentos') {
+    const footer = document.querySelector('[data-crm-footer]');
+    if (footer) footer.hidden = orcamentosAtivo;
+    if (orcamentosAtivo) {
         try { definirPaginaOrcamento(); } catch (error) {}
+        return;
     }
-    if (viewName === 'visao-geral' && hash && hash !== '#visao-geral') {
-        const target = document.querySelector(hash);
-        if (target) setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
-    }
+    atualizarTituloView(viewValida);
+    if (crmBiViews.has(viewValida)) trocarContextoDashboard(viewValida);
 }
 
 document.addEventListener('click', event => {
@@ -63,13 +77,13 @@ document.addEventListener('click', event => {
     if (window.location.hash !== hash) {
         window.location.hash = hash;
     } else {
-        ativarView(obterViewPorHash(hash), hash);
+        ativarView(obterViewPorHash(hash));
     }
 }, true);
 
 window.addEventListener('hashchange', () => {
     const hash = window.location.hash || '#visao-geral';
-    ativarView(obterViewPorHash(hash), hash);
+    ativarView(obterViewPorHash(hash));
 });
 
 const categoriaRaw = String(usuarioLogado.categoria || usuarioLogado.CATEGORIA || '').trim().toUpperCase();
@@ -108,6 +122,7 @@ aplicarVisibilidadeFiltrosPorCategoria();
 const podeEditarCenarios = Boolean(usuarioLogado.podeEditarCenarios || usuarioLogado.canEditScenarios);
 const dashboardEditor = document.querySelector('[data-dashboard-editor]');
 const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');
+const dashboardWorkspace = document.querySelector('[data-dashboard-workspace]');
 const editModeToggle = document.querySelector('[data-edit-mode-toggle]');
 const addWidgetButton = document.querySelector('[data-add-widget]');
 const decreaseCanvasHeightButton = document.querySelector('[data-decrease-canvas-height]');
@@ -182,8 +197,17 @@ const copySqlViewerButton = document.querySelector('[data-copy-sql-viewer]');
 const pasteSqlViewerButton = document.querySelector('[data-paste-sql-viewer]');
 const closeSqlViewerButtons = Array.from(document.querySelectorAll('[data-close-sql-viewer]'));
 const budgetFrame = document.querySelector('[data-budget-frame]');
-const dashboardStorageKey = 'crmDashboardScenario:v1';
-const dashboardCanvasHeightKey = 'crmDashboardCanvasHeight:v1';
+const dashboardConfigPorView = Object.freeze({
+    'visao-geral': { storage: 'crmDashboardScenario:v1', altura: 'crmDashboardCanvasHeight:v1' },
+    clientes: { storage: 'crmDashboardScenario:clientes:v1', altura: 'crmDashboardCanvasHeight:clientes:v1' },
+    funil: { storage: 'crmDashboardScenario:funil:v1', altura: 'crmDashboardCanvasHeight:funil:v1' },
+    arquitetos: { storage: 'crmDashboardScenario:arquitetos:v1', altura: 'crmDashboardCanvasHeight:arquitetos:v1' },
+    reativacao: { storage: 'crmDashboardScenario:reativacao:v1', altura: 'crmDashboardCanvasHeight:reativacao:v1' }
+});
+
+function obterConfigDashboardAtivo() {
+    return dashboardConfigPorView[dashboardContextoAtivo] || dashboardConfigPorView['visao-geral'];
+}
 const dashboardCanvasMinHeight = 620;
 const dashboardCanvasMaxHeight = 4000;
 const dashboardCanvasHeightStep = 200;
@@ -207,6 +231,34 @@ let instanciaPreviaAparencia = null;
 let sequenciaContextoDrill = 0;
 let observadorTamanhoDashboard = null;
 let larguraDashboardObservada = 0;
+
+function trocarContextoDashboard(viewName) {
+    const proximoContexto = dashboardConfigPorView[viewName] ? viewName : 'visao-geral';
+    const host = document.querySelector('[data-dashboard-host="' + proximoContexto + '"]');
+    if (!host || !dashboardWorkspace) return;
+
+    const mudouContexto = dashboardContextoAtivo !== proximoContexto;
+    if (mudouContexto) {
+        modoEdicaoCenario = false;
+        document.body.classList.remove('crm-scenario-editing');
+        if (editModeToggle) {
+            editModeToggle.textContent = 'Editar cenario';
+            editModeToggle.setAttribute('aria-pressed', 'false');
+        }
+        limparGraficosDashboard();
+        estadosDrillDashboard.clear();
+        contextosDrillDashboard.clear();
+        widgetEmEdicao = null;
+        dashboardContextoAtivo = proximoContexto;
+    }
+
+    if (dashboardWorkspace.parentElement !== host) host.appendChild(dashboardWorkspace);
+    if (dashboardCanvas) {
+        const titulo = document.querySelector('.crm-page-title h1')?.textContent || 'Painel';
+        dashboardCanvas.setAttribute('aria-label', 'Area de inteligencia de negocio - ' + titulo);
+    }
+    renderizarDashboard();
+}
 
 const catalogoGraficos = [
     { id: 'kpi', nome: 'Indicador KPI', roles: ['valor'] },
@@ -347,7 +399,7 @@ function criarWidgetPadrao(tipo = 'bar') {
 
 function obterWidgetsDashboard() {
     try {
-        const conteudoSalvo = localStorage.getItem(dashboardStorageKey);
+        const conteudoSalvo = localStorage.getItem(obterConfigDashboardAtivo().storage);
         if (conteudoSalvo !== null) {
             const salvos = JSON.parse(conteudoSalvo);
             if (Array.isArray(salvos)) return salvos;
@@ -355,6 +407,8 @@ function obterWidgetsDashboard() {
     } catch (error) {
         // Mantem o painel utilizavel caso um rascunho local esteja invalido.
     }
+
+    if (dashboardContextoAtivo !== 'visao-geral') return [];
 
     return [
         { ...criarWidgetPadrao('bar'), id: 'evolucao-comercial', titulo: 'Evolucao comercial', colunas: 8 },
@@ -365,7 +419,7 @@ function obterWidgetsDashboard() {
 }
 
 function salvarWidgetsDashboard(widgets) {
-    localStorage.setItem(dashboardStorageKey, JSON.stringify(widgets));
+    localStorage.setItem(obterConfigDashboardAtivo().storage, JSON.stringify(widgets));
 }
 
 function obterNomeGrafico(tipo) {
@@ -1629,7 +1683,7 @@ function coletarCategoriasWidget() {
 }
 
 function obterAlturaCanvasPreferida() {
-    const alturaSalva = Number(localStorage.getItem(dashboardCanvasHeightKey));
+    const alturaSalva = Number(localStorage.getItem(obterConfigDashboardAtivo().altura));
     if (!Number.isFinite(alturaSalva)) return dashboardCanvasMinHeight;
     return Math.min(dashboardCanvasMaxHeight, Math.max(dashboardCanvasMinHeight, alturaSalva));
 }
@@ -1658,7 +1712,7 @@ function ajustarAlturaCanvas(direcao) {
         dashboardCanvasMaxHeight,
         Math.max(dashboardCanvasMinHeight, alturaAtual + (direcao * dashboardCanvasHeightStep))
     );
-    localStorage.setItem(dashboardCanvasHeightKey, String(novaAltura));
+    localStorage.setItem(obterConfigDashboardAtivo().altura, String(novaAltura));
     atualizarAlturaCanvas(normalizarWidgetsDashboard(obterWidgetsDashboard()));
 }
 
@@ -3223,7 +3277,7 @@ function inicializarAplicacao() {
     const hashInicial = window.location.hash || '#visao-geral';
 
     limparFiltrosPersistidos();
-    iniciarModulo('navegacao', () => ativarView(obterViewPorHash(hashInicial), hashInicial));
+    iniciarModulo('navegacao', () => ativarView(obterViewPorHash(hashInicial)));
     iniciarModulo('orcamentos', definirPaginaOrcamento);
     iniciarModulo('periodo', inicializarPeriodo);
     iniciarModulo('editor de cenarios', inicializarEditorDashboard);

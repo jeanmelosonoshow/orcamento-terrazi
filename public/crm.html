@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260729-22">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260730-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -35,7 +35,7 @@
                 <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="8" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="15" width="7" height="6" rx="1.5"></rect></svg></span>
                 <span>Visão Geral</span>
             </a>
-            <a href="#clientes" data-crm-view-link="visao-geral">
+            <a href="#clientes" data-crm-view-link="clientes">
                 <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path><circle cx="9.5" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
                 <span>Carteira de Clientes</span>
             </a>
@@ -43,19 +43,15 @@
                 <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M8 13h8"></path><path d="M8 17h5"></path><path d="M8 9h2"></path></svg></span>
                 <span>Orçamentos</span>
             </a>
-            <a href="#funil" data-crm-view-link="visao-geral">
+            <a href="#funil" data-crm-view-link="funil">
                 <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 4h18l-7 8v5l-4 3v-8z"></path></svg></span>
                 <span>Funil de Orçamentos</span>
             </a>
-            <a href="#fechamento" data-crm-view-link="visao-geral">
-                <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></span>
-                <span>Ficha de Fechamento</span>
-            </a>
-            <a href="#arquitetos" data-crm-view-link="visao-geral">
+            <a href="#arquitetos" data-crm-view-link="arquitetos">
                 <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 21v-8h6v8"></path><path d="M9 9h.01"></path><path d="M15 9h.01"></path></svg></span>
                 <span>Arquitetos &amp; RT</span>
             </a>
-            <a href="#reativacao" data-crm-view-link="visao-geral">
+            <a href="#reativacao" data-crm-view-link="reativacao">
                 <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path><path d="M12 7v5l3 2"></path></svg></span>
                 <span>Reativação</span>
             </a>
@@ -129,106 +125,119 @@
                 <button type="button" onclick="fazerLogout()">Sair</button>
             </div>
         </div>
-        <section class="crm-view" data-crm-view="visao-geral">
-            <section class="crm-dashboard-editor" data-dashboard-editor hidden>
-                <button class="crm-edit-mode-toggle" type="button" data-edit-mode-toggle>Editar cenario</button>
-                <div>
-                    <span class="crm-eyebrow">Cenarios</span>
-                    <strong>Construtor visual</strong>
-                    <small>Modo edição ativo. Arraste, redimensione e configure os gráficos deste painel.</small>
-                </div>
-                <div class="crm-dashboard-editor-actions">
-                    <div class="crm-canvas-height-control" aria-label="Altura da area de BI">
-                        <span>Altura da area BI</span>
-                        <button type="button" data-decrease-canvas-height aria-label="Diminuir altura" title="Diminuir altura">-</button>
-                        <output data-canvas-height-value>620 px</output>
-                        <button type="button" data-increase-canvas-height aria-label="Aumentar altura" title="Aumentar altura">+</button>
-                    </div>
-                    <button type="button" data-add-widget>Adicionar grafico</button>
-                </div>
-            </section>
-
-            <section class="crm-dashboard-canvas" data-dashboard-canvas aria-label="Cenarios do painel"></section>
-
-            <section class="crm-kpis" aria-label="Indicadores principais">
-                <article class="crm-kpi crm-kpi-featured">
-                    <span>Faturamento do mês</span>
-                    <strong>Em breve</strong>
-                    <small>Integração Firebird</small>
-                </article>
-                <article class="crm-kpi">
-                    <span>Orçamentos abertos</span>
-                    <strong>Postgres</strong>
-                    <small>Base do orçamento atual</small>
-                </article>
-                <article class="crm-kpi">
-                    <span>Taxa de conversão</span>
-                    <strong>Em breve</strong>
-                    <small>Orçamento x venda</small>
-                </article>
-                <article class="crm-kpi">
-                    <span>Ticket médio</span>
-                    <strong>Em breve</strong>
-                    <small>Vendas Firebird</small>
-                </article>
-            </section>
-
-            <section class="crm-grid">
-                <article class="crm-panel crm-panel-large">
-                    <div class="crm-panel-head">
+        <section class="crm-view crm-bi-view" data-crm-view="visao-geral">
+            <div data-dashboard-host="visao-geral">
+                <div class="crm-dashboard-workspace" data-dashboard-workspace>
+                    <section class="crm-dashboard-editor" data-dashboard-editor hidden>
+                        <button class="crm-edit-mode-toggle" type="button" data-edit-mode-toggle>Editar cenario</button>
                         <div>
-                            <span class="crm-eyebrow">Evolução</span>
-                            <h2>Comercial</h2>
+                            <span class="crm-eyebrow">Cenarios</span>
+                            <strong>Construtor visual</strong>
+                            <small>Modo edição ativo. Arraste, redimensione e configure os gráficos deste painel.</small>
                         </div>
-                        <a href="#orcamentos" data-crm-view-link="orcamentos">Abrir orçamentos</a>
-                    </div>
-                    <div class="crm-chart-placeholder">
-                        <span></span><span></span><span></span><span></span><span></span><span></span>
-                    </div>
-                </article>
+                        <div class="crm-dashboard-editor-actions">
+                            <div class="crm-canvas-height-control" aria-label="Altura da area de BI">
+                                <span>Altura da area BI</span>
+                                <button type="button" data-decrease-canvas-height aria-label="Diminuir altura" title="Diminuir altura">-</button>
+                                <output data-canvas-height-value>620 px</output>
+                                <button type="button" data-increase-canvas-height aria-label="Aumentar altura" title="Aumentar altura">+</button>
+                            </div>
+                            <button type="button" data-add-widget>Adicionar grafico</button>
+                        </div>
+                    </section>
+                    <section class="crm-dashboard-canvas" data-dashboard-canvas aria-label="Area de inteligencia de negocio"></section>
+                </div>
+            </div>
+        </section>
 
-                <article class="crm-panel">
-                    <span class="crm-eyebrow">Atenção</span>
-                    <h2>Próximas prioridades</h2>
-                    <ul class="crm-alert-list">
-                        <li>Conectar consultas Firebird de vendas.</li>
-                        <li>Unificar clientes com orçamentos do Postgres.</li>
-                        <li>Definir etapas do funil comercial.</li>
-                    </ul>
-                </article>
+        <section class="crm-view crm-bi-view" data-crm-view="clientes" hidden>
+            <div data-dashboard-host="clientes"></div>
+            <section class="crm-module-content" aria-label="Resumo da carteira de clientes">
+                <div class="crm-static-kpis">
+                    <article class="crm-static-kpi"><span>Clientes na carteira</span><strong>—</strong><small>Base consolidada</small></article>
+                    <article class="crm-static-kpi"><span>Contatos no período</span><strong>—</strong><small>Interações registradas</small></article>
+                    <article class="crm-static-kpi"><span>Sem retorno</span><strong>—</strong><small>Requer acompanhamento</small></article>
+                    <article class="crm-static-kpi"><span>Novos clientes</span><strong>—</strong><small>Entradas recentes</small></article>
+                </div>
+                <div class="crm-operational-grid">
+                    <section class="crm-operational-section">
+                        <header><div><span class="crm-eyebrow">Relacionamento</span><h2>Saúde da carteira</h2></div><span class="crm-status-label">Atualização diária</span></header>
+                        <div class="crm-segment-list">
+                            <div><span>Clientes ativos</span><progress max="100" value="0"></progress><strong>—</strong></div>
+                            <div><span>Em acompanhamento</span><progress max="100" value="0"></progress><strong>—</strong></div>
+                            <div><span>Sem contato recente</span><progress max="100" value="0"></progress><strong>—</strong></div>
+                        </div>
+                    </section>
+                    <section class="crm-operational-section">
+                        <header><div><span class="crm-eyebrow">Prioridades</span><h2>Próximos contatos</h2></div></header>
+                        <div class="crm-empty-operational"><strong>Nenhum contato pendente</strong><span>As próximas atividades aparecerão aqui.</span></div>
+                    </section>
+                </div>
             </section>
+        </section>
 
-            <section class="crm-modules" aria-label="Módulos do CRM">
-                <a class="crm-module" id="clientes" href="#clientes">
-                    <span>01</span>
-                    <strong>Carteira de Clientes</strong>
-                    <small>Clientes, responsáveis, status e redistribuição.</small>
-                </a>
-                <a class="crm-module" href="#orcamentos" data-crm-view-link="orcamentos">
-                    <span>02</span>
-                    <strong>Orçamentos</strong>
-                    <small>Gerador atual integrado como módulo do CRM.</small>
-                </a>
-                <a class="crm-module" id="funil" href="#funil">
-                    <span>03</span>
-                    <strong>Funil de Orçamentos</strong>
-                    <small>Pipeline por etapa, alertas e valor em negociação.</small>
-                </a>
-                <a class="crm-module" id="fechamento" href="#fechamento">
-                    <span>04</span>
-                    <strong>Ficha de Fechamento</strong>
-                    <small>Venda, pagamento, acesso e dados de entrega.</small>
-                </a>
-                <a class="crm-module" id="arquitetos" href="#arquitetos">
-                    <span>05</span>
-                    <strong>Arquitetos &amp; RT</strong>
-                    <small>Parceiros, indicações e comissões.</small>
-                </a>
-                <a class="crm-module" id="reativacao" href="#reativacao">
-                    <span>06</span>
-                    <strong>Reativação</strong>
-                    <small>Clientes dormentes e fila de follow-up.</small>
-                </a>
+        <section class="crm-view crm-bi-view" data-crm-view="funil" hidden>
+            <div data-dashboard-host="funil"></div>
+            <section class="crm-module-content" aria-label="Resumo do funil de orçamentos">
+                <div class="crm-static-kpis">
+                    <article class="crm-static-kpi"><span>Em negociação</span><strong>—</strong><small>Valor aberto</small></article>
+                    <article class="crm-static-kpi"><span>Conversão</span><strong>—</strong><small>Orçamentos convertidos</small></article>
+                    <article class="crm-static-kpi"><span>Ciclo médio</span><strong>—</strong><small>Dias até decisão</small></article>
+                    <article class="crm-static-kpi"><span>Parados</span><strong>—</strong><small>Sem avanço recente</small></article>
+                </div>
+                <section class="crm-operational-section crm-pipeline-section">
+                    <header><div><span class="crm-eyebrow">Pipeline</span><h2>Fluxo comercial</h2></div><span class="crm-status-label">Visão operacional</span></header>
+                    <div class="crm-pipeline">
+                        <article><span>Proposta enviada</span><strong>0</strong><small>R$ 0,00</small></article>
+                        <article><span>Em negociação</span><strong>0</strong><small>R$ 0,00</small></article>
+                        <article><span>Aguardando decisão</span><strong>0</strong><small>R$ 0,00</small></article>
+                        <article><span>Fechamento</span><strong>0</strong><small>R$ 0,00</small></article>
+                    </div>
+                </section>
+            </section>
+        </section>
+
+        <section class="crm-view crm-bi-view" data-crm-view="arquitetos" hidden>
+            <div data-dashboard-host="arquitetos"></div>
+            <section class="crm-module-content" aria-label="Resumo de arquitetos e responsáveis técnicos">
+                <div class="crm-static-kpis">
+                    <article class="crm-static-kpi"><span>Parceiros ativos</span><strong>—</strong><small>Arquitetos e RT</small></article>
+                    <article class="crm-static-kpi"><span>Indicações</span><strong>—</strong><small>No período</small></article>
+                    <article class="crm-static-kpi"><span>Vendas indicadas</span><strong>—</strong><small>Conversões atribuídas</small></article>
+                    <article class="crm-static-kpi"><span>Comissões</span><strong>—</strong><small>Em acompanhamento</small></article>
+                </div>
+                <div class="crm-operational-grid">
+                    <section class="crm-operational-section">
+                        <header><div><span class="crm-eyebrow">Parcerias</span><h2>Relacionamentos em destaque</h2></div></header>
+                        <div class="crm-empty-operational"><strong>Nenhum parceiro destacado</strong><span>Os relacionamentos com maior atividade aparecerão aqui.</span></div>
+                    </section>
+                    <section class="crm-operational-section">
+                        <header><div><span class="crm-eyebrow">Agenda</span><h2>Próximas ações</h2></div></header>
+                        <div class="crm-empty-operational"><strong>Agenda livre</strong><span>Visitas, retornos e eventos serão exibidos neste espaço.</span></div>
+                    </section>
+                </div>
+            </section>
+        </section>
+
+        <section class="crm-view crm-bi-view" data-crm-view="reativacao" hidden>
+            <div data-dashboard-host="reativacao"></div>
+            <section class="crm-module-content" aria-label="Resumo de reativação de clientes">
+                <div class="crm-static-kpis">
+                    <article class="crm-static-kpi"><span>Elegíveis</span><strong>—</strong><small>Clientes para reativar</small></article>
+                    <article class="crm-static-kpi"><span>Contatados</span><strong>—</strong><small>No período</small></article>
+                    <article class="crm-static-kpi"><span>Reativados</span><strong>—</strong><small>Voltaram a comprar</small></article>
+                    <article class="crm-static-kpi"><span>Recuperação</span><strong>—</strong><small>Valor recuperado</small></article>
+                </div>
+                <div class="crm-operational-grid">
+                    <section class="crm-operational-section">
+                        <header><div><span class="crm-eyebrow">Cadência</span><h2>Fila de reativação</h2></div><span class="crm-status-label">Prioridade por inatividade</span></header>
+                        <div class="crm-empty-operational"><strong>Fila atualizada</strong><span>Os clientes priorizados aparecerão após a integração dos dados.</span></div>
+                    </section>
+                    <section class="crm-operational-section">
+                        <header><div><span class="crm-eyebrow">Resultado</span><h2>Retornos recentes</h2></div></header>
+                        <div class="crm-empty-operational"><strong>Nenhum retorno registrado</strong><span>As respostas da cadência serão consolidadas aqui.</span></div>
+                    </section>
+                </div>
             </section>
         </section>
 
@@ -238,6 +247,10 @@
                 <iframe class="crm-budget-frame" data-budget-frame title="Gerador de Orçamentos"></iframe>
             </div>
         </section>
+        <footer class="crm-footer" data-crm-footer>
+            <span>&copy; 2026 Sono Show e Casa Terrazi.</span>
+            <span>Todos os direitos reservados.</span>
+        </footer>
     </main>
     <div class="crm-modal" data-widget-modal hidden>
         <div class="crm-modal-backdrop" data-close-widget-modal></div>
@@ -448,6 +461,6 @@
     <script src="assets/charts/composite-datasets.js?v=crm-20260729-1"></script>
     <script src="assets/dashboard/dashboard-layout.js?v=crm-20260729-1"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260729-30"></script>
+    <script src="crm.js?v=crm-20260730-1"></script>
 </body>
 </html>
