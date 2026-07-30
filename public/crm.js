@@ -482,8 +482,9 @@ function obterEstiloAparenciaWidget(widget = {}) {
     const texto = aparencia.fundoTipo === 'light' ? '#17304A' : obterContrasteCor(baseContraste);
     const textoSuave = texto === '#FFFFFF' ? 'rgba(255,255,255,0.72)' : 'rgba(23,48,74,0.66)';
     const linha = texto === '#FFFFFF' ? 'rgba(255,255,255,0.20)' : 'rgba(23,48,74,0.13)';
+    const iconeContraste = obterContrasteCor(aparencia.iconeCor);
     const alinhamentoFlex = { left: 'start', center: 'center', right: 'end' }[aparencia.alinhamento] || 'start';
-    return `--widget-background:${fundo};--widget-color:${texto};--widget-muted:${textoSuave};--widget-line:${linha};--widget-accent:${paleta[0]};--widget-icon-color:${aparencia.iconeCor};--widget-align:${aparencia.alinhamento};--widget-justify:${alinhamentoFlex};`;
+    return `--widget-background:${fundo};--widget-color:${texto};--widget-muted:${textoSuave};--widget-line:${linha};--widget-accent:${paleta[0]};--widget-icon-color:${aparencia.iconeCor};--widget-icon-foreground:${iconeContraste};--widget-align:${aparencia.alinhamento};--widget-justify:${alinhamentoFlex};`;
 }
 
 function coletarAparenciaWidget() {
@@ -1766,7 +1767,7 @@ function renderizarDashboard() {
         const aparencia = obterAparenciaWidget(widget);
         const icone = renderizarIconeWidget(aparencia.icone, 'is-result');
         return `
-            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-align="${escapeHtml(aparencia.alinhamento)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
+            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-type="${escapeHtml(widget.tipo)}" data-widget-align="${escapeHtml(aparencia.alinhamento)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     <strong>${escapeHtml(widget.titulo)}</strong>
                     <div class="crm-dashboard-widget-actions">

@@ -2738,3 +2738,84 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     .crm-segment-list > div { grid-template-columns: 1fr 32px; }
     .crm-segment-list progress { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* Cards compactos com destaque superior e icone circular */
+.crm-dashboard-widget {
+    gap: clamp(8px, 2cqh, 14px);
+    border-width: 1px;
+    border-top: 3px solid var(--widget-accent, var(--dourado));
+    box-shadow: 0 4px 12px rgba(50, 38, 27, 0.06);
+}
+
+.crm-dashboard-widget-result {
+    align-items: center;
+}
+
+.crm-dashboard-widget[data-widget-type="kpi"] .crm-chart-kpi-real,
+.crm-dashboard-widget[data-widget-type="kpi-target"] .crm-chart-kpi-real,
+.crm-dashboard-widget[data-widget-type="kpi-calculated"] .crm-chart-kpi-real {
+    align-content: center;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.crm-widget-icon,
+.crm-widget-icon.is-preview,
+.crm-widget-icon.is-result {
+    border: 0;
+    border-radius: 50%;
+    background: var(--widget-icon-color, #C5A47E);
+    color: var(--widget-icon-foreground, #FFFFFF);
+    box-shadow: none;
+}
+
+.crm-widget-icon.is-result {
+    width: clamp(46px, 12cqi, 62px);
+    height: clamp(46px, 12cqi, 62px);
+    flex-basis: clamp(46px, 12cqi, 62px);
+}
+
+.crm-widget-icon.is-result svg {
+    width: clamp(24px, 6cqi, 32px);
+    height: clamp(24px, 6cqi, 32px);
+    stroke-width: 1.9;
+}
+
+.crm-dashboard-widget-result.has-icon .crm-chart-kpi-real {
+    justify-items: start;
+    text-align: left;
+}
+
+.crm-dashboard-widget-result.has-icon .crm-chart-kpi-real strong {
+    line-height: 1.05;
+}
+
+.crm-static-kpi,
+.crm-pipeline article {
+    border-top: 3px solid var(--dourado);
+    box-shadow: 0 4px 12px rgba(50, 38, 27, 0.05);
+}
+
+.crm-static-kpi:nth-child(2),
+.crm-pipeline article:nth-child(2) {
+    border-top-color: var(--madeira);
+}
+
+.crm-static-kpi:nth-child(3),
+.crm-pipeline article:nth-child(3) {
+    border-top-color: var(--verde-medio);
+}
+
+.crm-static-kpi:nth-child(4),
+.crm-pipeline article:nth-child(4) {
+    border-top-color: var(--verde-escuro);
+}
+
+@container (max-width: 330px) {
+    .crm-widget-icon.is-result {
+        width: 40px;
+        height: 40px;
+        flex-basis: 40px;
+    }
+}
