@@ -1,4 +1,5 @@
 import { db } from '@vercel/postgres';
+import { emailClienteValido, normalizarEmailCliente } from '../lib/customer-identifiers.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
@@ -33,8 +34,11 @@ export default async function handler(req, res) {
   });
 
   try {
-    if (!orcamento.cust_name || !orcamento.cust_phone || !orcamento.valid_until) {
-      return res.status(400).json({ error: 'Nome do cliente, telefone do cliente e validade são obrigatórios.' });
+    if (!orcamento.cust_name || !orcamento.cust_phone || !orcamento.cust_email || !orcamento.valid_until) {
+      return res.status(400).json({ error: 'Nome, telefone, e-mail do cliente e validade são obrigatórios.' });
+    }
+    if (!emailClienteValido(orcamento.cust_email)) {
+      return res.status(400).json({ error: 'Informe um e-mail válido para o cliente.' });
     }
 
     const itensNormalizados = (orcamento.items || []).map(normalizarItem);
@@ -49,6 +53,7 @@ export default async function handler(req, res) {
       limitarTexto(orcamento.cust_name || 'Consumidor', 255),
       limitarTexto(apenasDigitos(orcamento.cust_doc), 20),
       limitarTexto(apenasDigitos(orcamento.cust_phone), 15),
+      limitarTexto(normalizarEmailCliente(orcamento.cust_email), 254),
       limitarTexto(orcamento.seller_name || '', 100),
       limitarTexto(apenasDigitos(orcamento.seller_phone), 20),
       orcamento.general_obs || '',
@@ -64,11 +69,12 @@ export default async function handler(req, res) {
           cliente_nome = $2,
           cliente_doc = $3,
           telefone_cliente = $4,
-          vendedor_nome = $5,
-          vendedor_contato = $6,
-          obs_geral = $7,
-          valor_total = $8
-        WHERE id = $9
+          email_cliente = $5,
+          vendedor_nome = $6,
+          vendedor_contato = $7,
+          obs_geral = $8,
+          valor_total = $9
+        WHERE id = $10
       `, [...dadosCabecalho, orcamentoId]);
 
       await client.query('DELETE FROM vendedor_orcamento WHERE id_orcamento = $1', [orcamentoId]);
@@ -79,12 +85,13 @@ export default async function handler(req, res) {
           cliente_nome,
           cliente_doc,
           telefone_cliente,
+          email_cliente,
           vendedor_nome,
           vendedor_contato,
           obs_geral,
           valor_total,
           status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id
       `, [...dadosCabecalho, 'Pendente']);
 

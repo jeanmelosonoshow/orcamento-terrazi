@@ -44,6 +44,7 @@ const generatePdfBtn = document.getElementById('generatePdfBtn');
 const custName = document.getElementById('custName');
 const custDoc = document.getElementById('custDoc');
 const custPhone = document.getElementById('custPhone');
+const custEmail = document.getElementById('custEmail');
 const quoteValid = document.getElementById('quoteValid');
 const sellerName = document.getElementById('sellerName');
 const sellerPhone = document.getElementById('sellerPhone');
@@ -53,6 +54,9 @@ const displayTotalGeral = document.getElementById('displayTotalGeral');
 let quoteCart = [];
 let currentOrcamentoId = null;
 let currentCustomerKey = '';
+let customerMatchController = null;
+let ultimaChaveBuscaCliente = '';
+let preenchendoClienteExistente = false;
 const CASA_TERRAZI_LOGO_URL = "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp";
 const SONO_SHOW_LOGO_URL = "https://sonoshowmoveis.vtexassets.com/assets/vtex.file-manager-graphql/images/9c25daff-344c-4bbf-9adf-054dba3b5137___c25ce75d1124b3ba71eebaaf2a2527e2.png";
 const LOGO_URL = ORCAMENTO_CONFIG.logoUrl || CASA_TERRAZI_LOGO_URL;
@@ -333,10 +337,72 @@ function aplicarMascara(input, formatador) {
     });
 }
 
+function normalizarEmailCliente(valor) {
+    return String(valor || '').trim().toLowerCase();
+}
+
+function emailClienteValido(valor) {
+    const email = normalizarEmailCliente(valor);
+    return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+}
+
+function obterIdentificadoresClienteValidos() {
+    const documento = obterApenasDigitos(custDoc?.value);
+    const telefone = obterApenasDigitos(custPhone?.value);
+    const email = normalizarEmailCliente(custEmail?.value);
+    return {
+        cpf: [11, 14].includes(documento.length) ? documento : '',
+        telefone: [10, 11].includes(telefone.length) ? telefone : '',
+        email: emailClienteValido(email) ? email : ''
+    };
+}
+
+function identificadorClienteCompleto(input, identificadores) {
+    if (input === custDoc) return Boolean(identificadores.cpf);
+    if (input === custPhone) return Boolean(identificadores.telefone);
+    if (input === custEmail) return Boolean(identificadores.email);
+    return false;
+}
+
+async function verificarClienteExistente(event) {
+    if (preenchendoClienteExistente) return;
+    if (event?.target === custEmail) custEmail.value = normalizarEmailCliente(custEmail.value);
+
+    const identificadores = obterIdentificadoresClienteValidos();
+    if (!identificadorClienteCompleto(event?.target, identificadores)) return;
+    const chave = [identificadores.cpf, identificadores.telefone, identificadores.email].join('|');
+    if (!chave.replace(/\|/g, '') || chave === ultimaChaveBuscaCliente) return;
+    ultimaChaveBuscaCliente = chave;
+
+    if (customerMatchController) customerMatchController.abort();
+    customerMatchController = new AbortController();
+    try {
+        const response = await fetch('/api/buscar-cliente', {
+            method: 'POST',
+            signal: customerMatchController.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
+            },
+            body: JSON.stringify({ ...identificadores, ignorar_orcamento_id: currentOrcamentoId || null })
+        });
+        const resultado = await response.json().catch(() => ({}));
+        if (response.status === 401) return window.top.location.replace('login.html');
+        if (!response.ok) throw new Error(resultado.error || 'Não foi possível verificar o cliente.');
+        if (!resultado.encontrado || !resultado.cliente) return;
+
+        const carregar = await abrirDialogoClienteExistente(resultado.cliente);
+        if (carregar) preencherDadosClienteExistente(resultado.cliente);
+    } catch (error) {
+        if (error.name !== 'AbortError') console.warn('Falha ao verificar cliente existente:', error);
+    }
+}
+
 function configurarMascarasFormulario() {
     aplicarMascara(custDoc, formatarCpfCnpj);
     aplicarMascara(custPhone, formatarTelefone);
     aplicarMascara(sellerPhone, formatarTelefone);
+    [custDoc, custPhone, custEmail].forEach(input => input?.addEventListener('blur', verificarClienteExistente));
 }
 // 1. INICIALIZAÇÃO E EVENTOS
 document.addEventListener('DOMContentLoaded', () => {
@@ -363,6 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         custName.value = data.cliente_nome || '';
         custDoc.value = formatarCpfCnpj(data.cliente_doc || '');
         if (custPhone) custPhone.value = formatarTelefone(data.telefone_cliente || '');
+        if (custEmail) custEmail.value = normalizarEmailCliente(data.email_cliente || '');
         sellerPhone.value = formatarTelefone(data.vendedor_contato || '');
         generalObs.value = data.obs_geral || '';
         if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
@@ -627,6 +694,7 @@ function validarDadosObrigatorios() {
         { el: custName, msg: 'Preencha o nome do cliente.' },
         { el: custDoc, msg: 'Preencha o CPF ou CNPJ do cliente.' },
         { el: custPhone, msg: 'Preencha o telefone do cliente.' },
+        { el: custEmail, msg: 'Preencha o e-mail do cliente.' },
         { el: quoteValid, msg: 'Preencha a data de validade do orçamento.' }
     ];
 
@@ -651,6 +719,12 @@ function validarDadosObrigatorios() {
         return false;
     }
 
+    if (!emailClienteValido(custEmail.value)) {
+        alert('Informe um e-mail válido, por exemplo: cliente@dominio.com.br.');
+        custEmail.focus();
+        return false;
+    }
+
     const digitosTelefoneVendedor = obterApenasDigitos(sellerPhone.value);
     if (digitosTelefoneVendedor.length > 0 && ![10, 11].includes(digitosTelefoneVendedor.length)) {
         alert('Informe um telefone do vendedor com DDD e 10 ou 11 dígitos.');
@@ -660,6 +734,7 @@ function validarDadosObrigatorios() {
 
     custDoc.value = formatarCpfCnpj(custDoc.value);
     custPhone.value = formatarTelefone(custPhone.value);
+    custEmail.value = normalizarEmailCliente(custEmail.value);
     sellerPhone.value = formatarTelefone(sellerPhone.value);
 
     return true;
@@ -745,10 +820,64 @@ function abrirDialogoOrcamentoExistente(orcamentoId) {
     });
 }
 
+function preencherDadosClienteExistente(cliente) {
+    preenchendoClienteExistente = true;
+    custName.value = cliente.nome || '';
+    custDoc.value = formatarCpfCnpj(cliente.cpf || '');
+    custPhone.value = formatarTelefone(cliente.telefone || '');
+    custEmail.value = normalizarEmailCliente(cliente.email || '');
+    ultimaChaveBuscaCliente = [obterApenasDigitos(custDoc.value), obterApenasDigitos(custPhone.value), custEmail.value].join('|');
+    preenchendoClienteExistente = false;
+}
+
+function abrirDialogoClienteExistente(cliente) {
+    const dialog = document.getElementById('existingCustomerDialog');
+    const detalhes = [
+        cliente.nome || 'Não informado',
+        formatarTelefone(cliente.telefone || '') || 'Não informado',
+        cliente.email || 'Não informado',
+        formatarCpfCnpj(cliente.cpf || '') || 'Não informado'
+    ];
+    if (!dialog) {
+        const mensagem = 'Parece que este cliente já possui registro.\n\n'
+            + 'Nome: ' + detalhes[0] + '\nTelefone: ' + detalhes[1]
+            + '\nE-mail: ' + detalhes[2] + '\nCPF/CNPJ: ' + detalhes[3]
+            + '\n\nDeseja carregar esses dados?';
+        return Promise.resolve(confirm(mensagem));
+    }
+
+    ['name', 'phone', 'email', 'document'].forEach((campo, index) => {
+        const elemento = dialog.querySelector('[data-customer-match-' + campo + ']');
+        if (elemento) elemento.textContent = detalhes[index];
+    });
+    dialog.hidden = false;
+    dialog.classList.add('is-open');
+    document.body.classList.add('modal-open');
+
+    return new Promise(resolve => {
+        const fechar = carregar => {
+            dialog.classList.remove('is-open');
+            document.body.classList.remove('modal-open');
+            setTimeout(() => { dialog.hidden = true; }, 180);
+            dialog.removeEventListener('click', cliqueFora);
+            document.removeEventListener('keydown', fecharComEsc);
+            resolve(carregar);
+        };
+        const cliqueFora = event => { if (event.target === dialog) fechar(false); };
+        const fecharComEsc = event => { if (event.key === 'Escape') fechar(false); };
+        dialog.querySelector('[data-customer-match-action="load"]').onclick = () => fechar(true);
+        dialog.querySelectorAll('[data-customer-match-action="keep"]').forEach(botao => { botao.onclick = () => fechar(false); });
+        dialog.addEventListener('click', cliqueFora);
+        document.addEventListener('keydown', fecharComEsc);
+    });
+}
+
 function limparFormularioOrcamento() {
     custName.value = '';
     custDoc.value = '';
     custPhone.value = '';
+    custEmail.value = '';
+    ultimaChaveBuscaCliente = '';
     quoteValid.value = '';
     sellerPhone.value = '';
     generalObs.value = '';
@@ -817,6 +946,7 @@ async function salvarOrcamento() {
         cust_name: custName.value,
         cust_doc: obterApenasDigitos(custDoc.value),
         cust_phone: obterApenasDigitos(custPhone.value),
+        cust_email: normalizarEmailCliente(custEmail.value),
         valid_until: quoteValid.value,
         seller_name: sellerName.value,
         seller_phone: obterApenasDigitos(sellerPhone.value),
@@ -917,7 +1047,7 @@ function montarDocumentoPdf(orcamentoID) {
             </div>
         </div>
         <div class="info-box">
-            <div><strong>CLIENTE:</strong><br>${custName.value || '---'}<br>DOC: ${custDoc.value || '---'}<br>TEL: ${custPhone.value || '---'}</div>
+            <div><strong>CLIENTE:</strong><br>${custName.value || '---'}<br>DOC: ${custDoc.value || '---'}<br>TEL: ${custPhone.value || '---'}<br>E-MAIL: ${custEmail.value || '---'}</div>
             <div><strong>VENDEDOR:</strong><br>${sellerName.value}<br>CONTATO: ${sellerPhone.value || '---'}</div>
         </div>`;
 

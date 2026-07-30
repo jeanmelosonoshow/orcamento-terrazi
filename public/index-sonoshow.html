@@ -12,7 +12,7 @@
         })();
     </script>
     <title>Sono Show | Gerador de Orçamentos</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=sonoshow-20260730-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Montserrat:wght@300;500&display=swap" rel="stylesheet">
     <style>
         /* Estilos auxiliares para a barra lateral de itens */
@@ -91,7 +91,8 @@
             <div class="customer-info" style="display: grid; gap: 8px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
                 <input type="text" id="custName" placeholder="Nome do Cliente" required style="font-size: 12px; padding: 8px;">
                 <input type="text" id="custDoc" placeholder="CPF / CNPJ" required inputmode="numeric" maxlength="18" style="font-size: 12px; padding: 8px;">
-                <input type="tel" id="custPhone" placeholder="Telefone do Cliente" required inputmode="numeric" maxlength="16" style="font-size: 12px; padding: 8px;">
+                <input type="tel" id="custPhone" placeholder="Telefone do Cliente" required inputmode="numeric" maxlength="16" autocomplete="tel" style="font-size: 12px; padding: 8px;">
+                <input type="email" id="custEmail" placeholder="E-mail do Cliente" required maxlength="254" autocomplete="email" spellcheck="false" style="font-size: 12px; padding: 8px;">
                 <div style="display:flex; gap:5px; align-items:center;">
                     <label style="font-size: 10px; color: #666;">Validade:</label>
                     <input type="date" id="quoteValid" required style="font-size: 12px; padding: 5px; flex:1;">
@@ -139,6 +140,24 @@
 
 
 
+    <div id="existingCustomerDialog" class="pdf-action-dialog" hidden>
+        <div class="pdf-action-card customer-match-card" role="dialog" aria-modal="true" aria-labelledby="existingCustomerTitle">
+            <button class="pdf-action-close" type="button" data-customer-match-action="keep" aria-label="Fechar">&times;</button>
+            <h2 id="existingCustomerTitle">Cliente possivelmente cadastrado</h2>
+            <p>Parece que este cliente já possui registro. Deseja carregar os dados encontrados?</p>
+            <dl class="customer-match-details">
+                <div><dt>Nome</dt><dd data-customer-match-name>Não informado</dd></div>
+                <div><dt>Telefone</dt><dd data-customer-match-phone>Não informado</dd></div>
+                <div><dt>E-mail</dt><dd data-customer-match-email>Não informado</dd></div>
+                <div><dt>CPF/CNPJ</dt><dd data-customer-match-document>Não informado</dd></div>
+            </dl>
+            <div class="pdf-action-buttons">
+                <button type="button" class="pdf-action-secondary" data-customer-match-action="keep">Manter preenchimento</button>
+                <button type="button" class="pdf-action-primary" data-customer-match-action="load">Carregar dados</button>
+            </div>
+        </div>
+    </div>
+
     <div id="existingBudgetDialog" class="pdf-action-dialog" hidden>
         <div class="pdf-action-card" role="dialog" aria-modal="true" aria-labelledby="existingBudgetTitle">
             <button class="pdf-action-close" type="button" data-existing-action="cancel" aria-label="Fechar">&times;</button>
@@ -165,7 +184,7 @@
         };
     </script>
     <script src="theme-loader.js?v=sonoshow-20260724-1"></script>
-    <script src="script.js?v=sonoshow-20260724-1"></script>
+    <script src="script.js?v=sonoshow-20260730-1"></script>
 </body>
 </html>
 

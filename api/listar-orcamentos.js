@@ -17,6 +17,7 @@ export default async function handler(req, res) {
         o.cliente_nome,
         o.cliente_doc,
         o.telefone_cliente,
+        o.email_cliente,
         o.vendedor_nome,
         o.vendedor_contato,
         o.obs_geral,

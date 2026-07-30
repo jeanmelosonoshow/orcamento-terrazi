@@ -191,11 +191,13 @@ function filtrarOrcamentos() {
         const statusFinal = obterStatusExibicao(o);
         const nomeCliente = (o.cliente_nome || o.nome_cliente || '').toLowerCase();
         const documento = (o.cliente_doc || o.cpf || o.cnpj || '').toString().toLowerCase().replace(/[^\d]/g, '');
+        const emailCliente = (o.email_cliente || '').toString().toLowerCase();
         const idOrcamento = (o.id || '').toString();
         const termoLimpo = termo.replace(/[^\d]/g, '');
 
         const bateTexto = termo === '' ||
             nomeCliente.includes(termo) ||
+            emailCliente.includes(termo) ||
             idOrcamento.includes(termo) ||
             (termoLimpo !== '' && documento.includes(termoLimpo));
 
@@ -287,7 +289,8 @@ function renderizarCards(lista) {
                 <h3 style="margin: 0 0 5px 0; font-size: 16px; color: var(--verde-escuro);">${o.cliente_nome || 'Consumidor'}</h3>
                 <p style="font-size: 12px; color: #666; margin-bottom: 2px;">Vendedor: ${o.vendedor_nome}</p>
                 ${o.cliente_doc ? `<p style="font-size: 11px; color: #888; margin-bottom: 2px;">CPF/CNPJ: ${o.cliente_doc}</p>` : ''}
-                ${o.telefone_cliente ? `<p style="font-size: 11px; color: #888; margin-bottom: 10px;">Telefone: ${o.telefone_cliente}</p>` : ''}
+                ${o.telefone_cliente ? `<p style="font-size: 11px; color: #888; margin-bottom: 2px;">Telefone: ${o.telefone_cliente}</p>` : ''}
+                ${o.email_cliente ? `<p style="font-size: 11px; color: #888; margin-bottom: 10px; overflow-wrap:anywhere;">E-mail: ${o.email_cliente}</p>` : ''}
                 <div class="total" style="font-size: 18px; font-weight: 700; color: var(--verde-escuro);">
                     R$ ${parseFloat(o.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </div>
@@ -400,7 +403,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
                 </div>
             </div>
             <div class="info-box">
-                <div><strong>CLIENTE:</strong><br>${data.cliente_nome || 'Consumidor'}<br>DOC: ${data.cliente_doc || '---'}<br>TEL: ${data.telefone_cliente || '---'}</div>
+                <div><strong>CLIENTE:</strong><br>${data.cliente_nome || 'Consumidor'}<br>DOC: ${data.cliente_doc || '---'}<br>TEL: ${data.telefone_cliente || '---'}<br>E-MAIL: ${data.email_cliente || '---'}</div>
                 <div><strong>VENDEDOR:</strong><br>${data.vendedor_nome}<br>CONTATO: ${data.vendedor_contato || '---'}</div>
             </div>`;
 

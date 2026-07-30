@@ -583,3 +583,36 @@ body.is-embedded-budget #top-bar-user { display: none !important; }
     }
 }
 
+
+
+.customer-match-card {
+    width: min(100%, 460px);
+}
+
+.customer-match-details {
+    margin: 0 0 20px;
+    border-top: 1px solid var(--borda);
+}
+
+.customer-match-details > div {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--borda);
+}
+
+.customer-match-details dt {
+    color: #666;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.customer-match-details dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--verde-escuro);
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+}
