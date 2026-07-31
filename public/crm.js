@@ -652,11 +652,39 @@ function converterNumero(valor) {
     return Number.isFinite(numero) ? numero : 0;
 }
 
+function converterDataDimensao(valor) {
+    if (valor instanceof Date) {
+        if (Number.isNaN(valor.getTime())) return null;
+        return new Date(
+            valor.getUTCFullYear(),
+            valor.getUTCMonth(),
+            valor.getUTCDate(),
+            12
+        );
+    }
+
+    const texto = String(valor || '').trim();
+    const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s|$)/);
+    if (iso) {
+        const data = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 12);
+        return Number.isNaN(data.getTime()) ? null : data;
+    }
+
+    const brasileira = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s|$)/);
+    if (brasileira) {
+        const data = new Date(Number(brasileira[3]), Number(brasileira[2]) - 1, Number(brasileira[1]), 12);
+        return Number.isNaN(data.getTime()) ? null : data;
+    }
+
+    const data = new Date(valor);
+    return Number.isNaN(data.getTime()) ? null : data;
+}
+
 function formatarDimensao(valor, formatoData = 'none') {
     if (valor === null || valor === undefined || valor === '') return 'Sem valor';
     if (!formatoData || formatoData === 'none') return String(valor);
-    const data = valor instanceof Date ? valor : new Date(valor);
-    if (Number.isNaN(data.getTime())) return String(valor);
+    const data = converterDataDimensao(valor);
+    if (!data) return String(valor);
     if (formatoData === 'year') return String(data.getFullYear());
     if (formatoData === 'quarter') return `${Math.floor(data.getMonth() / 3) + 1}o tri/${data.getFullYear()}`;
     if (formatoData === 'month') {
