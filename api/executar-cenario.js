@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
 const LIMITE_RETORNO = 1000;
 const LIMITE_PREVIA = 100;
-const CONSULTA_TIMEOUT_MS = 15000;
+const CONSULTA_TIMEOUT_MS = 45000;
 
 function carregarEditoresCenario() {
     try {
