@@ -21,8 +21,8 @@ Opcoes de estabilidade:
 - `FB_POOL_IDLE_MS`: tempo ocioso antes de fechar conexao, padrao `30000`
 - `FB_POOL_LIFETIME_MS`: vida maxima da conexao, padrao `900000`
 - `FB_POOL_MAX_USES`: usos antes de reciclar a conexao, padrao `1000`
-- `DB_CHARSET_FB`: codificacao principal, padrao `UTF8`; deve coincidir com a conexao usada no IBExpert
-- `DB_CHARSET_FB_FALLBACK`: alternativa para consultas de cenario com texto legado, padrao `NONE`; use `OFF` para desativar
+- `DB_CHARSET_FB`: codificacao principal, padrao `NONE`; deve coincidir com a conexao usada no IBExpert
+- `DB_CHARSET_FB_FALLBACK`: alternativa para consultas de cenario com texto legado, padrao `UTF8`; use `OFF` para desativar
 
 O painel limita automaticamente a quantidade de consultas simultaneas. Evite aumentar `FB_POOL_SIZE`
 sem conferir `MaxUserConnections` e a capacidade do servidor Firebird; mais conexoes podem aumentar

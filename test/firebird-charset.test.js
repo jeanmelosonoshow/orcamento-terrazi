@@ -3,9 +3,15 @@ import assert from 'node:assert/strict';
 import {
     charsetsParaConsultaFirebird,
     criarErroCharsetFirebird,
-    erroConversaoCharsetFirebird
+    erroConversaoCharsetFirebird,
+    normalizarCharsetFirebird
 } from '../lib/firebird-charset.js';
 
+test('usa NONE como charset padrao do banco Firebird', () => {
+    assert.equal(normalizarCharsetFirebird(undefined), 'NONE');
+    assert.equal(normalizarCharsetFirebird('none'), 'NONE');
+    assert.equal(normalizarCharsetFirebird('utf8'), 'UTF8');
+});
 test('reconhece erros de conversao de texto do Firebird', () => {
     assert.equal(erroConversaoCharsetFirebird(new Error('Malformed string, At block line: 27, col: 2')), true);
     assert.equal(erroConversaoCharsetFirebird(new Error('Cannot transliterate character between character sets')), true);
