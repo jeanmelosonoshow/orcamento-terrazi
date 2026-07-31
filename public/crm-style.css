@@ -2089,6 +2089,47 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     padding: 7px 9px;
 }
 
+.crm-chart-top-config {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 220px);
+    gap: 14px;
+    align-items: end;
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid var(--linha);
+    border-radius: 8px;
+    background: rgba(197,164,126,0.08);
+}
+
+.crm-chart-top-config[hidden] {
+    display: none;
+}
+
+.crm-chart-top-config label {
+    display: grid;
+    gap: 6px;
+    color: var(--accent, #B66A42);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.crm-chart-top-config input {
+    min-height: 38px;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font: inherit;
+    padding: 7px 9px;
+}
+
+@media (max-width: 700px) {
+    .crm-chart-top-config {
+        grid-template-columns: 1fr;
+    }
+}
+
 .crm-table-config {
     display: grid;
     gap: 12px;

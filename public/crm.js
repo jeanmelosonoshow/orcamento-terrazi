@@ -143,6 +143,8 @@ const queryResultBox = document.querySelector('[data-query-result]');
 const queryTableWrap = document.querySelector('[data-query-table-wrap]');
 const columnMappingBox = document.querySelector('[data-column-mapping]');
 const mappingNote = document.querySelector('[data-mapping-note]');
+const chartTopConfigBox = document.querySelector('[data-chart-top-config]');
+const chartTopLimitInput = document.querySelector('[data-chart-top-limit]');
 const tableConfigBox = document.querySelector('[data-table-config]');
 const tableTotalRowsInput = document.querySelector('[data-table-total-rows]');
 const tableTotalColumnsInput = document.querySelector('[data-table-total-columns]');
@@ -226,6 +228,7 @@ let vendedoresDisponiveis = [];
 let filiaisRascunho = [];
 let vendedoresRascunho = [];
 let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, agrupamentos: [], subtotais: [] };
+let limiteTopAtual = 0;
 const instanciasGraficosDashboard = new Map();
 const observadoresGraficosDashboard = new Map();
 const estadosDrillDashboard = new Map();
@@ -387,6 +390,7 @@ function criarWidgetPadrao(tipo = 'bar') {
         y: 0,
         w: 420,
         h: 300,
+        limiteTop: 0,
         mapeamentos: [],
         fonte: 'firebird',
         sql: '',
@@ -720,6 +724,25 @@ function calcularAgregacao(valores, agregacao = 'none') {
     return numeros[0];
 }
 
+function normalizarLimiteTopGrafico(valor) {
+    const limite = Math.floor(Number(valor));
+    return Number.isFinite(limite) && limite > 0 ? Math.min(limite, 1000) : 0;
+}
+
+function ordenarELimitarTopGrafico(grupos, limiteTop, obterValor) {
+    const limite = normalizarLimiteTopGrafico(limiteTop);
+    if (!limite || grupos.length <= 1) return grupos;
+    return grupos
+        .map((grupo, indice) => ({ grupo, indice, valor: Number(obterValor(grupo)) }))
+        .sort((a, b) => {
+            const valorA = Number.isFinite(a.valor) ? a.valor : 0;
+            const valorB = Number.isFinite(b.valor) ? b.valor : 0;
+            return (valorB - valorA) || (a.indice - b.indice);
+        })
+        .slice(0, limite)
+        .map(item => item.grupo);
+}
+
 function obterApelidoMapeamento(mapeamento) {
     return String(mapeamento?.apelido || mapeamento?.coluna || '').trim();
 }
@@ -761,6 +784,15 @@ function prepararDadosGrafico(widget) {
         }
         return a.ordem - b.ordem;
     });
+    const valorRankingTop = valores.find(valor => obterOrdenacaoCampo(valor) !== 'none') || valores[0];
+    const gruposExibidos = ordenarELimitarTopGrafico(
+        gruposOrdenados,
+        widget.limiteTop,
+        grupo => calcularAgregacao(
+            grupo.linhas.map(linha => obterValorLinha(linha, valorRankingTop.coluna)),
+            agregacaoDados(valorRankingTop)
+        )
+    );
     const membrosColuna = coluna
         ? Array.from(new Set(linhas.map(linha => formatarDimensao(obterValorLinha(linha, coluna.coluna), coluna.formatoData))))
             .sort((a, b) => {
@@ -773,7 +805,7 @@ function prepararDadosGrafico(widget) {
             ? obterApelidoMapeamento(mapeamento)
             : (medidas.length === 1 ? membro : `${obterApelidoMapeamento(mapeamento)} - ${membro}`),
         formato: mapeamento.formatoValor || 'decimal',
-        valores: gruposOrdenados.map(grupo => {
+        valores: gruposExibidos.map(grupo => {
             const linhasSerie = membro === null
                 ? grupo.linhas
                 : grupo.linhas.filter(linha => formatarDimensao(obterValorLinha(linha, coluna.coluna), coluna.formatoData) === membro);
@@ -785,7 +817,7 @@ function prepararDadosGrafico(widget) {
     })));
 
     return {
-        categorias: gruposOrdenados.map(grupo => grupo.rotulo),
+        categorias: gruposExibidos.map(grupo => grupo.rotulo),
         nomeDimensao: dimensao ? obterApelidoMapeamento(dimensao) : '',
         series
     };
@@ -1756,6 +1788,7 @@ function widgetVisivelParaCategoria(widget, codigo = categoriaCodigo) {
 function normalizarWidgetsDashboard(widgets) {
     return atribuirReferenciasIndicadores(widgets).map((widget, index) => ({
         ...widget,
+        limiteTop: normalizarLimiteTopGrafico(widget.limiteTop),
         categoriasPermitidas: obterCategoriasPermitidasWidget(widget),
         aparencia: obterAparenciaWidget(widget),
         ...obterLayoutWidget(widget, index)
@@ -2526,12 +2559,17 @@ function renderizarMapeamentoColunas() {
 
     if (!colunasConsultaAtual.length) {
         columnMappingBox.innerHTML = '';
+        if (chartTopConfigBox) chartTopConfigBox.hidden = true;
         if (tableConfigBox) tableConfigBox.hidden = true;
         if (mappingNote) mappingNote.textContent = 'Execute a consulta para carregar as colunas retornadas.';
         return;
     }
 
     if (mappingNote) mappingNote.textContent = 'Defina como cada coluna retornada deve ser usada no grafico.';
+    const papeisTipo = obterPapeisGrafico(tipo);
+    const permiteLimiteTop = papeisTipo.includes('dimensao') && papeisTipo.includes('valor');
+    if (chartTopConfigBox) chartTopConfigBox.hidden = !permiteLimiteTop;
+    if (chartTopLimitInput) chartTopLimitInput.value = limiteTopAtual || '';
     columnMappingBox.innerHTML = colunasConsultaAtual.map(coluna => {
         const atual = porNome.get(String(coluna).toLowerCase()) || {};
         return `
@@ -2677,6 +2715,7 @@ function abrirModalWidget(widgetId) {
         widgetTypeSelect.value = widgetEmEdicao.tipo;
     }
     configuracaoTabelaAtual = obterConfiguracaoTabela(widgetEmEdicao);
+    limiteTopAtual = normalizarLimiteTopGrafico(widgetEmEdicao.limiteTop);
     if (widgetTitleInput) widgetTitleInput.value = widgetEmEdicao.titulo || '';
     const consultasWidget = Array.isArray(widgetEmEdicao.consultas) && widgetEmEdicao.consultas.length
         ? widgetEmEdicao.consultas
@@ -2719,6 +2758,7 @@ function fecharModalWidget() {
     dadosConsultaAtual = [];
     assinaturaConsultaAtual = '';
     resultadosConsultasAtuais = [];
+    limiteTopAtual = 0;
 }
 
 function validarMapeamentoWidget(mapeamentos) {
@@ -2775,6 +2815,7 @@ function salvarWidgetAtual() {
         colunasConsulta: calculado ? [] : colunasConsultaAtual,
         dadosConsulta: calculado ? [] : dadosConsultaAtual,
         consultaAtualizadaEm: calculado ? null : new Date().toISOString(),
+        limiteTop: calculado ? 0 : normalizarLimiteTopGrafico(limiteTopAtual),
         mapeamentos,
         calculo: calculado ? configuracaoCalculo : (widgetEmEdicao.calculo || null),
         categoriasPermitidas,
@@ -2947,6 +2988,11 @@ function inicializarEditorDashboard() {
             configuracaoTabelaAtual.agrupamentos = configuracaoTabelaAtual.agrupamentos.filter(coluna => colunasLinhaAtuais.includes(String(coluna)));
             configuracaoTabelaAtual.subtotais = configuracaoTabelaAtual.subtotais.filter(coluna => colunasLinhaAtuais.includes(String(coluna)));
             renderizarConfiguracaoTabela();
+        });
+    }
+    if (chartTopLimitInput) {
+        chartTopLimitInput.addEventListener('input', () => {
+            limiteTopAtual = normalizarLimiteTopGrafico(chartTopLimitInput.value);
         });
     }
     if (tableConfigBox) tableConfigBox.addEventListener('change', event => {

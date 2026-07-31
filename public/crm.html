@@ -365,6 +365,16 @@
                     <div class="crm-calculated-fields-head"><div><strong>Campos calculados</strong><span>Use referências como [principal.TOTAL]</span></div><button type="button" data-add-calculated-field>+ Adicionar campo</button></div>
                     <div data-calculated-field-list></div>
                 </section>
+                <section class="crm-chart-top-config" data-chart-top-config hidden>
+                    <div class="crm-table-config-head">
+                        <strong>Limite de resultados</strong>
+                        <span>Exibe os maiores resultados depois da agregacao.</span>
+                    </div>
+                    <label>
+                        Limite Top
+                        <input type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="Sem limite" data-chart-top-limit>
+                    </label>
+                </section>
                 <section class="crm-table-config" data-table-config hidden>
                     <div class="crm-table-config-head">
                         <strong>Opções da tabela</strong>
@@ -462,6 +472,6 @@
     <script src="assets/charts/composite-datasets.js?v=crm-20260729-1"></script>
     <script src="assets/dashboard/dashboard-layout.js?v=crm-20260729-1"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260731-1"></script>
+    <script src="crm.js?v=crm-20260731-2"></script>
 </body>
 </html>
