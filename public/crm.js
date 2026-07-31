@@ -1275,8 +1275,17 @@ function obterCamposDetalheWidget(widget, mapeamentos) {
         .filter(item => item.papel !== 'ignorar')
         .map(item => String(item.coluna).toLowerCase()));
     const configuracoes = new Map(mapeamentos.map(item => [String(item.coluna).toLowerCase(), item]));
-    return (widget.colunasConsulta || [])
-        .filter(coluna => !colunasAtivas.has(String(coluna).toLowerCase()))
+    const colunasOrigem = Array.from(new Set([
+        ...(Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : []),
+        ...mapeamentos.map(item => item.coluna).filter(Boolean)
+    ]));
+    return colunasOrigem
+        .filter(coluna => {
+            const nome = String(coluna).toLowerCase();
+            const configuracao = configuracoes.get(nome);
+            if (configuracao) return configuracao.papel === 'ignorar';
+            return !widget.dadosConsultaAgregados && !colunasAtivas.has(nome);
+        })
         .map(coluna => {
             const configuracao = configuracoes.get(String(coluna).toLowerCase()) || {};
             return {
@@ -2578,7 +2587,11 @@ async function executarWidgetComFiltros(widget, filtros) {
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.details || data.error || 'Erro ao atualizar o card.');
-        return { ...widget, colunasConsulta: Array.isArray(data.colunas) ? data.colunas : [], dadosConsulta: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []), dadosConsultaAgregados: data.resultadoAgregado === true, consultaAtualizadaEm: new Date().toISOString() };
+        const colunasRetornadas = Array.isArray(data.colunas) ? data.colunas : [];
+        const colunasConsulta = widget.tipo === 'pivot'
+            ? Array.from(new Set([...(Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : []), ...colunasRetornadas]))
+            : colunasRetornadas;
+        return { ...widget, colunasConsulta, dadosConsulta: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []), dadosConsultaAgregados: data.resultadoAgregado === true, consultaAtualizadaEm: new Date().toISOString() };
     } finally { clearTimeout(timeout); }
 }
 
