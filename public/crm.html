@@ -378,12 +378,18 @@
                 <section class="crm-table-config" data-table-config hidden>
                     <div class="crm-table-config-head">
                         <strong>Opções da tabela</strong>
-                        <span>Totais, agrupamentos e detalhamento</span>
+                        <span>Totais, agrupamentos, paginação e detalhamento</span>
                     </div>
                     <div class="crm-table-config-options">
                         <label><input type="checkbox" data-table-total-rows> Total geral das linhas</label>
                         <label><input type="checkbox" data-table-total-columns> Total geral das colunas</label>
                         <label><input type="checkbox" data-table-repeat-labels> Repetir rótulos dos grupos</label>
+                    </div>
+                    <div class="crm-table-pagination-options">
+                        <label><input type="checkbox" data-table-pagination> Usar paginação</label>
+                        <label>Registros por página<input type="number" min="1" max="500" step="1" value="25" data-table-page-size></label>
+                        <label>Limite de exibição<input type="number" min="1" max="1000" step="1" placeholder="Todos" data-table-display-limit></label>
+                        <small>Paginação e limite afetam somente a tela. PDF, Excel e impressão usam todos os registros.</small>
                     </div>
                     <div class="crm-group-options" data-group-options></div>
                     <div class="crm-subtotal-options" data-subtotal-options></div>
@@ -471,7 +477,9 @@
     <script src="assets/charts/kpi-calculator.js?v=crm-20260728-1"></script>
     <script src="assets/charts/composite-datasets.js?v=crm-20260729-1"></script>
     <script src="assets/dashboard/dashboard-layout.js?v=crm-20260729-1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260731-2"></script>
+    <script src="crm.js?v=crm-20260731-3"></script>
 </body>
 </html>

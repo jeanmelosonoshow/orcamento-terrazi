@@ -149,6 +149,9 @@ const tableConfigBox = document.querySelector('[data-table-config]');
 const tableTotalRowsInput = document.querySelector('[data-table-total-rows]');
 const tableTotalColumnsInput = document.querySelector('[data-table-total-columns]');
 const tableRepeatLabelsInput = document.querySelector('[data-table-repeat-labels]');
+const tablePaginationInput = document.querySelector('[data-table-pagination]');
+const tablePageSizeInput = document.querySelector('[data-table-page-size]');
+const tableDisplayLimitInput = document.querySelector('[data-table-display-limit]');
 const subtotalOptionsBox = document.querySelector('[data-subtotal-options]');
 const groupOptionsBox = document.querySelector('[data-group-options]');
 const widgetSourceSelect = document.querySelector('[data-widget-source]');
@@ -227,12 +230,13 @@ let filiaisDisponiveis = [];
 let vendedoresDisponiveis = [];
 let filiaisRascunho = [];
 let vendedoresRascunho = [];
-let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, agrupamentos: [], subtotais: [] };
+let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, paginacao: false, registrosPorPagina: 25, limiteExibicao: 0, agrupamentos: [], subtotais: [] };
 let limiteTopAtual = 0;
 const instanciasGraficosDashboard = new Map();
 const observadoresGraficosDashboard = new Map();
 const estadosDrillDashboard = new Map();
 const contextosDrillDashboard = new Map();
+const paginasTabelaDashboard = new Map();
 let instanciaPreviaAparencia = null;
 let sequenciaContextoDrill = 0;
 let observadorTamanhoDashboard = null;
@@ -1216,12 +1220,20 @@ function montarOpcaoECharts(widget, dados, container) {
     };
 }
 
+function normalizarQuantidadeTabela(valor, fallback, minimo, maximo) {
+    const numero = Math.floor(Number(valor));
+    return Number.isFinite(numero) ? Math.min(maximo, Math.max(minimo, numero)) : fallback;
+}
+
 function obterConfiguracaoTabela(widget = {}) {
     const atual = widget.tabela && typeof widget.tabela === 'object' ? widget.tabela : {};
     return {
         totalLinhas: Boolean(atual.totalLinhas),
         totalColunas: Boolean(atual.totalColunas),
         repetirRotulos: Boolean(atual.repetirRotulos),
+        paginacao: Boolean(atual.paginacao),
+        registrosPorPagina: normalizarQuantidadeTabela(atual.registrosPorPagina, 25, 1, 500),
+        limiteExibicao: normalizarQuantidadeTabela(atual.limiteExibicao, 0, 0, 1000),
         agrupamentos: Array.isArray(atual.agrupamentos) ? atual.agrupamentos.map(String) : [],
         subtotais: Array.isArray(atual.subtotais) ? atual.subtotais.map(String) : []
     };
@@ -1355,7 +1367,65 @@ function renderizarBreadcrumbDrill(widget, estado) {
     `;
 }
 
-function renderizarTabelaSimples(container, widget, registros, camposLinha, camposColuna, valores, camposDetalhe, configuracao) {
+function prepararPaginacaoTabela(widget, registros, exportarTudo = false) {
+    const configuracao = obterConfiguracaoTabela(widget);
+    const totalRegistros = registros.length;
+    if (exportarTudo) {
+        return { registros, totalRegistros, totalExibicao: totalRegistros, pagina: 1, totalPaginas: 1, inicio: 0, fim: totalRegistros, mostrarControle: false };
+    }
+
+    const limite = configuracao.limiteExibicao > 0 ? configuracao.limiteExibicao : totalRegistros;
+    const registrosExibiveis = registros.slice(0, limite);
+    const totalExibicao = registrosExibiveis.length;
+    if (!configuracao.paginacao) {
+        return {
+            registros: registrosExibiveis,
+            totalRegistros,
+            totalExibicao,
+            pagina: 1,
+            totalPaginas: 1,
+            inicio: totalExibicao ? 1 : 0,
+            fim: totalExibicao,
+            mostrarControle: totalExibicao < totalRegistros
+        };
+    }
+
+    const porPagina = configuracao.registrosPorPagina;
+    const totalPaginas = Math.max(1, Math.ceil(totalExibicao / porPagina));
+    const paginaSalva = normalizarQuantidadeTabela(paginasTabelaDashboard.get(widget.id), 1, 1, totalPaginas);
+    paginasTabelaDashboard.set(widget.id, paginaSalva);
+    const indiceInicial = (paginaSalva - 1) * porPagina;
+    const registrosPagina = registrosExibiveis.slice(indiceInicial, indiceInicial + porPagina);
+    return {
+        registros: registrosPagina,
+        totalRegistros,
+        totalExibicao,
+        pagina: paginaSalva,
+        totalPaginas,
+        inicio: registrosPagina.length ? indiceInicial + 1 : 0,
+        fim: indiceInicial + registrosPagina.length,
+        mostrarControle: true
+    };
+}
+
+function renderizarControlePaginacaoTabela(widget, paginacao) {
+    if (!paginacao.mostrarControle) return '';
+    const limitado = paginacao.totalExibicao < paginacao.totalRegistros
+        ? ' Limite visual: ' + paginacao.totalExibicao + ' de ' + paginacao.totalRegistros + '.'
+        : '';
+    return `
+        <div class="crm-table-pagination" data-table-pagination-widget="${escapeHtml(widget.id)}">
+            <span>Exibindo ${paginacao.inicio}-${paginacao.fim} de ${paginacao.totalExibicao}.${limitado}</span>
+            <div>
+                <button type="button" data-table-page="-1" aria-label="Página anterior" title="Página anterior"${paginacao.pagina <= 1 ? ' disabled' : ''}>‹</button>
+                <strong>${paginacao.pagina} / ${paginacao.totalPaginas}</strong>
+                <button type="button" data-table-page="1" aria-label="Próxima página" title="Próxima página"${paginacao.pagina >= paginacao.totalPaginas ? ' disabled' : ''}>›</button>
+            </div>
+        </div>
+    `;
+}
+
+function renderizarTabelaSimples(container, widget, registros, registrosTotalizacao, camposLinha, camposColuna, valores, camposDetalhe, configuracao) {
     const dimensoes = [...camposLinha, ...camposColuna];
     const camposExibidos = [...dimensoes, ...valores];
     const cabecalho = camposExibidos.map(campo => `<th${atributoAlinhamentoCampo(campo, campo.papel === 'valor' ? 'right' : 'left')}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`).join('');
@@ -1383,7 +1453,7 @@ function renderizarTabelaSimples(container, widget, registros, camposLinha, camp
         <tr class="crm-pivot-grand-total">
             <td${atributoAlinhamentoCampo(dimensoes[0])} colspan="${Math.max(1, dimensoes.length)}">Total geral</td>
             ${valores.map(valor => {
-                const agregado = calcularAgregacao(registros.map(registro => obterValorLinha(registro, valor.coluna)), valor.agregacao || 'none');
+                const agregado = calcularAgregacao(registrosTotalizacao.map(registro => obterValorLinha(registro, valor.coluna)), valor.agregacao || 'none');
                 return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatarValorGrafico(agregado, valor.formatoValor))}</td>`;
             }).join('')}
         </tr>` : '';
@@ -1397,7 +1467,7 @@ function renderizarTabelaSimples(container, widget, registros, camposLinha, camp
     `;
 }
 
-function renderizarTabelaGrafico(container, widget) {
+function renderizarTabelaGrafico(container, widget, opcoes = {}) {
     const estadoDrill = estadosDrillDashboard.get(widget.id);
     const todosRegistros = estadoDrill?.campoAtual
         ? (Array.isArray(estadoDrill.dados) ? estadoDrill.dados : [])
@@ -1418,7 +1488,9 @@ function renderizarTabelaGrafico(container, widget) {
     const camposOrdenacao = estadoDrill?.campoAtual
         ? [estadoDrill.campoAtual, ...valores]
         : mapeamentos.filter(item => item.papel !== 'ignorar');
-    const registros = ordenarRegistrosPorCampos(todosRegistros, camposOrdenacao);
+    const registrosOrdenados = ordenarRegistrosPorCampos(todosRegistros, camposOrdenacao);
+    const paginacao = prepararPaginacaoTabela(widget, registrosOrdenados, opcoes.exportarTudo === true);
+    const registros = paginacao.registros;
 
     if (!camposLinhaConfigurados.length || !valores.length) {
         container.innerHTML = '<div class="crm-chart-empty">Defina ao menos um campo de linha e um campo de valor.</div>';
@@ -1444,12 +1516,13 @@ function renderizarTabelaGrafico(container, widget) {
     );
 
     if (widget.tipo === 'table' && !estadoDrill?.campoAtual) {
-        renderizarTabelaSimples(container, widget, registros, camposLinhaConfigurados, camposColuna, valores, camposDetalheDisponiveis, configuracao);
+        renderizarTabelaSimples(container, widget, registros, registrosOrdenados, camposLinhaConfigurados, camposColuna, valores, camposDetalheDisponiveis, configuracao);
+        container.insertAdjacentHTML('beforeend', renderizarControlePaginacaoTabela(widget, paginacao));
         return;
     }
 
     const colunasDinamicas = camposColuna.length
-        ? Array.from(new Map(registros.map(registro => {
+        ? Array.from(new Map(registrosOrdenados.map(registro => {
             const chave = chaveCamposRegistro(registro, camposColuna);
             const rotulo = camposColuna
                 .map(campo => formatarDimensao(obterValorLinha(registro, campo.coluna), campo.formatoData))
@@ -1497,6 +1570,9 @@ function renderizarTabelaGrafico(container, widget) {
         }).join('') : '';
         return porColuna + totais;
     };
+    const registrosDoCaminho = caminho => registrosOrdenados.filter(registro =>
+        caminho.every(parte => compararValoresOrdenacao(obterValorLinha(registro, parte.campo.coluna), parte.valor) === 0)
+    );
     const renderizarLinhaBase = (caminho, registrosGrupo) => {
         const primeiroAlterado = caminho.findIndex((item, index) => estadoRotulos.anteriores[index] !== item.rotulo);
         const celulasLinha = caminho.map((item, index) => {
@@ -1521,7 +1597,7 @@ function renderizarTabelaGrafico(container, widget) {
                 ? renderizarLinhaBase(novoCaminho, grupo.registros)
                 : renderizarNivel(grupo.registros, nivel + 1, novoCaminho);
             if (!estadoDrill?.campoAtual && configuracao.subtotais.includes(String(campo.coluna)) && nivel < camposLinha.length - 1) {
-                conteudo += `<tr class="crm-pivot-subtotal"><td${atributoAlinhamentoCampo(campo)} colspan="${camposLinha.length}">Subtotal ${escapeHtml(obterApelidoMapeamento(campo))}: ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(grupo.registros)}</tr>`;
+                conteudo += `<tr class="crm-pivot-subtotal"><td${atributoAlinhamentoCampo(campo)} colspan="${camposLinha.length}">Subtotal ${escapeHtml(obterApelidoMapeamento(campo))}: ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(registrosDoCaminho(novoCaminho))}</tr>`;
                 estadoRotulos.anteriores = [];
             }
             return conteudo;
@@ -1580,7 +1656,7 @@ function renderizarTabelaGrafico(container, widget) {
                 ? `${montarCabecalho(camposLinhaDetalhe).replace(/<tr>/g, '<tr class="crm-pivot-group-columns">')}${renderizarDetalhesAgrupados(grupo.registros, novoCaminho)}`
                 : renderizarAgrupamentos(grupo.registros, nivel + 1, novoCaminho);
             const subtotal = configuracao.subtotais.includes(String(campo.coluna))
-                ? `<tr class="crm-pivot-subtotal"><td${atributoAlinhamentoCampo(campo)} colspan="${quantidadeDimensoesDetalhe}">Subtotal ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(grupo.registros)}</tr>`
+                ? `<tr class="crm-pivot-subtotal"><td${atributoAlinhamentoCampo(campo)} colspan="${quantidadeDimensoesDetalhe}">Subtotal ${escapeHtml(grupo.rotulo)}</td>${renderizarCelulasValor(registrosDoCaminho(novoCaminho))}</tr>`
                 : '';
             estadoRotulos.anteriores = [];
             return faixaGrupo + conteudo + subtotal;
@@ -1595,7 +1671,7 @@ function renderizarTabelaGrafico(container, widget) {
         : camposLinha[0];
     const colspanTotal = possuiAgrupamentos ? quantidadeDimensoesDetalhe : camposLinha.length;
     const totalGeral = configuracao.totalLinhas
-        ? `<tr class="crm-pivot-grand-total"><td${atributoAlinhamentoCampo(campoRotuloTotal)} colspan="${colspanTotal}">Total geral</td>${renderizarCelulasValor(registros)}</tr>`
+        ? `<tr class="crm-pivot-grand-total"><td${atributoAlinhamentoCampo(campoRotuloTotal)} colspan="${colspanTotal}">Total geral</td>${renderizarCelulasValor(registrosOrdenados)}</tr>`
         : '';
     container.innerHTML = `
         ${renderizarBreadcrumbDrill(widget, estadoDrill)}
@@ -1605,6 +1681,7 @@ function renderizarTabelaGrafico(container, widget) {
                 <tbody>${corpo}${totalGeral}</tbody>
             </table>
         </div>
+        ${renderizarControlePaginacaoTabela(widget, paginacao)}
     `;
 }
 
@@ -1885,6 +1962,181 @@ function renderizarIconeOlho() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
 }
 
+function renderizarIconeExportar() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 20h14"></path></svg>';
+}
+
+function renderizarIconePdf() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6z"></path><path d="M14 2v5h5"></path><path d="M8 16h8"></path><path d="M8 12h5"></path></svg>';
+}
+
+function renderizarIconeExcel() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5z"></path><path d="m8 9 4 6"></path><path d="m12 9-4 6"></path><path d="M15 7h2"></path><path d="M15 11h2"></path><path d="M15 15h2"></path></svg>';
+}
+
+function renderizarIconeImprimir() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5"></path><path d="M7 17H4V9h16v8h-3"></path><path d="M7 14h10v7H7z"></path></svg>';
+}
+
+function renderizarMenuExportacaoWidget() {
+    return `
+        <span class="crm-widget-export">
+            <button type="button" class="crm-widget-query-button" data-widget-export-toggle aria-label="Exportar relatório" title="Exportar relatório">${renderizarIconeExportar()}</button>
+            <span class="crm-widget-export-menu" data-widget-export-menu hidden>
+                <button type="button" data-widget-export="pdf">${renderizarIconePdf()}<span>PDF</span></button>
+                <button type="button" data-widget-export="excel">${renderizarIconeExcel()}<span>Excel</span></button>
+                <button type="button" data-widget-export="print">${renderizarIconeImprimir()}<span>Imprimir</span></button>
+            </span>
+        </span>
+    `;
+}
+
+function nomeArquivoRelatorio(widget, extensao) {
+    const base = String(widget?.titulo || 'relatorio')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || 'relatorio';
+    return `${base}.${extensao}`;
+}
+
+function obterWidgetExportacao(widgetId) {
+    return normalizarWidgetsDashboard(obterWidgetsDashboard()).find(widget => String(widget.id) === String(widgetId));
+}
+
+function criarElementoExportacao(widget) {
+    const elemento = document.createElement('section');
+    elemento.className = 'crm-report-export';
+    elemento.style.cssText += obterEstiloAparenciaWidget(widget);
+    elemento.innerHTML = `
+        <header>
+            <h1>${escapeHtml(widget.titulo || obterNomeGrafico(widget.tipo))}</h1>
+            <span>${escapeHtml(crmDataInicial?.value || '')} a ${escapeHtml(crmDataFinal?.value || '')}</span>
+        </header>
+        <div class="crm-report-export-content"></div>
+    `;
+    const conteudo = elemento.querySelector('.crm-report-export-content');
+
+    if (widget.tipo === 'table' || widget.tipo === 'pivot') {
+        renderizarTabelaGrafico(conteudo, widget, { exportarTudo: true });
+    } else {
+        const seletor = window.CSS?.escape ? window.CSS.escape(widget.id) : String(widget.id).replace(/"/g, '\\"');
+        const card = dashboardCanvas?.querySelector(`[data-widget-id="${seletor}"]`);
+        const resultado = card?.querySelector('.crm-dashboard-widget-result')?.cloneNode(true);
+        if (resultado) {
+            resultado.querySelectorAll('button, [data-drill-menu]').forEach(item => item.remove());
+            const areaGrafico = resultado.querySelector('[data-chart-widget]');
+            const instancia = instanciasGraficosDashboard.get(widget.id);
+            if (areaGrafico && instancia) {
+                const imagem = document.createElement('img');
+                imagem.className = 'crm-report-chart-image';
+                imagem.alt = widget.titulo || 'Gráfico';
+                imagem.src = instancia.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#FFFFFF' });
+                areaGrafico.replaceChildren(imagem);
+            }
+            conteudo.appendChild(resultado);
+        } else {
+            conteudo.textContent = 'Relatório sem conteúdo para exportar.';
+        }
+    }
+
+    elemento.querySelectorAll('button, .crm-drill-control, .crm-table-pagination').forEach(item => item.remove());
+    document.body.appendChild(elemento);
+    return elemento;
+}
+
+function removerElementoExportacao(elemento) {
+    if (elemento?.parentNode) elemento.parentNode.removeChild(elemento);
+}
+
+async function exportarWidgetPdf(widget) {
+    if (typeof window.html2pdf !== 'function') throw new Error('Gerador de PDF indisponível.');
+    const elemento = criarElementoExportacao(widget);
+    try {
+        const paisagem = widget.tipo === 'table' || widget.tipo === 'pivot';
+        await window.html2pdf().set({
+            margin: 8,
+            filename: nomeArquivoRelatorio(widget, 'pdf'),
+            image: { type: 'jpeg', quality: 0.96 },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF' },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: paisagem ? 'landscape' : 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] }
+        }).from(elemento).save();
+    } finally {
+        removerElementoExportacao(elemento);
+    }
+}
+
+function montarPlanilhaGrafico(widget) {
+    if (widget.tipo === 'kpi-calculated') {
+        const resultado = obterResultadoKpiCalculado(widget, normalizarWidgetsDashboard(obterWidgetsDashboard()));
+        return [
+            [widget.titulo || 'Indicador'],
+            ['Resultado', resultado.erro ? resultado.erro : resultado.valor]
+        ];
+    }
+    const dados = prepararDadosGrafico(widget);
+    if (!dados) return [[widget.titulo || 'Relatório'], ['Sem dados']];
+    const linhas = [
+        [widget.titulo || 'Relatório'],
+        ['Período', crmDataInicial?.value || '', crmDataFinal?.value || ''],
+        [],
+        [dados.nomeDimensao || 'Categoria', ...dados.series.map(serie => serie.nome)]
+    ];
+    dados.categorias.forEach((categoria, indice) => {
+        linhas.push([categoria, ...dados.series.map(serie => serie.valores[indice] ?? '')]);
+    });
+    return linhas;
+}
+
+function exportarWidgetExcel(widget) {
+    if (!window.XLSX) throw new Error('Gerador de Excel indisponível.');
+    const workbook = window.XLSX.utils.book_new();
+    if (widget.tipo === 'table' || widget.tipo === 'pivot') {
+        const elemento = criarElementoExportacao(widget);
+        try {
+            const tabela = elemento.querySelector('table');
+            if (!tabela) throw new Error('Tabela sem dados para exportar.');
+            const planilha = window.XLSX.utils.table_to_sheet(tabela, { raw: true });
+            window.XLSX.utils.book_append_sheet(workbook, planilha, 'Relatorio');
+        } finally {
+            removerElementoExportacao(elemento);
+        }
+    } else {
+        const planilha = window.XLSX.utils.aoa_to_sheet(montarPlanilhaGrafico(widget));
+        window.XLSX.utils.book_append_sheet(workbook, planilha, 'Relatorio');
+    }
+    window.XLSX.writeFile(workbook, nomeArquivoRelatorio(widget, 'xlsx'), { compression: true });
+}
+
+function imprimirWidget(widget) {
+    const elemento = criarElementoExportacao(widget);
+    const janela = window.open('', '_blank');
+    if (!janela) {
+        removerElementoExportacao(elemento);
+        throw new Error('O navegador bloqueou a janela de impressão.');
+    }
+    janela.opener = null;
+    const css = document.querySelector('link[href*="crm-style.css"]')?.href || 'crm-style.css';
+    janela.addEventListener('load', () => setTimeout(() => { janela.focus(); janela.print(); }, 250), { once: true });
+    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(widget.titulo || 'Relatório')}</title><link rel="stylesheet" href="${css}"><style>body{margin:0;padding:12mm;background:#fff}.crm-report-export{position:static!important;width:auto!important}.crm-report-export-content{overflow:visible!important}.crm-chart-table-real{height:auto!important;overflow:visible!important}table{page-break-inside:auto}tr{page-break-inside:avoid}.crm-dashboard-widget-result{min-height:180px}@page{margin:10mm}</style></head><body>${elemento.outerHTML}</body></html>`);
+    janela.document.close();
+    removerElementoExportacao(elemento);
+}
+
+async function executarExportacaoWidget(widgetId, formato) {
+    const widget = obterWidgetExportacao(widgetId);
+    if (!widget) return;
+    try {
+        if (formato === 'pdf') await exportarWidgetPdf(widget);
+        else if (formato === 'excel') exportarWidgetExcel(widget);
+        else if (formato === 'print') imprimirWidget(widget);
+    } catch (error) {
+        window.alert(error.message || 'Não foi possível exportar o relatório.');
+    }
+}
+
 function renderizarDashboard() {
     if (!dashboardCanvas) return;
     limparGraficosDashboard();
@@ -1916,6 +2168,7 @@ function renderizarDashboard() {
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     <strong>${escapeHtml(widget.titulo)}</strong>
                     <div class="crm-dashboard-widget-actions">
+                        ${renderizarMenuExportacaoWidget()}
                         ${(widget.sql || widget.consultas?.length) ? `<button type="button" class="crm-widget-query-button" data-view-widget-sql aria-label="Ver consulta SQL" title="Ver consulta SQL">${renderizarIconeOlho()}</button>` : ''}
                         ${editorAtivo ? `
                             <button type="button" data-edit-widget>Editar</button>
@@ -2495,6 +2748,9 @@ function coletarConfiguracaoTabela() {
         totalLinhas: Boolean(tableTotalRowsInput?.checked),
         totalColunas: Boolean(tableTotalColumnsInput?.checked),
         repetirRotulos: Boolean(tableRepeatLabelsInput?.checked),
+        paginacao: Boolean(tablePaginationInput?.checked),
+        registrosPorPagina: normalizarQuantidadeTabela(tablePageSizeInput?.value, 25, 1, 500),
+        limiteExibicao: normalizarQuantidadeTabela(tableDisplayLimitInput?.value, 0, 0, 1000),
         agrupamentos: groupOptionsBox
             ? Array.from(groupOptionsBox.querySelectorAll('[data-group-field]:checked')).map(input => input.value)
             : configuracaoTabelaAtual.agrupamentos,
@@ -2515,6 +2771,12 @@ function renderizarConfiguracaoTabela() {
     if (tableTotalRowsInput) tableTotalRowsInput.checked = configuracaoTabelaAtual.totalLinhas;
     if (tableTotalColumnsInput) tableTotalColumnsInput.checked = configuracaoTabelaAtual.totalColunas;
     if (tableRepeatLabelsInput) tableRepeatLabelsInput.checked = configuracaoTabelaAtual.repetirRotulos;
+    if (tablePaginationInput) tablePaginationInput.checked = configuracaoTabelaAtual.paginacao;
+    if (tablePageSizeInput) {
+        tablePageSizeInput.value = configuracaoTabelaAtual.registrosPorPagina;
+        tablePageSizeInput.disabled = !configuracaoTabelaAtual.paginacao;
+    }
+    if (tableDisplayLimitInput) tableDisplayLimitInput.value = configuracaoTabelaAtual.limiteExibicao || '';
 
     const linhas = coletarMapeamentosColunas().filter(item => item.papel === 'linha');
     const colunasLinha = new Set(linhas.map(campo => String(campo.coluna)));
@@ -2997,7 +3259,7 @@ function inicializarEditorDashboard() {
     }
     if (tableConfigBox) tableConfigBox.addEventListener('change', event => {
         coletarConfiguracaoTabela();
-        if (event.target.matches('[data-group-field]')) renderizarConfiguracaoTabela();
+        if (event.target.matches('[data-group-field], [data-table-pagination]')) renderizarConfiguracaoTabela();
     });
     if (widgetTypeSelect) {
         widgetTypeSelect.addEventListener('change', () => {
@@ -3054,6 +3316,41 @@ function inicializarEditorDashboard() {
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', async event => {
+            const exportAction = event.target.closest('[data-widget-export]');
+            if (exportAction) {
+                const card = exportAction.closest('[data-widget-id]');
+                const menu = exportAction.closest('[data-widget-export-menu]');
+                if (menu) menu.hidden = true;
+                if (card) await executarExportacaoWidget(card.dataset.widgetId, exportAction.dataset.widgetExport);
+                return;
+            }
+
+            const exportToggle = event.target.closest('[data-widget-export-toggle]');
+            if (exportToggle) {
+                const menu = exportToggle.parentElement?.querySelector('[data-widget-export-menu]');
+                dashboardCanvas.querySelectorAll('[data-widget-export-menu]').forEach(item => {
+                    if (item !== menu) item.hidden = true;
+                });
+                if (menu) menu.hidden = !menu.hidden;
+                return;
+            }
+
+            const pageButton = event.target.closest('[data-table-page]');
+            if (pageButton && !pageButton.disabled) {
+                const paginador = pageButton.closest('[data-table-pagination-widget]');
+                const card = pageButton.closest('[data-widget-id]');
+                const widgetId = paginador?.dataset.tablePaginationWidget || card?.dataset.widgetId;
+                const widget = obterWidgetExportacao(widgetId);
+                const container = card?.querySelector('[data-chart-widget]');
+                if (widget && container) {
+                    const paginaAtual = paginasTabelaDashboard.get(widgetId) || 1;
+                    paginasTabelaDashboard.set(widgetId, paginaAtual + Number(pageButton.dataset.tablePage || 0));
+                    renderizarTabelaGrafico(container, widget);
+                }
+                return;
+            }
+
+            dashboardCanvas.querySelectorAll('[data-widget-export-menu]').forEach(item => { item.hidden = true; });
             const drillBackButton = event.target.closest('[data-drill-back-widget]');
             if (drillBackButton) {
                 const widgetId = drillBackButton.dataset.drillBackWidget;
