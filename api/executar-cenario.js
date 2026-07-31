@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { requireRequestSession } from '../lib/session-token.js';
-import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
+import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
 import { validarSqlLeitura } from '../lib/scenario-sql-validation.js';
 import { aplicarVisualizacaoEmMemoria, prepararConsultaVisual } from '../lib/scenario-visual-query.js';
@@ -69,11 +69,13 @@ export default async function handler(req, res) {
                 client.release();
             }
         } else {
-            linhas = await executarConsultaFirebird(preparado.sql, preparado.valores, {
+            linhas = await executarConsultaFirebirdGateway(preparado.sql, preparado.valores, {
                 operacao: 'executar-cenario',
                 timeoutMs: CONSULTA_TIMEOUT_MS,
                 limite: preparado.agregarEmMemoria ? undefined : LIMITE_RETORNO,
-                permitirFallbackCharset: true
+                permitirFallbackCharset: true,
+                cacheTtlMs: Number(process.env.BI_DASHBOARD_CACHE_TTL_MS || 60000),
+                cacheStaleMs: Number(process.env.BI_DASHBOARD_CACHE_STALE_MS || 900000)
             });
         }
         if (preparado.agregarEmMemoria) {
@@ -90,7 +92,7 @@ export default async function handler(req, res) {
             resultadoAgregado
         });
     } catch (error) {
-        const status = fonteNormalizada === 'firebird' ? statusHttpErroFirebird(error) : 500;
+        const status = fonteNormalizada === 'firebird' ? statusHttpErroConsulta(error) : 500;
         if (status >= 503) res.setHeader('Retry-After', '1');
         res.status(status).json({
             error: status >= 503 ? 'Banco temporariamente indisponível. Tente novamente.' : 'Erro ao executar consulta.',

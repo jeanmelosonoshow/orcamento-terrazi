@@ -1,0 +1,9 @@
+services:
+  bi-gateway:
+    build:
+      context: ..
+      dockerfile: gateway/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env.gateway
+    ports:
+      - "8080:8080"

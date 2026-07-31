@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createSessionToken } from '../lib/session-token.js';
-import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
+import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 const require = createRequire(import.meta.url);
 const crypto = require('crypto');
 
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     `;
 
     try {
-        const result = await executarConsultaFirebird(
+        const result = await executarConsultaFirebirdGateway(
             sql,
             [usuario, senhaHash, ...categoriasPermitidas],
             { operacao: 'login', timeoutMs: FIREBIRD_TIMEOUT_MS }
@@ -102,7 +102,7 @@ export default async function handler(req, res) {
             sessionToken: createSessionToken(sessionUser)
         });
     } catch (error) {
-        const status = statusHttpErroFirebird(error);
+        const status = statusHttpErroConsulta(error);
         if (status >= 503) res.setHeader('Retry-After', '1');
         return res.status(status).json({
             autorizado: false,
@@ -112,6 +112,3 @@ export default async function handler(req, res) {
         });
     }
 }
-
-
-

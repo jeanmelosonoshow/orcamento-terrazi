@@ -68,3 +68,49 @@ GROUP BY v.idfilial, v.nomefilial
 Os filtros escolhidos no painel (`:filiais` e `:vendedores`) podem ser
 adicionados como refinamento. A condicao por categoria deve permanecer na
 consulta para garantir o escopo de acesso.
+
+## Gateway de BI para acesso concorrente
+
+Para producao com aproximadamente 250 usuarios, as funcoes da Vercel nao devem abrir conexoes
+Firebird diretamente. O projeto inclui um servico persistente em `gateway/server.js` que centraliza:
+
+- pool Firebird em um unico servico;
+- fila FIFO com limite global de consultas e de espera;
+- cache por SQL, parametros, limite e charset;
+- single-flight, para uma consulta identica ser executada uma unica vez;
+- circuit breaker, que interrompe novas tentativas durante falhas repetidas do Firebird;
+- stale-while-revalidate e retorno do ultimo resultado valido durante falhas transitorias.
+
+### Implantacao
+
+1. Hospede o diretorio do projeto em uma VM ou plataforma de containers proxima ao Firebird.
+2. Copie as variaveis de `.env.gateway.example` para o cofre de segredos da plataforma.
+3. Execute `docker compose -f gateway/docker-compose.yml up -d` ou `npm run start:gateway`.
+4. Na Vercel, configure apenas:
+   - `BI_GATEWAY_URL`: URL HTTPS privada/publicada do Gateway, sem `/v1/query`;
+   - `BI_GATEWAY_TOKEN`: o mesmo segredo longo configurado no Gateway;
+   - `BI_DASHBOARD_CACHE_TTL_MS`: padrao `60000`;
+   - `BI_DASHBOARD_CACHE_STALE_MS`: padrao `900000`.
+5. Remova as credenciais Firebird da Vercel depois de validar o Gateway. Elas devem existir somente
+   no servico persistente.
+
+O endpoint `GET /health` informa o modo e a capacidade da fila. O endpoint `POST /v1/query` exige
+`Authorization: Bearer <BI_GATEWAY_TOKEN>`.
+
+### Redis e replicas
+
+Com uma unica replica persistente, a fila em memoria ja centraliza todas as requisicoes. Para duas ou
+mais replicas, configure `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN`: a fila, os leases,
+os bloqueios de single-flight e o cache passam a ser compartilhados entre todas elas.
+
+Configuracao inicial para teste de carga com 250 usuarios:
+
+- `BI_GATEWAY_CONCURRENCY=8`
+- `BI_GATEWAY_QUEUE_LIMIT=100`
+- `BI_GATEWAY_QUEUE_TIMEOUT_MS=30000`
+- `FB_POOL_SIZE=8`
+
+A concorrencia e o pool devem ser iguais no Gateway para evitar espera dupla. Ajuste esses valores
+somente depois de medir CPU, disco, conexoes ativas e duracao p95 no servidor Firebird. Se
+`BI_GATEWAY_URL` estiver configurada e o Gateway falhar, a Vercel nao abre conexao direta como
+fallback; esse comportamento evita uma avalanche de logins no banco.

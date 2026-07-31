@@ -1,5 +1,5 @@
 import { requireRequestSession } from '../lib/session-token.js';
-import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
+import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 const FIREBIRD_TIMEOUT_MS = 12000;
 
 function normalizarFilial(row) {
@@ -41,13 +41,15 @@ export default async function handler(req, res) {
     sql += ' ORDER BY NOMEFILIAL';
 
     try {
-        const result = await executarConsultaFirebird(sql, params, {
+        const result = await executarConsultaFirebirdGateway(sql, params, {
             operacao: 'listar-filiais',
-            timeoutMs: FIREBIRD_TIMEOUT_MS
+            timeoutMs: FIREBIRD_TIMEOUT_MS,
+            cacheTtlMs: 300000,
+            cacheStaleMs: 1800000
         });
         return res.status(200).json({ filiais: result.map(normalizarFilial) });
     } catch (error) {
-        const status = statusHttpErroFirebird(error);
+        const status = statusHttpErroConsulta(error);
         if (status >= 503) res.setHeader('Retry-After', '1');
         return res.status(status).json({
             error: status >= 503
@@ -56,4 +58,3 @@ export default async function handler(req, res) {
         });
     }
 }
-

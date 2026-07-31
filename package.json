@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "vercel dev",
+    "start:gateway": "node gateway/server.js",
     "test": "node --test"
   },
   "dependencies": {

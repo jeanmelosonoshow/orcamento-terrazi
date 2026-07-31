@@ -1,5 +1,5 @@
 import { requireRequestSession } from '../lib/session-token.js';
-import { executarConsultaFirebird, statusHttpErroFirebird } from '../lib/firebird-client.js';
+import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 const FIREBIRD_TIMEOUT_MS = 12000;
 
 function normalizarVendedor(row) {
@@ -91,13 +91,15 @@ export default async function handler(req, res) {
     }
 
     try {
-        const result = await executarConsultaFirebird(sql, params, {
+        const result = await executarConsultaFirebirdGateway(sql, params, {
             operacao: 'listar-vendedores',
-            timeoutMs: FIREBIRD_TIMEOUT_MS
+            timeoutMs: FIREBIRD_TIMEOUT_MS,
+            cacheTtlMs: 300000,
+            cacheStaleMs: 1800000
         });
         return res.status(200).json({ vendedores: result.map(normalizarVendedor) });
     } catch (error) {
-        const status = statusHttpErroFirebird(error);
+        const status = statusHttpErroConsulta(error);
         if (status >= 503) res.setHeader('Retry-After', '1');
         return res.status(status).json({
             error: status >= 503
@@ -106,6 +108,3 @@ export default async function handler(req, res) {
         });
     }
 }
-
-
-
