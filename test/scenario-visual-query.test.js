@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aplicarVisualizacaoEmMemoria, prepararConsultaVisual } from '../lib/scenario-visual-query.js';
+import {
+    aplicarVisualizacaoEmMemoria,
+    avaliarBaseVisualizacaoEmMemoria,
+    deveTentarCacheBaseVisualizacao,
+    prepararConsultaBaseVisualizacao,
+    prepararConsultaVisual
+} from '../lib/scenario-visual-query.js';
 
 test('executa COUNT DISTINCT no banco mesmo sem dimensao', () => {
     const preparado = prepararConsultaVisual(
@@ -108,4 +114,59 @@ test('mantem as demais funcoes de agregacao no retorno de EXECUTE BLOCK', () => 
 
     assert.equal(resultado.VALOR, 20);
     assert.equal(resultado.CODIGO, 2);
+});
+
+test('tabela dinamica reutiliza a mesma consulta-base nos niveis do drill-down', () => {
+    const preparado = {
+        sql: 'SELECT IDFILIAL, PRODUTO, TOTAL FROM VENDAS;',
+        valores: ['2026-08-01']
+    };
+    const visualizacao = {
+        agrupar: true,
+        cacheBaseDrill: true,
+        dimensoes: [{ coluna: 'IDFILIAL' }],
+        valores: [{ coluna: 'TOTAL', agregacao: 'sum' }]
+    };
+
+    assert.equal(deveTentarCacheBaseVisualizacao(preparado, 'firebird', visualizacao), true);
+    const consultaBase = prepararConsultaBaseVisualizacao(preparado, 300);
+    assert.equal(
+        consultaBase.sql,
+        'SELECT FIRST 301 * FROM (SELECT IDFILIAL, PRODUTO, TOTAL FROM VENDAS) CRM_CACHE_BASE'
+    );
+    assert.deepEqual(consultaBase.valores, preparado.valores);
+
+    const linhasBase = [
+        { IDFILIAL: '01', PRODUTO: 'A', TOTAL: 10 },
+        { IDFILIAL: '01', PRODUTO: 'B', TOTAL: 20 },
+        { IDFILIAL: '02', PRODUTO: 'C', TOTAL: 30 }
+    ];
+    const nivelInicial = aplicarVisualizacaoEmMemoria(linhasBase, visualizacao);
+    const nivelProduto = aplicarVisualizacaoEmMemoria(linhasBase, {
+        ...visualizacao,
+        dimensoes: [{ coluna: 'PRODUTO' }],
+        filtrosDimensao: [{ coluna: 'IDFILIAL', valor: '01' }]
+    });
+
+    assert.deepEqual(nivelInicial, [
+        { IDFILIAL: '01', TOTAL: 30 },
+        { IDFILIAL: '02', TOTAL: 30 }
+    ]);
+    assert.deepEqual(nivelProduto, [
+        { PRODUTO: 'A', TOTAL: 10 },
+        { PRODUTO: 'B', TOTAL: 20 }
+    ]);
+});
+
+test('cache-base recua para SQL agregado quando ultrapassa o limite seguro', () => {
+    const linhas = Array.from({ length: 101 }, (_, indice) => ({ ID: indice }));
+    const avaliacao = avaliarBaseVisualizacaoEmMemoria(linhas, 100, 4194304);
+
+    assert.equal(avaliacao.adequada, false);
+    assert.equal(avaliacao.excedeuLinhas, true);
+    assert.equal(deveTentarCacheBaseVisualizacao(
+        { sql: 'EXECUTE BLOCK RETURNS (ID INTEGER) AS BEGIN SUSPEND; END' },
+        'firebird',
+        { agrupar: true, cacheBaseDrill: true }
+    ), false);
 });

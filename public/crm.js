@@ -2750,6 +2750,7 @@ function montarVisualizacaoWidget(widget, opcoes = {}) {
     return {
         agrupar: true,
         resultadoAgregado: ehKpiAgregado,
+        cacheBaseDrill: ehPivot && Boolean(opcoes.campoDrill),
         dimensoes: dimensoes.map(item => ({ coluna: item.coluna, ordenacao: obterOrdenacaoCampo(item) })),
         colunas: colunas.map(item => ({ coluna: item.coluna, ordenacao: obterOrdenacaoCampo(item) })),
         valores: valores.map(item => ({
