@@ -48,12 +48,13 @@ export default async function handler(req, res) {
         sql = `
             SELECT
                 V.IDFILIAL,
-                CAST(NULL AS VARCHAR(5)) AS CATEGORIA,
-                CAST(NULL AS INTEGER) AS IDFUNCIONARIO,
+                FU.CATEGORIA AS CATEGORIA,
+                FU.IDFUNCIONARIO AS IDFUNCIONARIO,
                 V.IDVENDEDOR,
                 V.NOMEVENDEDOR,
                 FIL.IDSUPERVISOR
             FROM VENDEDOR V
+            JOIN FUNCIONARIO FU ON FU.IDVENDEDOR = V.IDVENDEDOR
             JOIN FILIAL FIL ON FIL.IDFILIAL = V.IDFILIAL
             WHERE V.STATUS = 'A'
         `;
