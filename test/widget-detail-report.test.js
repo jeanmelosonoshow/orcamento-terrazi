@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+test('editor oferece relatorio de detalhe para cards e graficos', async () => {
+    const [html, javascript] = await Promise.all([
+        readFile(new URL('../public/crm.html', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm.js', import.meta.url), 'utf8')
+    ]);
+
+    assert.match(html, /data-widget-detail-enabled/);
+    assert.match(html, /data-widget-detail-type/);
+    assert.match(html, /data-widget-detail-sql/);
+    assert.match(html, /data-widget-detail-pivot-fields/);
+    assert.match(html, /data-widget-detail-modal/);
+    assert.match(javascript, /detalhe: \{ habilitado: false/);
+    assert.match(javascript, /validarConfiguracaoDetalhe/);
+    assert.match(javascript, /widgetPossuiRelatorioDetalhe/);
+});
+
+test('clique no grafico encaminha dimensao e serie como filtros parametrizados', async () => {
+    const javascript = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+
+    assert.match(javascript, /instancia\.on\('click'/);
+    assert.match(javascript, /detalheValor: selecao\.valor/);
+    assert.match(javascript, /detalheCampo: selecao\.campo/);
+    assert.match(javascript, /detalheSerie: selecao\.serie/);
+    assert.match(javascript, /dados\.dimensoes\?\.\[parametros\.dataIndex\]/);
+});
+
+test('tabela dinamica de detalhe agrega no servidor e preserva o drill proprio', async () => {
+    const javascript = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+
+    assert.match(javascript, /function montarVisualizacaoRelatorioDetalhe/);
+    assert.match(javascript, /resultadoAgregado: true/);
+    assert.match(javascript, /!\['table', 'pivot'\]\.includes/);
+    assert.match(javascript, /renderizarRelatorioDetalheAtual/);
+    assert.match(javascript, /executarDrillDownWidget/);
+});

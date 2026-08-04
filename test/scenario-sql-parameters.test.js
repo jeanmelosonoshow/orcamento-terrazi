@@ -177,3 +177,44 @@ END`,
     assert.match(preparado.sql, /CRM_SYS_IDFILIAL VARCHAR\(50\) = \?/);
     assert.deepEqual(preparado.valores, ['19']);
 });
+test('parametriza o contexto do relatorio aberto por clique', () => {
+    const contexto = montarContextoConsulta(
+        {
+            dataInicial: '2026-08-01',
+            detalheValor: '01',
+            detalheCampo: 'IDFILIAL',
+            detalheSerie: 'Faturamento'
+        },
+        { categoria: 'DI', sub: '10', idfilial: '01', idvendedor: '632' }
+    );
+    const preparado = prepararSqlCenario(
+        'SELECT * FROM VENDAS WHERE IDFILIAL = :detalhe_valor AND :detalhe_campo = :detalhe_campo AND :detalhe_serie IS NOT NULL',
+        'firebird',
+        contexto
+    );
+
+    assert.equal(contexto.detalheValor, '01');
+    assert.equal(contexto.detalheCampo, 'IDFILIAL');
+    assert.equal(contexto.detalheSerie, 'Faturamento');
+    assert.deepEqual(preparado.valores, ['01', 'IDFILIAL', 'IDFILIAL', 'Faturamento']);
+});
+
+test('injeta parametros do detalhe em execute block sem concatenar valores', () => {
+    const preparado = prepararSqlCenario(
+        `EXECUTE BLOCK RETURNS (TOTAL INTEGER) AS
+BEGIN
+  SELECT COUNT(*) FROM VENDAS
+   WHERE IDFILIAL = :detalhe_valor
+     AND :detalhe_serie = :detalhe_serie
+    INTO :TOTAL;
+  SUSPEND;
+END`,
+        'firebird',
+        { detalheValor: '01', detalheSerie: 'Vendas' }
+    );
+
+    assert.match(preparado.sql, /CRM_SYS_DETALHE_VALOR VARCHAR\(500\) = \?/);
+    assert.match(preparado.sql, /CRM_SYS_DETALHE_SERIE VARCHAR\(200\) = \?/);
+    assert.doesNotMatch(preparado.sql, /IDFILIAL = '01'/);
+    assert.deepEqual(preparado.valores, ['01', 'Vendas']);
+});

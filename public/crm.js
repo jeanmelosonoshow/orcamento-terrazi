@@ -193,6 +193,20 @@ const widgetIconOptions = document.querySelector('[data-widget-icon-options]');
 const widgetIconColorInput = document.querySelector('[data-widget-icon-color]');
 const widgetCategoryOptions = document.querySelector('[data-widget-category-options]');
 const widgetCategoryError = document.querySelector('[data-widget-category-error]');
+const widgetDetailConfig = document.querySelector('[data-widget-detail-config]');
+const widgetDetailEnabledInput = document.querySelector('[data-widget-detail-enabled]');
+const widgetDetailFields = document.querySelector('[data-widget-detail-fields]');
+const widgetDetailTitleInput = document.querySelector('[data-widget-detail-title]');
+const widgetDetailTypeSelect = document.querySelector('[data-widget-detail-type]');
+const widgetDetailSourceSelect = document.querySelector('[data-widget-detail-source]');
+const widgetDetailSqlTextarea = document.querySelector('[data-widget-detail-sql]');
+const widgetDetailPivotFields = document.querySelector('[data-widget-detail-pivot-fields]');
+const widgetDetailRowsInput = document.querySelector('[data-widget-detail-rows]');
+const widgetDetailColumnsInput = document.querySelector('[data-widget-detail-columns]');
+const widgetDetailValuesInput = document.querySelector('[data-widget-detail-values]');
+const widgetDetailAggregationSelect = document.querySelector('[data-widget-detail-aggregation]');
+const widgetDetailTotalInput = document.querySelector('[data-widget-detail-total]');
+const widgetDetailError = document.querySelector('[data-widget-detail-error]');
 const appearancePreview = document.querySelector('[data-appearance-preview]');
 const closeWidgetButtons = Array.from(document.querySelectorAll('[data-close-widget-modal]'));
 const sqlViewerModal = document.querySelector('[data-sql-viewer-modal]');
@@ -204,6 +218,12 @@ const indentSqlViewerButton = document.querySelector('[data-indent-sql-viewer]')
 const copySqlViewerButton = document.querySelector('[data-copy-sql-viewer]');
 const pasteSqlViewerButton = document.querySelector('[data-paste-sql-viewer]');
 const closeSqlViewerButtons = Array.from(document.querySelectorAll('[data-close-sql-viewer]'));
+const widgetDetailModal = document.querySelector('[data-widget-detail-modal]');
+const widgetDetailModalTitle = document.querySelector('[data-widget-detail-modal-title]');
+const widgetDetailContext = document.querySelector('[data-widget-detail-context]');
+const widgetDetailStatus = document.querySelector('[data-widget-detail-status]');
+const widgetDetailContent = document.querySelector('[data-widget-detail-content]');
+const closeWidgetDetailButtons = Array.from(document.querySelectorAll('[data-close-widget-detail]'));
 const budgetFrame = document.querySelector('[data-budget-frame]');
 const dashboardConfigPorView = Object.freeze({
     'visao-geral': { storage: 'crmDashboardScenario:v1', altura: 'crmDashboardCanvasHeight:v1' },
@@ -241,6 +261,7 @@ let instanciaPreviaAparencia = null;
 let sequenciaContextoDrill = 0;
 let observadorTamanhoDashboard = null;
 let larguraDashboardObservada = 0;
+let widgetDetalheModalAtual = null;
 
 function trocarContextoDashboard(viewName) {
     const proximoContexto = dashboardConfigPorView[viewName] ? viewName : 'visao-geral';
@@ -324,6 +345,87 @@ const aparenciaWidgetPadrao = Object.freeze({
     iconeCor: '#C5A47E',
     alinhamento: 'left'
 });
+function separarCamposDetalhe(valor) {
+    const itens = Array.isArray(valor) ? valor : String(valor || '').split(',');
+    return Array.from(new Set(itens.map(item => String(item).trim()).filter(Boolean)));
+}
+
+function normalizarConfiguracaoDetalhe(valor = {}) {
+    const agregacoes = new Set(['none', 'sum', 'count', 'count_distinct', 'avg', 'min', 'max']);
+    const tipo = valor.tipo === 'pivot' ? 'pivot' : 'table';
+    return {
+        habilitado: valor.habilitado === true,
+        titulo: String(valor.titulo || '').trim(),
+        tipo,
+        fonte: String(valor.fonte || 'firebird').toLowerCase() === 'postgres' ? 'postgres' : 'firebird',
+        sql: String(valor.sql || '').trim(),
+        camposLinha: separarCamposDetalhe(valor.camposLinha),
+        camposColuna: separarCamposDetalhe(valor.camposColuna),
+        camposValor: separarCamposDetalhe(valor.camposValor),
+        agregacao: agregacoes.has(valor.agregacao) ? valor.agregacao : 'sum',
+        totalGeral: valor.totalGeral !== false
+    };
+}
+
+function widgetPossuiRelatorioDetalhe(widget) {
+    const detalhe = normalizarConfiguracaoDetalhe(widget?.detalhe);
+    return detalhe.habilitado && Boolean(detalhe.sql) && !['table', 'pivot'].includes(String(widget?.tipo || ''));
+}
+
+function atualizarCamposConfiguracaoDetalhe() {
+    const tipoWidget = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
+    const permitido = !['table', 'pivot'].includes(tipoWidget);
+    if (widgetDetailConfig) widgetDetailConfig.hidden = !permitido;
+    const habilitado = permitido && Boolean(widgetDetailEnabledInput?.checked);
+    if (widgetDetailFields) widgetDetailFields.hidden = !habilitado;
+    if (widgetDetailPivotFields) widgetDetailPivotFields.hidden = !habilitado || widgetDetailTypeSelect?.value !== 'pivot';
+    if (widgetDetailError) widgetDetailError.hidden = true;
+}
+
+function carregarConfiguracaoDetalhe(widget) {
+    const detalhe = normalizarConfiguracaoDetalhe(widget?.detalhe);
+    if (widgetDetailEnabledInput) widgetDetailEnabledInput.checked = detalhe.habilitado;
+    if (widgetDetailTitleInput) widgetDetailTitleInput.value = detalhe.titulo;
+    if (widgetDetailTypeSelect) widgetDetailTypeSelect.value = detalhe.tipo;
+    if (widgetDetailSourceSelect) widgetDetailSourceSelect.value = detalhe.fonte;
+    if (widgetDetailSqlTextarea) widgetDetailSqlTextarea.value = detalhe.sql;
+    if (widgetDetailRowsInput) widgetDetailRowsInput.value = detalhe.camposLinha.join(', ');
+    if (widgetDetailColumnsInput) widgetDetailColumnsInput.value = detalhe.camposColuna.join(', ');
+    if (widgetDetailValuesInput) widgetDetailValuesInput.value = detalhe.camposValor.join(', ');
+    if (widgetDetailAggregationSelect) widgetDetailAggregationSelect.value = detalhe.agregacao;
+    if (widgetDetailTotalInput) widgetDetailTotalInput.checked = detalhe.totalGeral;
+    atualizarCamposConfiguracaoDetalhe();
+}
+
+function coletarConfiguracaoDetalhe() {
+    return normalizarConfiguracaoDetalhe({
+        habilitado: !widgetDetailConfig?.hidden && Boolean(widgetDetailEnabledInput?.checked),
+        titulo: widgetDetailTitleInput?.value,
+        tipo: widgetDetailTypeSelect?.value,
+        fonte: widgetDetailSourceSelect?.value,
+        sql: widgetDetailSqlTextarea?.value,
+        camposLinha: widgetDetailRowsInput?.value,
+        camposColuna: widgetDetailColumnsInput?.value,
+        camposValor: widgetDetailValuesInput?.value,
+        agregacao: widgetDetailAggregationSelect?.value,
+        totalGeral: Boolean(widgetDetailTotalInput?.checked)
+    });
+}
+
+function validarConfiguracaoDetalhe(detalhe) {
+    if (!detalhe.habilitado) return true;
+    let mensagem = '';
+    if (!detalhe.sql) mensagem = 'Informe o SQL do relatorio de detalhe.';
+    else if (detalhe.tipo === 'pivot' && !detalhe.camposLinha.length) mensagem = 'Informe ao menos um campo de linha para a tabela dinamica.';
+    else if (detalhe.tipo === 'pivot' && !detalhe.camposValor.length) mensagem = 'Informe ao menos um campo de valor para a tabela dinamica.';
+    if (!mensagem) return true;
+    if (widgetDetailError) {
+        widgetDetailError.textContent = mensagem;
+        widgetDetailError.hidden = false;
+    }
+    setEtapaWidget('sql');
+    return false;
+}
 function obterIniciais(nomeCompleto) {
     return String(nomeCompleto || 'U')
         .trim()
@@ -403,6 +505,7 @@ function criarWidgetPadrao(tipo = 'bar') {
         camposCalculados: [],
         calculo: { formula: '', formatoSaida: 'decimal', rotulo: 'Resultado calculado' },
         dadosConsultaAgregados: false,
+        detalhe: { habilitado: false, titulo: '', tipo: 'table', fonte: 'firebird', sql: '', camposLinha: [], camposColuna: [], camposValor: [], agregacao: 'sum', totalGeral: true },
         categoriasPermitidas: categoriasDashboard.map(item => item.codigo),
         aparencia: { ...aparenciaWidgetPadrao }
     };
@@ -767,7 +870,7 @@ function prepararDadosGrafico(widget) {
         const valorDimensao = dimensao ? obterValorLinha(linha, dimensao.coluna) : 'Total';
         const rotulo = dimensao ? formatarDimensao(valorDimensao, dimensao.formatoData) : 'Total';
         const chave = dimensao ? `${rotulo}::${String(valorDimensao)}` : 'total';
-        if (!grupos.has(chave)) grupos.set(chave, { rotulo, linhas: [], ordem: index });
+        if (!grupos.has(chave)) grupos.set(chave, { rotulo, valor: valorDimensao, linhas: [], ordem: index });
         grupos.get(chave).linhas.push(linha);
     });
 
@@ -822,6 +925,7 @@ function prepararDadosGrafico(widget) {
 
     return {
         categorias: gruposExibidos.map(grupo => grupo.rotulo),
+        dimensoes: gruposExibidos.map(grupo => ({ campo: dimensao?.coluna || '', apelido: dimensao ? obterApelidoMapeamento(dimensao) : '', valor: grupo.valor, rotulo: grupo.rotulo })),
         nomeDimensao: dimensao ? obterApelidoMapeamento(dimensao) : '',
         series
     };
@@ -1029,6 +1133,7 @@ function atualizarModoConfiguracaoWidget() {
     if (indicadorAparencia) indicadorAparencia.textContent = calculado ? '2. Aparencia' : '3. Aparencia';
     if (nextWidgetStepButton) nextWidgetStepButton.textContent = calculado ? 'Aparencia' : 'Proximo';
     renderizarReferenciasKpi();
+    atualizarCamposConfiguracaoDetalhe();
 }
 
 function obterCoresGraficos() {
@@ -1694,6 +1799,205 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
     `;
 }
 
+function obterColunaDetalhe(colunas, nome) {
+    const procurada = String(nome || '').trim().toLowerCase();
+    return colunas.find(coluna => String(coluna).toLowerCase() === procurada) || '';
+}
+
+function criarMapeamentosRelatorioDetalhe(detalhe, colunas, dados) {
+    if (!colunas.length) return [];
+    const linhasConfiguradas = detalhe.tipo === 'pivot'
+        ? detalhe.camposLinha.map(nome => obterColunaDetalhe(colunas, nome)).filter(Boolean)
+        : [];
+    const colunasConfiguradas = detalhe.tipo === 'pivot'
+        ? detalhe.camposColuna.map(nome => obterColunaDetalhe(colunas, nome)).filter(Boolean)
+        : [];
+    let valoresConfigurados = detalhe.tipo === 'pivot'
+        ? detalhe.camposValor.map(nome => obterColunaDetalhe(colunas, nome)).filter(Boolean)
+        : [];
+
+    if (detalhe.tipo === 'pivot') {
+        const camposAusentes = [...detalhe.camposLinha, ...detalhe.camposColuna, ...detalhe.camposValor]
+            .filter(nome => !obterColunaDetalhe(colunas, nome));
+        if (camposAusentes.length) throw new Error('Campos nao retornados pelo SQL: ' + camposAusentes.join(', ') + '.');
+        return [
+            ...linhasConfiguradas.map(coluna => ({ coluna, apelido: coluna, papel: 'linha', alinhamento: 'left', ordenacao: 'asc' })),
+            ...colunasConfiguradas.map(coluna => ({ coluna, apelido: coluna, papel: 'coluna', alinhamento: 'center', ordenacao: 'asc' })),
+            ...valoresConfigurados.map(coluna => ({ coluna, apelido: coluna, papel: 'valor', alinhamento: 'right', agregacao: detalhe.agregacao, formatoValor: 'decimal', ordenacao: 'none' }))
+        ];
+    }
+
+    valoresConfigurados = colunas.filter(coluna => dados.some(registro => {
+        const valor = obterValorLinha(registro, coluna);
+        return valor !== null && valor !== '' && Number.isFinite(Number(valor));
+    }));
+    if (!valoresConfigurados.length) valoresConfigurados = [colunas[colunas.length - 1]];
+    let linhas = colunas.filter(coluna => !valoresConfigurados.includes(coluna));
+    if (!linhas.length && colunas.length > 1) {
+        linhas = [colunas[0]];
+        valoresConfigurados = valoresConfigurados.filter(coluna => coluna !== colunas[0]);
+    }
+    return [
+        ...linhas.map(coluna => ({ coluna, apelido: coluna, papel: 'linha', alinhamento: 'left', ordenacao: 'none' })),
+        ...valoresConfigurados.map(coluna => ({ coluna, apelido: coluna, papel: 'valor', alinhamento: 'right', agregacao: 'none', formatoValor: 'decimal', ordenacao: 'none' }))
+    ];
+}
+
+function formatarCelulaRelatorioDetalhe(valor) {
+    if (valor === null || valor === undefined) return '';
+    if (typeof valor === 'number') return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(valor);
+    if (/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(String(valor))) return formatarDimensao(valor, 'day');
+    return String(valor);
+}
+
+function renderizarTabelaSimplesRelatorioDetalhe(container, widget) {
+    const registros = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
+    const colunas = Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : [];
+    if (!registros.length || !colunas.length) {
+        container.innerHTML = '<div class="crm-chart-empty">Nenhum registro encontrado.</div>';
+        return;
+    }
+    const paginacao = prepararPaginacaoTabela(widget, registros, false);
+    const numericas = new Set(colunas.filter(coluna => registros.some(registro => typeof obterValorLinha(registro, coluna) === 'number')));
+    const cabecalho = colunas.map(coluna =>
+        '<th' + (numericas.has(coluna) ? ' data-align="right"' : '') + '>' + escapeHtml(coluna) + '</th>'
+    ).join('');
+    const corpo = paginacao.registros.map(registro =>
+        '<tr>' + colunas.map(coluna => {
+            const alinhamento = numericas.has(coluna) ? ' data-align="right"' : '';
+            return '<td' + alinhamento + '>' + escapeHtml(formatarCelulaRelatorioDetalhe(obterValorLinha(registro, coluna))) + '</td>';
+        }).join('') + '</tr>'
+    ).join('');
+    const total = widget.tabela?.totalLinhas && numericas.size
+        ? '<tr class="crm-pivot-grand-total">' + colunas.map((coluna, indice) => {
+            if (indice === 0) return '<td>Total geral</td>';
+            if (!numericas.has(coluna)) return '<td></td>';
+            const soma = registros.reduce((acumulado, registro) => acumulado + converterNumero(obterValorLinha(registro, coluna)), 0);
+            return '<td data-align="right">' + escapeHtml(formatarCelulaRelatorioDetalhe(soma)) + '</td>';
+        }).join('') + '</tr>'
+        : '';
+    container.innerHTML = '<div class="crm-chart-table-real"><table class="crm-pivot-table crm-simple-table"><thead><tr>'
+        + cabecalho + '</tr></thead><tbody>' + corpo + total + '</tbody></table></div>'
+        + renderizarControlePaginacaoTabela(widget, paginacao);
+}
+
+function renderizarRelatorioDetalheAtual() {
+    if (!widgetDetailContent || !widgetDetalheModalAtual) return;
+    if (widgetDetalheModalAtual.tipo === 'table') {
+        renderizarTabelaSimplesRelatorioDetalhe(widgetDetailContent, widgetDetalheModalAtual);
+    } else {
+        renderizarTabelaGrafico(widgetDetailContent, widgetDetalheModalAtual);
+    }
+}
+function montarVisualizacaoRelatorioDetalhe(detalhe) {
+    if (detalhe.tipo !== 'pivot') return null;
+    return {
+        agrupar: true,
+        resultadoAgregado: true,
+        dimensoes: detalhe.camposLinha.map(coluna => ({ coluna, ordenacao: 'asc' })),
+        colunas: detalhe.camposColuna.map(coluna => ({ coluna, ordenacao: 'asc' })),
+        valores: detalhe.camposValor.map(coluna => ({ coluna, agregacao: detalhe.agregacao, ordenacao: 'none' })),
+        filtrosDimensao: []
+    };
+}
+
+function fecharRelatorioDetalhe() {
+    if (widgetDetailModal) widgetDetailModal.hidden = true;
+    if (widgetDetalheModalAtual?.id) paginasTabelaDashboard.delete(widgetDetalheModalAtual.id);
+    widgetDetalheModalAtual = null;
+    if (widgetDetailContent) widgetDetailContent.innerHTML = '';
+}
+
+async function abrirRelatorioDetalhe(widget, selecao = {}) {
+    const detalhe = normalizarConfiguracaoDetalhe(widget?.detalhe);
+    if (!widgetPossuiRelatorioDetalhe(widget) || !widgetDetailModal) return;
+    const contexto = [
+        selecao.apelido && selecao.rotulo ? selecao.apelido + ': ' + selecao.rotulo : '',
+        selecao.serie ? 'Serie: ' + selecao.serie : ''
+    ].filter(Boolean).join(' | ');
+
+    widgetDetailModal.hidden = false;
+    if (widgetDetailModalTitle) widgetDetailModalTitle.textContent = detalhe.titulo || ('Detalhe de ' + (widget.titulo || 'indicador'));
+    if (widgetDetailContext) widgetDetailContext.textContent = contexto;
+    if (widgetDetailStatus) {
+        widgetDetailStatus.className = 'crm-widget-detail-status is-loading';
+        widgetDetailStatus.textContent = 'Carregando relatorio...';
+    }
+    if (widgetDetailContent) widgetDetailContent.innerHTML = '';
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DASHBOARD_REQUEST_TIMEOUT_MS);
+    try {
+        const filtros = {
+            ...obterFiltrosCenario(),
+            detalheValor: selecao.valor ?? '',
+            detalheCampo: selecao.campo || '',
+            detalheSerie: selecao.serie || ''
+        };
+        const response = await fetch('/api/executar-cenario', {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
+            },
+            body: JSON.stringify({
+                fonte: detalhe.fonte,
+                sql: detalhe.sql,
+                filtros,
+                visualizacao: montarVisualizacaoRelatorioDetalhe(detalhe)
+            })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) window.fazerLogout();
+        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao carregar o relatorio de detalhe.');
+        const colunas = Array.isArray(data.colunas) ? data.colunas : [];
+        const registros = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
+        if (!colunas.length || !registros.length) {
+            if (widgetDetailStatus) {
+                widgetDetailStatus.className = 'crm-widget-detail-status';
+                widgetDetailStatus.textContent = 'Nenhum registro encontrado.';
+            }
+            return;
+        }
+        const idDetalhe = 'relatorio-detalhe-' + widget.id;
+        const mapeamentos = criarMapeamentosRelatorioDetalhe(detalhe, colunas, registros);
+        widgetDetalheModalAtual = {
+            id: idDetalhe,
+            titulo: detalhe.titulo || widget.titulo,
+            tipo: detalhe.tipo,
+            colunasConsulta: colunas,
+            dadosConsulta: registros,
+            dadosConsultaAgregados: data.resultadoAgregado === true,
+            mapeamentos,
+            tabela: {
+                totalLinhas: detalhe.totalGeral,
+                totalColunas: detalhe.tipo === 'pivot' && detalhe.camposColuna.length > 0,
+                repetirRotulos: true,
+                paginacao: true,
+                registrosPorPagina: 50,
+                limiteExibicao: 0,
+                agrupamentos: [],
+                subtotais: []
+            }
+        };
+        paginasTabelaDashboard.set(idDetalhe, 1);
+        renderizarRelatorioDetalheAtual();
+        if (widgetDetailStatus) {
+            widgetDetailStatus.className = 'crm-widget-detail-status is-success';
+            widgetDetailStatus.textContent = registros.length + ' registro' + (registros.length === 1 ? '' : 's') + '.';
+        }
+    } catch (error) {
+        if (widgetDetailStatus) {
+            widgetDetailStatus.className = 'crm-widget-detail-status is-error';
+            widgetDetailStatus.textContent = error.name === 'AbortError'
+                ? 'Tempo limite ao carregar o relatorio de detalhe.'
+                : error.message;
+        }
+    } finally {
+        clearTimeout(timeout);
+    }
+}
 function limparGraficosDashboard() {
     contextosDrillDashboard.clear();
     observadoresGraficosDashboard.forEach(observador => observador.disconnect());
@@ -1763,11 +2067,17 @@ function observarAjusteKpi(container, widgetId) {
     observadoresGraficosDashboard.set(widgetId, observador);
 }
 
+function atributosAcaoRelatorioDetalhe(widget) {
+    return widgetPossuiRelatorioDetalhe(widget)
+        ? ' data-open-widget-detail="' + escapeHtml(widget.id) + '" role="button" tabindex="0" title="Abrir relatorio de detalhe"'
+        : '';
+}
 function renderizarGraficosDashboard(widgets, widgetsCalculo = widgets) {
     widgets.forEach(widget => {
         const seletorId = window.CSS?.escape ? window.CSS.escape(widget.id) : String(widget.id).replace(/"/g, '\\"');
         const container = dashboardCanvas?.querySelector(`[data-chart-widget="${seletorId}"]`);
         if (!container) return;
+        container.classList.toggle('is-detail-enabled', widgetPossuiRelatorioDetalhe(widget));
         if (widget.tipo === 'table' || widget.tipo === 'pivot') {
             renderizarTabelaGrafico(container, widget);
             return;
@@ -1779,7 +2089,7 @@ function renderizarGraficosDashboard(widgets, widgetsCalculo = widgets) {
                 container.innerHTML = `<div class="crm-chart-empty">${escapeHtml(resultado.erro)}</div>`;
                 return;
             }
-            container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(resultado.valor, configuracao.formatoSaida || 'decimal'))}</strong><span class="crm-kpi-label">${escapeHtml(configuracao.rotulo || 'Resultado calculado')}</span></div>`;
+            container.innerHTML = `<div class="crm-chart-kpi-real"${atributosAcaoRelatorioDetalhe(widget)}><strong>${escapeHtml(formatarValorGrafico(resultado.valor, configuracao.formatoSaida || 'decimal'))}</strong><span class="crm-kpi-label">${escapeHtml(configuracao.rotulo || 'Resultado calculado')}</span></div>`;
             observarAjusteKpi(container, widget.id);
             return;
         }
@@ -1801,9 +2111,9 @@ function renderizarGraficosDashboard(widgets, widgetsCalculo = widgets) {
                 const percentual = meta ? (total / meta) * 100 : null;
                 const atingida = percentual !== null && percentual >= 100;
                 const percentualTexto = percentual === null ? 'Sem percentual' : formatarValorGrafico(percentual, 'percent');
-                container.innerHTML = `<div class="crm-chart-kpi-real is-target ${atingida ? 'is-reached' : 'is-pending'}"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span><small class="crm-kpi-target-detail"><span><i>Meta</i>${escapeHtml(formatarValorGrafico(meta, serieMeta.formato || serie.formato))}</span><b><i>Atingimento</i>${escapeHtml(percentualTexto)}</b></small></div>`;
+                container.innerHTML = `<div class="crm-chart-kpi-real is-target ${atingida ? 'is-reached' : 'is-pending'}"${atributosAcaoRelatorioDetalhe(widget)}><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span><small class="crm-kpi-target-detail"><span><i>Meta</i>${escapeHtml(formatarValorGrafico(meta, serieMeta.formato || serie.formato))}</span><b><i>Atingimento</i>${escapeHtml(percentualTexto)}</b></small></div>`;
             } else {
-                container.innerHTML = `<div class="crm-chart-kpi-real"><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span></div>`;
+                container.innerHTML = `<div class="crm-chart-kpi-real"${atributosAcaoRelatorioDetalhe(widget)}><strong>${escapeHtml(formatarValorGrafico(total, serie.formato))}</strong><span class="crm-kpi-label">${escapeHtml(serie.nome)}</span></div>`;
             }
             observarAjusteKpi(container, widget.id);
             return;
@@ -1815,6 +2125,18 @@ function renderizarGraficosDashboard(widgets, widgetsCalculo = widgets) {
 
         const instancia = window.echarts.init(container, null, { renderer: 'canvas' });
         instancia.setOption(montarOpcaoECharts(widget, dados, container), true);
+        if (widgetPossuiRelatorioDetalhe(widget)) {
+            instancia.on('click', parametros => {
+                const dimensao = dados.dimensoes?.[parametros.dataIndex] || {};
+                abrirRelatorioDetalhe(widget, {
+                    campo: dimensao.campo || '',
+                    apelido: dimensao.apelido || dados.nomeDimensao || '',
+                    valor: dimensao.valor ?? '',
+                    rotulo: dimensao.rotulo || parametros.name || '',
+                    serie: parametros.seriesName || ''
+                });
+            });
+        }
         instanciasGraficosDashboard.set(widget.id, instancia);
         if (window.ResizeObserver) {
             let framePendente = 0;
@@ -3027,6 +3349,7 @@ function abrirModalWidget(widgetId) {
     if (queryTableWrap) { queryTableWrap.hidden = true; queryTableWrap.innerHTML = ''; }
     renderizarMapeamentoColunas();
     carregarConfiguracaoKpiCalculado(widgetEmEdicao);
+    carregarConfiguracaoDetalhe(widgetEmEdicao);
     carregarAparenciaWidget(widgetEmEdicao);
     renderizarCategoriasWidget(widgetEmEdicao);
     atualizarModoConfiguracaoWidget();
@@ -3082,6 +3405,8 @@ function salvarWidgetAtual() {
     }
     const mapeamentos = calculado ? [] : coletarMapeamentosColunas();
     if (!calculado && !validarMapeamentoWidget(mapeamentos)) return;
+    const detalhe = coletarConfiguracaoDetalhe();
+    if (!validarConfiguracaoDetalhe(detalhe)) return;
     const categoriasPermitidas = coletarCategoriasWidget();
     if (!categoriasPermitidas.length) {
         if (widgetCategoryError) widgetCategoryError.hidden = false;
@@ -3105,6 +3430,7 @@ function salvarWidgetAtual() {
         limiteTop: calculado ? 0 : normalizarLimiteTopGrafico(limiteTopAtual),
         mapeamentos,
         calculo: calculado ? configuracaoCalculo : (widgetEmEdicao.calculo || null),
+        detalhe,
         categoriasPermitidas,
         tabela: coletarConfiguracaoTabela(),
         aparencia: coletarAparenciaWidget()
@@ -3294,6 +3620,10 @@ function inicializarEditorDashboard() {
             renderizarPreviaAparencia();
         });
     }
+    [widgetDetailEnabledInput, widgetDetailTypeSelect].forEach(campo => {
+        if (!campo) return;
+        campo.addEventListener('change', atualizarCamposConfiguracaoDetalhe);
+    });
     if (widgetTitleInput) widgetTitleInput.addEventListener('input', renderizarPreviaAparencia);
     [kpiFormulaInput, kpiOutputFormatSelect, kpiOutputLabelInput].forEach(campo => {
         if (!campo) return;
@@ -3418,10 +3748,23 @@ function inicializarEditorDashboard() {
                 if (card) excluirWidgetDashboard(card.dataset.widgetId);
                 return;
             }
+            const detailButton = event.target.closest('[data-open-widget-detail]');
+            if (detailButton) {
+                const widget = obterWidgetsDashboard().find(item => item.id === detailButton.dataset.openWidgetDetail);
+                if (widget) await abrirRelatorioDetalhe(widget);
+                return;
+            }
             const editButton = event.target.closest('[data-edit-widget]');
             if (!editButton) return;
             const card = editButton.closest('[data-widget-id]');
             if (card) abrirModalWidget(card.dataset.widgetId);
+        });
+        dashboardCanvas.addEventListener('keydown', async event => {
+            const detailButton = event.target.closest('[data-open-widget-detail]');
+            if (!detailButton || !['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            const widget = obterWidgetsDashboard().find(item => item.id === detailButton.dataset.openWidgetDetail);
+            if (widget) await abrirRelatorioDetalhe(widget);
         });
         inicializarInteracaoLivreDashboard();
         if (window.ResizeObserver && !observadorTamanhoDashboard) {
@@ -3438,13 +3781,24 @@ function inicializarEditorDashboard() {
         }
     }
 
+    if (widgetDetailContent) {
+        widgetDetailContent.addEventListener('click', event => {
+            const pageButton = event.target.closest('[data-table-page]');
+            if (!pageButton || pageButton.disabled || !widgetDetalheModalAtual) return;
+            const paginaAtual = paginasTabelaDashboard.get(widgetDetalheModalAtual.id) || 1;
+            paginasTabelaDashboard.set(widgetDetalheModalAtual.id, paginaAtual + Number(pageButton.dataset.tablePage || 0));
+            renderizarRelatorioDetalheAtual();
+        });
+    }
     closeWidgetButtons.forEach(button => button.addEventListener('click', fecharModalWidget));
     closeSqlViewerButtons.forEach(button => button.addEventListener('click', fecharVisualizadorSql));
+    closeWidgetDetailButtons.forEach(button => button.addEventListener('click', fecharRelatorioDetalhe));
     if (indentSqlViewerButton) indentSqlViewerButton.addEventListener('click', indentarSqlVisualizador);
     if (copySqlViewerButton) copySqlViewerButton.addEventListener('click', copiarSqlVisualizador);
     if (pasteSqlViewerButton) pasteSqlViewerButton.addEventListener('click', colarSqlVisualizador);
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && sqlViewerModal && !sqlViewerModal.hidden) fecharVisualizadorSql();
+        if (event.key === 'Escape' && widgetDetailModal && !widgetDetailModal.hidden) fecharRelatorioDetalhe();
+        else if (event.key === 'Escape' && sqlViewerModal && !sqlViewerModal.hidden) fecharVisualizadorSql();
     });
     if (saveWidgetButton) saveWidgetButton.addEventListener('click', salvarWidgetAtual);
 }
@@ -3843,7 +4197,3 @@ if (sidebarToggle) {
         sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 }
-
-
-
-

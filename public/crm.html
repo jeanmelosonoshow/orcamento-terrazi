@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260730-5">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260804-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -355,6 +355,37 @@
                     <div class="crm-formula-status" data-kpi-formula-status hidden></div>
                 </section>
 
+                <section class="crm-detail-config" data-widget-detail-config>
+                    <div class="crm-table-config-head">
+                        <div><span class="crm-eyebrow">Acao do resultado</span><strong>Relatorio de detalhe</strong></div>
+                        <label class="crm-detail-enable"><input type="checkbox" data-widget-detail-enabled> Ativar detalhe</label>
+                    </div>
+                    <div class="crm-detail-fields" data-widget-detail-fields hidden>
+                        <div class="crm-modal-grid crm-modal-grid-compact">
+                            <label>Titulo do relatorio<input type="text" placeholder="Ex: Vendas da filial" data-widget-detail-title></label>
+                            <label>Modelo<select data-widget-detail-type><option value="table">Tabela</option><option value="pivot">Tabela dinamica</option></select></label>
+                            <label>Fonte de dados<select data-widget-detail-source><option value="firebird">Firebird</option><option value="postgres">Postgres</option></select></label>
+                        </div>
+                        <label class="crm-sql-field">
+                            SQL do detalhe
+                            <textarea data-widget-detail-sql spellcheck="false" placeholder="Use os filtros do painel e, quando houver dimensão, :detalhe_valor, :detalhe_campo e :detalhe_serie."></textarea>
+                        </label>
+                        <div class="crm-detail-pivot-fields" data-widget-detail-pivot-fields hidden>
+                            <label>Campos de linha<input type="text" placeholder="IDFILIAL, NOMEFILIAL" data-widget-detail-rows></label>
+                            <label>Campo de coluna<input type="text" placeholder="Opcional" data-widget-detail-columns></label>
+                            <label>Campos de valor<input type="text" placeholder="TOTAL, QUANTIDADE" data-widget-detail-values></label>
+                            <label>Agregacao<select data-widget-detail-aggregation><option value="sum">SUM</option><option value="count">COUNT</option><option value="count_distinct">COUNT DISTINCT</option><option value="avg">AVG</option><option value="min">MIN</option><option value="max">MAX</option><option value="none">Nenhuma</option></select></label>
+                            <label class="crm-detail-total"><input type="checkbox" checked data-widget-detail-total> Total geral</label>
+                        </div>
+                        <div class="crm-query-help">
+                            <strong>Parametros do clique</strong>
+                            <span>:detalhe_valor</span>
+                            <span>:detalhe_campo</span>
+                            <span>:detalhe_serie</span>
+                        </div>
+                        <span class="crm-category-error" data-widget-detail-error hidden></span>
+                    </div>
+                </section>
                 <div class="crm-query-result" data-query-result hidden></div>
                 <div class="crm-query-table-wrap" data-query-table-wrap hidden></div>
             </div>
@@ -437,6 +468,21 @@
             </div>
         </section>
     </div>
+    <div class="crm-modal" data-widget-detail-modal hidden>
+        <div class="crm-modal-backdrop" data-close-widget-detail></div>
+        <section class="crm-modal-card crm-widget-detail-card" role="dialog" aria-modal="true" aria-labelledby="crmWidgetDetailTitle">
+            <div class="crm-modal-head">
+                <div>
+                    <span class="crm-eyebrow">Relatorio de detalhe</span>
+                    <h2 id="crmWidgetDetailTitle" data-widget-detail-modal-title>Detalhamento</h2>
+                    <span class="crm-widget-detail-context" data-widget-detail-context></span>
+                </div>
+                <button type="button" class="crm-icon-button" aria-label="Fechar" title="Fechar" data-close-widget-detail>×</button>
+            </div>
+            <div class="crm-widget-detail-status" data-widget-detail-status aria-live="polite"></div>
+            <div class="crm-widget-detail-content" data-widget-detail-content></div>
+        </section>
+    </div>
     <div class="crm-modal" data-sql-viewer-modal hidden>
         <div class="crm-modal-backdrop" data-close-sql-viewer></div>
         <section class="crm-modal-card crm-sql-viewer-card" role="dialog" aria-modal="true" aria-labelledby="crmSqlViewerTitle">
@@ -480,6 +526,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260731-4"></script>
+    <script src="crm.js?v=crm-20260804-1"></script>
 </body>
 </html>

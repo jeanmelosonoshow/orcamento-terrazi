@@ -69,6 +69,33 @@ Os filtros escolhidos no painel (`:filiais` e `:vendedores`) podem ser
 adicionados como refinamento. A condicao por categoria deve permanecer na
 consulta para garantir o escopo de acesso.
 
+## Relatorio de detalhe por clique
+
+Cards KPI e graficos podem executar uma consulta propria ao clicar no resultado. O SQL do detalhe
+recebe os filtros normais do painel e estes parametros adicionais:
+
+- `:detalhe_valor`: valor original da dimensao clicada;
+- `:detalhe_campo`: nome informativo do campo de dimensao;
+- `:detalhe_serie`: nome da serie selecionada.
+
+Use `:detalhe_valor` como valor parametrizado. `:detalhe_campo` nao substitui um identificador SQL;
+quando houver graficos com dimensoes diferentes, use condicoes explicitas:
+
+```sql
+SELECT
+    v.numero,
+    v.cliente,
+    v.total
+FROM vendas v
+WHERE v.data BETWEEN :data_inicial AND :data_final
+  AND (
+       :detalhe_valor IS NULL
+       OR (:detalhe_campo = 'IDFILIAL' AND v.idfilial = :detalhe_valor)
+  )
+```
+
+Para tabela dinamica, informe no editor os campos de linha, coluna e valor usando exatamente os
+nomes ou aliases retornados pelo SQL. A agregacao e executada no servidor antes da renderizacao.
 ## Gateway de BI para acesso concorrente
 
 Para producao com aproximadamente 250 usuarios, as funcoes da Vercel nao devem abrir conexoes
