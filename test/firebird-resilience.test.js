@@ -56,3 +56,23 @@ test('atualizacao do painel limita concorrencia e preserva falhas individuais', 
     assert.equal(resultados[5].value, 50);
     assert.match(source, /DASHBOARD_QUERY_CONCURRENCY = 3/);
 });
+
+test('cards ocultos para a categoria ficam fora da fila de execucao', async () => {
+    const source = await readFile(dashboardPath, 'utf8');
+    const obterIndices = extrairFuncao(source, 'obterIndicesWidgetsExecutaveis', 'async function executarWidgetComFiltros');
+    const widgets = [
+        { id: 'visivel', visivel: true, usaFiltros: true },
+        { id: 'oculto', visivel: false, usaFiltros: true },
+        { id: 'sem-filtros', visivel: true, usaFiltros: false }
+    ];
+
+    const indices = obterIndices(
+        widgets,
+        widget => widget.visivel,
+        widget => widget.usaFiltros
+    );
+
+    assert.deepEqual(indices, [0]);
+    assert.match(source, /if \(!widgetVisivelParaCategoria\(widget\)\) \{\s*throw new Error\('Card oculto para esta categoria\.'\);/);
+    assert.match(source, /const indices = obterIndicesWidgetsExecutaveis\(widgets\);/);
+});

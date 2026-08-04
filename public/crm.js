@@ -2887,7 +2887,20 @@ function widgetUtilizaFiltrosVisiveis(widget) {
     return consultas.some(consulta => parametros.test(String(consulta.sql || '')));
 }
 
+function obterIndicesWidgetsExecutaveis(
+    widgets,
+    visivel = widgetVisivelParaCategoria,
+    utilizaFiltros = widgetUtilizaFiltrosVisiveis
+) {
+    return widgets
+        .map((widget, index) => visivel(widget) && utilizaFiltros(widget) ? index : -1)
+        .filter(index => index >= 0);
+}
+
 async function executarWidgetComFiltros(widget, filtros) {
+    if (!widgetVisivelParaCategoria(widget)) {
+        throw new Error('Card oculto para esta categoria.');
+    }
     const consultas = Array.isArray(widget.consultas) && widget.consultas.length ? widget.consultas : [];
     if (consultas.length > 1) {
         const resultados = [];
@@ -2968,7 +2981,7 @@ async function aplicarFiltrosDashboard() {
     definirPaginaOrcamento();
 
     const widgets = obterWidgetsDashboard();
-    const indices = widgets.map((widget, index) => widgetUtilizaFiltrosVisiveis(widget) ? index : -1).filter(index => index >= 0);
+    const indices = obterIndicesWidgetsExecutaveis(widgets);
     if (!indices.length) return atualizarStatusFiltros('Filtros aplicados.');
 
     if (applyFiltersButton) {
