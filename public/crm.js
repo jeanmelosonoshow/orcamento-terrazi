@@ -32,7 +32,7 @@ const categoriasDashboard = window.CRM_DASHBOARD_LAYOUT?.categorias || Object.en
 const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao', 'orcamentos']);
 const crmBiViews = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao']);
 let dashboardContextoAtivo = 'visao-geral';
-const DASHBOARD_QUERY_CONCURRENCY = 2;
+const DASHBOARD_QUERY_CONCURRENCY = 3;
 const DASHBOARD_REQUEST_TIMEOUT_MS = 30000;
 
 function obterViewPorHash(hash) {
@@ -2601,7 +2601,7 @@ function atualizarStatusFiltros(mensagem, erro = false) {
     filterStatus.classList.toggle('is-error', erro);
 }
 
-async function executarComConcorrenciaLimitada(itens, limite, executor) {
+async function executarComConcorrenciaLimitada(itens, limite, executor, aoConcluir = null) {
     const resultados = new Array(itens.length);
     let proximoIndice = 0;
     const quantidadeWorkers = Math.min(Math.max(1, limite), itens.length);
@@ -2613,6 +2613,13 @@ async function executarComConcorrenciaLimitada(itens, limite, executor) {
                 resultados[indice] = { status: 'fulfilled', value: await executor(itens[indice], indice) };
             } catch (reason) {
                 resultados[indice] = { status: 'rejected', reason };
+            }
+            if (typeof aoConcluir === 'function') {
+                try {
+                    await aoConcluir(resultados[indice], itens[indice], indice);
+                } catch (error) {
+                    console.error('Falha ao atualizar o progresso do painel.', error);
+                }
             }
         }
     };
@@ -2649,23 +2656,28 @@ async function aplicarFiltrosDashboard() {
     if (resetFiltersButton) resetFiltersButton.disabled = true;
     atualizarStatusFiltros('Atualizando ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + '...');
     const filtrosConsulta = obterFiltrosCenario();
-    const resultados = await executarComConcorrenciaLimitada(
+    let atualizados = 0;
+    let falhas = 0;
+    let concluidos = 0;
+    estadosDrillDashboard.clear();
+    await executarComConcorrenciaLimitada(
         indices,
         DASHBOARD_QUERY_CONCURRENCY,
-        index => executarWidgetComFiltros(widgets[index], filtrosConsulta)
+        index => executarWidgetComFiltros(widgets[index], filtrosConsulta),
+        (resultado, index) => {
+            concluidos += 1;
+            if (resultado.status === 'fulfilled') {
+                widgets[index] = resultado.value;
+                atualizados += 1;
+                salvarWidgetsDashboard(widgets);
+                renderizarDashboard();
+            } else {
+                falhas += 1;
+            }
+            const progresso = concluidos + ' de ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + ' atualizado' + (concluidos === 1 ? '' : 's');
+            atualizarStatusFiltros(falhas ? progresso + '; ' + falhas + ' com erro.' : progresso + '...');
+        }
     );
-    let atualizados = 0;
-    resultados.forEach((resultado, posicao) => {
-        if (resultado.status !== 'fulfilled') return;
-        widgets[indices[posicao]] = resultado.value;
-        atualizados += 1;
-    });
-    if (atualizados) {
-        salvarWidgetsDashboard(widgets);
-        estadosDrillDashboard.clear();
-        renderizarDashboard();
-    }
-    const falhas = indices.length - atualizados;
     if (falhas) atualizarStatusFiltros(atualizados + ' atualizado(s); ' + falhas + ' com erro.', true);
     else atualizarStatusFiltros(atualizados + ' card' + (atualizados === 1 ? '' : 's') + ' atualizado' + (atualizados === 1 ? '' : 's') + '.');
     if (applyFiltersButton) {

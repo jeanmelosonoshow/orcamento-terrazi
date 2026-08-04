@@ -39,6 +39,7 @@ test('atualizacao do painel limita concorrencia e preserva falhas individuais', 
     const executar = extrairFuncao(source, 'executarComConcorrenciaLimitada', 'async function aplicarFiltrosDashboard');
     let ativos = 0;
     let maximo = 0;
+    const concluidos = [];
     const resultados = await executar([0, 1, 2, 3, 4, 5], 2, async item => {
         ativos += 1;
         maximo = Math.max(maximo, ativos);
@@ -46,11 +47,12 @@ test('atualizacao do painel limita concorrencia e preserva falhas individuais', 
         ativos -= 1;
         if (item === 3) throw new Error('falha esperada');
         return item * 10;
-    });
+    }, (resultado, item) => concluidos.push({ item, status: resultado.status }));
 
     assert.equal(maximo, 2);
+    assert.equal(concluidos.length, 6);
     assert.equal(resultados[2].value, 20);
     assert.equal(resultados[3].status, 'rejected');
     assert.equal(resultados[5].value, 50);
-    assert.match(source, /DASHBOARD_QUERY_CONCURRENCY = 2/);
+    assert.match(source, /DASHBOARD_QUERY_CONCURRENCY = 3/);
 });
