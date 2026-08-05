@@ -53,4 +53,7 @@ test('atualizacao assincrona permanece vinculada ao menu em que foi iniciada', (
     assert.match(script, /salvarWidgetsDashboard\(widgets, contextoExecucao\)/);
     assert.match(script, /dashboardContextoAtivo === contextoExecucao/);
     assert.match(script, /repararCenariosDuplicadosEntreMenus/);
+    assert.match(script, /obterAssinaturaEstruturalCenario/);
+    assert.match(script, /delete configuracao\.dadosConsulta/);
+    assert.match(script, /crmDashboardContextIsolationRepair:v2/);
 });

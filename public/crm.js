@@ -238,17 +238,40 @@ function obterConfigDashboardAtivo(contexto = dashboardContextoAtivo) {
     return dashboardConfigPorView[contexto] || dashboardConfigPorView['visao-geral'];
 }
 
+function obterAssinaturaEstruturalCenario(conteudo) {
+    try {
+        const widgets = JSON.parse(conteudo);
+        if (!Array.isArray(widgets) || !widgets.length) return '';
+        return JSON.stringify(widgets.map(widget => {
+            const configuracao = { ...widget };
+            delete configuracao.dadosConsulta;
+            delete configuracao.colunasConsulta;
+            delete configuracao.dadosConsultaAgregados;
+            delete configuracao.consultaAtualizadaEm;
+            return configuracao;
+        }));
+    } catch (error) {
+        return '';
+    }
+}
+
 function repararCenariosDuplicadosEntreMenus() {
     const configVisaoGeral = dashboardConfigPorView['visao-geral'];
     const cenarioVisaoGeral = localStorage.getItem(configVisaoGeral.storage);
-    if (!cenarioVisaoGeral) return;
+    const assinaturaVisaoGeral = obterAssinaturaEstruturalCenario(cenarioVisaoGeral);
+    if (!assinaturaVisaoGeral) return;
 
     Object.entries(dashboardConfigPorView).forEach(([contexto, config]) => {
         if (contexto === 'visao-geral') return;
+        const chaveReparo = 'crmDashboardContextIsolationRepair:v2:' + contexto;
+        if (localStorage.getItem(chaveReparo)) return;
         const cenarioContexto = localStorage.getItem(config.storage);
-        if (!cenarioContexto || cenarioContexto !== cenarioVisaoGeral) return;
-        localStorage.setItem(config.storage + ':backup-contexto', cenarioContexto);
-        localStorage.removeItem(config.storage);
+        const assinaturaContexto = obterAssinaturaEstruturalCenario(cenarioContexto);
+        if (cenarioContexto && assinaturaContexto === assinaturaVisaoGeral) {
+            localStorage.setItem(config.storage + ':backup-contexto', cenarioContexto);
+            localStorage.removeItem(config.storage);
+        }
+        localStorage.setItem(chaveReparo, 'concluido');
     });
 }
 const dashboardCanvasMinHeight = 620;
