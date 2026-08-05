@@ -1,10 +1,39 @@
 {
   "defaultTheme": "casaterrazi",
   "branches": {
-    "20": "casaterrazi",
-    "26": "casaterrazi",
-    "29": "casaterrazi",
-    "CD": "sonoshow"
+"01": "sonoshow",
+"02": "sonoshow",
+"03": "sonoshow",
+"04": "sonoshow",
+"05": "sonoshow",
+"06": "sonoshow",
+"07": "sonoshow",
+"08": "sonoshow",
+"09": "sonoshow",
+"10": "sonoshow",
+"11": "sonoshow",
+"12": "sonoshow",
+"13": "sonoshow",
+"14": "sonoshow",
+"15": "sonoshow",
+"16": "sonoshow",
+"17": "sonoshow",
+"18": "sonoshow",
+"19": "sonoshow",
+"20": "casaterrazi",
+"21": "sonoshow",
+"22": "sonoshow",
+"23": "sonoshow",
+"24": "sonoshow",
+"25": "sonoshow",
+"26": "casaterrazi",
+"27": "sonoshow",
+"28": "sonoshow",
+"29": "casaterrazi",
+"32": "sonoshow",
+"TE": "sonoshow",
+"CD": "sonoshow"     
+
   },
   "themes": {
     "casaterrazi": {
