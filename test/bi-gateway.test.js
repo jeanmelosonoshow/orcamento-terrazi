@@ -244,3 +244,20 @@ test('falha de rede do Gateway nao abre conexao Firebird direta', async () => {
         else process.env.BI_GATEWAY_TOKEN = tokenAnterior;
     }
 });
+
+test('Gateway rejeita nomes de GTT manipulados antes de executar SQL', async () => {
+    let executou = false;
+    const servico = criarServico(async () => {
+        executou = true;
+        return [];
+    });
+
+    await assert.rejects(
+        servico.executar({
+            sql: 'EXECUTE BLOCK AS BEGIN END',
+            opcoes: { tabelasTemporarias: ['GTT_OK; DROP TABLE CLIENTE'] }
+        }),
+        error => error.code === 'BI_GATEWAY_INVALID_GTT' && error.status === 400
+    );
+    assert.equal(executou, false);
+});

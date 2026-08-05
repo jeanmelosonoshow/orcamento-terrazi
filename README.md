@@ -69,6 +69,23 @@ Os filtros escolhidos no painel (`:filiais` e `:vendedores`) podem ser
 adicionados como refinamento. A condicao por categoria deve permanecer na
 consulta para garantir o escopo de acesso.
 
+## EXECUTE BLOCK com tabelas temporarias
+
+O executor aceita `DELETE FROM` e `INSERT INTO ... SELECT` dentro de `EXECUTE BLOCK` somente quando
+o Firebird confirmar no catalogo que cada destino e uma tabela temporaria global
+(`RDB$RELATION_TYPE` 4 ou 5). Tabelas permanentes continuam bloqueadas.
+
+Para cada GTT que receber insercoes:
+
+- use um nome simples, sem schema e sem identificador entre aspas;
+- execute `DELETE FROM NOME_DA_GTT` antes do primeiro `INSERT`;
+- mantenha `RETURNS` e `SUSPEND` para produzir o relatorio;
+- nao use `UPDATE`, `MERGE`, DDL, `COMMIT`, `ROLLBACK`, transacao autonoma ou SQL dinamico.
+
+A limpeza inicial evita dados de um uso anterior em GTTs `ON COMMIT PRESERVE ROWS`. Como protecao
+adicional, o Gateway limpa novamente as GTTs na mesma conexao antes de devolve-la ao pool. Se essa
+limpeza falhar, a conexao e descartada.
+
 ## Relatorio de detalhe por clique
 
 Cards KPI e graficos podem executar uma consulta propria ao clicar no resultado. O SQL do detalhe

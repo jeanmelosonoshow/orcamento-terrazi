@@ -5,7 +5,10 @@ import { fileURLToPath } from 'url';
 import { requireRequestSession } from '../lib/session-token.js';
 import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
-import { validarSqlLeitura } from '../lib/scenario-sql-validation.js';
+import {
+    obterTabelasTemporariasExecuteBlock,
+    validarSqlLeitura
+} from '../lib/scenario-sql-validation.js';
 import {
     aplicarVisualizacaoEmMemoria,
     avaliarBaseVisualizacaoEmMemoria,
@@ -21,6 +24,42 @@ const LIMITE_PREVIA = 100;
 const CONSULTA_TIMEOUT_MS = 90000;
 const DRILL_CACHE_MAX_ROWS = Math.min(10000, Math.max(100, Number(process.env.BI_DRILL_CACHE_MAX_ROWS) || 3000));
 const DRILL_CACHE_MAX_BYTES = Math.min(16777216, Math.max(262144, Number(process.env.BI_DRILL_CACHE_MAX_BYTES) || 4194304));
+
+function obterCampo(linha, nome) {
+    if (!linha) return undefined;
+    if (Object.prototype.hasOwnProperty.call(linha, nome)) return linha[nome];
+    const chave = Object.keys(linha).find(item => item.toLowerCase() === String(nome).toLowerCase());
+    return chave ? linha[chave] : undefined;
+}
+
+async function confirmarTabelasTemporariasFirebird(tabelas) {
+    const nomes = Array.from(new Set((Array.isArray(tabelas) ? tabelas : [])
+        .map(item => String(item || '').trim().toUpperCase())
+        .filter(Boolean)));
+    if (!nomes.length) return [];
+
+    const marcadores = nomes.map(() => '?').join(',');
+    const sqlCatalogo = `
+        SELECT
+            TRIM(R.RDB$RELATION_NAME) AS NOME,
+            R.RDB$RELATION_TYPE AS TIPO
+        FROM RDB$RELATIONS R
+        WHERE R.RDB$RELATION_NAME IN (${marcadores})
+          AND R.RDB$RELATION_TYPE IN (4, 5)
+    `;
+    const linhas = await executarConsultaFirebirdGateway(sqlCatalogo, nomes, {
+        operacao: 'validar-gtt-cenario',
+        timeoutMs: 15000,
+        limite: nomes.length,
+        permitirFallbackCharset: false,
+        cacheTtlMs: 300000,
+        cacheStaleMs: 0
+    });
+    return linhas
+        .filter(linha => [4, 5].includes(Number(obterCampo(linha, 'TIPO'))))
+        .map(linha => String(obterCampo(linha, 'NOME') || '').trim().toUpperCase())
+        .filter(nome => nomes.includes(nome));
+}
 
 function carregarEditoresCenario() {
     try {
@@ -55,9 +94,24 @@ export default async function handler(req, res) {
     if (!usuarioPodeEditarCenario(String(session.sub))) return res.status(403).json({ error: 'Usuario sem permissao para testar cenarios.' });
 
     const fonteNormalizada = String(fonte).toLowerCase() === 'postgres' ? 'postgres' : 'firebird';
-    const erroValidacao = validarSqlLeitura(sql, fonteNormalizada);
+    const tabelasTemporariasSolicitadas = fonteNormalizada === 'firebird'
+        ? obterTabelasTemporariasExecuteBlock(sql)
+        : [];
+    const erroValidacao = validarSqlLeitura(sql, fonteNormalizada, {
+        permitirDmlTemporariaPendente: tabelasTemporariasSolicitadas.length > 0
+    });
     if (erroValidacao) return res.status(400).json({ error: erroValidacao });
     try {
+        const tabelasTemporariasConfirmadas = await confirmarTabelasTemporariasFirebird(
+            tabelasTemporariasSolicitadas
+        );
+        if (tabelasTemporariasSolicitadas.length) {
+            const erroGtt = validarSqlLeitura(sql, fonteNormalizada, {
+                tabelasTemporariasPermitidas: tabelasTemporariasConfirmadas
+            });
+            if (erroGtt) return res.status(400).json({ error: erroGtt });
+        }
+
         const contextoConsulta = montarContextoConsulta(filtros, session);
         const preparadoBase = prepararSqlCenario(sql, fonteNormalizada, contextoConsulta);
         const preparado = prepararConsultaVisual(preparadoBase, fonteNormalizada, visualizacao);
@@ -84,6 +138,7 @@ export default async function handler(req, res) {
                 operacao: 'executar-cenario',
                 timeoutMs: CONSULTA_TIMEOUT_MS,
                 permitirFallbackCharset: true,
+                tabelasTemporarias: tabelasTemporariasConfirmadas,
                 cacheTtlMs: Number(process.env.BI_DASHBOARD_CACHE_TTL_MS || 60000),
                 cacheStaleMs: Number(process.env.BI_DASHBOARD_CACHE_STALE_MS || 900000)
             };
