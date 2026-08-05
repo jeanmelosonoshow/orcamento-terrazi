@@ -37,3 +37,17 @@ test('tabela dinamica de detalhe agrega no servidor e preserva o drill proprio',
     assert.match(javascript, /renderizarRelatorioDetalheAtual/);
     assert.match(javascript, /executarDrillDownWidget/);
 });
+
+test('relatorio detalhe permite imprimir e exportar todos os registros para PDF e Excel', async () => {
+    const [html, javascript] = await Promise.all([
+        readFile(new URL('../public/crm.html', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm.js', import.meta.url), 'utf8')
+    ]);
+
+    assert.match(html, /data-widget-detail-export-host/);
+    assert.match(javascript, /data-widget-detail-export="pdf"/);
+    assert.match(javascript, /data-widget-detail-export="excel"/);
+    assert.match(javascript, /data-widget-detail-export="print"/);
+    assert.match(javascript, /renderizarTabelaSimplesRelatorioDetalhe\(conteudo, widget, \{ exportarTudo: true \}\)/);
+    assert.match(javascript, /prepararPaginacaoTabela\(widget, registros, opcoes\.exportarTudo === true\)/);
+});

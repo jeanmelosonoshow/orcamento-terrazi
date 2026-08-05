@@ -223,6 +223,7 @@ const widgetDetailModalTitle = document.querySelector('[data-widget-detail-modal
 const widgetDetailContext = document.querySelector('[data-widget-detail-context]');
 const widgetDetailStatus = document.querySelector('[data-widget-detail-status]');
 const widgetDetailContent = document.querySelector('[data-widget-detail-content]');
+const widgetDetailExportHost = document.querySelector('[data-widget-detail-export-host]');
 const closeWidgetDetailButtons = Array.from(document.querySelectorAll('[data-close-widget-detail]'));
 const budgetFrame = document.querySelector('[data-budget-frame]');
 const dashboardConfigPorView = Object.freeze({
@@ -1850,14 +1851,14 @@ function formatarCelulaRelatorioDetalhe(valor) {
     return String(valor);
 }
 
-function renderizarTabelaSimplesRelatorioDetalhe(container, widget) {
+function renderizarTabelaSimplesRelatorioDetalhe(container, widget, opcoes = {}) {
     const registros = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
     const colunas = Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : [];
     if (!registros.length || !colunas.length) {
         container.innerHTML = '<div class="crm-chart-empty">Nenhum registro encontrado.</div>';
         return;
     }
-    const paginacao = prepararPaginacaoTabela(widget, registros, false);
+    const paginacao = prepararPaginacaoTabela(widget, registros, opcoes.exportarTudo === true);
     const numericas = new Set(colunas.filter(coluna => registros.some(registro => typeof obterValorLinha(registro, coluna) === 'number')));
     const cabecalho = colunas.map(coluna =>
         '<th' + (numericas.has(coluna) ? ' data-align="right"' : '') + '>' + escapeHtml(coluna) + '</th>'
@@ -1906,6 +1907,7 @@ function fecharRelatorioDetalhe() {
     if (widgetDetalheModalAtual?.id) paginasTabelaDashboard.delete(widgetDetalheModalAtual.id);
     widgetDetalheModalAtual = null;
     if (widgetDetailContent) widgetDetailContent.innerHTML = '';
+    atualizarExportacaoRelatorioDetalhe(false);
 }
 
 async function abrirRelatorioDetalhe(widget, selecao = {}) {
@@ -1916,7 +1918,10 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         selecao.serie ? 'Serie: ' + selecao.serie : ''
     ].filter(Boolean).join(' | ');
 
+    if (widgetDetalheModalAtual?.id) paginasTabelaDashboard.delete(widgetDetalheModalAtual.id);
+    widgetDetalheModalAtual = null;
     widgetDetailModal.hidden = false;
+    atualizarExportacaoRelatorioDetalhe(false);
     if (widgetDetailModalTitle) widgetDetailModalTitle.textContent = detalhe.titulo || ('Detalhe de ' + (widget.titulo || 'indicador'));
     if (widgetDetailContext) widgetDetailContext.textContent = contexto;
     if (widgetDetailStatus) {
@@ -1966,6 +1971,7 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
             id: idDetalhe,
             titulo: detalhe.titulo || widget.titulo,
             tipo: detalhe.tipo,
+            relatorioDetalhe: true,
             colunasConsulta: colunas,
             dadosConsulta: registros,
             dadosConsultaAgregados: data.resultadoAgregado === true,
@@ -1983,6 +1989,7 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         };
         paginasTabelaDashboard.set(idDetalhe, 1);
         renderizarRelatorioDetalheAtual();
+        atualizarExportacaoRelatorioDetalhe(true);
         if (widgetDetailStatus) {
             widgetDetailStatus.className = 'crm-widget-detail-status is-success';
             widgetDetailStatus.textContent = registros.length + ' registro' + (registros.length === 1 ? '' : 's') + '.';
@@ -2322,6 +2329,30 @@ function renderizarMenuExportacaoWidget() {
     `;
 }
 
+function renderizarMenuExportacaoRelatorioDetalhe() {
+    return `
+        <span class="crm-widget-export">
+            <button type="button" class="crm-widget-query-button" data-widget-detail-export-toggle aria-label="Exportar relatório de detalhe" title="Exportar relatório" disabled>${renderizarIconeExportar()}</button>
+            <span class="crm-widget-export-menu" data-widget-detail-export-menu hidden>
+                <button type="button" data-widget-detail-export="pdf" disabled>${renderizarIconePdf()}<span>PDF</span></button>
+                <button type="button" data-widget-detail-export="excel" disabled>${renderizarIconeExcel()}<span>Excel</span></button>
+                <button type="button" data-widget-detail-export="print" disabled>${renderizarIconeImprimir()}<span>Imprimir</span></button>
+            </span>
+        </span>
+    `;
+}
+
+function atualizarExportacaoRelatorioDetalhe(habilitada) {
+    if (!widgetDetailExportHost) return;
+    widgetDetailExportHost.querySelectorAll('[data-widget-detail-export-toggle], [data-widget-detail-export]').forEach(botao => {
+        botao.disabled = !habilitada;
+    });
+    if (!habilitada) {
+        const menu = widgetDetailExportHost.querySelector('[data-widget-detail-export-menu]');
+        if (menu) menu.hidden = true;
+    }
+}
+
 function nomeArquivoRelatorio(widget, extensao) {
     const base = String(widget?.titulo || 'relatorio')
         .normalize('NFD')
@@ -2349,7 +2380,9 @@ function criarElementoExportacao(widget) {
     `;
     const conteudo = elemento.querySelector('.crm-report-export-content');
 
-    if (widget.tipo === 'table' || widget.tipo === 'pivot') {
+    if (widget.relatorioDetalhe === true && widget.tipo === 'table') {
+        renderizarTabelaSimplesRelatorioDetalhe(conteudo, widget, { exportarTudo: true });
+    } else if (widget.tipo === 'table' || widget.tipo === 'pivot') {
         renderizarTabelaGrafico(conteudo, widget, { exportarTudo: true });
     } else {
         const seletor = window.CSS?.escape ? window.CSS.escape(widget.id) : String(widget.id).replace(/"/g, '\\"');
@@ -2456,8 +2489,7 @@ function imprimirWidget(widget) {
     removerElementoExportacao(elemento);
 }
 
-async function executarExportacaoWidget(widgetId, formato) {
-    const widget = obterWidgetExportacao(widgetId);
+async function executarExportacao(widget, formato) {
     if (!widget) return;
     try {
         if (formato === 'pdf') await exportarWidgetPdf(widget);
@@ -2466,6 +2498,10 @@ async function executarExportacaoWidget(widgetId, formato) {
     } catch (error) {
         window.alert(error.message || 'Não foi possível exportar o relatório.');
     }
+}
+
+async function executarExportacaoWidget(widgetId, formato) {
+    await executarExportacao(obterWidgetExportacao(widgetId), formato);
 }
 
 function renderizarDashboard() {
@@ -3795,6 +3831,23 @@ function inicializarEditorDashboard() {
         }
     }
 
+    if (widgetDetailExportHost) {
+        widgetDetailExportHost.innerHTML = renderizarMenuExportacaoRelatorioDetalhe();
+        widgetDetailExportHost.addEventListener('click', async event => {
+            const exportAction = event.target.closest('[data-widget-detail-export]');
+            if (exportAction && !exportAction.disabled) {
+                const menu = exportAction.closest('[data-widget-detail-export-menu]');
+                if (menu) menu.hidden = true;
+                await executarExportacao(widgetDetalheModalAtual, exportAction.dataset.widgetDetailExport);
+                return;
+            }
+            const exportToggle = event.target.closest('[data-widget-detail-export-toggle]');
+            if (exportToggle && !exportToggle.disabled) {
+                const menu = widgetDetailExportHost.querySelector('[data-widget-detail-export-menu]');
+                if (menu) menu.hidden = !menu.hidden;
+            }
+        });
+    }
     if (widgetDetailContent) {
         widgetDetailContent.addEventListener('click', event => {
             const pageButton = event.target.closest('[data-table-page]');
