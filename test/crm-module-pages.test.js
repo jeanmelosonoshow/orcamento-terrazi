@@ -21,7 +21,7 @@ test('os cenarios e alturas usam armazenamento independente por modulo', () => {
     assert.match(script, /crmDashboardScenario:funil:v1/);
     assert.match(script, /crmDashboardScenario:arquitetos:v1/);
     assert.match(script, /crmDashboardScenario:reativacao:v1/);
-    assert.ok(script.includes('obterConfigDashboardAtivo().storage'));
+    assert.ok(script.includes('obterConfigDashboardAtivo(contexto).storage'));
     assert.ok(script.includes('obterConfigDashboardAtivo().altura'));
 });
 
@@ -45,4 +45,12 @@ test('rodape institucional e compartilhado pelas paginas do CRM', () => {
     assert.match(html, /Sono Show e Casa Terrazi/);
     assert.match(html, /Todos os direitos reservados/);
     assert.match(script, /footer.hidden = orcamentosAtivo/);
+});
+
+test('atualizacao assincrona permanece vinculada ao menu em que foi iniciada', () => {
+    assert.match(script, /const contextoExecucao = dashboardContextoAtivo/);
+    assert.match(script, /obterWidgetsDashboard\(contextoExecucao\)/);
+    assert.match(script, /salvarWidgetsDashboard\(widgets, contextoExecucao\)/);
+    assert.match(script, /dashboardContextoAtivo === contextoExecucao/);
+    assert.match(script, /repararCenariosDuplicadosEntreMenus/);
 });

@@ -234,8 +234,22 @@ const dashboardConfigPorView = Object.freeze({
     reativacao: { storage: 'crmDashboardScenario:reativacao:v1', altura: 'crmDashboardCanvasHeight:reativacao:v1' }
 });
 
-function obterConfigDashboardAtivo() {
-    return dashboardConfigPorView[dashboardContextoAtivo] || dashboardConfigPorView['visao-geral'];
+function obterConfigDashboardAtivo(contexto = dashboardContextoAtivo) {
+    return dashboardConfigPorView[contexto] || dashboardConfigPorView['visao-geral'];
+}
+
+function repararCenariosDuplicadosEntreMenus() {
+    const configVisaoGeral = dashboardConfigPorView['visao-geral'];
+    const cenarioVisaoGeral = localStorage.getItem(configVisaoGeral.storage);
+    if (!cenarioVisaoGeral) return;
+
+    Object.entries(dashboardConfigPorView).forEach(([contexto, config]) => {
+        if (contexto === 'visao-geral') return;
+        const cenarioContexto = localStorage.getItem(config.storage);
+        if (!cenarioContexto || cenarioContexto !== cenarioVisaoGeral) return;
+        localStorage.setItem(config.storage + ':backup-contexto', cenarioContexto);
+        localStorage.removeItem(config.storage);
+    });
 }
 const dashboardCanvasMinHeight = 620;
 const dashboardCanvasMaxHeight = 4000;
@@ -512,9 +526,9 @@ function criarWidgetPadrao(tipo = 'bar') {
     };
 }
 
-function obterWidgetsDashboard() {
+function obterWidgetsDashboard(contexto = dashboardContextoAtivo) {
     try {
-        const conteudoSalvo = localStorage.getItem(obterConfigDashboardAtivo().storage);
+        const conteudoSalvo = localStorage.getItem(obterConfigDashboardAtivo(contexto).storage);
         if (conteudoSalvo !== null) {
             const salvos = JSON.parse(conteudoSalvo);
             if (Array.isArray(salvos)) return salvos;
@@ -523,7 +537,7 @@ function obterWidgetsDashboard() {
         // Mantem o painel utilizavel caso um rascunho local esteja invalido.
     }
 
-    if (dashboardContextoAtivo !== 'visao-geral') return [];
+    if (contexto !== 'visao-geral') return [];
 
     return [
         { ...criarWidgetPadrao('bar'), id: 'evolucao-comercial', titulo: 'Evolucao comercial', colunas: 8 },
@@ -533,8 +547,8 @@ function obterWidgetsDashboard() {
     ];
 }
 
-function salvarWidgetsDashboard(widgets) {
-    localStorage.setItem(obterConfigDashboardAtivo().storage, JSON.stringify(widgets));
+function salvarWidgetsDashboard(widgets, contexto = dashboardContextoAtivo) {
+    localStorage.setItem(obterConfigDashboardAtivo(contexto).storage, JSON.stringify(widgets));
 }
 
 function obterNomeGrafico(tipo) {
@@ -3000,6 +3014,7 @@ async function executarComConcorrenciaLimitada(itens, limite, executor, aoConclu
 }
 
 async function aplicarFiltrosDashboard() {
+    const contextoExecucao = dashboardContextoAtivo;
     const dataInicial = crmDataInicial?.value || '';
     const dataFinal = crmDataFinal?.value || '';
     if (!dataInicial || !dataFinal) return atualizarStatusFiltros('Informe as duas datas.', true);
@@ -3017,7 +3032,7 @@ async function aplicarFiltrosDashboard() {
     if (crmVendedorPanel) crmVendedorPanel.hidden = true;
     definirPaginaOrcamento();
 
-    const widgets = obterWidgetsDashboard();
+    const widgets = obterWidgetsDashboard(contextoExecucao);
     const indices = obterIndicesWidgetsExecutaveis(widgets);
     if (!indices.length) return atualizarStatusFiltros('Filtros aplicados.');
 
@@ -3041,8 +3056,8 @@ async function aplicarFiltrosDashboard() {
             if (resultado.status === 'fulfilled') {
                 widgets[index] = resultado.value;
                 atualizados += 1;
-                salvarWidgetsDashboard(widgets);
-                renderizarDashboard();
+                salvarWidgetsDashboard(widgets, contextoExecucao);
+                if (dashboardContextoAtivo === contextoExecucao) renderizarDashboard();
             } else {
                 falhas += 1;
             }
@@ -4239,6 +4254,7 @@ function inicializarAplicacao() {
     const hashInicial = window.location.hash || '#visao-geral';
 
     limparFiltrosPersistidos();
+    iniciarModulo('isolamento dos menus', repararCenariosDuplicadosEntreMenus);
     iniciarModulo('navegacao', () => ativarView(obterViewPorHash(hashInicial)));
     iniciarModulo('orcamentos', definirPaginaOrcamento);
     iniciarModulo('periodo', inicializarPeriodo);
