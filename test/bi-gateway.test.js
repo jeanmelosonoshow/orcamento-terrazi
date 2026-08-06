@@ -8,7 +8,7 @@ import {
     criarChaveConsulta,
     obterCredenciaisRedisAmbiente
 } from '../lib/bi-gateway-cache.js';
-import { FilaLimitadaGateway, FilaRedisGateway } from '../lib/bi-gateway-queue.js';
+import { FilaCompostaGateway, FilaLimitadaGateway, FilaRedisGateway } from '../lib/bi-gateway-queue.js';
 import { ServicoBiGateway } from '../lib/bi-gateway-service.js';
 import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 
@@ -90,6 +90,27 @@ test('fila limita concorrencia e preserva ordem de chegada', async () => {
     assert.deepEqual(concluidos, [0, 1, 2, 3, 4, 5, 6, 7]);
 });
 
+test('fila composta respeita a capacidade local antes da vaga global', async () => {
+    const local = new FilaLimitadaGateway({ concorrencia: 2, limiteEspera: 10 });
+    const compartilhada = {
+        executar(tarefa) { return tarefa(); },
+        status() { return { tipo: 'compartilhada-teste' }; }
+    };
+    const fila = new FilaCompostaGateway(local, compartilhada);
+    let ativos = 0;
+    let maximo = 0;
+
+    await Promise.all(Array.from({ length: 8 }, () => fila.executar(async () => {
+        ativos += 1;
+        maximo = Math.max(maximo, ativos);
+        await aguardar(5);
+        ativos -= 1;
+    })));
+
+    assert.equal(maximo, 2);
+    assert.equal(fila.status().tipo, 'composta');
+    assert.equal(fila.status().local.concorrencia, 2);
+});
 test('fila rejeita excedente sem abrir mais execucoes', async () => {
     const fila = new FilaLimitadaGateway({ concorrencia: 1, limiteEspera: 1, timeoutEsperaMs: 1000 });
     let liberar;
@@ -270,6 +291,25 @@ test('circuit breaker interrompe repeticao de falhas e permite recuperacao', asy
     const recuperado = await servico.executar(requisicao);
     assert.equal(recuperado.linhas[0].OK, 1);
     assert.equal(servico.status().circuito.estado, 'fechado');
+});
+test('saturacao do pool e timeout de consulta nao abrem o circuit breaker', async () => {
+    for (const codigo of ['FB_ACQUIRE_TIMEOUT', 'FB_QUERY_TIMEOUT']) {
+        let execucoes = 0;
+        const servico = criarServico(async () => {
+            execucoes += 1;
+            const error = new Error('capacidade temporariamente ocupada');
+            error.code = codigo;
+            error.isFirebirdConnectionError = codigo === 'FB_ACQUIRE_TIMEOUT';
+            throw error;
+        }, { circuitFailureThreshold: 2, circuitOpenMs: 1000 });
+        const requisicao = { sql: 'select 1 from rdb$database' };
+
+        await assert.rejects(servico.executar(requisicao), error => error.code === codigo);
+        await assert.rejects(servico.executar(requisicao), error => error.code === codigo);
+        await assert.rejects(servico.executar(requisicao), error => error.code === codigo);
+        assert.equal(execucoes, 3);
+        assert.equal(servico.status().circuito.estado, 'fechado');
+    }
 });
 test('falha de rede do Gateway nao abre conexao Firebird direta', async () => {
     const urlAnterior = process.env.BI_GATEWAY_URL;

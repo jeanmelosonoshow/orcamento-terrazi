@@ -170,11 +170,14 @@ banco, preservando a exatidao do resultado.
 Configuracao inicial para teste de carga com 250 usuarios:
 
 - `BI_GATEWAY_CONCURRENCY=8`
+- `BI_GATEWAY_LOCAL_CONCURRENCY=3`
 - `BI_GATEWAY_QUEUE_LIMIT=100`
 - `BI_GATEWAY_QUEUE_TIMEOUT_MS=30000`
-- `FB_POOL_SIZE=8`
+- `FB_POOL_SIZE=3`
 
-A concorrencia e o pool devem ser iguais no Gateway para evitar espera dupla. Ajuste esses valores
-somente depois de medir CPU, disco, conexoes ativas e duracao p95 no servidor Firebird. Se
+A concorrencia global limita o total de consultas entre todas as instancias. A concorrencia local
+deve ser menor ou igual ao pool de cada instancia para que uma consulta nao fique aguardando uma
+conexao que a propria instancia nao possui. Ajuste esses valores somente depois de medir CPU, disco,
+conexoes ativas e duracao p95 no servidor Firebird. Se
 `BI_GATEWAY_URL` estiver configurada e o Gateway falhar, a Vercel nao abre conexao direta como
 fallback; esse comportamento evita uma avalanche de logins no banco.

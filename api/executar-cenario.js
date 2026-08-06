@@ -87,6 +87,7 @@ function mensagemErroInfraestrutura(error, status) {
     if (codigo === 'BI_GATEWAY_QUEUE_FULL') return 'Fila de consultas lotada. Aguarde alguns segundos.';
     if (codigo === 'BI_GATEWAY_QUEUE_TIMEOUT') return 'Tempo limite aguardando uma vaga na fila de consultas.';
     if (codigo === 'BI_GATEWAY_CIRCUIT_OPEN') return 'Firebird em recuperacao apos falhas consecutivas.';
+    if (codigo === 'FB_ACQUIRE_TIMEOUT') return 'Capacidade de consultas ocupada. Aguarde alguns segundos e tente novamente.';
     if (codigo.startsWith('FB_') || error?.isFirebirdConnectionError) return 'Firebird temporariamente indisponivel.';
     return status >= 503 ? 'Servico de dados temporariamente indisponivel.' : 'Erro ao executar consulta.';
 }
