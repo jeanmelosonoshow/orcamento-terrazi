@@ -23,6 +23,8 @@ test('timeout de login e espera do pool possuem limites independentes', async ()
     assert.match(source, /error\.code = 'FB_ACQUIRE_TIMEOUT'/);
     assert.match(source, /error\?\.code === 'FB_ACQUIRE_TIMEOUT'\) break/);
     assert.match(source, /isFirebirdCapacityError = true/);
+    assert.match(source, /connection timeout after/i);
+    assert.match(source, /error\.code = 'FB_CONNECT_TIMEOUT'/);
 });
 
 test('timeout e quebra de socket exigem descarte da conexao', async () => {

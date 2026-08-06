@@ -314,11 +314,8 @@ function cancelarAtualizacoesMenusInativos(contextoAtivo) {
         clearTimeout(temporizadorAtualizacaoMenu);
         temporizadorAtualizacaoMenu = null;
     }
-    for (const [contexto, controlador] of controladoresAtualizacaoMenus.entries()) {
-        if (contexto !== contextoAtivo) {
-            controlador.abort();
-            controladoresAtualizacaoMenus.delete(contexto);
-        }
+    for (let indice = filaAtualizacaoMenus.length - 1; indice >= 0; indice -= 1) {
+        if (filaAtualizacaoMenus[indice] !== contextoAtivo) filaAtualizacaoMenus.splice(indice, 1);
     }
 }
 

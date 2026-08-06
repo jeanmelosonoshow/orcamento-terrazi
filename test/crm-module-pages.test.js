@@ -73,3 +73,12 @@ test('cada entrada em um menu agenda uma atualizacao unica e sequencial do cenar
     assert.match(script, /DASHBOARD_MENU_DEBOUNCE_MS = 700/);
     assert.match(script, /dashboardContextoAtivo === contexto/);
 });
+test('troca de menu drena a consulta ativa sem iniciar outro lote em paralelo', () => {
+    const inicio = script.indexOf('function cancelarAtualizacoesMenusInativos');
+    const fim = script.indexOf('\nfunction trocarContextoDashboard', inicio);
+    const rotina = script.slice(inicio, fim);
+
+    assert.doesNotMatch(rotina, /\.abort\(\)/);
+    assert.match(rotina, /filaAtualizacaoMenus\.splice/);
+    assert.match(script, /atualizacaoMenu && dashboardContextoAtivo !== contextoExecucao/);
+});
