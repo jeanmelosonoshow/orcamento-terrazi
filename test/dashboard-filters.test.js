@@ -32,15 +32,17 @@ test('informa ao servidor quando Todos esta selecionado nos filtros visiveis', (
     assert.match(script, /idsVendedoresDisponiveis\.every/);
 });
 
-test('status final distingue consultas executadas de cards exibidos', () => {
-    assert.match(script, /Atualizacao concluida:/);
-    assert.match(script, /consulta.*executada/);
-    assert.match(script, /card.*exibido/);
-    assert.doesNotMatch(script, /card.*atualizado.*por.*consulta/);
+test('status final e simples e identifica nominalmente cards com erro', () => {
+    assert.match(script, /atualizarStatusFiltros\('Atualizacao concluida\.'\)/);
+    assert.match(script, /Atualizacao concluida com erro em:/);
+    assert.match(script, /widgets\[index\]\?\.titulo/);
+    assert.match(script, /cardsComErro\.join/);
 });
 
-test('opcoes dos filtros usam texto escuro com alto contraste', () => {
-    assert.match(style, /\.crm-multiselect-option\s*\{[\s\S]*?color:\s*#17324d;/);
+test('opcoes dos filtros usam texto escuro com alto contraste e cache renovado', () => {
+    assert.match(style, /\.crm-multiselect-option > span\s*\{[\s\S]*?color:\s*#17324d !important;/);
+    assert.match(html, /crm-style\.css\?v=crm-20260806-1/);
+    assert.match(html, /crm\.js\?v=crm-20260806-1/);
 });
 test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => {
     const inicio = script.indexOf('async function restaurarFiltrosPadrao()');

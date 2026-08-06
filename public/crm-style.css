@@ -275,6 +275,10 @@ body {
     cursor: pointer;
 }
 
+.crm-multiselect-option > span {
+    color: #17324d !important;
+}
+
 .crm-multiselect-option:hover {
     background: rgba(14, 51, 25, 0.07);
 }

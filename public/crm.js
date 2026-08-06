@@ -3190,7 +3190,7 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
     let falhas = 0;
     let cancelados = 0;
     let concluidos = 0;
-    let primeiroErro = '';
+    const cardsComErro = [];
     estadosDrillDashboard.clear();
     await executarComConcorrenciaLimitada(
         indices,
@@ -3215,7 +3215,8 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
                 cancelados += 1;
             } else {
                 falhas += 1;
-                if (!primeiroErro) primeiroErro = String(resultado.reason?.message || 'Erro desconhecido.');
+                const tituloCard = String(widgets[index]?.titulo || ('Card ' + (index + 1))).trim();
+                if (!cardsComErro.includes(tituloCard)) cardsComErro.push(tituloCard);
             }
             const progresso = concluidos + ' de ' + indices.length + ' consulta' + (indices.length === 1 ? '' : 's') + ' concluida' + (concluidos === 1 ? '' : 's');
             if (!controladorMenu?.signal.aborted) {
@@ -3228,15 +3229,9 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
     }
     if (dashboardContextoAtivo === contextoExecucao) {
         if (falhas) {
-            const detalhe = primeiroErro ? ' ' + primeiroErro : '';
-            atualizarStatusFiltros('Atualizacao concluida com erros: ' + atualizados
-                + ' consulta' + (atualizados === 1 ? '' : 's') + ' executada' + (atualizados === 1 ? '' : 's')
-                + '; ' + falhas + ' com erro.' + detalhe, true);
+            atualizarStatusFiltros('Atualizacao concluida com erro em: ' + cardsComErro.join(', ') + '.', true);
         } else if (!cancelados) {
-            atualizarStatusFiltros('Atualizacao concluida: ' + atualizados
-                + ' consulta' + (atualizados === 1 ? '' : 's') + ' executada' + (atualizados === 1 ? '' : 's')
-                + '; ' + totalCardsVisiveis + ' card' + (totalCardsVisiveis === 1 ? '' : 's') + ' exibido'
-                + (totalCardsVisiveis === 1 ? '' : 's') + '.');
+            atualizarStatusFiltros('Atualizacao concluida.');
         }
     }
     if (applyFiltersButton) {
