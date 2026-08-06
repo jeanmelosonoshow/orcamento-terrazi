@@ -38,8 +38,10 @@ let processandoAtualizacaoMenus = false;
 let contextoAtualizacaoEmAndamento = null;
 const filaAtualizacaoMenus = [];
 const controladoresAtualizacaoMenus = new Map();
-const DASHBOARD_QUERY_CONCURRENCY = 3;
-const DASHBOARD_REQUEST_TIMEOUT_MS = 30000;
+let temporizadorAtualizacaoMenu = null;
+const DASHBOARD_QUERY_CONCURRENCY = 1;
+const DASHBOARD_REQUEST_TIMEOUT_MS = 95000;
+const DASHBOARD_MENU_DEBOUNCE_MS = 700;
 
 function obterViewPorHash(hash) {
     const view = String(hash || '#visao-geral').replace(/^#/, '');
@@ -308,6 +310,10 @@ let larguraDashboardObservada = 0;
 let widgetDetalheModalAtual = null;
 
 function cancelarAtualizacoesMenusInativos(contextoAtivo) {
+    if (temporizadorAtualizacaoMenu) {
+        clearTimeout(temporizadorAtualizacaoMenu);
+        temporizadorAtualizacaoMenu = null;
+    }
     for (const [contexto, controlador] of controladoresAtualizacaoMenus.entries()) {
         if (contexto !== contextoAtivo) {
             controlador.abort();
@@ -370,7 +376,13 @@ function solicitarAtualizacaoCenarioMenu(contexto) {
         if (indiceExistente >= 0) filaAtualizacaoMenus.splice(indiceExistente, 1);
         filaAtualizacaoMenus.unshift(contexto);
     }
-    if (filtrosDashboardProntos) processarFilaAtualizacaoMenus();
+    if (temporizadorAtualizacaoMenu) clearTimeout(temporizadorAtualizacaoMenu);
+    temporizadorAtualizacaoMenu = setTimeout(() => {
+        temporizadorAtualizacaoMenu = null;
+        if (filtrosDashboardProntos && dashboardContextoAtivo === contexto) {
+            processarFilaAtualizacaoMenus();
+        }
+    }, DASHBOARD_MENU_DEBOUNCE_MS);
 }
 
 async function processarFilaAtualizacaoMenus() {
@@ -4430,7 +4442,7 @@ function inicializarAplicacao() {
         if (resetFiltersButton) resetFiltersButton.addEventListener('click', restaurarFiltrosPadrao);
         [crmDataInicial, crmDataFinal].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('')));
         filtrosDashboardProntos = true;
-        await processarFilaAtualizacaoMenus();
+        solicitarAtualizacaoCenarioMenu(dashboardContextoAtivo);
     });
 }
 

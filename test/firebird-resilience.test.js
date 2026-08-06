@@ -54,7 +54,8 @@ test('atualizacao do painel limita concorrencia e preserva falhas individuais', 
     assert.equal(resultados[2].value, 20);
     assert.equal(resultados[3].status, 'rejected');
     assert.equal(resultados[5].value, 50);
-    assert.match(source, /DASHBOARD_QUERY_CONCURRENCY = 3/);
+    assert.match(source, /DASHBOARD_QUERY_CONCURRENCY = 1/);
+    assert.match(source, /DASHBOARD_REQUEST_TIMEOUT_MS = 95000/);
 });
 
 test('cards ocultos para a categoria ficam fora da fila de execucao', async () => {
