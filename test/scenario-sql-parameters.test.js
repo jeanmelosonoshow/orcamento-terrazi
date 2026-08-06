@@ -82,6 +82,34 @@ test('aplica filtros opcionais somente para selecoes parciais', () => {
     assert.deepEqual(preparado.valores, ['01', '02']);
 });
 
+test('aceita operador logico AND ou OR na diretiva opcional', () => {
+    const preparado = prepararSqlCenario(
+        `SELECT * FROM VENDAS V WHERE V.ATIVO = 'S'
+/* operador = OR | campo: V.IDFILIAL | filtro = :filiais */
+/* operador = AND | campo: V.IDVENDEDOR | filtro = :vendedores */`,
+        'firebird',
+        {
+            filiais: ['01', '02'],
+            vendedores: ['632'],
+            filiaisTodos: false,
+            vendedoresTodos: false
+        }
+    );
+
+    assert.match(preparado.sql, /OR V\.IDFILIAL IN \(\?,\?\)/);
+    assert.match(preparado.sql, /AND V\.IDVENDEDOR IN \(\?\)/);
+    assert.deepEqual(preparado.valores, ['01', '02', '632']);
+});
+
+test('preserva o operador OR quando nao ha itens selecionados', () => {
+    const preparado = prepararSqlCenario(
+        'SELECT * FROM VENDAS V WHERE V.ATIVO = \'S\' /* operador = OR | campo: V.IDFILIAL | filtro = :filiais */',
+        'firebird',
+        { filiais: [], filiaisTodos: false }
+    );
+
+    assert.match(preparado.sql, /OR 1 = 0/);
+});
 test('aplica diretiva opcional dentro de execute block', () => {
     const preparado = prepararSqlCenario(
         `EXECUTE BLOCK RETURNS (TOTAL INTEGER) AS
@@ -111,6 +139,14 @@ test('diretiva sem itens selecionados impede retorno amplo acidental', () => {
     assert.deepEqual(preparado.valores, []);
 });
 test('rejeita diretiva opcional digitada incorretamente', () => {
+    assert.throws(
+        () => prepararSqlCenario(
+            'SELECT * FROM VENDAS V WHERE 1 = 1 /* operador = XOR | campo: V.IDFILIAL | filtro = :filiais */',
+            'firebird',
+            { filiais: ['01'], filiaisTodos: false }
+        ),
+        /Diretiva de filtro opcional invalida/
+    );
     assert.throws(
         () => prepararSqlCenario(
             'SELECT * FROM VENDAS V WHERE 1 = 1 /* campo: V.IDFILIAL | filtro = :clientes */',
