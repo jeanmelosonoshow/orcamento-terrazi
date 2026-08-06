@@ -110,6 +110,22 @@ test('preserva o operador OR quando nao ha itens selecionados', () => {
 
     assert.match(preparado.sql, /OR 1 = 0/);
 });
+test('operador OR neutraliza o filtro quando Todos esta selecionado', () => {
+    const preparado = prepararSqlCenario(
+        `SELECT * FROM VENDAS V
+         WHERE V.ATIVO = 'S'
+           AND (
+               CAST(:categoria AS VARCHAR(2)) NOT IN ('DI', 'SU')
+               /* operador = OR | campo: V.IDFILIAL | filtro = :filiais */
+           )`,
+        'firebird',
+        { categoria: 'DI', filiais: ['01', '02'], filiaisTodos: true }
+    );
+
+    assert.match(preparado.sql, /NOT IN \('DI', 'SU'\)\s+OR 1 = 1/);
+    assert.doesNotMatch(preparado.sql, /IDFILIAL IN/);
+    assert.deepEqual(preparado.valores, ['DI']);
+});
 test('aplica diretiva opcional dentro de execute block', () => {
     const preparado = prepararSqlCenario(
         `EXECUTE BLOCK RETURNS (TOTAL INTEGER) AS
