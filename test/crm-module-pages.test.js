@@ -65,4 +65,9 @@ test('cada entrada em um menu agenda uma atualizacao unica e sequencial do cenar
     assert.match(script, /await aplicarFiltrosDashboard\(\{ contexto, origem: 'menu' \}\)/);
     assert.match(script, /filtrosDashboardProntos = true/);
     assert.match(script, /await processarFilaAtualizacaoMenus\(\)/);
+    assert.match(script, /cancelarAtualizacoesMenusInativos\(proximoContexto\)/);
+    assert.match(script, /filaAtualizacaoMenus\.unshift\(contexto\)/);
+    assert.match(script, /Aguardando atualizacao:/);
+    assert.match(script, /if \(contexto !== dashboardContextoAtivo\) continue/);
+    assert.match(script, /Boolean\(controladorAtual\)/);
 });

@@ -61,9 +61,9 @@ test('cards ocultos para a categoria ficam fora da fila de execucao', async () =
     const source = await readFile(dashboardPath, 'utf8');
     const obterIndices = extrairFuncao(source, 'obterIndicesWidgetsExecutaveis', 'async function executarWidgetComFiltros');
     const widgets = [
-        { id: 'visivel', visivel: true, usaFiltros: true },
-        { id: 'oculto', visivel: false, usaFiltros: true },
-        { id: 'sem-filtros', visivel: true, usaFiltros: false }
+        { id: 'visivel', sql: 'select 1', visivel: true, usaFiltros: true },
+        { id: 'oculto', sql: 'select 1', visivel: false, usaFiltros: true },
+        { id: 'sem-filtros', sql: 'select 1', visivel: true, usaFiltros: false }
     ];
 
     const indices = obterIndices(
@@ -73,6 +73,7 @@ test('cards ocultos para a categoria ficam fora da fila de execucao', async () =
     );
 
     assert.deepEqual(indices, [0]);
+    assert.deepEqual(obterIndices(widgets, widget => widget.visivel, widget => widget.usaFiltros, false), [0, 2]);
     assert.match(source, /if \(!widgetVisivelParaCategoria\(widget\)\) \{\s*throw new Error\('Card oculto para esta categoria\.'\);/);
-    assert.match(source, /const indices = obterIndicesWidgetsExecutaveis\(widgets\);/);
+    assert.match(source, /widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, !atualizacaoMenu/);
 });

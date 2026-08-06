@@ -149,6 +149,27 @@ test('cliente Redis REST envia comandos sem dependencia adicional', async () => 
     assert.deepEqual(JSON.parse(requisicao.opcoes.body), ['SET', 'chave', 'valor']);
 });
 
+test('distingue token invalido e permissao ACL negada no Redis', async () => {
+    for (const resposta of [
+        { ok: false, status: 401, payload: { error: 'WRONGPASS invalid token' } },
+        { ok: true, status: 200, payload: { error: 'NOPERM user has no permissions' } }
+    ]) {
+        const cliente = new ClienteRedisRest({
+            url: 'https://redis.example',
+            token: 'restrito',
+            fetchImpl: async () => ({
+                ok: resposta.ok,
+                status: resposta.status,
+                json: async () => resposta.payload
+            })
+        });
+        await assert.rejects(
+            cliente.comando('GET', 'terrazi:bi:teste'),
+            error => error.code === 'BI_REDIS_AUTH_ERROR'
+        );
+    }
+});
+
 test('aceita credenciais REST da integracao Vercel KV', () => {
     assert.deepEqual(obterCredenciaisRedisAmbiente({
         KV_REST_API_URL: 'https://kv.example',
@@ -161,6 +182,12 @@ test('aceita credenciais REST da integracao Vercel KV', () => {
         KV_REST_API_URL: 'https://kv.example',
         KV_REST_API_TOKEN: 'token-kv'
     }), { url: 'https://upstash.example', token: 'token-upstash' });
+
+    assert.deepEqual(obterCredenciaisRedisAmbiente({
+        UPSTASH_REDIS_REST_TOKEN: 'token-incompleto',
+        KV_REST_API_URL: 'https://kv.example',
+        KV_REST_API_TOKEN: 'token-kv'
+    }), { url: 'https://kv.example', token: 'token-kv' });
 });
 
 test('rotas Firebird usam o Gateway e o cenario possui cache de painel', async () => {
@@ -174,6 +201,8 @@ test('rotas Firebird usam o Gateway e o cenario possui cache de painel', async (
     assert.ok(arquivos.every(source => source.includes('executarConsultaFirebirdGateway')));
     assert.ok(arquivos[0].includes('BI_DASHBOARD_CACHE_TTL_MS || 300000'));
     assert.match(arquivos[0], /BI_DASHBOARD_CACHE_STALE_MS/);
+    assert.match(arquivos[0], /Redis\/Upstash recusou o token ou as permissoes ACL/);
+    assert.match(arquivos[0], /code: codigo/);
 });
 test('fila Redis adquire e libera lease compartilhado', async () => {
     const chamadas = [];

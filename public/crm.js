@@ -37,6 +37,7 @@ let filtrosDashboardProntos = false;
 let processandoAtualizacaoMenus = false;
 let contextoAtualizacaoEmAndamento = null;
 const filaAtualizacaoMenus = [];
+const controladoresAtualizacaoMenus = new Map();
 const DASHBOARD_QUERY_CONCURRENCY = 3;
 const DASHBOARD_REQUEST_TIMEOUT_MS = 30000;
 
@@ -306,6 +307,15 @@ let observadorTamanhoDashboard = null;
 let larguraDashboardObservada = 0;
 let widgetDetalheModalAtual = null;
 
+function cancelarAtualizacoesMenusInativos(contextoAtivo) {
+    for (const [contexto, controlador] of controladoresAtualizacaoMenus.entries()) {
+        if (contexto !== contextoAtivo) {
+            controlador.abort();
+            controladoresAtualizacaoMenus.delete(contexto);
+        }
+    }
+}
+
 function trocarContextoDashboard(viewName) {
     const proximoContexto = dashboardConfigPorView[viewName] ? viewName : 'visao-geral';
     const host = document.querySelector('[data-dashboard-host="' + proximoContexto + '"]');
@@ -314,6 +324,7 @@ function trocarContextoDashboard(viewName) {
     const mudouContexto = dashboardContextoAtivo !== proximoContexto;
     const entrouNoContexto = contextoViewRenderizado !== proximoContexto;
     if (mudouContexto) {
+        cancelarAtualizacoesMenusInativos(proximoContexto);
         modoEdicaoCenario = false;
         document.body.classList.remove('crm-scenario-editing');
         if (editModeToggle) {
@@ -334,13 +345,31 @@ function trocarContextoDashboard(viewName) {
     }
     renderizarDashboard();
     contextoViewRenderizado = proximoContexto;
-    if (entrouNoContexto) solicitarAtualizacaoCenarioMenu(proximoContexto);
+    if (entrouNoContexto) {
+        const widgetsMenu = obterWidgetsDashboard(proximoContexto);
+        const totalCards = widgetsMenu.filter(widgetVisivelParaCategoria).length;
+        const quantidade = obterIndicesWidgetsExecutaveis(
+            widgetsMenu, widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, false
+        ).length;
+        atualizarStatusFiltros(quantidade
+            ? 'Aguardando atualizacao: ' + totalCards + ' card' + (totalCards === 1 ? '' : 's')
+                + ', ' + quantidade + ' consulta' + (quantidade === 1 ? '' : 's') + '...'
+            : totalCards + ' card' + (totalCards === 1 ? '' : 's') + '; nenhuma consulta necessaria.');
+        solicitarAtualizacaoCenarioMenu(proximoContexto);
+    }
 }
 
 function solicitarAtualizacaoCenarioMenu(contexto) {
     if (!dashboardConfigPorView[contexto]) return;
-    const jaAguardando = filaAtualizacaoMenus.includes(contexto);
-    if (!jaAguardando && contextoAtualizacaoEmAndamento !== contexto) filaAtualizacaoMenus.push(contexto);
+    const controladorAtual = controladoresAtualizacaoMenus.get(contexto);
+    const execucaoAtiva = contextoAtualizacaoEmAndamento === contexto
+        && Boolean(controladorAtual)
+        && !controladorAtual.signal.aborted;
+    if (!execucaoAtiva) {
+        const indiceExistente = filaAtualizacaoMenus.indexOf(contexto);
+        if (indiceExistente >= 0) filaAtualizacaoMenus.splice(indiceExistente, 1);
+        filaAtualizacaoMenus.unshift(contexto);
+    }
     if (filtrosDashboardProntos) processarFilaAtualizacaoMenus();
 }
 
@@ -350,6 +379,7 @@ async function processarFilaAtualizacaoMenus() {
     try {
         while (filaAtualizacaoMenus.length) {
             const contexto = filaAtualizacaoMenus.shift();
+            if (contexto !== dashboardContextoAtivo) continue;
             contextoAtualizacaoEmAndamento = contexto;
             await aplicarFiltrosDashboard({ contexto, origem: 'menu' });
         }
@@ -2994,14 +3024,25 @@ function widgetUtilizaFiltrosVisiveis(widget) {
 function obterIndicesWidgetsExecutaveis(
     widgets,
     visivel = widgetVisivelParaCategoria,
-    utilizaFiltros = widgetUtilizaFiltrosVisiveis
+    utilizaFiltros = widgetUtilizaFiltrosVisiveis,
+    somenteComFiltros = true
 ) {
     return widgets
-        .map((widget, index) => visivel(widget) && utilizaFiltros(widget) ? index : -1)
+        .map((widget, index) => {
+            const consultas = Array.isArray(widget?.consultas) && widget.consultas.length
+                ? widget.consultas
+                : [{ sql: widget?.sql || '' }];
+            const possuiConsulta = consultas.some(consulta => String(consulta?.sql || '').trim());
+            return visivel(widget)
+                && possuiConsulta
+                && (!somenteComFiltros || utilizaFiltros(widget))
+                    ? index
+                    : -1;
+        })
         .filter(index => index >= 0);
 }
 
-async function executarWidgetComFiltros(widget, filtros) {
+async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
     if (!widgetVisivelParaCategoria(widget)) {
         throw new Error('Card oculto para esta categoria.');
     }
@@ -3009,7 +3050,8 @@ async function executarWidgetComFiltros(widget, filtros) {
     if (consultas.length > 1) {
         const resultados = [];
         for (const consulta of consultas) {
-            resultados.push(await executarConsultaConfigurada(consulta, filtros));
+            if (opcoes.signal?.aborted) throw Object.assign(new Error('Atualizacao substituida por outro menu.'), { code: 'DASHBOARD_CONTEXT_CHANGED' });
+            resultados.push(await executarConsultaConfigurada(consulta, filtros, null, opcoes));
         }
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
         return { ...widget, colunasConsulta: combinado.colunas, dadosConsulta: combinado.dados, dadosConsultaAgregados: false, consultaAtualizadaEm: new Date().toISOString() };
@@ -3017,15 +3059,22 @@ async function executarWidgetComFiltros(widget, filtros) {
     const visualizacao = montarVisualizacaoWidget(widget);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), DASHBOARD_REQUEST_TIMEOUT_MS);
+    const signalConsulta = opcoes.signal && typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function'
+        ? AbortSignal.any([opcoes.signal, controller.signal])
+        : (opcoes.signal || controller.signal);
     try {
         const response = await fetch('/api/executar-cenario', {
-            method: 'POST', signal: controller.signal,
+            method: 'POST', signal: signalConsulta,
             headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}) },
             body: JSON.stringify({ fonte: widget.fonte || 'firebird', sql: widget.sql, filtros, visualizacao })
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
-        if (!response.ok) throw new Error(data.details || data.error || 'Erro ao atualizar o card.');
+        if (!response.ok) {
+            const error = new Error(data.details || data.error || 'Erro ao atualizar o card.');
+            error.code = data.code || 'DASHBOARD_QUERY_ERROR';
+            throw error;
+        }
         const colunasRetornadas = Array.isArray(data.colunas) ? data.colunas : [];
         const colunasConsulta = widget.tipo === 'pivot'
             ? Array.from(new Set([...(Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : []), ...colunasRetornadas]))
@@ -3078,9 +3127,9 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
     const dataFinal = crmDataFinal?.value || '';
     if (!dataInicial || !dataFinal) return atualizarInterface('Informe as duas datas.', true);
     if (dataInicial > dataFinal) return atualizarInterface('A data inicial deve ser anterior a data final.', true);
-    if (!crmFilialFilter?.hidden && filiaisDisponiveis.length && !filiaisRascunho.length) return atualizarStatusFiltros('Selecione ao menos uma filial.', true);
+    if (!crmFilialFilter?.hidden && filiaisDisponiveis.length && !filiaisRascunho.length) return atualizarInterface('Selecione ao menos uma filial.', true);
     if (!crmSellerFilter?.hidden && vendedoresDisponiveis.length && !vendedoresRascunho.length) {
-        return atualizarStatusFiltros('Selecione ao menos um vendedor.', true);
+        return atualizarInterface('Selecione ao menos um vendedor.', true);
     }
 
     sessionStorage.setItem('crmDataInicial', dataInicial);
@@ -3092,24 +3141,42 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
     definirPaginaOrcamento();
 
     const widgets = obterWidgetsDashboard(contextoExecucao);
-    const indices = obterIndicesWidgetsExecutaveis(widgets);
+    const atualizacaoMenu = opcoes?.origem === 'menu';
+    const totalCardsVisiveis = widgets.filter(widgetVisivelParaCategoria).length;
+    const indices = obterIndicesWidgetsExecutaveis(
+        widgets, widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, !atualizacaoMenu
+    );
     if (!indices.length) return atualizarInterface('Filtros aplicados.');
+
+    const controladorMenu = atualizacaoMenu ? new AbortController() : null;
+    if (controladorMenu) {
+        controladoresAtualizacaoMenus.get(contextoExecucao)?.abort();
+        controladoresAtualizacaoMenus.set(contextoExecucao, controladorMenu);
+    }
 
     if (applyFiltersButton) {
         applyFiltersButton.disabled = true;
         applyFiltersButton.textContent = 'Aplicando...';
     }
     if (resetFiltersButton) resetFiltersButton.disabled = true;
-    atualizarInterface('Atualizando ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + '...');
+    atualizarInterface('Atualizando ' + totalCardsVisiveis + ' card' + (totalCardsVisiveis === 1 ? '' : 's')
+        + ' por ' + indices.length + ' consulta' + (indices.length === 1 ? '' : 's') + '...');
     const filtrosConsulta = obterFiltrosCenario();
     let atualizados = 0;
     let falhas = 0;
+    let cancelados = 0;
     let concluidos = 0;
+    let primeiroErro = '';
     estadosDrillDashboard.clear();
     await executarComConcorrenciaLimitada(
         indices,
         DASHBOARD_QUERY_CONCURRENCY,
-        index => executarWidgetComFiltros(widgets[index], filtrosConsulta),
+        index => {
+            if (controladorMenu?.signal.aborted || (atualizacaoMenu && dashboardContextoAtivo !== contextoExecucao)) {
+                throw Object.assign(new Error('Atualizacao substituida por outro menu.'), { code: 'DASHBOARD_CONTEXT_CHANGED' });
+            }
+            return executarWidgetComFiltros(widgets[index], filtrosConsulta, { signal: controladorMenu?.signal });
+        },
         (resultado, index) => {
             concluidos += 1;
             if (resultado.status === 'fulfilled') {
@@ -3117,16 +3184,33 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
                 atualizados += 1;
                 salvarWidgetsDashboard(widgets, contextoExecucao);
                 if (dashboardContextoAtivo === contextoExecucao) renderizarDashboard();
+            } else if (
+                resultado.reason?.code === 'DASHBOARD_CONTEXT_CHANGED'
+                || (controladorMenu?.signal.aborted && resultado.reason?.name === 'AbortError')
+            ) {
+                cancelados += 1;
             } else {
                 falhas += 1;
+                if (!primeiroErro) primeiroErro = String(resultado.reason?.message || 'Erro desconhecido.');
             }
-            const progresso = concluidos + ' de ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + ' atualizado' + (concluidos === 1 ? '' : 's');
-            atualizarInterface(falhas ? progresso + '; ' + falhas + ' com erro.' : progresso + '...');
+            const progresso = concluidos + ' de ' + indices.length + ' consulta' + (indices.length === 1 ? '' : 's') + ' concluida' + (concluidos === 1 ? '' : 's');
+            if (!controladorMenu?.signal.aborted) {
+                atualizarInterface(falhas ? progresso + '; ' + falhas + ' com erro.' : progresso + '...');
+            }
         }
     );
+    if (controladorMenu && controladoresAtualizacaoMenus.get(contextoExecucao) === controladorMenu) {
+        controladoresAtualizacaoMenus.delete(contextoExecucao);
+    }
     if (dashboardContextoAtivo === contextoExecucao) {
-        if (falhas) atualizarStatusFiltros(atualizados + ' atualizado(s); ' + falhas + ' com erro.', true);
-        else atualizarStatusFiltros(atualizados + ' card' + (atualizados === 1 ? '' : 's') + ' atualizado' + (atualizados === 1 ? '' : 's') + '.');
+        if (falhas) {
+            const detalhe = primeiroErro ? ' ' + primeiroErro : '';
+            atualizarStatusFiltros(atualizados + ' atualizado(s); ' + falhas + ' com erro.' + detalhe, true);
+        } else if (!cancelados) {
+            atualizarStatusFiltros(totalCardsVisiveis + ' card' + (totalCardsVisiveis === 1 ? '' : 's')
+                + ' atualizado' + (totalCardsVisiveis === 1 ? '' : 's')
+                + ' por ' + atualizados + ' consulta' + (atualizados === 1 ? '' : 's') + '.');
+        }
     }
     if (applyFiltersButton) {
         applyFiltersButton.disabled = false;
@@ -3404,7 +3488,26 @@ function assinaturaConsultasEditor() { return JSON.stringify({ consultas: coleta
 function preencherSelectCampos(select, colunas, selecionado) { if (!select) return; const lista = [...(colunas || [])]; if (selecionado && !lista.some(coluna => String(coluna) === String(selecionado))) lista.unshift(selecionado); select.innerHTML = '<option value="">Selecione...</option>' + lista.map(coluna => `<option value="${escapeHtml(coluna)}"${String(coluna) === String(selecionado) ? ' selected' : ''}>${escapeHtml(coluna)}</option>`).join(''); }
 function atualizarControlesCombinacao() { const ativa = consultaSecundariaAtiva(); if (queryCombinationBox) queryCombinationBox.hidden = !ativa; const porChave = ativa && queryCombinationModeSelect?.value === 'key'; if (primaryKeyField) primaryKeyField.hidden = !porChave; if (secondaryKeyField) secondaryKeyField.hidden = !porChave; if (calculatedFieldsBox) calculatedFieldsBox.hidden = !ativa; }
 function renderizarCamposCalculados(campos = []) { if (!calculatedFieldList) return; calculatedFieldList.innerHTML = campos.map(campo => `<div class="crm-calculated-field-row" data-calculated-field-row><label>Nome do campo<input type="text" value="${escapeHtml(campo.nome || '')}" data-calculated-name placeholder="ATINGIMENTO"></label><label>Fórmula<input type="text" value="${escapeHtml(campo.formula || '')}" data-calculated-formula placeholder="[principal.TOTAL] / [secundaria.META] * 100"></label><button type="button" data-remove-calculated-field aria-label="Remover campo" title="Remover campo">×</button></div>`).join(''); }
-async function executarConsultaConfigurada(consulta, filtros, visualizacao = null) { const response = await fetch('/api/executar-cenario', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {}) }, body: JSON.stringify({ fonte: consulta.fonte, sql: consulta.sql, filtros, visualizacao }) }); const data = await response.json().catch(() => ({})); if (response.status === 401) window.fazerLogout(); if (!response.ok) throw new Error(data.details || data.error || `Erro na consulta ${consulta.alias}.`); return { ...consulta, colunas: Array.isArray(data.colunas) ? data.colunas : [], dados: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []) }; }
+async function executarConsultaConfigurada(consulta, filtros, visualizacao = null, opcoes = {}) {
+    const response = await fetch('/api/executar-cenario', {
+        method: 'POST',
+        signal: opcoes.signal,
+        headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {}) },
+        body: JSON.stringify({ fonte: consulta.fonte, sql: consulta.sql, filtros, visualizacao })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) window.fazerLogout();
+    if (!response.ok) {
+        const error = new Error(data.details || data.error || `Erro na consulta ${consulta.alias}.`);
+        error.code = data.code || 'DASHBOARD_QUERY_ERROR';
+        throw error;
+    }
+    return {
+        ...consulta,
+        colunas: Array.isArray(data.colunas) ? data.colunas : [],
+        dados: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : [])
+    };
+}
 function combinarConsultas(resultados, combinacao, camposCalculados) { if (!window.CRM_COMPOSITE_DATASETS) throw new Error('Combinador de consultas indisponível.'); return window.CRM_COMPOSITE_DATASETS.combinar(resultados, combinacao, camposCalculados, window.CRM_KPI_CALCULATOR?.avaliar); }
 function recombinarConsultasEditor() { const combinado = combinarConsultas(resultadosConsultasAtuais, coletarCombinacaoEditor(), coletarCamposCalculadosEditor()); colunasConsultaAtual = combinado.colunas; dadosConsultaAtual = combinado.dados; renderizarMapeamentoColunas(); renderizarTabelaConsulta({ colunas: combinado.colunas, amostra: combinado.dados.slice(0, 100), dados: combinado.dados, linhas: combinado.dados.length }); return combinado; }
 

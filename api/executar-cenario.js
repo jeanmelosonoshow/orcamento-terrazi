@@ -80,6 +80,17 @@ function extrairColunas(linhas) {
     return Object.keys(linhas[0]);
 }
 
+function mensagemErroInfraestrutura(error, status) {
+    const codigo = String(error?.code || '');
+    if (codigo === 'BI_REDIS_AUTH_ERROR') return 'Redis/Upstash recusou o token ou as permissoes ACL.';
+    if (codigo === 'BI_REDIS_ERROR') return 'Falha ao acessar o cache ou a fila Redis/Upstash.';
+    if (codigo === 'BI_GATEWAY_QUEUE_FULL') return 'Fila de consultas lotada. Aguarde alguns segundos.';
+    if (codigo === 'BI_GATEWAY_QUEUE_TIMEOUT') return 'Tempo limite aguardando uma vaga na fila de consultas.';
+    if (codigo === 'BI_GATEWAY_CIRCUIT_OPEN') return 'Firebird em recuperacao apos falhas consecutivas.';
+    if (codigo.startsWith('FB_') || error?.isFirebirdConnectionError) return 'Firebird temporariamente indisponivel.';
+    return status >= 503 ? 'Servico de dados temporariamente indisponivel.' : 'Erro ao executar consulta.';
+}
+
 export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -195,9 +206,13 @@ export default async function handler(req, res) {
         });
     } catch (error) {
         const status = fonteNormalizada === 'firebird' ? statusHttpErroConsulta(error) : 500;
+        const codigo = String(error?.code || 'QUERY_ERROR');
+        const mensagem = mensagemErroInfraestrutura(error, status);
+        console.error('[executar-cenario] falha', { codigo, status, message: error?.message });
         if (status >= 503) res.setHeader('Retry-After', '1');
         res.status(status).json({
-            error: status >= 503 ? 'Banco temporariamente indisponível. Tente novamente.' : 'Erro ao executar consulta.',
+            error: mensagem,
+            code: codigo,
             details: status >= 503 ? undefined : error.message
         });
     }
