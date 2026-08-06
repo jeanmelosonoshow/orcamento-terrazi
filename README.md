@@ -65,9 +65,18 @@ WHERE v.data BETWEEN :data_inicial AND :data_final
 GROUP BY v.idfilial, v.nomefilial
 ```
 
-Os filtros escolhidos no painel (`:filiais` e `:vendedores`) podem ser
-adicionados como refinamento. A condicao por categoria deve permanecer na
-consulta para garantir o escopo de acesso.
+Os filtros escolhidos no painel podem ser adicionados como refinamento opcional com diretivas em
+comentarios SQL:
+
+```sql
+/* campo: V.IDFILIAL | filtro = :filiais */
+/* campo: V.IDVENDEDOR | filtro = :vendedores */
+```
+
+Use a diretiva no lugar de `AND campo IN (:filiais)` ou `AND campo IN (:vendedores)`. Quando `Todos`
+estiver marcado, a diretiva e removida e nenhum parametro de lista e enviado ao Firebird. Em uma
+selecao parcial, ela se transforma em `AND campo IN (...)` parametrizado. A condicao por categoria
+deve permanecer na consulta para garantir o escopo de acesso.
 
 ## EXECUTE BLOCK com tabelas temporarias
 

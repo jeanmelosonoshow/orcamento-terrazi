@@ -25,6 +25,13 @@ test('recarregamento remove selecoes anteriores e aplica os filtros padrao', () 
     assert.match(script, /'crmDataInicial'[\s\S]*'crmVendedoresSelecionados'/);
 });
 
+test('informa ao servidor quando Todos esta selecionado nos filtros visiveis', () => {
+    assert.match(script, /filiaisTodos: categoriaSemFiltrosFilialVendedor/);
+    assert.match(script, /vendedoresTodos: categoriaSemFiltrosFilialVendedor/);
+    assert.match(script, /idsFiliaisDisponiveis\.every/);
+    assert.match(script, /idsVendedoresDisponiveis\.every/);
+});
+
 test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => {
     const inicio = script.indexOf('async function restaurarFiltrosPadrao()');
     const fim = script.indexOf('\nfunction escapeHtml', inicio);
@@ -40,7 +47,8 @@ test('VD e CX ocultam filial e vendedor e nao enviam listas aos cards', () => {
     assert.match(html, /data-filial-filter/);
     assert.ok(script.includes("const categoriaSemFiltrosFilialVendedor = ['VD', 'CX'].includes(categoriaCodigo)"));
     assert.ok(script.includes('if (crmFilialFilter) crmFilialFilter.hidden = true'));
-    assert.ok(script.includes('filiais: categoriaSemFiltrosFilialVendedor ? []'));
+    assert.ok(script.includes('const filiaisSelecionadas = categoriaSemFiltrosFilialVendedor ? []'));
+    assert.ok(script.includes('const vendedoresSelecionados = categoriaSemFiltrosFilialVendedor ? []'));
     assert.ok(script.includes("categoriaCodigo === 'VD'"));
     assert.ok(script.includes("categoriaCodigo === 'CX'"));
     assert.match(script, /aplicarVisibilidadeFiltrosPorCategoria\(\);/);

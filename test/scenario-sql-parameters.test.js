@@ -42,6 +42,85 @@ test('prepara parametros Firebird por categoria e listas', () => {
     assert.deepEqual(preparado.valores, ['GR', '01', '02', '632']);
 });
 
+test('remove filtros opcionais quando Todos esta selecionado', () => {
+    const preparado = prepararSqlCenario(
+        `SELECT * FROM VENDAS V
+WHERE V.DATA BETWEEN :data_inicial AND :data_final
+/* campo: V.IDFILIAL | filtro = :filiais */
+/* campo: V.IDVENDEDOR | filtro = :vendedores */`,
+        'firebird',
+        {
+            dataInicial: '2026-07-01',
+            dataFinal: '2026-07-31',
+            filiais: ['01', '02'],
+            vendedores: ['10', '20'],
+            filiaisTodos: true,
+            vendedoresTodos: true
+        }
+    );
+
+    assert.doesNotMatch(preparado.sql, /IDFILIAL|IDVENDEDOR|filiais|vendedores/i);
+    assert.deepEqual(preparado.valores, ['2026-07-01', '2026-07-31']);
+});
+
+test('aplica filtros opcionais somente para selecoes parciais', () => {
+    const preparado = prepararSqlCenario(
+        `SELECT * FROM VENDAS V WHERE 1 = 1
+/* campo: V.IDFILIAL | filtro = :filiais */
+/* campo: V.IDVENDEDOR | filtro = :vendedores */`,
+        'firebird',
+        {
+            filiais: ['01', '02'],
+            vendedores: ['632'],
+            filiaisTodos: false,
+            vendedoresTodos: true
+        }
+    );
+
+    assert.match(preparado.sql, /AND V\.IDFILIAL IN \(\?,\?\)/);
+    assert.doesNotMatch(preparado.sql, /IDVENDEDOR/);
+    assert.deepEqual(preparado.valores, ['01', '02']);
+});
+
+test('aplica diretiva opcional dentro de execute block', () => {
+    const preparado = prepararSqlCenario(
+        `EXECUTE BLOCK RETURNS (TOTAL INTEGER) AS
+BEGIN
+  SELECT COUNT(*) FROM VENDAS V
+   WHERE 1 = 1
+   /* campo: V.IDVENDEDOR | filtro = :vendedores */
+    INTO :TOTAL;
+  SUSPEND;
+END`,
+        'firebird',
+        { vendedores: ['632', '731'], vendedoresTodos: false }
+    );
+
+    assert.match(preparado.sql, /AND V\.IDVENDEDOR IN \(:CRM_SYS_VENDEDORES_1,:CRM_SYS_VENDEDORES_2\)/);
+    assert.deepEqual(preparado.valores, ['632', '731']);
+});
+
+test('diretiva sem itens selecionados impede retorno amplo acidental', () => {
+    const preparado = prepararSqlCenario(
+        'SELECT * FROM VENDAS V WHERE 1 = 1 /* campo: V.IDFILIAL | filtro = :filiais */',
+        'firebird',
+        { filiais: [], filiaisTodos: false }
+    );
+
+    assert.match(preparado.sql, /AND 1 = 0/);
+    assert.deepEqual(preparado.valores, []);
+});
+test('rejeita diretiva opcional digitada incorretamente', () => {
+    assert.throws(
+        () => prepararSqlCenario(
+            'SELECT * FROM VENDAS V WHERE 1 = 1 /* campo: V.IDFILIAL | filtro = :clientes */',
+            'firebird',
+            {}
+        ),
+        /Diretiva de filtro opcional invalida/
+    );
+});
+
 test('aceita parametros sem diferenciar maiusculas no Postgres', () => {
     const preparado = prepararSqlCenario(
         'SELECT * FROM vendas WHERE :CATEGORIA = categoria AND idfilial = :IDFILIAL',

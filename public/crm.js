@@ -2864,11 +2864,23 @@ function setEtapaWidget(etapa) {
 }
 
 function obterFiltrosCenario() {
+    const filiaisSelecionadas = categoriaSemFiltrosFilialVendedor ? [] : getFiliaisSelecionadas();
+    const vendedoresSelecionados = categoriaSemFiltrosFilialVendedor ? [] : getVendedoresSelecionados();
+    const idsFiliaisDisponiveis = filiaisDisponiveis.map(filial => String(filial.idfilial));
+    const idsVendedoresDisponiveis = vendedoresDisponiveis.map(vendedor => String(vendedor.idvendedor));
     return {
         dataInicial: sessionStorage.getItem('crmDataInicial') || crmDataInicial?.value || '',
         dataFinal: sessionStorage.getItem('crmDataFinal') || crmDataFinal?.value || '',
-        filiais: categoriaSemFiltrosFilialVendedor ? [] : getFiliaisSelecionadas(),
-        vendedores: categoriaSemFiltrosFilialVendedor ? [] : getVendedoresSelecionados(),
+        filiais: filiaisSelecionadas,
+        vendedores: vendedoresSelecionados,
+        filiaisTodos: categoriaSemFiltrosFilialVendedor || (
+            idsFiliaisDisponiveis.length > 0
+            && idsFiliaisDisponiveis.every(id => filiaisSelecionadas.includes(id))
+        ),
+        vendedoresTodos: categoriaSemFiltrosFilialVendedor || (
+            idsVendedoresDisponiveis.length > 0
+            && idsVendedoresDisponiveis.every(id => vendedoresSelecionados.includes(id))
+        ),
         idfuncionario: idFuncionarioLogado || '',
         idfilial: categoriaCodigo === 'VD' ? '' : (filialId || ''),
         idvendedor: categoriaCodigo === 'CX' ? '' : (idVendedorLogado || '')
