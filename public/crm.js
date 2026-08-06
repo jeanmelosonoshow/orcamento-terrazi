@@ -32,6 +32,11 @@ const categoriasDashboard = window.CRM_DASHBOARD_LAYOUT?.categorias || Object.en
 const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao', 'orcamentos']);
 const crmBiViews = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao']);
 let dashboardContextoAtivo = 'visao-geral';
+let contextoViewRenderizado = null;
+let filtrosDashboardProntos = false;
+let processandoAtualizacaoMenus = false;
+let contextoAtualizacaoEmAndamento = null;
+const filaAtualizacaoMenus = [];
 const DASHBOARD_QUERY_CONCURRENCY = 3;
 const DASHBOARD_REQUEST_TIMEOUT_MS = 30000;
 
@@ -307,6 +312,7 @@ function trocarContextoDashboard(viewName) {
     if (!host || !dashboardWorkspace) return;
 
     const mudouContexto = dashboardContextoAtivo !== proximoContexto;
+    const entrouNoContexto = contextoViewRenderizado !== proximoContexto;
     if (mudouContexto) {
         modoEdicaoCenario = false;
         document.body.classList.remove('crm-scenario-editing');
@@ -327,6 +333,30 @@ function trocarContextoDashboard(viewName) {
         dashboardCanvas.setAttribute('aria-label', 'Area de inteligencia de negocio - ' + titulo);
     }
     renderizarDashboard();
+    contextoViewRenderizado = proximoContexto;
+    if (entrouNoContexto) solicitarAtualizacaoCenarioMenu(proximoContexto);
+}
+
+function solicitarAtualizacaoCenarioMenu(contexto) {
+    if (!dashboardConfigPorView[contexto]) return;
+    const jaAguardando = filaAtualizacaoMenus.includes(contexto);
+    if (!jaAguardando && contextoAtualizacaoEmAndamento !== contexto) filaAtualizacaoMenus.push(contexto);
+    if (filtrosDashboardProntos) processarFilaAtualizacaoMenus();
+}
+
+async function processarFilaAtualizacaoMenus() {
+    if (!filtrosDashboardProntos || processandoAtualizacaoMenus) return;
+    processandoAtualizacaoMenus = true;
+    try {
+        while (filaAtualizacaoMenus.length) {
+            const contexto = filaAtualizacaoMenus.shift();
+            contextoAtualizacaoEmAndamento = contexto;
+            await aplicarFiltrosDashboard({ contexto, origem: 'menu' });
+        }
+    } finally {
+        contextoAtualizacaoEmAndamento = null;
+        processandoAtualizacaoMenus = false;
+    }
 }
 
 const catalogoGraficos = [
@@ -3036,12 +3066,18 @@ async function executarComConcorrenciaLimitada(itens, limite, executor, aoConclu
     return resultados;
 }
 
-async function aplicarFiltrosDashboard() {
-    const contextoExecucao = dashboardContextoAtivo;
+async function aplicarFiltrosDashboard(opcoes = {}) {
+    const contextoSolicitado = typeof opcoes?.contexto === 'string' ? opcoes.contexto : '';
+    const contextoExecucao = dashboardConfigPorView[contextoSolicitado]
+        ? contextoSolicitado
+        : dashboardContextoAtivo;
+    const atualizarInterface = (mensagem, erro = false) => {
+        if (dashboardContextoAtivo === contextoExecucao) atualizarStatusFiltros(mensagem, erro);
+    };
     const dataInicial = crmDataInicial?.value || '';
     const dataFinal = crmDataFinal?.value || '';
-    if (!dataInicial || !dataFinal) return atualizarStatusFiltros('Informe as duas datas.', true);
-    if (dataInicial > dataFinal) return atualizarStatusFiltros('A data inicial deve ser anterior a data final.', true);
+    if (!dataInicial || !dataFinal) return atualizarInterface('Informe as duas datas.', true);
+    if (dataInicial > dataFinal) return atualizarInterface('A data inicial deve ser anterior a data final.', true);
     if (!crmFilialFilter?.hidden && filiaisDisponiveis.length && !filiaisRascunho.length) return atualizarStatusFiltros('Selecione ao menos uma filial.', true);
     if (!crmSellerFilter?.hidden && vendedoresDisponiveis.length && !vendedoresRascunho.length) {
         return atualizarStatusFiltros('Selecione ao menos um vendedor.', true);
@@ -3057,14 +3093,14 @@ async function aplicarFiltrosDashboard() {
 
     const widgets = obterWidgetsDashboard(contextoExecucao);
     const indices = obterIndicesWidgetsExecutaveis(widgets);
-    if (!indices.length) return atualizarStatusFiltros('Filtros aplicados.');
+    if (!indices.length) return atualizarInterface('Filtros aplicados.');
 
     if (applyFiltersButton) {
         applyFiltersButton.disabled = true;
         applyFiltersButton.textContent = 'Aplicando...';
     }
     if (resetFiltersButton) resetFiltersButton.disabled = true;
-    atualizarStatusFiltros('Atualizando ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + '...');
+    atualizarInterface('Atualizando ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + '...');
     const filtrosConsulta = obterFiltrosCenario();
     let atualizados = 0;
     let falhas = 0;
@@ -3085,11 +3121,13 @@ async function aplicarFiltrosDashboard() {
                 falhas += 1;
             }
             const progresso = concluidos + ' de ' + indices.length + ' card' + (indices.length === 1 ? '' : 's') + ' atualizado' + (concluidos === 1 ? '' : 's');
-            atualizarStatusFiltros(falhas ? progresso + '; ' + falhas + ' com erro.' : progresso + '...');
+            atualizarInterface(falhas ? progresso + '; ' + falhas + ' com erro.' : progresso + '...');
         }
     );
-    if (falhas) atualizarStatusFiltros(atualizados + ' atualizado(s); ' + falhas + ' com erro.', true);
-    else atualizarStatusFiltros(atualizados + ' card' + (atualizados === 1 ? '' : 's') + ' atualizado' + (atualizados === 1 ? '' : 's') + '.');
+    if (dashboardContextoAtivo === contextoExecucao) {
+        if (falhas) atualizarStatusFiltros(atualizados + ' atualizado(s); ' + falhas + ' com erro.', true);
+        else atualizarStatusFiltros(atualizados + ' card' + (atualizados === 1 ? '' : 's') + ' atualizado' + (atualizados === 1 ? '' : 's') + '.');
+    }
     if (applyFiltersButton) {
         applyFiltersButton.disabled = false;
         applyFiltersButton.textContent = 'Aplicar';
@@ -4288,7 +4326,8 @@ function inicializarAplicacao() {
         if (applyFiltersButton) applyFiltersButton.addEventListener('click', aplicarFiltrosDashboard);
         if (resetFiltersButton) resetFiltersButton.addEventListener('click', restaurarFiltrosPadrao);
         [crmDataInicial, crmDataFinal].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('')));
-        await aplicarFiltrosDashboard();
+        filtrosDashboardProntos = true;
+        await processarFilaAtualizacaoMenus();
     });
 }
 

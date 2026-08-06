@@ -48,7 +48,7 @@ test('rodape institucional e compartilhado pelas paginas do CRM', () => {
 });
 
 test('atualizacao assincrona permanece vinculada ao menu em que foi iniciada', () => {
-    assert.match(script, /const contextoExecucao = dashboardContextoAtivo/);
+    assert.match(script, /const contextoSolicitado = typeof opcoes\?\.contexto/);
     assert.match(script, /obterWidgetsDashboard\(contextoExecucao\)/);
     assert.match(script, /salvarWidgetsDashboard\(widgets, contextoExecucao\)/);
     assert.match(script, /dashboardContextoAtivo === contextoExecucao/);
@@ -56,4 +56,13 @@ test('atualizacao assincrona permanece vinculada ao menu em que foi iniciada', (
     assert.match(script, /obterAssinaturaEstruturalCenario/);
     assert.match(script, /delete configuracao\.dadosConsulta/);
     assert.match(script, /crmDashboardContextIsolationRepair:v2/);
+});
+
+test('cada entrada em um menu agenda uma atualizacao unica e sequencial do cenario', () => {
+    assert.match(script, /const entrouNoContexto = contextoViewRenderizado !== proximoContexto/);
+    assert.match(script, /solicitarAtualizacaoCenarioMenu\(proximoContexto\)/);
+    assert.match(script, /const filaAtualizacaoMenus = \[\]/);
+    assert.match(script, /await aplicarFiltrosDashboard\(\{ contexto, origem: 'menu' \}\)/);
+    assert.match(script, /filtrosDashboardProntos = true/);
+    assert.match(script, /await processarFilaAtualizacaoMenus\(\)/);
 });

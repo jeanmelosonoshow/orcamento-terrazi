@@ -16,10 +16,12 @@ test('recarregamento remove selecoes anteriores e aplica os filtros padrao', () 
     const inicio = script.indexOf('function inicializarAplicacao()');
     const limpar = script.indexOf('limparFiltrosPersistidos();', inicio);
     const periodo = script.indexOf("iniciarModulo('periodo', inicializarPeriodo)", inicio);
-    const aplicar = script.indexOf('await aplicarFiltrosDashboard();', periodo);
+    const liberarFila = script.indexOf('filtrosDashboardProntos = true;', periodo);
+    const aplicar = script.indexOf('await processarFilaAtualizacaoMenus();', liberarFila);
 
     assert.ok(limpar > inicio && limpar < periodo);
-    assert.ok(aplicar > periodo);
+    assert.ok(liberarFila > periodo);
+    assert.ok(aplicar > liberarFila);
     assert.match(script, /'crmDataInicial'[\s\S]*'crmVendedoresSelecionados'/);
 });
 
