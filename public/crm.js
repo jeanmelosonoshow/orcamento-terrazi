@@ -3229,11 +3229,14 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
     if (dashboardContextoAtivo === contextoExecucao) {
         if (falhas) {
             const detalhe = primeiroErro ? ' ' + primeiroErro : '';
-            atualizarStatusFiltros(atualizados + ' atualizado(s); ' + falhas + ' com erro.' + detalhe, true);
+            atualizarStatusFiltros('Atualizacao concluida com erros: ' + atualizados
+                + ' consulta' + (atualizados === 1 ? '' : 's') + ' executada' + (atualizados === 1 ? '' : 's')
+                + '; ' + falhas + ' com erro.' + detalhe, true);
         } else if (!cancelados) {
-            atualizarStatusFiltros(totalCardsVisiveis + ' card' + (totalCardsVisiveis === 1 ? '' : 's')
-                + ' atualizado' + (totalCardsVisiveis === 1 ? '' : 's')
-                + ' por ' + atualizados + ' consulta' + (atualizados === 1 ? '' : 's') + '.');
+            atualizarStatusFiltros('Atualizacao concluida: ' + atualizados
+                + ' consulta' + (atualizados === 1 ? '' : 's') + ' executada' + (atualizados === 1 ? '' : 's')
+                + '; ' + totalCardsVisiveis + ' card' + (totalCardsVisiveis === 1 ? '' : 's') + ' exibido'
+                + (totalCardsVisiveis === 1 ? '' : 's') + '.');
         }
     }
     if (applyFiltersButton) {

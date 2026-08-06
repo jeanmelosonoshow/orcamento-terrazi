@@ -32,6 +32,16 @@ test('informa ao servidor quando Todos esta selecionado nos filtros visiveis', (
     assert.match(script, /idsVendedoresDisponiveis\.every/);
 });
 
+test('status final distingue consultas executadas de cards exibidos', () => {
+    assert.match(script, /Atualizacao concluida:/);
+    assert.match(script, /consulta.*executada/);
+    assert.match(script, /card.*exibido/);
+    assert.doesNotMatch(script, /card.*atualizado.*por.*consulta/);
+});
+
+test('opcoes dos filtros usam texto escuro com alto contraste', () => {
+    assert.match(style, /\.crm-multiselect-option\s*\{[\s\S]*?color:\s*#17324d;/);
+});
 test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => {
     const inicio = script.indexOf('async function restaurarFiltrosPadrao()');
     const fim = script.indexOf('\nfunction escapeHtml', inicio);

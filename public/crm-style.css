@@ -270,7 +270,7 @@ body {
     gap: 8px;
     padding: 8px;
     border-radius: 6px;
-    color: var(--verde-escuro);
+    color: #17324d;
     font-weight: 700;
     cursor: pointer;
 }
