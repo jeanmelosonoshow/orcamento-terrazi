@@ -5,7 +5,8 @@ import {
     CacheMemoriaGateway,
     CacheResilienteGateway,
     ClienteRedisRest,
-    criarChaveConsulta
+    criarChaveConsulta,
+    obterCredenciaisRedisAmbiente
 } from '../lib/bi-gateway-cache.js';
 import { FilaLimitadaGateway, FilaRedisGateway } from '../lib/bi-gateway-queue.js';
 import { ServicoBiGateway } from '../lib/bi-gateway-service.js';
@@ -148,6 +149,20 @@ test('cliente Redis REST envia comandos sem dependencia adicional', async () => 
     assert.deepEqual(JSON.parse(requisicao.opcoes.body), ['SET', 'chave', 'valor']);
 });
 
+test('aceita credenciais REST da integracao Vercel KV', () => {
+    assert.deepEqual(obterCredenciaisRedisAmbiente({
+        KV_REST_API_URL: 'https://kv.example',
+        KV_REST_API_TOKEN: 'token-kv'
+    }), { url: 'https://kv.example', token: 'token-kv' });
+
+    assert.deepEqual(obterCredenciaisRedisAmbiente({
+        UPSTASH_REDIS_REST_URL: 'https://upstash.example',
+        UPSTASH_REDIS_REST_TOKEN: 'token-upstash',
+        KV_REST_API_URL: 'https://kv.example',
+        KV_REST_API_TOKEN: 'token-kv'
+    }), { url: 'https://upstash.example', token: 'token-upstash' });
+});
+
 test('rotas Firebird usam o Gateway e o cenario possui cache de painel', async () => {
     const arquivos = await Promise.all([
         readFile(new URL('../api/executar-cenario.js', import.meta.url), 'utf8'),
@@ -157,7 +172,7 @@ test('rotas Firebird usam o Gateway e o cenario possui cache de painel', async (
     ]);
 
     assert.ok(arquivos.every(source => source.includes('executarConsultaFirebirdGateway')));
-    assert.match(arquivos[0], /BI_DASHBOARD_CACHE_TTL_MS/);
+    assert.ok(arquivos[0].includes('BI_DASHBOARD_CACHE_TTL_MS || 300000'));
     assert.match(arquivos[0], /BI_DASHBOARD_CACHE_STALE_MS/);
 });
 test('fila Redis adquire e libera lease compartilhado', async () => {

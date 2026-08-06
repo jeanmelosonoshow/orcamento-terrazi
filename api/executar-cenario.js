@@ -139,7 +139,7 @@ export default async function handler(req, res) {
                 timeoutMs: CONSULTA_TIMEOUT_MS,
                 permitirFallbackCharset: true,
                 tabelasTemporarias: tabelasTemporariasConfirmadas,
-                cacheTtlMs: Number(process.env.BI_DASHBOARD_CACHE_TTL_MS || 60000),
+                cacheTtlMs: Number(process.env.BI_DASHBOARD_CACHE_TTL_MS || 300000),
                 cacheStaleMs: Number(process.env.BI_DASHBOARD_CACHE_STALE_MS || 900000)
             };
 

@@ -133,7 +133,7 @@ Firebird diretamente. O projeto inclui um servico persistente em `gateway/server
 4. Na Vercel, configure apenas:
    - `BI_GATEWAY_URL`: URL HTTPS privada/publicada do Gateway, sem `/v1/query`;
    - `BI_GATEWAY_TOKEN`: o mesmo segredo longo configurado no Gateway;
-   - `BI_DASHBOARD_CACHE_TTL_MS`: padrao `60000`;
+   - `BI_DASHBOARD_CACHE_TTL_MS`: padrao `300000`;
    - `BI_DASHBOARD_CACHE_STALE_MS`: padrao `900000`;
    - `BI_DRILL_CACHE_MAX_ROWS`: maximo de linhas da base reutilizavel, padrao `3000`;
    - `BI_DRILL_CACHE_MAX_BYTES`: tamanho maximo da base em memoria, padrao `4194304` (4 MB).
@@ -146,7 +146,8 @@ O endpoint `GET /health` informa o modo e a capacidade da fila. O endpoint `POST
 ### Redis e replicas
 
 Com uma unica replica persistente, a fila em memoria ja centraliza todas as requisicoes. Para duas ou
-mais replicas, configure `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN`: a fila, os leases,
+mais replicas, configure `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN` (ou os aliases
+`KV_REST_API_URL` e `KV_REST_API_TOKEN` criados pela integracao Vercel KV): a fila, os leases,
 os bloqueios de single-flight e o cache passam a ser compartilhados entre todas elas.
 
 No primeiro drill-down de uma tabela dinamica, a API carrega e mantem temporariamente a
