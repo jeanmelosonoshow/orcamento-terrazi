@@ -17,20 +17,53 @@
             }); return calculada;
         });
     }
+    function colunasUniao(fontes) {
+        var nomes = new Map();
+        fontes.forEach(function (fonte) {
+            fonte.colunas.forEach(function (coluna) {
+                var chave = String(coluna).toLowerCase();
+                if (!nomes.has(chave)) nomes.set(chave, coluna);
+            });
+        });
+        return Array.from(nomes.values());
+    }
+    function unirLinhas(fontes) {
+        var colunas = colunasUniao(fontes);
+        var dados = [];
+        fontes.forEach(function (fonte) {
+            fonte.dados.forEach(function (linha) {
+                var unificada = {};
+                colunas.forEach(function (coluna) {
+                    var valor = obterValor(linha, coluna);
+                    unificada[coluna] = valor === undefined ? null : valor;
+                });
+                dados.push(unificada);
+            });
+        });
+        return { colunas: colunas, dados: dados };
+    }
     function combinar(consultas, combinacao, camposCalculados, avaliar) {
         var fontes = (consultas || []).filter(Boolean).map(function (consulta, indice) { return { alias: aliasValido(consulta.alias, 'consulta' + (indice + 1)), colunas: Array.isArray(consulta.colunas) ? consulta.colunas : [], dados: Array.isArray(consulta.dados) ? consulta.dados : [] }; });
         if (!fontes.length) return { colunas: [], dados: [] };
         if (typeof avaliar !== 'function' && camposCalculados && camposCalculados.length) throw erro('Avaliador de formulas indisponivel.');
         var linhas; var colunas;
-        if (fontes.length === 1) { linhas = fontes[0].dados.map(function (linha) { return Object.assign({}, linha); }); colunas = fontes[0].colunas.slice(); }
-        else {
-            var principal = fontes[0]; var secundaria = fontes[1];
-            colunas = principal.colunas.map(function (coluna) { return principal.alias + '.' + coluna; }).concat(secundaria.colunas.map(function (coluna) { return secundaria.alias + '.' + coluna; }));
+        if (fontes.length === 1) {
+            linhas = fontes[0].dados.map(function (linha) { return Object.assign({}, linha); });
+            colunas = fontes[0].colunas.slice();
+        } else {
             var modo = String(combinacao && combinacao.modo || 'single');
-            if (modo === 'single') {
-                if (principal.dados.length > 1 || secundaria.dados.length > 1) throw erro('Resultado unico exige no maximo uma linha em cada consulta.');
-                linhas = [Object.assign({}, prefixarLinha(principal.dados[0] || {}, principal.alias), prefixarLinha(secundaria.dados[0] || {}, secundaria.alias))];
+            if (modo === 'union') {
+                var uniao = unirLinhas(fontes);
+                linhas = uniao.dados;
+                colunas = uniao.colunas;
+            } else if (modo === 'single') {
+                if (fontes.some(function (fonte) { return fonte.dados.length > 1; })) throw erro('Resultado unico exige no maximo uma linha em cada consulta.');
+                linhas = [fontes.reduce(function (resultado, fonte) { return Object.assign(resultado, prefixarLinha(fonte.dados[0] || {}, fonte.alias)); }, {})];
+                colunas = fontes.reduce(function (resultado, fonte) { return resultado.concat(fonte.colunas.map(function (coluna) { return fonte.alias + '.' + coluna; })); }, []);
             } else {
+                if (fontes.length !== 2) throw erro('O relacionamento por campo aceita duas consultas. Para tres ou mais, use Unir linhas das consultas.');
+                var principal = fontes[0]; var secundaria = fontes[1];
+                colunas = principal.colunas.map(function (coluna) { return principal.alias + '.' + coluna; }).concat(secundaria.colunas.map(function (coluna) { return secundaria.alias + '.' + coluna; }));
                 var chavePrincipal = String(combinacao && combinacao.chavePrincipal || '').trim(); var chaveSecundaria = String(combinacao && combinacao.chaveSecundaria || '').trim();
                 if (!chavePrincipal || !chaveSecundaria) throw erro('Selecione os dois campos de relacionamento.');
                 var indiceSecundario = new Map();
