@@ -174,11 +174,7 @@ const kpiFormulaStatus = document.querySelector('[data-kpi-formula-status]');
 const widgetSqlTextarea = document.querySelector('[data-widget-sql]');
 const widgetQueryAliasInput = document.querySelector('[data-widget-query-alias]');
 const addSecondaryQueryButton = document.querySelector('[data-add-secondary-query]');
-const secondaryQueryBox = document.querySelector('[data-secondary-query]');
-const secondaryQueryAliasInput = document.querySelector('[data-secondary-query-alias]');
-const secondaryQuerySourceSelect = document.querySelector('[data-secondary-query-source]');
-const secondaryQuerySqlTextarea = document.querySelector('[data-secondary-query-sql]');
-const removeSecondaryQueryButton = document.querySelector('[data-remove-secondary-query]');
+const secondaryQueriesBox = document.querySelector('[data-secondary-queries]');
 const queryCombinationBox = document.querySelector('[data-query-combination]');
 const queryCombinationModeSelect = document.querySelector('[data-query-combination-mode]');
 const primaryKeySelect = document.querySelector('[data-primary-key]');
@@ -3495,10 +3491,30 @@ function coletarMapeamentosColunas() {
 }
 
 
-function consultaSecundariaAtiva() { return Boolean(secondaryQueryBox && !secondaryQueryBox.hidden); }
+function obterLinhasConsultasSecundarias() {
+    return secondaryQueriesBox ? Array.from(secondaryQueriesBox.querySelectorAll('[data-secondary-query-row]')) : [];
+}
+function renderizarConsultasSecundarias(consultas = []) {
+    if (!secondaryQueriesBox) return;
+    secondaryQueriesBox.innerHTML = consultas.map((consulta, indice) => `
+        <section class="crm-secondary-query" data-secondary-query-row>
+            <div class="crm-query-source-head">
+                <label>Apelido da consulta<input type="text" value="${escapeHtml(consulta.alias || ('consulta' + (indice + 2)))}" data-secondary-query-alias></label>
+                <label>Fonte de dados<select data-secondary-query-source><option value="firebird"${(consulta.fonte || 'firebird') === 'firebird' ? ' selected' : ''}>Firebird</option><option value="postgres"${consulta.fonte === 'postgres' ? ' selected' : ''}>Postgres</option></select></label>
+                <button type="button" data-remove-secondary-query aria-label="Remover consulta ${indice + 2}" title="Remover consulta">×</button>
+            </div>
+            <label class="crm-sql-field">Console SQL ${indice + 2}<textarea data-secondary-query-sql spellcheck="false" placeholder="Consulta adicional com colunas equivalentes.">${escapeHtml(consulta.sql || '')}</textarea></label>
+        </section>
+    `).join('');
+}
+function consultaSecundariaAtiva() { return obterLinhasConsultasSecundarias().length > 0; }
 function coletarConsultasEditor() {
     const consultas = [{ alias: widgetQueryAliasInput?.value.trim() || 'principal', fonte: widgetSourceSelect?.value || 'firebird', sql: widgetSqlTextarea?.value.trim() || '' }];
-    if (consultaSecundariaAtiva()) consultas.push({ alias: secondaryQueryAliasInput?.value.trim() || 'secundaria', fonte: secondaryQuerySourceSelect?.value || 'postgres', sql: secondaryQuerySqlTextarea?.value.trim() || '' });
+    obterLinhasConsultasSecundarias().forEach((row, indice) => consultas.push({
+        alias: row.querySelector('[data-secondary-query-alias]')?.value.trim() || ('consulta' + (indice + 2)),
+        fonte: row.querySelector('[data-secondary-query-source]')?.value || 'firebird',
+        sql: row.querySelector('[data-secondary-query-sql]')?.value.trim() || ''
+    }));
     return consultas;
 }
 function coletarCombinacaoEditor() { return { modo: queryCombinationModeSelect?.value || 'single', chavePrincipal: primaryKeySelect?.value || '', chaveSecundaria: secondaryKeySelect?.value || '' }; }
@@ -3537,14 +3553,23 @@ async function testarConsultaWidget() {
     if (new Set(aliases).size !== aliases.length) { renderizarResultadoConsulta('Use apelidos diferentes para as consultas.', 'error'); return false; }
     renderizarResultadoConsulta('Executando ' + consultas.length + ' consulta(s)...', 'info');
     try {
-        resultadosConsultasAtuais = await Promise.all(consultas.map(consulta => executarConsultaConfigurada(consulta, obterFiltrosCenario())));
+        resultadosConsultasAtuais = [];
+        const filtrosExecucao = obterFiltrosCenario();
+        for (let indice = 0; indice < consultas.length; indice += 1) {
+            renderizarResultadoConsulta('Executando consulta ' + (indice + 1) + ' de ' + consultas.length + '...', 'info');
+            resultadosConsultasAtuais.push(await executarConsultaConfigurada(consultas[indice], filtrosExecucao));
+        }
         const combinacaoSalva = coletarCombinacaoEditor();
         preencherSelectCampos(primaryKeySelect, resultadosConsultasAtuais[0]?.colunas, combinacaoSalva.chavePrincipal);
         preencherSelectCampos(secondaryKeySelect, resultadosConsultasAtuais[1]?.colunas, combinacaoSalva.chaveSecundaria);
         if (resultadosConsultasAtuais.length > 1 && resultadosConsultasAtuais.some(item => item.dados.length > 1) && queryCombinationModeSelect?.value === 'single') {
-            queryCombinationModeSelect.value = 'key';
-            const comuns = resultadosConsultasAtuais[0].colunas.filter(coluna => resultadosConsultasAtuais[1].colunas.some(item => String(item).toLowerCase() === String(coluna).toLowerCase()));
-            if (comuns[0]) { primaryKeySelect.value = comuns[0]; secondaryKeySelect.value = resultadosConsultasAtuais[1].colunas.find(item => String(item).toLowerCase() === String(comuns[0]).toLowerCase()) || ''; }
+            const assinaturaColunas = item => item.colunas.map(coluna => String(coluna).toLowerCase()).sort().join('|');
+            const estruturasEquivalentes = resultadosConsultasAtuais.every(item => assinaturaColunas(item) === assinaturaColunas(resultadosConsultasAtuais[0]));
+            queryCombinationModeSelect.value = estruturasEquivalentes || resultadosConsultasAtuais.length > 2 ? 'union' : 'key';
+            if (queryCombinationModeSelect.value === 'key') {
+                const comuns = resultadosConsultasAtuais[0].colunas.filter(coluna => resultadosConsultasAtuais[1].colunas.some(item => String(item).toLowerCase() === String(coluna).toLowerCase()));
+                if (comuns[0]) { primaryKeySelect.value = comuns[0]; secondaryKeySelect.value = resultadosConsultasAtuais[1].colunas.find(item => String(item).toLowerCase() === String(comuns[0]).toLowerCase()) || ''; }
+            }
         }
         atualizarControlesCombinacao();
         const combinado = recombinarConsultasEditor();
@@ -3578,14 +3603,10 @@ function abrirModalWidget(widgetId) {
         ? widgetEmEdicao.consultas
         : [{ alias: 'principal', fonte: widgetEmEdicao.fonte || 'firebird', sql: widgetEmEdicao.sql || '' }];
     const principalWidget = consultasWidget[0];
-    const secundariaWidget = consultasWidget[1];
     if (widgetSourceSelect) widgetSourceSelect.value = principalWidget.fonte || 'firebird';
     if (widgetSqlTextarea) widgetSqlTextarea.value = principalWidget.sql || '';
     if (widgetQueryAliasInput) widgetQueryAliasInput.value = principalWidget.alias || 'principal';
-    if (secondaryQueryBox) secondaryQueryBox.hidden = !secundariaWidget;
-    if (secondaryQueryAliasInput) secondaryQueryAliasInput.value = secundariaWidget?.alias || 'secundaria';
-    if (secondaryQuerySourceSelect) secondaryQuerySourceSelect.value = secundariaWidget?.fonte || 'postgres';
-    if (secondaryQuerySqlTextarea) secondaryQuerySqlTextarea.value = secundariaWidget?.sql || '';
+    renderizarConsultasSecundarias(consultasWidget.slice(1));
     const combinacaoWidget = widgetEmEdicao.combinacaoConsultas || { modo: 'single' };
     if (queryCombinationModeSelect) queryCombinationModeSelect.value = combinacaoWidget.modo || 'single';
     preencherSelectCampos(primaryKeySelect, [], combinacaoWidget.chavePrincipal);
@@ -3785,8 +3806,21 @@ function inicializarEditorDashboard() {
     if (decreaseCanvasHeightButton) decreaseCanvasHeightButton.addEventListener('click', () => ajustarAlturaCanvas(-1));
     if (increaseCanvasHeightButton) increaseCanvasHeightButton.addEventListener('click', () => ajustarAlturaCanvas(1));
     if (testWidgetQueryButton) testWidgetQueryButton.addEventListener('click', () => testarConsultaWidget());
-    if (addSecondaryQueryButton) addSecondaryQueryButton.addEventListener('click', () => { secondaryQueryBox.hidden = false; atualizarControlesCombinacao(); assinaturaConsultaAtual = ''; });
-    if (removeSecondaryQueryButton) removeSecondaryQueryButton.addEventListener('click', () => { secondaryQueryBox.hidden = true; resultadosConsultasAtuais = resultadosConsultasAtuais.slice(0, 1); renderizarCamposCalculados([]); atualizarControlesCombinacao(); assinaturaConsultaAtual = ''; });
+    if (addSecondaryQueryButton) addSecondaryQueryButton.addEventListener('click', () => {
+        const consultas = coletarConsultasEditor().slice(1);
+        consultas.push({ alias: 'consulta' + (consultas.length + 2), fonte: 'firebird', sql: '' });
+        renderizarConsultasSecundarias(consultas);
+        atualizarControlesCombinacao();
+        assinaturaConsultaAtual = '';
+    });
+    if (secondaryQueriesBox) secondaryQueriesBox.addEventListener('click', event => {
+        const botao = event.target.closest('[data-remove-secondary-query]');
+        if (!botao) return;
+        botao.closest('[data-secondary-query-row]')?.remove();
+        resultadosConsultasAtuais = [];
+        atualizarControlesCombinacao();
+        assinaturaConsultaAtual = '';
+    });
     const recombinarAposConfiguracao = () => { atualizarControlesCombinacao(); if (!resultadosConsultasAtuais.length) return; try { recombinarConsultasEditor(); assinaturaConsultaAtual = assinaturaConsultasEditor(); renderizarResultadoConsulta('Resultados combinados novamente.', 'success'); } catch (error) { assinaturaConsultaAtual = ''; renderizarResultadoConsulta(error.message, 'error'); } };
     [queryCombinationModeSelect, primaryKeySelect, secondaryKeySelect].forEach(campo => campo?.addEventListener('change', recombinarAposConfiguracao));
     if (addCalculatedFieldButton) addCalculatedFieldButton.addEventListener('click', () => { renderizarCamposCalculados([...coletarCamposCalculadosEditor(), { nome: '', formula: '' }]); });
