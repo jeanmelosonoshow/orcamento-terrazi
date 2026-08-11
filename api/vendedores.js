@@ -81,7 +81,7 @@ export default async function handler(req, res) {
                 F.IDFUNCIONARIO,
                 F.IDVENDEDOR,
                 F.NOMEFUNCIONARIO,
-                CAST(NULL AS INTEGER) AS IDSUPERVISOR
+                F.IDSUPERVISOR AS IDSUPERVISOR
             FROM FUNCIONARIO F
             WHERE F.STATUS = 'A'
               AND F.CATEGORIA = 'VD'
