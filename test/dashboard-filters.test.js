@@ -41,8 +41,8 @@ test('status final e simples e identifica nominalmente cards com erro', () => {
 
 test('opcoes dos filtros usam texto escuro com alto contraste e cache renovado', () => {
     assert.match(style, /\.crm-multiselect-option > span\s*\{[\s\S]*?color:\s*#17324d !important;/);
-    assert.match(html, /crm-style\.css\?v=crm-20260812-1/);
-    assert.match(html, /crm\.js\?v=crm-20260812-1/);
+    assert.match(html, /crm-style\.css\?v=crm-20260812-2/);
+    assert.match(html, /crm\.js\?v=crm-20260812-2/);
 });
 test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => {
     const inicio = script.indexOf('async function restaurarFiltrosPadrao()');

@@ -47,6 +47,10 @@ test('enriquecimento consulta contatos em lote sem uma chamada por linha', async
 test('Carteira possui filtros, formulario e diretivas de celula', async () => {
     const [html, script] = await Promise.all([ler('../public/crm.html'), ler('../public/crm.js')]);
     assert.match(html, /data-contact-filters/);
+    assert.doesNotMatch(html, /data-contact-client/);
+    assert.match(html, /crm-contact-date-range/);
+    assert.match(script, /status selecionados/);
+    assert.match(script, /canais selecionados/);
     assert.match(html, /data-contact-modal/);
     assert.match(script, /aplicarFiltrosContatoRegistros/);
     assert.match(script, /data-contact-action/);
@@ -57,9 +61,10 @@ test('Carteira possui filtros, formulario e diretivas de celula', async () => {
 
 test('executor reconhece parametros dos filtros de contato', async () => {
     const parametros = await ler('../lib/scenario-sql-parameters.js');
-    for (const nome of ['status_contato', 'tipos_contato', 'cliente_contato', 'data_contato_inicial', 'data_contato_final']) {
+    for (const nome of ['status_contato', 'tipos_contato', 'data_contato_inicial', 'data_contato_final']) {
         assert.match(parametros, new RegExp(nome));
     }
+    assert.doesNotMatch(parametros, /cliente_contato/);
 });
 
 test('manutencao diaria normaliza o resultado retornado pelo banco', async () => {

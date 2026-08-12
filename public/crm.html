@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260812-1">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260812-2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -102,7 +102,13 @@
                         </div>
                     </div>
                 </div>
-                <section class="crm-contact-filters" data-contact-filters hidden>
+                <section class="crm-contact-filters" data-contact-filters aria-labelledby="crmContactFiltersTitle" hidden>
+                    <div class="crm-contact-filters-heading">
+                        <span aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M4 5h16"></path><path d="M7 12h10"></path><path d="M10 19h4"></path></svg>
+                        </span>
+                        <h2 id="crmContactFiltersTitle">Relacionamento</h2>
+                    </div>
                     <div class="crm-contact-filter">
                         <label>Status contato</label>
                         <details data-contact-status-filter>
@@ -130,12 +136,13 @@
                             </div>
                         </details>
                     </div>
-                    <label class="crm-contact-client-filter">Cliente
-                        <input type="search" list="crmContactClients" placeholder="Documento - nome do cliente" data-contact-client>
-                        <datalist id="crmContactClients" data-contact-client-options></datalist>
-                    </label>
-                    <label>Atualizado de<input type="date" data-contact-date-start></label>
-                    <label>Atualizado até<input type="date" data-contact-date-end></label>
+                    <div class="crm-contact-date-filter">
+                        <span class="crm-contact-filter-label">Última atualização</span>
+                        <div class="crm-contact-date-range">
+                            <label><span>De</span><input type="date" data-contact-date-start aria-label="Atualizado de"></label>
+                            <label><span>Até</span><input type="date" data-contact-date-end aria-label="Atualizado até"></label>
+                        </div>
+                    </div>
                 </section>
                 <div class="crm-filter-actions">
                     <span class="crm-filter-status" data-filter-status aria-live="polite"></span>
@@ -602,6 +609,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-        <script src="crm.js?v=crm-20260812-1"></script>
+        <script src="crm.js?v=crm-20260812-2"></script>
 </body>
 </html>

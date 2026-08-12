@@ -128,8 +128,6 @@ const contactStatusAll = document.querySelector('[data-contact-status-all]');
 const contactTypeAll = document.querySelector('[data-contact-type-all]');
 const contactStatusSummary = document.querySelector('[data-contact-status-summary]');
 const contactTypeSummary = document.querySelector('[data-contact-type-summary]');
-const contactClientInput = document.querySelector('[data-contact-client]');
-const contactClientOptions = document.querySelector('[data-contact-client-options]');
 const contactDateStart = document.querySelector('[data-contact-date-start]');
 const contactDateEnd = document.querySelector('[data-contact-date-end]');
 
@@ -1959,12 +1957,9 @@ function aplicarFiltrosContatoRegistros(registros, filtros = {}) {
     const statusSelecionados = new Set((filtros.statusContato || []).map(item => String(item).toUpperCase()));
     const tiposSelecionados = new Set((filtros.tiposContato || []).map(item => String(item).toUpperCase()));
     if (!statusSelecionados.size || !tiposSelecionados.size) return [];
-    const buscaCliente = String(filtros.clienteContato || '').trim().toLowerCase();
-    const documentoBusca = buscaCliente.split(/\s+-\s+/)[0].trim();
     return registros.filter(linha => {
         const documento = String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
         if (!documento) return true;
-        const nome = String(obterValorContato(linha, ['NOME_CLIENTE', 'NOMECLIENTE'], '')).trim();
         const campoStatus = encontrarCampoContato(linha, ['STATUS_CONTATO']);
         const campoTipo = encontrarCampoContato(linha, ['TIPO_CONTATO', 'ULTIMO_CANAL_CONTATO']);
         if (campoStatus && !linha[campoStatus]) linha[campoStatus] = 'PENDENTE';
@@ -1974,23 +1969,10 @@ function aplicarFiltrosContatoRegistros(registros, filtros = {}) {
         const dataAtualizacao = dataLocalContato(obterValorContato(linha, ['DATA_ULTIMA_ATUALIZACAO'], ''));
         if (statusSelecionados.size && !statusSelecionados.has(status)) return false;
         if (tiposSelecionados.size && !tiposSelecionados.has(tipo)) return false;
-        if (buscaCliente && documento.toLowerCase() !== documentoBusca && !(documento + ' - ' + nome).toLowerCase().includes(buscaCliente)) return false;
         if (filtros.dataContatoInicial && (!dataAtualizacao || dataAtualizacao < filtros.dataContatoInicial)) return false;
         if (filtros.dataContatoFinal && (!dataAtualizacao || dataAtualizacao > filtros.dataContatoFinal)) return false;
         return true;
     });
-}
-
-function atualizarListaClientesContato(registros) {
-    if (!contactClientOptions || !Array.isArray(registros)) return;
-    const clientes = new Map();
-    registros.forEach(linha => {
-        const documento = String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
-        const nome = String(obterValorContato(linha, ['NOME_CLIENTE', 'NOMECLIENTE'], '')).trim();
-        if (documento && !clientes.has(documento)) clientes.set(documento, nome);
-    });
-    contactClientOptions.innerHTML = Array.from(clientes.entries()).slice(0, 2000)
-        .map(([documento, nome]) => `<option value="${escapeHtml(documento + (nome ? ' - ' + nome : ''))}"></option>`).join('');
 }
 
 const colunasEnriquecimentoContato = [
@@ -2247,7 +2229,6 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         const registrosBrutos = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
         const enriquecido = await enriquecerRegistrosContato(registrosBrutos, colunas, filtros.contextoDashboard);
         colunas = enriquecido.colunas;
-        atualizarListaClientesContato(enriquecido.registros);
         const registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
         if (!colunas.length || !registros.length) {
             if (widgetDetailStatus) {
@@ -3070,7 +3051,6 @@ function obterFiltrosCenario() {
         idvendedor: categoriaCodigo === 'CX' ? '' : (idVendedorLogado || ''),
         statusContato: contactStatusInputs.filter(input => input.checked).map(input => input.value),
         tiposContato: contactTypeInputs.filter(input => input.checked).map(input => input.value),
-        clienteContato: contactClientInput?.value.trim() || '',
         dataContatoInicial: contactDateStart?.value || '',
         dataContatoFinal: contactDateEnd?.value || ''
     };
@@ -3269,7 +3249,6 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
         }
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
         const enriquecido = await enriquecerRegistrosContato(combinado.dados, combinado.colunas, filtros.contextoDashboard);
-        atualizarListaClientesContato(enriquecido.registros);
         const dadosFiltrados = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
         return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: dadosFiltrados, dadosConsultaAgregados: false, consultaAtualizadaEm: new Date().toISOString() };
     }
@@ -3298,7 +3277,6 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
             : colunasRetornadas;
         const dadosRetornados = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
         const enriquecido = await enriquecerRegistrosContato(dadosRetornados, colunasConsulta, filtros.contextoDashboard);
-        atualizarListaClientesContato(enriquecido.registros);
         return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: aplicarFiltrosContatoRegistros(enriquecido.registros, filtros), dadosConsultaAgregados: data.resultadoAgregado === true, consultaAtualizadaEm: new Date().toISOString() };
     } finally { clearTimeout(timeout); }
 }
@@ -4459,9 +4437,11 @@ function atualizarResumoFiltrosContato() {
     const status = contactStatusInputs.filter(input => input.checked);
     const tipos = contactTypeInputs.filter(input => input.checked);
     if (contactStatusSummary) contactStatusSummary.textContent = status.length === contactStatusInputs.length
-        ? 'Todos os status' : (status.map(input => input.parentElement?.textContent.trim()).join(', ') || 'Nenhum status');
+        ? 'Todos os status'
+        : (status.length === 1 ? status[0].parentElement?.textContent.trim() : (status.length ? `${status.length} status selecionados` : 'Nenhum status'));
     if (contactTypeSummary) contactTypeSummary.textContent = tipos.length === contactTypeInputs.length
-        ? 'Todos os tipos' : (tipos.map(input => input.parentElement?.textContent.trim()).join(', ') || 'Nenhum tipo');
+        ? 'Todos os canais'
+        : (tipos.length === 1 ? tipos[0].parentElement?.textContent.trim() : (tipos.length ? `${tipos.length} canais selecionados` : 'Nenhum canal'));
     if (contactStatusAll) {
         contactStatusAll.checked = status.length === contactStatusInputs.length;
         contactStatusAll.indeterminate = status.length > 0 && status.length < contactStatusInputs.length;
@@ -4477,7 +4457,6 @@ function restaurarFiltrosContatoPadrao() {
     contactTypeInputs.forEach(input => { input.checked = true; });
     if (contactStatusAll) contactStatusAll.checked = false;
     if (contactTypeAll) contactTypeAll.checked = true;
-    if (contactClientInput) contactClientInput.value = '';
     if (contactDateStart) contactDateStart.value = '';
     if (contactDateEnd) contactDateEnd.value = '';
     atualizarResumoFiltrosContato();
@@ -4852,7 +4831,7 @@ function inicializarAplicacao() {
             atualizarResumoFiltrosContato();
             atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.');
         });
-        [contactClientInput, contactDateStart, contactDateEnd].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.')));
+        [contactDateStart, contactDateEnd].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.')));
         filtrosDashboardProntos = true;
         solicitarAtualizacaoCenarioMenu(dashboardContextoAtivo);
     });
