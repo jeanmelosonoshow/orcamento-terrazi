@@ -5,6 +5,22 @@ import { executarManutencaoControleContato } from '../lib/contact-maintenance.js
 
 const ler = caminho => readFile(new URL(caminho, import.meta.url), 'utf8');
 
+test('manual documenta configuração, interação e exibição do controle de contato', async () => {
+    const manual = await ler('../database/controle-contato-uso.md');
+    for (const recurso of [
+        'DOCUMENTO',
+        'CONTATO.STATUS_CONTATO',
+        'Colunas exibidas',
+        'action:contact',
+        'icon:whatsapp',
+        'EXECUTE BLOCK',
+        'COUNT DISTINCT',
+        'Filtros de relacionamento'
+    ]) {
+        assert.match(manual, new RegExp(recurso.replace('.', '\\.')));
+    }
+});
+
 test('migracao cria controle, indices, invariantes e reabertura por recompra', async () => {
     const sql = await ler('../database/controle-contato.sql');
     assert.match(sql, /CREATE TABLE IF NOT EXISTS controle_contato/i);

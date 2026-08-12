@@ -1,6 +1,10 @@
 # orcamento-terrazi
 # atualizacao
 
+## Documentação funcional
+
+- [Manual do Controle de Contato](database/controle-contato-uso.md)
+
 ## Conexao Firebird
 
 Variaveis obrigatorias:
