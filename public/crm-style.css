@@ -2469,6 +2469,7 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 
 .crm-detail-config[hidden],
 .crm-detail-fields[hidden],
+.crm-detail-table-fields[hidden],
 .crm-detail-pivot-fields[hidden] {
     display: none;
 }
@@ -2505,6 +2506,34 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+}
+
+.crm-detail-table-fields label {
+    display: grid;
+    gap: 7px;
+    color: var(--azul);
+    font-size: .73rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.crm-detail-table-fields input {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 11px;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font: inherit;
+    text-transform: none;
+}
+
+.crm-detail-table-fields small {
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 500;
+    text-transform: none;
 }
 
 .crm-detail-pivot-fields label {

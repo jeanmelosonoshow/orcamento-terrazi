@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260812-2">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260812-3">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -405,6 +405,13 @@
                             SQL do detalhe
                             <textarea data-widget-detail-sql spellcheck="false" placeholder="Use os filtros do painel e, quando houver dimensão, :detalhe_valor, :detalhe_campo e :detalhe_serie."></textarea>
                         </label>
+                        <div class="crm-detail-table-fields" data-widget-detail-table-fields>
+                            <label>
+                                Colunas exibidas
+                                <input type="text" placeholder="Ex: DOCUMENTO, NOME, CONTATO.STATUS_CONTATO" data-widget-detail-table-columns>
+                                <small>Informe na ordem desejada. Deixe vazio para exibir todas as colunas.</small>
+                            </label>
+                        </div>
                         <div class="crm-detail-pivot-fields" data-widget-detail-pivot-fields hidden>
                             <label>Campos de linha<input type="text" placeholder="IDFILIAL, NOMEFILIAL" data-widget-detail-rows></label>
                             <label>Campo de coluna<input type="text" placeholder="Opcional" data-widget-detail-columns></label>
@@ -609,6 +616,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-        <script src="crm.js?v=crm-20260812-2"></script>
+        <script src="crm.js?v=crm-20260812-3"></script>
 </body>
 </html>

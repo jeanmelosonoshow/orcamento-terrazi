@@ -11,11 +11,22 @@ test('editor oferece relatorio de detalhe para cards e graficos', async () => {
     assert.match(html, /data-widget-detail-enabled/);
     assert.match(html, /data-widget-detail-type/);
     assert.match(html, /data-widget-detail-sql/);
+    assert.match(html, /data-widget-detail-table-columns/);
     assert.match(html, /data-widget-detail-pivot-fields/);
     assert.match(html, /data-widget-detail-modal/);
     assert.match(javascript, /detalhe: \{ habilitado: false/);
     assert.match(javascript, /validarConfiguracaoDetalhe/);
     assert.match(javascript, /widgetPossuiRelatorioDetalhe/);
+    assert.match(javascript, /camposTabela: separarCamposDetalhe/);
+});
+
+test('tabela detalhe permite escolher e ordenar colunas Firebird e contato', async () => {
+    const javascript = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+
+    assert.match(javascript, /detalhe\.camposTabela\.filter/);
+    assert.match(javascript, /detalhe\.camposTabela\.map/);
+    assert.match(javascript, /Colunas nao retornadas pelo detalhe/);
+    assert.match(javascript, /\.\.\.\(detalhe\?\.camposTabela \|\| \[\]\)/);
 });
 
 test('clique no grafico encaminha dimensao e serie como filtros parametrizados', async () => {

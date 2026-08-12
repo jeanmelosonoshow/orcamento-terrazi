@@ -213,6 +213,8 @@ const widgetDetailTitleInput = document.querySelector('[data-widget-detail-title
 const widgetDetailTypeSelect = document.querySelector('[data-widget-detail-type]');
 const widgetDetailSourceSelect = document.querySelector('[data-widget-detail-source]');
 const widgetDetailSqlTextarea = document.querySelector('[data-widget-detail-sql]');
+const widgetDetailTableFields = document.querySelector('[data-widget-detail-table-fields]');
+const widgetDetailTableColumnsInput = document.querySelector('[data-widget-detail-table-columns]');
 const widgetDetailPivotFields = document.querySelector('[data-widget-detail-pivot-fields]');
 const widgetDetailRowsInput = document.querySelector('[data-widget-detail-rows]');
 const widgetDetailColumnsInput = document.querySelector('[data-widget-detail-columns]');
@@ -483,6 +485,7 @@ function normalizarConfiguracaoDetalhe(valor = {}) {
         tipo,
         fonte: String(valor.fonte || 'firebird').toLowerCase() === 'postgres' ? 'postgres' : 'firebird',
         sql: String(valor.sql || '').trim(),
+        camposTabela: separarCamposDetalhe(valor.camposTabela),
         camposLinha: separarCamposDetalhe(valor.camposLinha),
         camposColuna: separarCamposDetalhe(valor.camposColuna),
         camposValor: separarCamposDetalhe(valor.camposValor),
@@ -502,6 +505,7 @@ function atualizarCamposConfiguracaoDetalhe() {
     if (widgetDetailConfig) widgetDetailConfig.hidden = !permitido;
     const habilitado = permitido && Boolean(widgetDetailEnabledInput?.checked);
     if (widgetDetailFields) widgetDetailFields.hidden = !habilitado;
+    if (widgetDetailTableFields) widgetDetailTableFields.hidden = !habilitado || widgetDetailTypeSelect?.value !== 'table';
     if (widgetDetailPivotFields) widgetDetailPivotFields.hidden = !habilitado || widgetDetailTypeSelect?.value !== 'pivot';
     if (widgetDetailError) widgetDetailError.hidden = true;
 }
@@ -513,6 +517,7 @@ function carregarConfiguracaoDetalhe(widget) {
     if (widgetDetailTypeSelect) widgetDetailTypeSelect.value = detalhe.tipo;
     if (widgetDetailSourceSelect) widgetDetailSourceSelect.value = detalhe.fonte;
     if (widgetDetailSqlTextarea) widgetDetailSqlTextarea.value = detalhe.sql;
+    if (widgetDetailTableColumnsInput) widgetDetailTableColumnsInput.value = detalhe.camposTabela.join(', ');
     if (widgetDetailRowsInput) widgetDetailRowsInput.value = detalhe.camposLinha.join(', ');
     if (widgetDetailColumnsInput) widgetDetailColumnsInput.value = detalhe.camposColuna.join(', ');
     if (widgetDetailValuesInput) widgetDetailValuesInput.value = detalhe.camposValor.join(', ');
@@ -528,6 +533,7 @@ function coletarConfiguracaoDetalhe() {
         tipo: widgetDetailTypeSelect?.value,
         fonte: widgetDetailSourceSelect?.value,
         sql: widgetDetailSqlTextarea?.value,
+        camposTabela: widgetDetailTableColumnsInput?.value,
         camposLinha: widgetDetailRowsInput?.value,
         camposColuna: widgetDetailColumnsInput?.value,
         camposValor: widgetDetailValuesInput?.value,
@@ -629,7 +635,7 @@ function criarWidgetPadrao(tipo = 'bar') {
         camposCalculados: [],
         calculo: { formula: '', formatoSaida: 'decimal', rotulo: 'Resultado calculado' },
         dadosConsultaAgregados: false,
-        detalhe: { habilitado: false, titulo: '', tipo: 'table', fonte: 'firebird', sql: '', camposLinha: [], camposColuna: [], camposValor: [], agregacao: 'sum', totalGeral: true },
+        detalhe: { habilitado: false, titulo: '', tipo: 'table', fonte: 'firebird', sql: '', camposTabela: [], camposLinha: [], camposColuna: [], camposValor: [], agregacao: 'sum', totalGeral: true },
         categoriasPermitidas: categoriasDashboard.map(item => item.codigo),
         aparencia: { ...aparenciaWidgetPadrao }
     };
@@ -1987,7 +1993,7 @@ function widgetMapeiaContato(widget) {
 }
 
 function detalheMapeiaContato(detalhe) {
-    return [...(detalhe?.camposLinha || []), ...(detalhe?.camposColuna || []), ...(detalhe?.camposValor || [])]
+    return [...(detalhe?.camposTabela || []), ...(detalhe?.camposLinha || []), ...(detalhe?.camposColuna || []), ...(detalhe?.camposValor || [])]
         .some(campo => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(campo)));
 }
 
@@ -2064,7 +2070,7 @@ function renderizarConteudoCelula(widget, campo, registro, texto) {
     });
     diretivas.filter(item => item.tipo === 'action' && item.valor === 'contact').forEach(item => {
         const documento = String(obterValorContato(registro, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
-        const nome = String(obterValorContato(registro, ['NOME_CLIENTE', 'NOMECLIENTE'], '')).trim();
+        const nome = String(obterValorContato(registro, ['NOME_CLIENTE', 'NOMECLIENTE', 'NOME'], '')).trim();
         if (!documento) return;
         const rotulo = item.label || item.nome || 'Contato';
         const estilo = item.color || item.cor ? ` style="--contact-action-color:${escapeHtml(item.color || item.cor)}"` : '';
@@ -2230,6 +2236,11 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         const enriquecido = await enriquecerRegistrosContato(registrosBrutos, colunas, filtros.contextoDashboard);
         colunas = enriquecido.colunas;
         const registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
+        if (detalhe.tipo === 'table' && detalhe.camposTabela.length) {
+            const camposAusentes = detalhe.camposTabela.filter(nome => !obterColunaDetalhe(colunas, nome));
+            if (camposAusentes.length) throw new Error('Colunas nao retornadas pelo detalhe: ' + camposAusentes.join(', ') + '.');
+            colunas = detalhe.camposTabela.map(nome => obterColunaDetalhe(colunas, nome));
+        }
         if (!colunas.length || !registros.length) {
             if (widgetDetailStatus) {
                 widgetDetailStatus.className = 'crm-widget-detail-status';
