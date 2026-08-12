@@ -1938,6 +1938,14 @@ function obterColunaDetalhe(colunas, nome) {
     return colunas.find(coluna => String(coluna).toLowerCase() === procurada) || '';
 }
 
+function separarAliasCampoDetalhe(valor) {
+    const texto = String(valor || '').trim();
+    const match = texto.match(/^(.+?)\s+AS\s+([a-z_][a-z0-9_$ ]*)$/i);
+    return match
+        ? { campo: match[1].trim(), apelido: match[2].trim() }
+        : { campo: texto, apelido: texto };
+}
+
 function normalizarNomeCampoContato(valor) {
     return String(valor || '').split('.').pop().trim().toUpperCase();
 }
@@ -1996,7 +2004,7 @@ function widgetMapeiaContato(widget) {
 
 function detalheMapeiaContato(detalhe) {
     return [...(detalhe?.camposTabela || []), ...(detalhe?.camposLinha || []), ...(detalhe?.camposColuna || []), ...(detalhe?.camposValor || [])]
-        .some(campo => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(campo)));
+        .some(campo => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(separarAliasCampoDetalhe(campo).campo)));
 }
 
 async function enriquecerRegistrosContato(registros, colunas, contexto = dashboardContextoAtivo) {
@@ -2237,11 +2245,22 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         const registrosBrutos = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
         const enriquecido = await enriquecerRegistrosContato(registrosBrutos, colunas, filtros.contextoDashboard);
         colunas = enriquecido.colunas;
-        const registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
+        let registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
         if (detalhe.tipo === 'table' && detalhe.camposTabela.length) {
-            const camposAusentes = detalhe.camposTabela.filter(nome => !obterColunaDetalhe(colunas, nome));
+            const definicoes = detalhe.camposTabela.map(separarAliasCampoDetalhe);
+            const camposAusentes = definicoes.filter(item => !obterColunaDetalhe(colunas, item.campo)).map(item => item.campo);
             if (camposAusentes.length) throw new Error('Colunas nao retornadas pelo detalhe: ' + camposAusentes.join(', ') + '.');
-            colunas = detalhe.camposTabela.map(nome => obterColunaDetalhe(colunas, nome));
+            const apelidos = definicoes.map(item => item.apelido.toLowerCase());
+            if (new Set(apelidos).size !== apelidos.length) throw new Error('Use apelidos diferentes nas colunas exibidas.');
+            registros = registros.map(registro => {
+                const linha = { ...registro };
+                definicoes.forEach(item => {
+                    const colunaOrigem = obterColunaDetalhe(colunas, item.campo);
+                    linha[item.apelido] = obterValorLinha(registro, colunaOrigem);
+                });
+                return linha;
+            });
+            colunas = definicoes.map(item => item.apelido);
         }
         if (!colunas.length || !registros.length) {
             if (widgetDetailStatus) {

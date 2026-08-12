@@ -173,6 +173,16 @@ Exemplo com documento oculto:
 NOME, CONTATO, CONTATO.STATUS_CONTATO, CONTATO.DATA_ULTIMA_ATUALIZACAO
 ```
 
+Para trocar apenas o título visual de uma coluna, use `AS`:
+
+```text
+CONTATO.STATUS_CONTATO AS SITUACAO
+```
+
+O apelido pertence à configuração do relatório combinado, não ao SQL Firebird.
+Por isso, em um `EXECUTE BLOCK`, não declare `SITUACAO` no `RETURNS` apenas para
+receber o status do PostgreSQL.
+
 ### Tabela dinâmica principal
 
 Escolha os papéis:

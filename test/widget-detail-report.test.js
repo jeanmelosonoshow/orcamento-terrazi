@@ -23,10 +23,11 @@ test('editor oferece relatorio de detalhe para cards e graficos', async () => {
 test('tabela detalhe permite escolher e ordenar colunas Firebird e contato', async () => {
     const javascript = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
 
-    assert.match(javascript, /detalhe\.camposTabela\.filter/);
-    assert.match(javascript, /detalhe\.camposTabela\.map/);
+    assert.match(javascript, /detalhe\.camposTabela\.map\(separarAliasCampoDetalhe\)/);
+    assert.match(javascript, /linha\[item\.apelido\] = obterValorLinha/);
     assert.match(javascript, /Colunas nao retornadas pelo detalhe/);
     assert.match(javascript, /\.\.\.\(detalhe\?\.camposTabela \|\| \[\]\)/);
+    assert.match(javascript, /Use apelidos diferentes nas colunas exibidas/);
 });
 
 test('clique no grafico encaminha dimensao e serie como filtros parametrizados', async () => {
