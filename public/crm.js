@@ -126,6 +126,8 @@ const contactStatusInputs = Array.from(document.querySelectorAll('[data-contact-
 const contactTypeInputs = Array.from(document.querySelectorAll('[data-contact-type]'));
 const contactStatusAll = document.querySelector('[data-contact-status-all]');
 const contactTypeAll = document.querySelector('[data-contact-type-all]');
+const contactStatusDetails = document.querySelector('[data-contact-status-filter]');
+const contactTypeDetails = document.querySelector('[data-contact-type-filter]');
 const contactStatusSummary = document.querySelector('[data-contact-status-summary]');
 const contactTypeSummary = document.querySelector('[data-contact-type-summary]');
 const contactDateStart = document.querySelector('[data-contact-date-start]');
@@ -4768,9 +4770,29 @@ async function carregarFiliais() {
 }
 
 document.addEventListener('click', event => {
-    if (event.target.closest('[data-filial-multiselect]') || event.target.closest('[data-vendedor-multiselect]')) return;
-    if (crmFilialPanel) crmFilialPanel.hidden = true;
-    if (crmVendedorPanel) crmVendedorPanel.hidden = true;
+    const dentroFilial = event.target.closest('[data-filial-multiselect]');
+    const dentroVendedor = event.target.closest('[data-vendedor-multiselect]');
+    const dentroStatusContato = event.target.closest('[data-contact-status-filter]');
+    const dentroTipoContato = event.target.closest('[data-contact-type-filter]');
+
+    if (!dentroFilial && crmFilialPanel) crmFilialPanel.hidden = true;
+    if (!dentroVendedor && crmVendedorPanel) crmVendedorPanel.hidden = true;
+    if (!dentroStatusContato && contactStatusDetails) contactStatusDetails.open = false;
+    if (!dentroTipoContato && contactTypeDetails) contactTypeDetails.open = false;
+});
+
+[contactStatusDetails, contactTypeDetails].forEach(details => details?.addEventListener('toggle', () => {
+    if (!details.open) return;
+    [contactStatusDetails, contactTypeDetails].forEach(outro => {
+        if (outro && outro !== details) outro.open = false;
+    });
+}));
+
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    [contactStatusDetails, contactTypeDetails].forEach(details => {
+        if (details) details.open = false;
+    });
 });
 
 async function definirPaginaOrcamento() {

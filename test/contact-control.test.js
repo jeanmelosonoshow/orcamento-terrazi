@@ -57,6 +57,10 @@ test('Carteira possui filtros, formulario e diretivas de celula', async () => {
     assert.match(script, /function obterDiretivasCelula/);
     assert.match(script, /item\.tipo === 'icon'/);
     assert.match(script, /fetch\('\/api\/controle-contato/);
+    assert.match(script, /!dentroStatusContato && contactStatusDetails/);
+    assert.match(script, /!dentroTipoContato && contactTypeDetails/);
+    assert.match(script, /details\?\.addEventListener\('toggle'/);
+    assert.match(script, /event\.key !== 'Escape'/);
 });
 
 test('executor reconhece parametros dos filtros de contato', async () => {
