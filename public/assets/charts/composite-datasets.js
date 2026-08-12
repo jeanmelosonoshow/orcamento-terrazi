@@ -4,6 +4,7 @@
     function aliasValido(valor, fallback) { var alias = String(valor || fallback || '').trim().replace(/[^a-zA-Z0-9_]+/g, '_'); if (!alias) throw erro('Informe um apelido para cada consulta.'); return alias; }
     function obterValor(linha, coluna) { if (!linha || !coluna) return undefined; if (Object.prototype.hasOwnProperty.call(linha, coluna)) return linha[coluna]; var chave = Object.keys(linha).find(function (item) { return item.toLowerCase() === String(coluna).toLowerCase(); }); return chave ? linha[chave] : undefined; }
     function prefixarLinha(linha, alias) { return Object.fromEntries(Object.entries(linha || {}).map(function (entrada) { return [alias + '.' + entrada[0], entrada[1]]; })); }
+    function prefixarColunasVazias(colunas, alias) { return Object.fromEntries((colunas || []).map(function (coluna) { return [alias + '.' + coluna, null]; })); }
     function chaveRelacao(valor) { if (valor === null || valor === undefined || valor === '') return null; return String(valor).trim(); }
     function aplicarFormulas(linhas, campos, avaliar) {
         return linhas.map(function (linha) {
@@ -68,7 +69,7 @@
                 if (!chavePrincipal || !chaveSecundaria) throw erro('Selecione os dois campos de relacionamento.');
                 var indiceSecundario = new Map();
                 secundaria.dados.forEach(function (linha) { var chave = chaveRelacao(obterValor(linha, chaveSecundaria)); if (chave === null) return; if (indiceSecundario.has(chave)) throw erro('A chave da segunda consulta possui valores duplicados. Agregue-a antes do relacionamento.'); indiceSecundario.set(chave, linha); });
-                linhas = principal.dados.map(function (linha) { var relacionada = indiceSecundario.get(chaveRelacao(obterValor(linha, chavePrincipal))) || {}; return Object.assign({}, prefixarLinha(linha, principal.alias), prefixarLinha(relacionada, secundaria.alias)); });
+                linhas = principal.dados.map(function (linha) { var relacionada = indiceSecundario.get(chaveRelacao(obterValor(linha, chavePrincipal))); return Object.assign({}, prefixarLinha(linha, principal.alias), relacionada ? prefixarLinha(relacionada, secundaria.alias) : prefixarColunasVazias(secundaria.colunas, secundaria.alias)); });
             }
         }
         var calculados = (camposCalculados || []).filter(function (campo) { return String(campo && campo.nome || '').trim() || String(campo && campo.formula || '').trim(); });

@@ -20,7 +20,7 @@
         })();
     </script>
     <title>Gestão</title>
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260806-1">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260812-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -102,6 +102,41 @@
                         </div>
                     </div>
                 </div>
+                <section class="crm-contact-filters" data-contact-filters hidden>
+                    <div class="crm-contact-filter">
+                        <label>Status contato</label>
+                        <details data-contact-status-filter>
+                            <summary data-contact-status-summary>Pendente, aguardando retorno</summary>
+                            <div class="crm-contact-filter-options">
+                                <label class="is-all"><input type="checkbox" data-contact-status-all>Todos</label>
+                                <label><input type="checkbox" value="PENDENTE" data-contact-status checked>Pendente</label>
+                                <label><input type="checkbox" value="AGUARDANDO RETORNO" data-contact-status checked>Aguardando retorno</label>
+                                <label><input type="checkbox" value="FINALIZADO" data-contact-status>Finalizado</label>
+                            </div>
+                        </details>
+                    </div>
+                    <div class="crm-contact-filter">
+                        <label>Tipo contato realizado</label>
+                        <details data-contact-type-filter>
+                            <summary data-contact-type-summary>Todos os tipos</summary>
+                            <div class="crm-contact-filter-options">
+                                <label class="is-all"><input type="checkbox" data-contact-type-all checked>Todos</label>
+                                <label><input type="checkbox" value="SEM CONTATO" data-contact-type checked>Sem contato</label>
+                                <label><input type="checkbox" value="WHATSAPP" data-contact-type checked>WhatsApp</label>
+                                <label><input type="checkbox" value="LIGACAO" data-contact-type checked>Ligação</label>
+                                <label><input type="checkbox" value="EMAIL" data-contact-type checked>Email</label>
+                                <label><input type="checkbox" value="SMS" data-contact-type checked>SMS</label>
+                                <label><input type="checkbox" value="TELEGRAM" data-contact-type checked>Telegram</label>
+                            </div>
+                        </details>
+                    </div>
+                    <label class="crm-contact-client-filter">Cliente
+                        <input type="search" list="crmContactClients" placeholder="Documento - nome do cliente" data-contact-client>
+                        <datalist id="crmContactClients" data-contact-client-options></datalist>
+                    </label>
+                    <label>Atualizado de<input type="date" data-contact-date-start></label>
+                    <label>Atualizado até<input type="date" data-contact-date-end></label>
+                </section>
                 <div class="crm-filter-actions">
                     <span class="crm-filter-status" data-filter-status aria-live="polite"></span>
                     <div class="crm-filter-action-buttons">
@@ -513,6 +548,51 @@
             </div>
         </section>
     </div>
+    <div class="crm-modal" data-contact-modal hidden>
+        <div class="crm-modal-backdrop" data-close-contact-modal></div>
+        <section class="crm-modal-card crm-contact-modal-card" role="dialog" aria-modal="true" aria-labelledby="crmContactModalTitle">
+            <div class="crm-modal-head">
+                <div>
+                    <span class="crm-eyebrow">Carteira de clientes</span>
+                    <h2 id="crmContactModalTitle">Controle de contato</h2>
+                </div>
+                <button type="button" class="crm-icon-button" aria-label="Fechar" title="Fechar" data-close-contact-modal>×</button>
+            </div>
+            <div class="crm-contact-customer">
+                <span>Documento <strong data-contact-document></strong></span>
+                <span>Nome <strong data-contact-name></strong></span>
+            </div>
+            <form data-contact-form>
+                <div class="crm-modal-grid">
+                    <label>Status contato
+                        <select data-contact-form-status required>
+                            <option value="PENDENTE">Pendente</option>
+                            <option value="AGUARDANDO RETORNO">Aguardando retorno</option>
+                            <option value="FINALIZADO">Finalizado</option>
+                        </select>
+                    </label>
+                    <label>Tipo contato
+                        <select data-contact-form-type required>
+                            <option value="WHATSAPP">WhatsApp (mensagem)</option>
+                            <option value="LIGACAO">Ligação</option>
+                            <option value="EMAIL">Email</option>
+                            <option value="SMS">SMS</option>
+                            <option value="TELEGRAM">Telegram</option>
+                        </select>
+                    </label>
+                </div>
+                <label class="crm-contact-notes">Observação
+                    <textarea rows="8" maxlength="10000" data-contact-form-notes placeholder="Registre o histórico e os próximos passos."></textarea>
+                </label>
+                <div class="crm-contact-form-meta" data-contact-form-meta></div>
+                <div class="crm-contact-form-status" data-contact-form-message aria-live="polite"></div>
+                <div class="crm-modal-actions">
+                    <button type="button" class="crm-secondary-button" data-close-contact-modal>Cancelar</button>
+                    <button type="submit" data-save-contact>Salvar contato</button>
+                </div>
+            </form>
+        </section>
+    </div>
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
     <script src="assets/icons/widget-icons.js?v=crm-20260728-1"></script>
     <script src="assets/charts/chart-renderers.js?v=crm-20260728-1"></script>
@@ -522,6 +602,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260807-1"></script>
+        <script src="crm.js?v=crm-20260812-1"></script>
 </body>
 </html>

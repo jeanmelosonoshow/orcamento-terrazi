@@ -1,0 +1,84 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { executarManutencaoControleContato } from '../lib/contact-maintenance.js';
+
+const ler = caminho => readFile(new URL(caminho, import.meta.url), 'utf8');
+
+test('migracao cria controle, indices, invariantes e reabertura por recompra', async () => {
+    const sql = await ler('../database/controle-contato.sql');
+    assert.match(sql, /CREATE TABLE IF NOT EXISTS controle_contato/i);
+    assert.match(sql, /PRIMARY KEY/i);
+    assert.match(sql, /CREATE INDEX IF NOT EXISTS idx_controle_contato_status/i);
+    assert.match(sql, /Contato finalizado nao pode ser alterado/);
+    assert.match(sql, /fn_reabrir_contatos_por_recompra/i);
+    assert.match(sql, /fn_executar_manutencao_contatos/i);
+    assert.match(sql, /data_ultima_execucao_reabertura AT TIME ZONE 'America\/Sao_Paulo'/i);
+    assert.match(sql, /idx_controle_contato_finalizado_reabertura/i);
+    assert.match(sql, /qtde_contato = qtde_contato \+ 1/i);
+});
+
+test('API usa identidade da sessao e faz upsert do contato', async () => {
+    const api = await ler('../api/controle-contato.js');
+    assert.match(api, /requireRequestSession/);
+    assert.match(api, /numeroSessao\(session\.sub\)/);
+    assert.match(api, /numeroSessao\(session\.idvendedor\)/);
+    assert.match(api, /ON CONFLICT \(doctocliente\) DO UPDATE/i);
+    assert.match(api, /CONTACT_FINALIZED/);
+});
+
+test('enriquecimento consulta contatos em lote sem uma chamada por linha', async () => {
+    const [api, manutencao, script] = await Promise.all([
+        ler('../api/controle-contatos.js'),
+        ler('../lib/contact-maintenance.js'),
+        ler('../public/crm.js')
+    ]);
+    assert.match(api, /ANY\(\$1::text\[\]\)/i);
+    assert.match(api, /LIMITE_DOCUMENTOS = 5000/);
+    assert.match(api, /executarManutencaoControleContato\(db\)/);
+    assert.match(manutencao, /fn_executar_manutencao_contatos/);
+    assert.match(manutencao, /return \{ ok: false, executada: false/);
+    assert.match(script, /function enriquecerRegistrosContato/);
+    assert.match(script, /fetch\('\/api\/controle-contatos'/);
+});
+
+test('Carteira possui filtros, formulario e diretivas de celula', async () => {
+    const [html, script] = await Promise.all([ler('../public/crm.html'), ler('../public/crm.js')]);
+    assert.match(html, /data-contact-filters/);
+    assert.match(html, /data-contact-modal/);
+    assert.match(script, /aplicarFiltrosContatoRegistros/);
+    assert.match(script, /data-contact-action/);
+    assert.match(script, /function obterDiretivasCelula/);
+    assert.match(script, /item\.tipo === 'icon'/);
+    assert.match(script, /fetch\('\/api\/controle-contato/);
+});
+
+test('executor reconhece parametros dos filtros de contato', async () => {
+    const parametros = await ler('../lib/scenario-sql-parameters.js');
+    for (const nome of ['status_contato', 'tipos_contato', 'cliente_contato', 'data_contato_inicial', 'data_contato_final']) {
+        assert.match(parametros, new RegExp(nome));
+    }
+});
+
+test('manutencao diaria normaliza o resultado retornado pelo banco', async () => {
+    const cliente = {
+        query: async () => ({ rows: [{ executada: true, contatos_reabertos: '7' }] })
+    };
+    assert.deepEqual(await executarManutencaoControleContato(cliente), {
+        ok: true,
+        executada: true,
+        contatosReabertos: 7
+    });
+});
+
+test('falha da manutencao nao impede o carregamento da Carteira', async () => {
+    const avisos = [];
+    const cliente = { query: async () => { throw Object.assign(new Error('indisponivel'), { code: '08006' }); } };
+    const logger = { warn: (...argumentos) => avisos.push(argumentos) };
+    assert.deepEqual(await executarManutencaoControleContato(cliente, logger), {
+        ok: false,
+        executada: false,
+        contatosReabertos: 0
+    });
+    assert.equal(avisos.length, 1);
+});

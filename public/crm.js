@@ -121,6 +121,17 @@ const crmVendedorOptions = document.querySelector('[data-vendedor-options]');
 const applyFiltersButton = document.querySelector('[data-apply-filters]');
 const resetFiltersButton = document.querySelector('[data-reset-filters]');
 const filterStatus = document.querySelector('[data-filter-status]');
+const contactFilters = document.querySelector('[data-contact-filters]');
+const contactStatusInputs = Array.from(document.querySelectorAll('[data-contact-status]'));
+const contactTypeInputs = Array.from(document.querySelectorAll('[data-contact-type]'));
+const contactStatusAll = document.querySelector('[data-contact-status-all]');
+const contactTypeAll = document.querySelector('[data-contact-type-all]');
+const contactStatusSummary = document.querySelector('[data-contact-status-summary]');
+const contactTypeSummary = document.querySelector('[data-contact-type-summary]');
+const contactClientInput = document.querySelector('[data-contact-client]');
+const contactClientOptions = document.querySelector('[data-contact-client-options]');
+const contactDateStart = document.querySelector('[data-contact-date-start]');
+const contactDateEnd = document.querySelector('[data-contact-date-end]');
 
 function aplicarVisibilidadeFiltrosPorCategoria() {
     if (crmFilialFilter) crmFilialFilter.hidden = categoriaSemFiltrosFilialVendedor;
@@ -229,6 +240,17 @@ const widgetDetailStatus = document.querySelector('[data-widget-detail-status]')
 const widgetDetailContent = document.querySelector('[data-widget-detail-content]');
 const widgetDetailExportHost = document.querySelector('[data-widget-detail-export-host]');
 const closeWidgetDetailButtons = Array.from(document.querySelectorAll('[data-close-widget-detail]'));
+const contactModal = document.querySelector('[data-contact-modal]');
+const closeContactModalButtons = Array.from(document.querySelectorAll('[data-close-contact-modal]'));
+const contactForm = document.querySelector('[data-contact-form]');
+const contactDocument = document.querySelector('[data-contact-document]');
+const contactName = document.querySelector('[data-contact-name]');
+const contactFormStatus = document.querySelector('[data-contact-form-status]');
+const contactFormType = document.querySelector('[data-contact-form-type]');
+const contactFormNotes = document.querySelector('[data-contact-form-notes]');
+const contactFormMeta = document.querySelector('[data-contact-form-meta]');
+const contactFormMessage = document.querySelector('[data-contact-form-message]');
+const saveContactButton = document.querySelector('[data-save-contact]');
 const budgetFrame = document.querySelector('[data-budget-frame]');
 const dashboardConfigPorView = Object.freeze({
     'visao-geral': { storage: 'crmDashboardScenario:v1', altura: 'crmDashboardCanvasHeight:v1' },
@@ -338,6 +360,7 @@ function trocarContextoDashboard(viewName) {
     }
 
     if (dashboardWorkspace.parentElement !== host) host.appendChild(dashboardWorkspace);
+    if (contactFilters) contactFilters.hidden = proximoContexto !== 'clientes';
     if (dashboardCanvas) {
         const titulo = document.querySelector('.crm-page-title h1')?.textContent || 'Painel';
         dashboardCanvas.setAttribute('aria-label', 'Area de inteligencia de negocio - ' + titulo);
@@ -1657,12 +1680,12 @@ function renderizarTabelaSimples(container, widget, registros, registrosTotaliza
             const controle = campo.papel === 'linha'
                 ? renderizarControleDrill(widget, filtrosLinha.slice(), camposDetalhe)
                 : '';
-            return `<td class="is-dimension"${atributoAlinhamentoCampo(campo)}><span class="crm-dimension-cell"><span>${escapeHtml(rotulo)}</span>${controle}</span></td>`;
+            return `<td class="is-dimension"${atributoAlinhamentoCampo(campo)}><span class="crm-dimension-cell"><span class="crm-cell-content">${renderizarConteudoCelula(widget, campo, registro, rotulo)}</span>${controle}</span></td>`;
         }).join('');
         const celulasValor = valores.map(valor => {
             const bruto = obterValorLinha(registro, valor.coluna);
             const formatado = formatarValorGrafico(calcularAgregacao([bruto], valor.agregacao || 'none'), valor.formatoValor);
-            return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatado)}</td>`;
+            return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}><span class="crm-cell-content">${renderizarConteudoCelula(widget, valor, registro, formatado)}</span></td>`;
         }).join('');
         return `<tr>${celulasDimensao}${celulasValor}</tr>`;
     }).join('');
@@ -1801,7 +1824,8 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
                 rotulo: parte.rotulo
             }))];
             const controle = renderizarControleDrill(widget, filtrosContexto, camposDetalheDisponiveis);
-            return `<td class="is-dimension"${atributoAlinhamentoCampo(item.campo)}><span class="crm-dimension-cell"><span>${exibir ? escapeHtml(item.rotulo) : ''}</span>${controle}</span></td>`;
+            const conteudo = exibir ? renderizarConteudoCelula(widget, item.campo, registrosGrupo[0] || {}, item.rotulo) : '';
+            return `<td class="is-dimension"${atributoAlinhamentoCampo(item.campo)}><span class="crm-dimension-cell"><span class="crm-cell-content">${conteudo}</span>${controle}</span></td>`;
         }).join('');
         estadoRotulos.anteriores = caminho.map(item => item.rotulo);
         return `<tr>${celulasLinha}${renderizarCelulasValor(registrosGrupo)}</tr>`;
@@ -1845,7 +1869,8 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
                 filtrosDoCaminho([...caminhoGrupo, ...caminhoDetalhe.slice(0, index + 1)]),
                 camposDetalheDisponiveis
             );
-            return `<td class="is-dimension"${atributoAlinhamentoCampo(item.campo)}><span class="crm-dimension-cell"><span>${exibir ? escapeHtml(item.rotulo) : ''}</span>${controle}</span></td>`;
+            const conteudo = exibir ? renderizarConteudoCelula(widget, item.campo, registrosGrupo[0] || {}, item.rotulo) : '';
+            return `<td class="is-dimension"${atributoAlinhamentoCampo(item.campo)}><span class="crm-dimension-cell"><span class="crm-cell-content">${conteudo}</span>${controle}</span></td>`;
         }).join('');
         estadoRotulos.anteriores = caminhoDetalhe.map(item => item.rotulo);
         return `<tr>${celulas}${renderizarCelulasValor(registrosGrupo)}</tr>`;
@@ -1905,6 +1930,166 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
 function obterColunaDetalhe(colunas, nome) {
     const procurada = String(nome || '').trim().toLowerCase();
     return colunas.find(coluna => String(coluna).toLowerCase() === procurada) || '';
+}
+
+function normalizarNomeCampoContato(valor) {
+    return String(valor || '').split('.').pop().trim().toUpperCase();
+}
+
+function encontrarCampoContato(linha, nomes) {
+    const esperados = new Set(nomes.map(normalizarNomeCampoContato));
+    return Object.keys(linha || {}).find(chave => esperados.has(normalizarNomeCampoContato(chave))) || '';
+}
+
+function obterValorContato(linha, nomes, fallback = null) {
+    const campo = encontrarCampoContato(linha, nomes);
+    const valor = campo ? linha[campo] : null;
+    return valor === null || valor === undefined || valor === '' ? fallback : valor;
+}
+
+function dataLocalContato(valor) {
+    if (!valor) return '';
+    const texto = String(valor);
+    const encontrado = texto.match(/^(\d{4}-\d{2}-\d{2})/);
+    return encontrado ? encontrado[1] : '';
+}
+
+function aplicarFiltrosContatoRegistros(registros, filtros = {}) {
+    if (!Array.isArray(registros) || filtros.contextoDashboard !== 'clientes') return registros;
+    const statusSelecionados = new Set((filtros.statusContato || []).map(item => String(item).toUpperCase()));
+    const tiposSelecionados = new Set((filtros.tiposContato || []).map(item => String(item).toUpperCase()));
+    if (!statusSelecionados.size || !tiposSelecionados.size) return [];
+    const buscaCliente = String(filtros.clienteContato || '').trim().toLowerCase();
+    const documentoBusca = buscaCliente.split(/\s+-\s+/)[0].trim();
+    return registros.filter(linha => {
+        const documento = String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
+        if (!documento) return true;
+        const nome = String(obterValorContato(linha, ['NOME_CLIENTE', 'NOMECLIENTE'], '')).trim();
+        const campoStatus = encontrarCampoContato(linha, ['STATUS_CONTATO']);
+        const campoTipo = encontrarCampoContato(linha, ['TIPO_CONTATO', 'ULTIMO_CANAL_CONTATO']);
+        if (campoStatus && !linha[campoStatus]) linha[campoStatus] = 'PENDENTE';
+        if (campoTipo && !linha[campoTipo]) linha[campoTipo] = 'SEM CONTATO';
+        const status = String(obterValorContato(linha, ['STATUS_CONTATO'], 'PENDENTE')).toUpperCase();
+        const tipo = String(obterValorContato(linha, ['TIPO_CONTATO', 'ULTIMO_CANAL_CONTATO'], 'SEM CONTATO')).toUpperCase();
+        const dataAtualizacao = dataLocalContato(obterValorContato(linha, ['DATA_ULTIMA_ATUALIZACAO'], ''));
+        if (statusSelecionados.size && !statusSelecionados.has(status)) return false;
+        if (tiposSelecionados.size && !tiposSelecionados.has(tipo)) return false;
+        if (buscaCliente && documento.toLowerCase() !== documentoBusca && !(documento + ' - ' + nome).toLowerCase().includes(buscaCliente)) return false;
+        if (filtros.dataContatoInicial && (!dataAtualizacao || dataAtualizacao < filtros.dataContatoInicial)) return false;
+        if (filtros.dataContatoFinal && (!dataAtualizacao || dataAtualizacao > filtros.dataContatoFinal)) return false;
+        return true;
+    });
+}
+
+function atualizarListaClientesContato(registros) {
+    if (!contactClientOptions || !Array.isArray(registros)) return;
+    const clientes = new Map();
+    registros.forEach(linha => {
+        const documento = String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
+        const nome = String(obterValorContato(linha, ['NOME_CLIENTE', 'NOMECLIENTE'], '')).trim();
+        if (documento && !clientes.has(documento)) clientes.set(documento, nome);
+    });
+    contactClientOptions.innerHTML = Array.from(clientes.entries()).slice(0, 2000)
+        .map(([documento, nome]) => `<option value="${escapeHtml(documento + (nome ? ' - ' + nome : ''))}"></option>`).join('');
+}
+
+const colunasEnriquecimentoContato = [
+    'NOME_CLIENTE', 'STATUS_CONTATO', 'TIPO_CONTATO', 'OBSERVACAO',
+    'DATA_PRIMEIRO_CONTATO', 'DATA_ULTIMO_CONTATO', 'DATA_FINALIZACAO',
+    'IDFUNCIONARIO', 'IDVENDEDOR', 'QTDE_CONTATO', 'DATA_ULTIMA_ATUALIZACAO'
+];
+
+function widgetMapeiaContato(widget) {
+    return (Array.isArray(widget?.mapeamentos) ? widget.mapeamentos : [])
+        .some(item => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(item.coluna)));
+}
+
+function detalheMapeiaContato(detalhe) {
+    return [...(detalhe?.camposLinha || []), ...(detalhe?.camposColuna || []), ...(detalhe?.camposValor || [])]
+        .some(campo => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(campo)));
+}
+
+async function enriquecerRegistrosContato(registros, colunas, contexto = dashboardContextoAtivo) {
+    if (contexto !== 'clientes' || !Array.isArray(registros) || !registros.length) return { registros, colunas };
+    if (encontrarCampoContato(registros[0], ['STATUS_CONTATO'])) return { registros, colunas };
+    const documentos = Array.from(new Set(registros.map(linha => String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim()).filter(Boolean)));
+    if (!documentos.length) return { registros, colunas };
+    const response = await fetch('/api/controle-contatos', {
+        method: 'POST', headers: cabecalhosSessao(), body: JSON.stringify({ documentos })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) window.fazerLogout();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível combinar os contatos.');
+    const indice = new Map((data.contatos || []).map(contato => [String(contato.doctocliente), contato]));
+    const mapa = {
+        NOME_CLIENTE: 'nome_cliente', STATUS_CONTATO: 'status_contato', TIPO_CONTATO: 'tipo_contato', OBSERVACAO: 'observacao',
+        DATA_PRIMEIRO_CONTATO: 'data_primeiro_contato', DATA_ULTIMO_CONTATO: 'data_ultimo_contato', DATA_FINALIZACAO: 'data_finalizacao',
+        IDFUNCIONARIO: 'idfuncionario', IDVENDEDOR: 'idvendedor', QTDE_CONTATO: 'qtde_contato', DATA_ULTIMA_ATUALIZACAO: 'data_ultima_atualizacao'
+    };
+    registros.forEach(linha => {
+        const documento = String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
+        const contato = indice.get(documento);
+        colunasEnriquecimentoContato.forEach(campo => {
+            const padrao = campo === 'STATUS_CONTATO' ? 'PENDENTE' : (campo === 'TIPO_CONTATO' ? 'SEM CONTATO' : null);
+            linha['CONTATO.' + campo] = contato?.[mapa[campo]] ?? padrao;
+        });
+    });
+    const novasColunas = Array.from(new Set([...(colunas || []), ...colunasEnriquecimentoContato.map(campo => 'CONTATO.' + campo)]));
+    return { registros, colunas: novasColunas };
+}
+
+function obterSqlWidget(widget) {
+    const consultas = Array.isArray(widget?.consultas) ? widget.consultas.map(item => item.sql) : [];
+    return [...consultas, widget?.sql, widget?.detalhe?.sql].filter(Boolean).join('\n');
+}
+
+function obterDiretivasCelula(widget) {
+    const diretivas = [];
+    const regex = /\/\*\s*(icon|action)\s*:\s*([a-z0-9_-]+)([\s\S]*?)\*\/\s*[\s\S]*?\bas\s+([a-z_][a-z0-9_$]*)/gi;
+    let match;
+    const sql = obterSqlWidget(widget);
+    while ((match = regex.exec(sql)) !== null) {
+        const opcoes = {};
+        String(match[3] || '').split('|').forEach(parte => {
+            const divisao = parte.split(/[:=]/);
+            if (divisao.length >= 2) opcoes[divisao.shift().trim().toLowerCase()] = divisao.join(':').trim();
+        });
+        diretivas.push({ tipo: match[1].toLowerCase(), valor: match[2].toLowerCase(), campo: match[4], ...opcoes });
+    }
+    return diretivas;
+}
+
+function iconeCelula(nome) {
+    const paths = {
+        whatsapp: '<path d="M20 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20l1.1-4a8.4 8.4 0 1 1 15.9-4.5Z"></path><path d="M8.5 7.8c.4 3 2 4.6 5 5.7"></path>',
+        phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2.1Z"></path>',
+        email: '<path d="M4 4h16v16H4z"></path><path d="m4 6 8 6 8-6"></path>',
+        sms: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>',
+        telegram: '<path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path>',
+        link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path>',
+        contact: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6M22 11h-6"></path>'
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[nome] || paths.contact}</svg>`;
+}
+
+function renderizarConteudoCelula(widget, campo, registro, texto) {
+    const nomeCampo = normalizarNomeCampoContato(campo?.coluna || campo);
+    const diretivas = obterDiretivasCelula(widget).filter(item => normalizarNomeCampoContato(item.campo) === nomeCampo);
+    let conteudo = `<span>${escapeHtml(texto)}</span>`;
+    diretivas.filter(item => item.tipo === 'icon').forEach(item => {
+        const icone = `<span class="crm-cell-icon" title="${escapeHtml(item.valor)}">${iconeCelula(item.valor)}</span>`;
+        conteudo = String(item.position || item.posicao).toLowerCase() === 'after' ? conteudo + icone : icone + conteudo;
+    });
+    diretivas.filter(item => item.tipo === 'action' && item.valor === 'contact').forEach(item => {
+        const documento = String(obterValorContato(registro, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
+        const nome = String(obterValorContato(registro, ['NOME_CLIENTE', 'NOMECLIENTE'], '')).trim();
+        if (!documento) return;
+        const rotulo = item.label || item.nome || 'Contato';
+        const estilo = item.color || item.cor ? ` style="--contact-action-color:${escapeHtml(item.color || item.cor)}"` : '';
+        const botao = `<button type="button" class="crm-contact-action" data-contact-action data-document="${escapeHtml(documento)}" data-name="${escapeHtml(nome)}"${estilo}>${iconeCelula(item.icon || item.icone || 'contact')}<span>${escapeHtml(rotulo)}</span></button>`;
+        conteudo = String(item.position || item.posicao).toLowerCase() === 'before' ? botao + conteudo : conteudo + botao;
+    });
+    return conteudo;
 }
 
 function criarMapeamentosRelatorioDetalhe(detalhe, colunas, dados) {
@@ -1968,7 +2153,7 @@ function renderizarTabelaSimplesRelatorioDetalhe(container, widget, opcoes = {})
     const corpo = paginacao.registros.map(registro =>
         '<tr>' + colunas.map(coluna => {
             const alinhamento = numericas.has(coluna) ? ' data-align="right"' : '';
-            return '<td' + alinhamento + '>' + escapeHtml(formatarCelulaRelatorioDetalhe(obterValorLinha(registro, coluna))) + '</td>';
+            return '<td' + alinhamento + '><span class="crm-cell-content">' + renderizarConteudoCelula(widget, coluna, registro, formatarCelulaRelatorioDetalhe(obterValorLinha(registro, coluna))) + '</span></td>';
         }).join('') + '</tr>'
     ).join('');
     const total = widget.tabela?.totalLinhas && numericas.size
@@ -2052,14 +2237,18 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
                 fonte: detalhe.fonte,
                 sql: detalhe.sql,
                 filtros,
-                visualizacao: montarVisualizacaoRelatorioDetalhe(detalhe)
+                visualizacao: detalheMapeiaContato(detalhe) ? null : montarVisualizacaoRelatorioDetalhe(detalhe)
             })
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.details || data.error || 'Erro ao carregar o relatorio de detalhe.');
-        const colunas = Array.isArray(data.colunas) ? data.colunas : [];
-        const registros = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
+        let colunas = Array.isArray(data.colunas) ? data.colunas : [];
+        const registrosBrutos = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
+        const enriquecido = await enriquecerRegistrosContato(registrosBrutos, colunas, filtros.contextoDashboard);
+        colunas = enriquecido.colunas;
+        atualizarListaClientesContato(enriquecido.registros);
+        const registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
         if (!colunas.length || !registros.length) {
             if (widgetDetailStatus) {
                 widgetDetailStatus.className = 'crm-widget-detail-status';
@@ -2074,6 +2263,7 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
             titulo: detalhe.titulo || widget.titulo,
             tipo: detalhe.tipo,
             relatorioDetalhe: true,
+            sql: detalhe.sql,
             colunasConsulta: colunas,
             dadosConsulta: registros,
             dadosConsultaAgregados: data.resultadoAgregado === true,
@@ -2862,6 +3052,7 @@ function obterFiltrosCenario() {
     const idsFiliaisDisponiveis = filiaisDisponiveis.map(filial => String(filial.idfilial));
     const idsVendedoresDisponiveis = vendedoresDisponiveis.map(vendedor => String(vendedor.idvendedor));
     return {
+        contextoDashboard: dashboardContextoAtivo,
         dataInicial: sessionStorage.getItem('crmDataInicial') || crmDataInicial?.value || '',
         dataFinal: sessionStorage.getItem('crmDataFinal') || crmDataFinal?.value || '',
         filiais: filiaisSelecionadas,
@@ -2876,7 +3067,12 @@ function obterFiltrosCenario() {
         ),
         idfuncionario: idFuncionarioLogado || '',
         idfilial: categoriaCodigo === 'VD' ? '' : (filialId || ''),
-        idvendedor: categoriaCodigo === 'CX' ? '' : (idVendedorLogado || '')
+        idvendedor: categoriaCodigo === 'CX' ? '' : (idVendedorLogado || ''),
+        statusContato: contactStatusInputs.filter(input => input.checked).map(input => input.value),
+        tiposContato: contactTypeInputs.filter(input => input.checked).map(input => input.value),
+        clienteContato: contactClientInput?.value.trim() || '',
+        dataContatoInicial: contactDateStart?.value || '',
+        dataContatoFinal: contactDateEnd?.value || ''
     };
 }
 
@@ -3030,6 +3226,7 @@ async function executarDrillDownWidget(contexto, campo) {
 
 function widgetUtilizaFiltrosVisiveis(widget) {
     const consultas = Array.isArray(widget?.consultas) && widget.consultas.length ? widget.consultas : [{ sql: widget?.sql || '' }];
+    if (dashboardContextoAtivo === 'clientes') return consultas.some(consulta => String(consulta.sql || '').trim());
     const parametros = categoriaCodigo === 'VD'
         ? /:(data_inicial|data_final|idvendedor)\b/i
         : (categoriaCodigo === 'CX'
@@ -3071,9 +3268,12 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
             resultados.push(await executarConsultaConfigurada(consulta, filtros, null, opcoes));
         }
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
-        return { ...widget, colunasConsulta: combinado.colunas, dadosConsulta: combinado.dados, dadosConsultaAgregados: false, consultaAtualizadaEm: new Date().toISOString() };
+        const enriquecido = await enriquecerRegistrosContato(combinado.dados, combinado.colunas, filtros.contextoDashboard);
+        atualizarListaClientesContato(enriquecido.registros);
+        const dadosFiltrados = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
+        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: dadosFiltrados, dadosConsultaAgregados: false, consultaAtualizadaEm: new Date().toISOString() };
     }
-    const visualizacao = montarVisualizacaoWidget(widget);
+    const visualizacao = widgetMapeiaContato(widget) ? null : montarVisualizacaoWidget(widget);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), DASHBOARD_REQUEST_TIMEOUT_MS);
     const signalConsulta = opcoes.signal && typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function'
@@ -3096,7 +3296,10 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
         const colunasConsulta = widget.tipo === 'pivot'
             ? Array.from(new Set([...(Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : []), ...colunasRetornadas]))
             : colunasRetornadas;
-        return { ...widget, colunasConsulta, dadosConsulta: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []), dadosConsultaAgregados: data.resultadoAgregado === true, consultaAtualizadaEm: new Date().toISOString() };
+        const dadosRetornados = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
+        const enriquecido = await enriquecerRegistrosContato(dadosRetornados, colunasConsulta, filtros.contextoDashboard);
+        atualizarListaClientesContato(enriquecido.registros);
+        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: aplicarFiltrosContatoRegistros(enriquecido.registros, filtros), dadosConsultaAgregados: data.resultadoAgregado === true, consultaAtualizadaEm: new Date().toISOString() };
     } finally { clearTimeout(timeout); }
 }
 
@@ -3494,6 +3697,111 @@ function coletarMapeamentosColunas() {
 function obterLinhasConsultasSecundarias() {
     return secondaryQueriesBox ? Array.from(secondaryQueriesBox.querySelectorAll('[data-secondary-query-row]')) : [];
 }
+
+function fecharFormularioContato() {
+    if (contactModal) contactModal.hidden = true;
+    if (contactFormMessage) contactFormMessage.textContent = '';
+}
+
+function cabecalhosSessao() {
+    return { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}) };
+}
+
+function definirFormularioContato(contato, documento, nome) {
+    const existente = Boolean(contato);
+    if (contactDocument) contactDocument.textContent = documento;
+    if (contactName) contactName.textContent = contato?.nomeCliente || nome;
+    if (contactFormStatus) contactFormStatus.value = contato?.statusContato || 'PENDENTE';
+    if (contactFormType) contactFormType.value = contato?.tipoContato || 'WHATSAPP';
+    if (contactFormNotes) contactFormNotes.value = contato?.observacao || '';
+    if (contactForm) {
+        contactForm.dataset.document = documento;
+        contactForm.dataset.name = contato?.nomeCliente || nome;
+    }
+    const bloqueado = contato?.finalizado === true;
+    [contactFormStatus, contactFormType, contactFormNotes, saveContactButton].forEach(campo => { if (campo) campo.disabled = bloqueado; });
+    if (contactFormMeta) {
+        const partes = [existente ? 'Ação: atualizar' : 'Ação: incluir'];
+        if (contato?.qtdeContato) partes.push('Ciclo de contato: ' + contato.qtdeContato);
+        if (contato?.dataUltimaAtualizacao) partes.push('Última atualização: ' + new Date(contato.dataUltimaAtualizacao).toLocaleString('pt-BR'));
+        if (bloqueado) partes.push('Contato finalizado e bloqueado para alterações.');
+        contactFormMeta.textContent = partes.join(' | ');
+    }
+}
+
+async function abrirFormularioContato(documento, nome) {
+    if (!contactModal || !documento) return;
+    contactModal.hidden = false;
+    if (contactFormMessage) contactFormMessage.textContent = 'Carregando contato...';
+    [contactFormStatus, contactFormType, contactFormNotes, saveContactButton].forEach(campo => { if (campo) campo.disabled = true; });
+    try {
+        const response = await fetch('/api/controle-contato?documento=' + encodeURIComponent(documento), { headers: cabecalhosSessao() });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) window.fazerLogout();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível consultar o contato.');
+        definirFormularioContato(data.contato, documento, nome);
+        if (contactFormMessage) contactFormMessage.textContent = '';
+    } catch (error) {
+        if (contactFormMessage) contactFormMessage.textContent = error.message;
+    }
+}
+
+function definirValorContatoNaLinha(linha, campo, valor) {
+    const existente = encontrarCampoContato(linha, [campo]);
+    linha[existente || ('contato.' + campo)] = valor;
+}
+
+function atualizarContatoNoPainel(contato) {
+    const widgets = obterWidgetsDashboard('clientes');
+    const filtros = obterFiltrosCenario();
+    filtros.contextoDashboard = 'clientes';
+    widgets.forEach(widget => {
+        const dados = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
+        dados.forEach(linha => {
+            const documento = String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
+            if (documento !== String(contato.doctocliente)) return;
+            definirValorContatoNaLinha(linha, 'STATUS_CONTATO', contato.statusContato);
+            definirValorContatoNaLinha(linha, 'TIPO_CONTATO', contato.tipoContato);
+            definirValorContatoNaLinha(linha, 'OBSERVACAO', contato.observacao);
+            definirValorContatoNaLinha(linha, 'DATA_PRIMEIRO_CONTATO', contato.dataPrimeiroContato);
+            definirValorContatoNaLinha(linha, 'DATA_ULTIMO_CONTATO', contato.dataUltimoContato);
+            definirValorContatoNaLinha(linha, 'DATA_FINALIZACAO', contato.dataFinalizacao);
+            definirValorContatoNaLinha(linha, 'QTDE_CONTATO', contato.qtdeContato);
+            definirValorContatoNaLinha(linha, 'DATA_ULTIMA_ATUALIZACAO', contato.dataUltimaAtualizacao);
+        });
+        widget.dadosConsulta = aplicarFiltrosContatoRegistros(dados, filtros);
+    });
+    salvarWidgetsDashboard(widgets, 'clientes');
+    if (dashboardContextoAtivo === 'clientes') renderizarDashboard();
+}
+
+async function salvarFormularioContato(event) {
+    event.preventDefault();
+    if (!contactForm || !saveContactButton) return;
+    saveContactButton.disabled = true;
+    if (contactFormMessage) contactFormMessage.textContent = 'Salvando contato...';
+    try {
+        const response = await fetch('/api/controle-contato', {
+            method: 'POST', headers: cabecalhosSessao(),
+            body: JSON.stringify({
+                doctocliente: contactForm.dataset.document,
+                nomeCliente: contactForm.dataset.name,
+                statusContato: contactFormStatus?.value,
+                tipoContato: contactFormType?.value,
+                observacao: contactFormNotes?.value || ''
+            })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) window.fazerLogout();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o contato.');
+        atualizarContatoNoPainel(data.contato);
+        fecharFormularioContato();
+        atualizarStatusFiltros('Contato salvo.');
+    } catch (error) {
+        if (contactFormMessage) contactFormMessage.textContent = error.message;
+        saveContactButton.disabled = false;
+    }
+}
 function renderizarConsultasSecundarias(consultas = []) {
     if (!secondaryQueriesBox) return;
     secondaryQueriesBox.innerHTML = consultas.map((consulta, indice) => `
@@ -3573,8 +3881,13 @@ async function testarConsultaWidget() {
         }
         atualizarControlesCombinacao();
         const combinado = recombinarConsultasEditor();
+        const enriquecido = await enriquecerRegistrosContato(combinado.dados, combinado.colunas, dashboardContextoAtivo);
+        colunasConsultaAtual = enriquecido.colunas;
+        dadosConsultaAtual = enriquecido.registros;
+        renderizarMapeamentoColunas();
+        renderizarTabelaConsulta({ colunas: enriquecido.colunas, amostra: enriquecido.registros.slice(0, 100), dados: enriquecido.registros, linhas: enriquecido.registros.length });
         assinaturaConsultaAtual = assinaturaConsultasEditor();
-        renderizarResultadoConsulta(combinado.colunas.length + ' colunas combinadas. ' + combinado.dados.length + ' linhas disponíveis.', 'success');
+        renderizarResultadoConsulta(enriquecido.colunas.length + ' colunas combinadas. ' + enriquecido.registros.length + ' linhas disponíveis.', 'success');
         return true;
     } catch (error) {
         colunasConsultaAtual = []; dadosConsultaAtual = []; assinaturaConsultaAtual = ''; renderizarMapeamentoColunas();
@@ -3953,6 +4266,11 @@ function inicializarEditorDashboard() {
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', async event => {
+            const contactAction = event.target.closest('[data-contact-action]');
+            if (contactAction) {
+                await abrirFormularioContato(contactAction.dataset.document, contactAction.dataset.name || '');
+                return;
+            }
             const exportAction = event.target.closest('[data-widget-export]');
             if (exportAction) {
                 const card = exportAction.closest('[data-widget-id]');
@@ -4082,6 +4400,11 @@ function inicializarEditorDashboard() {
     }
     if (widgetDetailContent) {
         widgetDetailContent.addEventListener('click', event => {
+            const contactAction = event.target.closest('[data-contact-action]');
+            if (contactAction) {
+                abrirFormularioContato(contactAction.dataset.document, contactAction.dataset.name || '');
+                return;
+            }
             const pageButton = event.target.closest('[data-table-page]');
             if (!pageButton || pageButton.disabled || !widgetDetalheModalAtual) return;
             const paginaAtual = paginasTabelaDashboard.get(widgetDetalheModalAtual.id) || 1;
@@ -4092,11 +4415,14 @@ function inicializarEditorDashboard() {
     closeWidgetButtons.forEach(button => button.addEventListener('click', fecharModalWidget));
     closeSqlViewerButtons.forEach(button => button.addEventListener('click', fecharVisualizadorSql));
     closeWidgetDetailButtons.forEach(button => button.addEventListener('click', fecharRelatorioDetalhe));
+    closeContactModalButtons.forEach(button => button.addEventListener('click', fecharFormularioContato));
+    if (contactForm) contactForm.addEventListener('submit', salvarFormularioContato);
     if (indentSqlViewerButton) indentSqlViewerButton.addEventListener('click', indentarSqlVisualizador);
     if (copySqlViewerButton) copySqlViewerButton.addEventListener('click', copiarSqlVisualizador);
     if (pasteSqlViewerButton) pasteSqlViewerButton.addEventListener('click', colarSqlVisualizador);
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && widgetDetailModal && !widgetDetailModal.hidden) fecharRelatorioDetalhe();
+        if (event.key === 'Escape' && contactModal && !contactModal.hidden) fecharFormularioContato();
+        else if (event.key === 'Escape' && widgetDetailModal && !widgetDetailModal.hidden) fecharRelatorioDetalhe();
         else if (event.key === 'Escape' && sqlViewerModal && !sqlViewerModal.hidden) fecharVisualizadorSql();
     });
     if (saveWidgetButton) saveWidgetButton.addEventListener('click', salvarWidgetAtual);
@@ -4129,6 +4455,34 @@ function limparFiltrosPersistidos() {
     ].forEach(chave => sessionStorage.removeItem(chave));
 }
 
+function atualizarResumoFiltrosContato() {
+    const status = contactStatusInputs.filter(input => input.checked);
+    const tipos = contactTypeInputs.filter(input => input.checked);
+    if (contactStatusSummary) contactStatusSummary.textContent = status.length === contactStatusInputs.length
+        ? 'Todos os status' : (status.map(input => input.parentElement?.textContent.trim()).join(', ') || 'Nenhum status');
+    if (contactTypeSummary) contactTypeSummary.textContent = tipos.length === contactTypeInputs.length
+        ? 'Todos os tipos' : (tipos.map(input => input.parentElement?.textContent.trim()).join(', ') || 'Nenhum tipo');
+    if (contactStatusAll) {
+        contactStatusAll.checked = status.length === contactStatusInputs.length;
+        contactStatusAll.indeterminate = status.length > 0 && status.length < contactStatusInputs.length;
+    }
+    if (contactTypeAll) {
+        contactTypeAll.checked = tipos.length === contactTypeInputs.length;
+        contactTypeAll.indeterminate = tipos.length > 0 && tipos.length < contactTypeInputs.length;
+    }
+}
+
+function restaurarFiltrosContatoPadrao() {
+    contactStatusInputs.forEach(input => { input.checked = ['PENDENTE', 'AGUARDANDO RETORNO'].includes(input.value); });
+    contactTypeInputs.forEach(input => { input.checked = true; });
+    if (contactStatusAll) contactStatusAll.checked = false;
+    if (contactTypeAll) contactTypeAll.checked = true;
+    if (contactClientInput) contactClientInput.value = '';
+    if (contactDateStart) contactDateStart.value = '';
+    if (contactDateEnd) contactDateEnd.value = '';
+    atualizarResumoFiltrosContato();
+}
+
 async function restaurarFiltrosPadrao() {
     if (resetFiltersButton) resetFiltersButton.disabled = true;
     atualizarStatusFiltros('Restaurando filtros padrão...');
@@ -4139,6 +4493,7 @@ async function restaurarFiltrosPadrao() {
     if (crmVendedorSearch) crmVendedorSearch.value = '';
     if (crmFilialPanel) crmFilialPanel.hidden = true;
     if (crmVendedorPanel) crmVendedorPanel.hidden = true;
+    restaurarFiltrosContatoPadrao();
     inicializarPeriodo();
 
     try {
@@ -4477,11 +4832,27 @@ function inicializarAplicacao() {
     iniciarModulo('periodo', inicializarPeriodo);
     iniciarModulo('editor de cenarios', inicializarEditorDashboard);
     iniciarModulo('filtros', async () => {
+        atualizarResumoFiltrosContato();
         await carregarFiliais();
         await carregarVendedores();
         if (applyFiltersButton) applyFiltersButton.addEventListener('click', aplicarFiltrosDashboard);
         if (resetFiltersButton) resetFiltersButton.addEventListener('click', restaurarFiltrosPadrao);
         [crmDataInicial, crmDataFinal].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('')));
+        [...contactStatusInputs, ...contactTypeInputs].forEach(input => input.addEventListener('change', () => {
+            atualizarResumoFiltrosContato();
+            atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.');
+        }));
+        contactStatusAll?.addEventListener('change', () => {
+            contactStatusInputs.forEach(input => { input.checked = contactStatusAll.checked; });
+            atualizarResumoFiltrosContato();
+            atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.');
+        });
+        contactTypeAll?.addEventListener('change', () => {
+            contactTypeInputs.forEach(input => { input.checked = contactTypeAll.checked; });
+            atualizarResumoFiltrosContato();
+            atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.');
+        });
+        [contactClientInput, contactDateStart, contactDateEnd].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.')));
         filtrosDashboardProntos = true;
         solicitarAtualizacaoCenarioMenu(dashboardContextoAtivo);
     });
