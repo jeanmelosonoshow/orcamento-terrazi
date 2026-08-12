@@ -40,12 +40,18 @@ CREATE INDEX IF NOT EXISTS idx_controle_contato_finalizado_reabertura
 CREATE TABLE IF NOT EXISTS controle_contato_config (
     id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     media_recompra_dias INTEGER NOT NULL DEFAULT 90 CHECK (media_recompra_dias > 0),
+    data_ultima_tentativa_recompra TIMESTAMPTZ,
     data_ultima_execucao_reabertura TIMESTAMPTZ,
+    erro_ultima_sincronizacao TEXT,
     data_ultima_atualizacao TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE controle_contato_config
+    ADD COLUMN IF NOT EXISTS data_ultima_tentativa_recompra TIMESTAMPTZ;
+ALTER TABLE controle_contato_config
     ADD COLUMN IF NOT EXISTS data_ultima_execucao_reabertura TIMESTAMPTZ;
+ALTER TABLE controle_contato_config
+    ADD COLUMN IF NOT EXISTS erro_ultima_sincronizacao TEXT;
 
 INSERT INTO controle_contato_config (id, media_recompra_dias)
 VALUES (1, 90)
@@ -126,7 +132,44 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION fn_executar_manutencao_contatos()
+CREATE OR REPLACE FUNCTION fn_reservar_manutencao_contatos()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_reservada BOOLEAN := FALSE;
+BEGIN
+    UPDATE controle_contato_config
+       SET data_ultima_tentativa_recompra = CURRENT_TIMESTAMP,
+           data_ultima_atualizacao = CURRENT_TIMESTAMP
+     WHERE id = 1
+       AND (
+           data_ultima_execucao_reabertura IS NULL
+           OR (data_ultima_execucao_reabertura AT TIME ZONE 'America/Sao_Paulo')::DATE
+              < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::DATE
+       )
+       AND (
+           data_ultima_tentativa_recompra IS NULL
+           OR data_ultima_tentativa_recompra < CURRENT_TIMESTAMP - INTERVAL '15 minutes'
+       )
+    RETURNING TRUE INTO v_reservada;
+
+    RETURN COALESCE(v_reservada, FALSE);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_registrar_falha_manutencao_contatos(p_erro TEXT)
+RETURNS VOID
+LANGUAGE SQL
+AS $$
+    UPDATE controle_contato_config
+       SET erro_ultima_sincronizacao = LEFT(COALESCE(p_erro, 'Falha nao informada.'), 1000),
+           data_ultima_atualizacao = CURRENT_TIMESTAMP
+     WHERE id = 1;
+$$;
+
+DROP FUNCTION IF EXISTS fn_executar_manutencao_contatos();
+CREATE OR REPLACE FUNCTION fn_executar_manutencao_contatos(p_media_recompra_dias INTEGER DEFAULT NULL)
 RETURNS TABLE (executada BOOLEAN, contatos_reabertos INTEGER)
 LANGUAGE plpgsql
 AS $$
@@ -134,8 +177,14 @@ DECLARE
     v_dias INTEGER;
     v_atualizados INTEGER := 0;
 BEGIN
+    IF p_media_recompra_dias IS NOT NULL AND p_media_recompra_dias <= 0 THEN
+        RAISE EXCEPTION 'Media de recompra invalida.';
+    END IF;
+
     UPDATE controle_contato_config
-       SET data_ultima_execucao_reabertura = CURRENT_TIMESTAMP,
+       SET media_recompra_dias = COALESCE(p_media_recompra_dias, media_recompra_dias),
+           data_ultima_execucao_reabertura = CURRENT_TIMESTAMP,
+           erro_ultima_sincronizacao = NULL,
            data_ultima_atualizacao = CURRENT_TIMESTAMP
      WHERE id = 1
        AND (

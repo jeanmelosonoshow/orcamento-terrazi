@@ -59,22 +59,31 @@ SET media_recompra_dias = 90,
 WHERE id = 1;
 ```
 
-Não é necessário instalar `pg_cron`. No ambiente Preview/homologação, a API
-executa a manutenção abaixo no primeiro acesso diário à Carteira de Clientes:
+Não é necessário instalar `pg_cron`. No ambiente Preview/homologação, no
+primeiro acesso diário à Carteira de Clientes a API consulta no Firebird:
 
 ```sql
-SELECT * FROM fn_executar_manutencao_contatos();
+SELECT ROUND(AVG(R.MEDIA_RECOMPRA_CLIENTE)) AS RECOMPRA
+FROM RECOMPRA_CLIENTE R
 ```
 
-O controle gravado em `controle_contato_config` garante que apenas uma chamada
-por dia faça o processamento, mesmo que vários usuários acessem a tela ao mesmo
-tempo. Se não houver acesso em determinado dia, a manutenção será realizada no
-primeiro acesso seguinte. O banco reabre o contato como pendente e incrementa
-`QTDE_CONTATO`.
+Depois de validar o resultado, a API atualiza `media_recompra_dias` e executa:
+
+```sql
+SELECT * FROM fn_executar_manutencao_contatos(:media_recompra_dias);
+```
+
+Uma reserva atômica no `controle_contato_config` garante que apenas uma chamada
+por dia consulte o Firebird, mesmo que vários usuários acessem a tela ao mesmo
+tempo. Se a consulta falhar ou retornar uma média inválida, o último valor válido
+é preservado e uma nova tentativa será permitida após 15 minutos. Se não houver
+acesso em determinado dia, a manutenção será realizada no primeiro acesso
+seguinte. O banco reabre o contato como pendente e incrementa `QTDE_CONTATO`.
 
 Para validar manualmente:
 
 ```sql
-SELECT id, media_recompra_dias, data_ultima_execucao_reabertura
+SELECT id, media_recompra_dias, data_ultima_tentativa_recompra,
+       data_ultima_execucao_reabertura, erro_ultima_sincronizacao
 FROM controle_contato_config;
 ```

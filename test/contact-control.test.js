@@ -13,6 +13,8 @@ test('migracao cria controle, indices, invariantes e reabertura por recompra', a
     assert.match(sql, /Contato finalizado nao pode ser alterado/);
     assert.match(sql, /fn_reabrir_contatos_por_recompra/i);
     assert.match(sql, /fn_executar_manutencao_contatos/i);
+    assert.match(sql, /fn_reservar_manutencao_contatos/i);
+    assert.match(sql, /data_ultima_tentativa_recompra < CURRENT_TIMESTAMP - INTERVAL '15 minutes'/i);
     assert.match(sql, /data_ultima_execucao_reabertura AT TIME ZONE 'America\/Sao_Paulo'/i);
     assert.match(sql, /idx_controle_contato_finalizado_reabertura/i);
     assert.match(sql, /qtde_contato = qtde_contato \+ 1/i);
@@ -61,24 +63,67 @@ test('executor reconhece parametros dos filtros de contato', async () => {
 });
 
 test('manutencao diaria normaliza o resultado retornado pelo banco', async () => {
+    const consultas = [];
     const cliente = {
-        query: async () => ({ rows: [{ executada: true, contatos_reabertos: '7' }] })
+        query: async (sql, params) => {
+            consultas.push({ sql, params });
+            if (sql.includes('fn_reservar')) return { rows: [{ reservada: true }] };
+            return { rows: [{ executada: true, contatos_reabertos: '7' }] };
+        }
     };
-    assert.deepEqual(await executarManutencaoControleContato(cliente), {
+    const executarFirebird = async sql => {
+        assert.match(sql, /AVG\(R\.MEDIA_RECOMPRA_CLIENTE\)/i);
+        return [{ recompra: '83' }];
+    };
+    assert.deepEqual(await executarManutencaoControleContato(cliente, { executarFirebird }), {
         ok: true,
         executada: true,
-        contatosReabertos: 7
+        contatosReabertos: 7,
+        mediaRecompraDias: 83
     });
+    assert.deepEqual(consultas.at(-1).params, [83]);
+});
+
+test('manutencao sem reserva nao consulta o Firebird', async () => {
+    const cliente = { query: async () => ({ rows: [{ reservada: false }] }) };
+    let consultasFirebird = 0;
+    const executarFirebird = async () => { consultasFirebird += 1; return []; };
+    assert.deepEqual(await executarManutencaoControleContato(cliente, { executarFirebird }), {
+        ok: true,
+        executada: false,
+        contatosReabertos: 0,
+        mediaRecompraDias: null
+    });
+    assert.equal(consultasFirebird, 0);
 });
 
 test('falha da manutencao nao impede o carregamento da Carteira', async () => {
     const avisos = [];
     const cliente = { query: async () => { throw Object.assign(new Error('indisponivel'), { code: '08006' }); } };
     const logger = { warn: (...argumentos) => avisos.push(argumentos) };
-    assert.deepEqual(await executarManutencaoControleContato(cliente, logger), {
+    assert.deepEqual(await executarManutencaoControleContato(cliente, { logger }), {
         ok: false,
         executada: false,
-        contatosReabertos: 0
+        contatosReabertos: 0,
+        mediaRecompraDias: null
     });
     assert.equal(avisos.length, 1);
+});
+
+test('media invalida preserva configuracao anterior e registra falha', async () => {
+    const consultas = [];
+    const cliente = {
+        query: async (sql, params) => {
+            consultas.push({ sql, params });
+            if (sql.includes('fn_reservar')) return { rows: [{ reservada: true }] };
+            return { rows: [] };
+        }
+    };
+    const resultado = await executarManutencaoControleContato(cliente, {
+        executarFirebird: async () => [{ RECOMPRA: null }],
+        logger: { warn: () => {} }
+    });
+    assert.equal(resultado.ok, false);
+    assert.ok(consultas.some(item => item.sql.includes('fn_registrar_falha')));
+    assert.ok(!consultas.some(item => item.sql.includes('fn_executar_manutencao')));
 });
