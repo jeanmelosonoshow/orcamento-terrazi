@@ -144,6 +144,49 @@ END`,
     assert.deepEqual(preparado.valores, ['632', '731']);
 });
 
+test('aplica filtro de relacionamento antes da agregacao em execute block', () => {
+    const preparado = prepararSqlCenario(
+        `EXECUTE BLOCK RETURNS (TOTAL INTEGER) AS
+BEGIN
+  SELECT COUNT(DISTINCT V.DOCTOCLIENTE)
+    FROM CLIENTES V
+   WHERE 1 = 1
+   /* relacionamento | campo: V.DOCTOCLIENTE */
+    INTO :TOTAL;
+  SUSPEND;
+END`,
+        'firebird',
+        {
+            relacionamentoModo: 'incluir',
+            documentosRelacionamento: ['001', '002']
+        }
+    );
+
+    assert.match(preparado.sql, /AND \(V\.DOCTOCLIENTE IN \(:CRM_SYS_DOCUMENTOS_RELACIONAMENTO_1_1,:CRM_SYS_DOCUMENTOS_RELACIONAMENTO_1_2\)\)/);
+    assert.deepEqual(preparado.valores, ['001', '002']);
+});
+
+test('filtro de relacionamento divide listas e exclui contatos fora da selecao', () => {
+    const documentos = Array.from({ length: 1001 }, (_, indice) => String(indice + 1));
+    const preparado = prepararSqlCenario(
+        'SELECT * FROM CLIENTES V WHERE 1 = 1 /* relacionamento | campo: V.DOCTOCLIENTE */',
+        'firebird',
+        { relacionamentoModo: 'excluir', documentosRelacionamento: documentos }
+    );
+
+    assert.match(preparado.sql, /V\.DOCTOCLIENTE NOT IN \([^)]{1000,}\) AND V\.DOCTOCLIENTE NOT IN \(\?\)/);
+    assert.equal(preparado.valores.length, 1001);
+});
+
+test('filtro de relacionamento permite todos ou bloqueia retorno vazio', () => {
+    const sql = 'SELECT * FROM CLIENTES V WHERE 1 = 1 /* relacionamento | campo: V.DOCTOCLIENTE */';
+    const todos = prepararSqlCenario(sql, 'firebird', { relacionamentoModo: 'todos' });
+    const nenhum = prepararSqlCenario(sql, 'firebird', { relacionamentoModo: 'nenhum' });
+
+    assert.doesNotMatch(todos.sql, /DOCTOCLIENTE/);
+    assert.match(nenhum.sql, /AND 1 = 0/);
+});
+
 test('diretiva sem itens selecionados impede retorno amplo acidental', () => {
     const preparado = prepararSqlCenario(
         'SELECT * FROM VENDAS V WHERE 1 = 1 /* campo: V.IDFILIAL | filtro = :filiais */',

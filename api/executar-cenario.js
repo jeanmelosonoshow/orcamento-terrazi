@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { requireRequestSession } from '../lib/session-token.js';
 import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
+import { resolverFiltroRelacionamento, sqlPossuiFiltroRelacionamento } from '../lib/contact-relationship-filter.js';
 import {
     obterTabelasTemporariasExecuteBlock,
     validarSqlLeitura
@@ -125,6 +126,11 @@ export default async function handler(req, res) {
         }
 
         const contextoConsulta = montarContextoConsulta(filtros, session);
+        if (fonteNormalizada === 'firebird' && sqlPossuiFiltroRelacionamento(sql)) {
+            const relacionamento = await resolverFiltroRelacionamento(db, contextoConsulta);
+            contextoConsulta.relacionamentoModo = relacionamento.modo;
+            contextoConsulta.documentosRelacionamento = relacionamento.documentos;
+        }
         const preparadoBase = prepararSqlCenario(sql, fonteNormalizada, contextoConsulta);
         const preparado = prepararConsultaVisual(preparadoBase, fonteNormalizada, visualizacao);
         let linhas = [];

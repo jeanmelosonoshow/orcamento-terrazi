@@ -395,6 +395,33 @@ Em uma consulta Firebird, não escreva `:status_contato`, `:tipos_contato`,
 `:data_contato_inicial` ou `:data_contato_final`: a aplicação filtra depois da
 combinação.
 
+### KPI e gráfico já agregados no Firebird
+
+Quando a consulta retorna somente um total, o documento não chega ao navegador e
+o filtro não pode ser aplicado depois da agregação. Nesse caso, marque dentro do
+`WHERE`, antes do `COUNT`, `SUM` ou outro cálculo, o campo que identifica o
+cliente:
+
+```sql
+WHERE V.DATA_MIN_COMPRA >= :data_inicial
+/* relacionamento | campo: V.DOCTOCLIENTE */
+```
+
+A diretiva é um comentário válido no editor SQL e é substituída no servidor por
+uma condição segura. Ela respeita status, tipo e período de atualização. Clientes
+que ainda não existem em `controle_contato` são tratados como `PENDENTE` e
+`SEM CONTATO`. Em um `EXECUTE BLOCK` com vários caminhos por categoria, repita a
+diretiva em cada `SELECT` que participa do resultado.
+
+O operador padrão é `AND`. Quando a estrutura lógica exigir `OR`, use:
+
+```sql
+/* operador = OR | relacionamento | campo: V.DOCTOCLIENTE */
+```
+
+Consultas que retornam `DOCTOCLIENTE` ou `DOCUMENTO` linha a linha continuam com
+o enriquecimento automático já existente e não precisam dessa diretiva.
+
 Esses parâmetros podem ser usados quando a própria fonte for PostgreSQL:
 
 ```sql
