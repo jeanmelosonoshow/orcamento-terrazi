@@ -944,6 +944,12 @@ function converterDataDimensao(valor) {
     }
 
     const texto = String(valor || '').trim();
+    const timestampComFuso = texto.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/i);
+    const dataCivilUtc = /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.0+)?Z$/i.test(texto);
+    if (timestampComFuso && !dataCivilUtc) {
+        const instante = new Date(texto);
+        return Number.isNaN(instante.getTime()) ? null : instante;
+    }
     const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s|$)/);
     if (iso) {
         const data = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 12);
@@ -2036,8 +2042,16 @@ function obterValorContato(linha, nomes, fallback = null) {
 function dataLocalContato(valor) {
     if (!valor) return '';
     const texto = String(valor);
-    const encontrado = texto.match(/^(\d{4}-\d{2}-\d{2})/);
-    return encontrado ? encontrado[1] : '';
+    const data = new Date(texto);
+    if (Number.isNaN(data.getTime())) {
+        const encontrado = texto.match(/^(\d{4}-\d{2}-\d{2})/);
+        return encontrado ? encontrado[1] : '';
+    }
+    const partes = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(data);
+    const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
+    return `${valores.year}-${valores.month}-${valores.day}`;
 }
 
 function aplicarFiltrosContatoRegistros(registros, filtros = {}) {
@@ -3816,7 +3830,11 @@ function definirFormularioContato(contato, documento, nome) {
     if (contactFormMeta) {
         const partes = [existente ? 'Ação: atualizar' : 'Ação: incluir'];
         if (contato?.qtdeContato) partes.push('Ciclo de contato: ' + contato.qtdeContato);
-        if (contato?.dataUltimaAtualizacao) partes.push('Última atualização: ' + new Date(contato.dataUltimaAtualizacao).toLocaleString('pt-BR'));
+        if (contato?.dataUltimaAtualizacao) {
+            partes.push('Última atualização: ' + new Date(contato.dataUltimaAtualizacao).toLocaleString('pt-BR', {
+                timeZone: 'America/Sao_Paulo'
+            }));
+        }
         if (bloqueado) partes.push('Contato finalizado e bloqueado para alterações.');
         contactFormMeta.textContent = partes.join(' | ');
     }

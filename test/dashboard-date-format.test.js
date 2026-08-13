@@ -12,6 +12,14 @@ async function carregarFormatador() {
     return Function(`${source.slice(inicio, fim)}; return formatarDimensao;`)();
 }
 
+async function carregarDataLocalContato() {
+    const source = await readFile(dashboardPath, 'utf8');
+    const inicio = source.indexOf('function dataLocalContato');
+    const fim = source.indexOf('function aplicarFiltrosContatoRegistros', inicio);
+    assert.ok(inicio >= 0 && fim > inicio, 'Conversor de data de contato nao encontrado.');
+    return Function(`${source.slice(inicio, fim)}; return dataLocalContato;`)();
+}
+
 test('formato de data preserva o dia civil retornado pelo banco em Sao Paulo', async () => {
     const timezoneAnterior = process.env.TZ;
     process.env.TZ = 'America/Sao_Paulo';
@@ -26,6 +34,26 @@ test('formato de data preserva o dia civil retornado pelo banco em Sao Paulo', a
         if (timezoneAnterior === undefined) delete process.env.TZ;
         else process.env.TZ = timezoneAnterior;
     }
+});
+
+test('timestamp do PostgreSQL respeita o dia local de Sao Paulo', async () => {
+    const timezoneAnterior = process.env.TZ;
+    process.env.TZ = 'America/Sao_Paulo';
+    try {
+        const formatar = await carregarFormatador();
+        assert.equal(formatar('2026-08-13T02:15:00.000Z', 'day'), '12/08/2026');
+        assert.equal(formatar('2027-01-01T02:30:00.000Z', 'year'), '2026');
+        assert.equal(formatar('2026-08-12T15:00:00.000-03:00', 'day'), '12/08/2026');
+    } finally {
+        if (timezoneAnterior === undefined) delete process.env.TZ;
+        else process.env.TZ = timezoneAnterior;
+    }
+});
+
+test('filtro de relacionamento compara a atualizacao pelo dia de Sao Paulo', async () => {
+    const dataLocalContato = await carregarDataLocalContato();
+    assert.equal(dataLocalContato('2026-08-13T02:15:00.000Z'), '2026-08-12');
+    assert.equal(dataLocalContato('2026-08-12T15:00:00.000-03:00'), '2026-08-12');
 });
 
 test('valor sem formato de data permanece inalterado', async () => {

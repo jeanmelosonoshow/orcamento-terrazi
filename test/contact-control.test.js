@@ -77,6 +77,7 @@ test('Carteira possui filtros, formulario e diretivas de celula', async () => {
     assert.match(script, /!dentroTipoContato && contactTypeDetails/);
     assert.match(script, /details\?\.addEventListener\('toggle'/);
     assert.match(script, /event\.key !== 'Escape'/);
+    assert.match(script, /timeZone: 'America\/Sao_Paulo'/);
 });
 
 test('executor reconhece parametros dos filtros de contato', async () => {
