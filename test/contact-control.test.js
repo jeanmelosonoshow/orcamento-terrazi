@@ -14,6 +14,8 @@ test('manual documenta configuração, interação e exibição do controle de c
         'action:contact',
         'icon:whatsapp',
         'Font Awesome',
+        'fa-calendar-days',
+        'AS "DATA CONTATO"',
         'css:background',
         'EXECUTE BLOCK',
         'COUNT DISTINCT',
@@ -21,6 +23,8 @@ test('manual documenta configuração, interação e exibição do controle de c
     ]) {
         assert.match(manual, new RegExp(recurso.replace('.', '\\.')));
     }
+    assert.match(manual, /22\.000 linhas/);
+    assert.match(manual, /lotes internos de até 5\.000/);
 });
 
 test('migracao cria controle, indices, invariantes e reabertura por recompra', async () => {

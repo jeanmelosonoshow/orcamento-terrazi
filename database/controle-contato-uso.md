@@ -4,6 +4,8 @@ Este manual descreve todos os recursos da integração de controle de contato do
 menu **Carteira de Clientes**: cadastro, combinação Firebird/PostgreSQL, filtros,
 formulário, colunas, tabela dinâmica, botões, ícones, exportação e manutenção.
 
+Última atualização: **13/08/2026**.
+
 ## 1. Como a integração funciona
 
 - O **Firebird** fornece a carteira e os dados cadastrais dos clientes.
@@ -185,6 +187,14 @@ Aliases com espaços, números ou caracteres especiais devem usar aspas duplas:
 CONTATO.DATA_PRIMEIRO_CONTATO AS "1ª Contato"
 ```
 
+As aspas duplas são usadas no **apelido de saída**, depois de `AS`. O campo de
+origem continua sendo informado normalmente. Outros exemplos válidos:
+
+```text
+CONTATO.STATUS_CONTATO AS "SITUAÇÃO CONTATO"
+CONTATO.DATA_ULTIMA_ATUALIZACAO AS "ÚLTIMA ATUALIZAÇÃO"
+```
+
 É possível escolher o primeiro valor não nulo entre campos com `COALESCE`:
 
 ```text
@@ -248,6 +258,10 @@ A diretiva de ícone é um comentário SQL e não altera a consulta executada:
 
 Também são aceitos `posicao:before` e `posicao:after`.
 
+A diretiva deve ficar imediatamente antes da expressão que contém o `AS`. O
+nome identificado pelo sistema é sempre o alias, inclusive quando ele possui
+espaços.
+
 | Ícone | Uso sugerido |
 | --- | --- |
 | `whatsapp` | WhatsApp |
@@ -268,6 +282,20 @@ SELECT
 FROM CLIENTE C
 ```
 
+### Alias com espaço e Font Awesome
+
+Para uma coluna cujo alias SQL seja `DATA CONTATO`, use exatamente:
+
+```sql
+SELECT
+    /* icon:fa-calendar-days | color:#FFDE21 | background:#123865 | size:18px | position:before */
+    C.DATA_CONTATO AS "DATA CONTATO"
+FROM CLIENTE C
+```
+
+Não use uma segunda marcação `/* AS ... */` em um `SELECT` comum. Nesse caso, o
+próprio `AS "DATA CONTATO"` da consulta associa o ícone à coluna.
+
 ### Ícone em EXECUTE BLOCK
 
 Como o alias está no `RETURNS`, use uma marcação totalmente comentada:
@@ -285,6 +313,25 @@ Aliases com espaços devem permanecer entre aspas duplas. Exemplo:
 ```sql
 /* icon:fa-calendar-days | color:#FFDE21 | background:#123865 | size:18px | position:before */ /* AS "DATA CONTATO" */
 ```
+
+Em `EXECUTE BLOCK`, a marcação `/* AS "DATA CONTATO" */` é necessária porque o
+alias foi declarado no `RETURNS`, longe da diretiva. Exemplo completo reduzido:
+
+```sql
+EXECUTE BLOCK
+RETURNS (
+    "DATA CONTATO" DATE
+)
+AS
+BEGIN
+    "DATA CONTATO" = CURRENT_DATE;
+    SUSPEND;
+END
+
+/* icon:fa-calendar-days | color:#FFDE21 | background:#123865 | size:18px | position:before */ /* AS "DATA CONTATO" */
+```
+
+O texto depois de `AS` deve ser idêntico ao alias retornado, incluindo espaços.
 
 ## 9. Botão de cadastro e atualização
 
@@ -305,13 +352,46 @@ C.DOCTOCLIENTE AS DOCUMENTO
 
 ### Font Awesome e ícones coloridos
 
-O painel carrega a biblioteca Font Awesome Free. Para usar seus ícones, informe o
-nome com o prefixo `fa-`:
+O painel carrega a biblioteca **Font Awesome Free 7.3.0**. Para usar seus ícones,
+pesquise o nome em [Font Awesome](https://fontawesome.com/search?ic=free) e
+informe a classe do ícone com o prefixo `fa-`, sem escrever `fa-solid` na opção
+`icon`:
 
 ```sql
 /* icon:fa-whatsapp | color:#25D366 | background:#E9FBEF | size:18px | position:before */
 C.CELULAR AS CONTATO
 ```
+
+Famílias disponíveis:
+
+| Família | Como informar | Exemplo |
+| --- | --- | --- |
+| Solid, padrão | omita `family` ou use `family:solid` | `fa-calendar-days` |
+| Regular | `family:regular` | `fa-address-card` |
+| Brands | `family:brands` | `fa-whatsapp` |
+
+Exemplos:
+
+```sql
+/* icon:fa-calendar-days | family:solid | color:#FFDE21 | background:#123865 | size:18px | position:before */ C.DATA AS "DATA CONTATO",
+/* icon:fa-address-card | family:regular | color:#123865 | position:before */ C.DOCUMENTO AS DOCUMENTO,
+/* icon:fa-whatsapp | family:brands | color:#25D366 | position:before */ C.CELULAR AS WHATSAPP
+```
+
+Para `fa-whatsapp`, `fa-telegram`, `fa-facebook`, `fa-instagram`, `fa-linkedin`,
+`fa-youtube`, `fa-x-twitter`, `fa-pix`, `fa-google` e `fa-apple`, a família
+`brands` é reconhecida automaticamente.
+
+Opções visuais aceitas na diretiva de ícone:
+
+| Opção | Alternativa | Exemplo |
+| --- | --- | --- |
+| `color` | `cor` | `color:#FFDE21` |
+| `background` | `fundo` | `background:#123865` |
+| `size` | `tamanho` | `size:18px` |
+| `position` | `posicao` | `position:before` ou `position:after` |
+| `family` | `familia` | `family:regular` ou `family:brands` |
+| `css` | - | propriedades visuais adicionais permitidas |
 
 Nos botões, use `icon` e, quando necessário, `family:brands` ou
 `family:regular`. Ícones conhecidos de marcas, como WhatsApp e Telegram, já são
@@ -404,6 +484,8 @@ Regras:
 - `IDFUNCIONARIO` e `IDVENDEDOR` vêm da sessão autenticada;
 - a observação existente é recuperada para complementação;
 - após Finalizado, o registro fica bloqueado para alterações manuais.
+- ao salvar, o relatório de detalhe que abriu o formulário é reprocessado para
+  mostrar imediatamente o status, canal e datas atualizados.
 
 O registro finalizado volta para Pendente somente pela rotina automática de
 recompra. Nessa reabertura, `QTDE_CONTATO` é incrementado.
@@ -482,9 +564,9 @@ WHERE status_contato IN (:status_contato)
 6. Salve e teste os filtros.
 
 Essa opção realiza uma consulta PostgreSQL em lote, mantém clientes sem contato
-e aplica automaticamente Pendente/Sem contato. Cada enriquecimento aceita até
-5.000 documentos distintos; para volumes maiores, restrinja o SQL ou divida o
-relatório.
+e aplica automaticamente Pendente/Sem contato. Os documentos são enviados ao
+PostgreSQL em lotes internos de até 5.000; volumes maiores são divididos
+automaticamente, sem exigir alteração na consulta ou no relatório.
 
 ## 13. Combinação manual opcional
 
@@ -524,8 +606,19 @@ Mantenha o Firebird como principal para não eliminar clientes sem contato.
 ## 14. Paginação, exportação e impressão
 
 Use paginação e limite visual em relatórios grandes. Isso reduz as linhas
-renderizadas simultaneamente. A exportação para Excel/PDF e a impressão usam
-todos os registros carregados, não apenas a página visível.
+renderizadas simultaneamente. A visualização normal continua limitada a 1.000
+registros recebidos por consulta.
+
+Ao exportar para Excel/PDF ou imprimir uma Tabela, Tabela dinâmica ou relatório
+de detalhe, a aplicação executa novamente a consulta em modo de exportação. Esse
+modo remove o limite de 1.000 e usa **todos os registros retornados pela fonte**,
+mantendo os filtros atuais, as colunas escolhidas, os aliases, agrupamentos,
+subtotais e total geral. Por exemplo, uma consulta com 22.000 linhas gera uma
+exportação com as 22.000 linhas, mesmo que somente uma página esteja visível.
+
+Em relatórios da Carteira, a combinação com `controle_contato` também é refeita
+em lotes antes de gerar o arquivo. A exportação pode levar mais tempo que a
+abertura do card porque busca o conjunto completo somente nesse momento.
 
 Exiba e exporte apenas os dados necessários, principalmente observações e dados
 de contato.
@@ -559,6 +652,20 @@ no retorno e se o teste da consulta foi executado novamente.
 Confirme a diretiva `action:contact`, o alias associado, a presença do documento
 na linha e, em `EXECUTE BLOCK`, a marcação `/* AS NOME_DA_COLUNA */`.
 
+### O ícone não aparece em alias com espaço
+
+No `SELECT`, deixe a diretiva imediatamente antes do campo e use
+`AS "NOME COM ESPAÇO"`. No `EXECUTE BLOCK`, use a marcação comentada
+`/* AS "NOME COM ESPAÇO" */`. Informe apenas o nome `fa-...` em `icon`; a família
+é definida separadamente por `family` quando necessário.
+
+### O Excel exporta somente 1.000 registros
+
+Atualize a aplicação para a versão que possui o modo de exportação completa. A
+tela permanece limitada por desempenho, mas o clique em Excel refaz a consulta
+sem esse limite. Se a exportação falhar, verifique o log da requisição
+`/api/executar-cenario` e a disponibilidade do Gateway/Firebird.
+
 ### O formulário abre sem o nome
 
 Retorne o nome como `NOME`, `NOMECLIENTE` ou `NOME_CLIENTE`.
@@ -584,8 +691,9 @@ SELECT
     /* action:contact | label:Contato | icon:contact | color:#0A7C66 | position:after */
     C.DOCTOCLIENTE AS DOCUMENTO,
     C.NOMECLIENTE AS NOME,
-    /* icon:whatsapp | position:before */ C.CELULAR AS CONTATO,
-    /* icon:email | position:before */ C.EMAIL AS EMAIL,
+    /* icon:fa-whatsapp | family:brands | color:#25D366 | position:before */ C.CELULAR AS CONTATO,
+    /* icon:fa-envelope | color:#C5221F | position:before */ C.EMAIL AS EMAIL,
+    /* icon:fa-calendar-days | color:#FFDE21 | background:#123865 | size:18px | position:before */ C.DATA_CONTATO AS "DATA CONTATO",
     C.CIDADE AS CIDADE
 FROM CLIENTE C
 WHERE C.ATIVO = 'T'
@@ -594,7 +702,7 @@ WHERE C.ATIVO = 'T'
 Colunas exibidas no detalhe:
 
 ```text
-NOME, CONTATO, EMAIL, CIDADE, CONTATO.STATUS_CONTATO,
+NOME, CONTATO, EMAIL, CIDADE, CONTATO.STATUS_CONTATO AS "SITUAÇÃO",
 CONTATO.TIPO_CONTATO, CONTATO.DATA_ULTIMA_ATUALIZACAO, DOCUMENTO
 ```
 
@@ -617,6 +725,9 @@ Total geral: marcado
 - [ ] As colunas `CONTATO.*` desejadas foram selecionadas.
 - [ ] A ordem de Colunas exibidas está correta.
 - [ ] Botões e ícones apontam para aliases retornados.
+- [ ] Alias com espaço usa aspas duplas e corresponde exatamente à diretiva.
+- [ ] Ícone Font Awesome usa somente o identificador `fa-...` e a família correta.
 - [ ] A paginação foi configurada para relatórios grandes.
+- [ ] A exportação foi conferida com uma consulta acima de 1.000 registros.
 - [ ] O card foi testado com os filtros de relacionamento.
 - [ ] O formulário foi testado com cliente novo e existente.
