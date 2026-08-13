@@ -478,6 +478,41 @@ function separarCamposDetalhe(valor) {
     return Array.from(new Set(itens.map(item => String(item).trim()).filter(Boolean)));
 }
 
+function separarExpressoesTabelaDetalhe(valor) {
+    if (Array.isArray(valor)) return Array.from(new Set(valor.map(item => String(item).trim()).filter(Boolean)));
+    const itens = [];
+    let atual = '';
+    let profundidade = 0;
+    let entreAspas = false;
+    const texto = String(valor || '');
+    for (let indice = 0; indice < texto.length; indice += 1) {
+        const caractere = texto[indice];
+        if (caractere === '"') {
+            if (entreAspas && texto[indice + 1] === '"') {
+                atual += '""';
+                indice += 1;
+                continue;
+            }
+            entreAspas = !entreAspas;
+        } else if (!entreAspas && caractere === '(') {
+            profundidade += 1;
+        } else if (!entreAspas && caractere === ')') {
+            profundidade -= 1;
+            if (profundidade < 0) throw new Error('Parenteses invalidos nas colunas exibidas.');
+        }
+        if (!entreAspas && profundidade === 0 && caractere === ',') {
+            if (atual.trim()) itens.push(atual.trim());
+            atual = '';
+        } else {
+            atual += caractere;
+        }
+    }
+    if (entreAspas) throw new Error('Aspas duplas nao finalizadas nas colunas exibidas.');
+    if (profundidade !== 0) throw new Error('Parenteses invalidos nas colunas exibidas.');
+    if (atual.trim()) itens.push(atual.trim());
+    return Array.from(new Set(itens));
+}
+
 function normalizarConfiguracaoDetalhe(valor = {}) {
     const agregacoes = new Set(['none', 'sum', 'count', 'count_distinct', 'avg', 'min', 'max']);
     const tipo = valor.tipo === 'pivot' ? 'pivot' : 'table';
@@ -487,7 +522,7 @@ function normalizarConfiguracaoDetalhe(valor = {}) {
         tipo,
         fonte: String(valor.fonte || 'firebird').toLowerCase() === 'postgres' ? 'postgres' : 'firebird',
         sql: String(valor.sql || '').trim(),
-        camposTabela: separarCamposDetalhe(valor.camposTabela),
+        camposTabela: separarExpressoesTabelaDetalhe(valor.camposTabela),
         camposLinha: separarCamposDetalhe(valor.camposLinha),
         camposColuna: separarCamposDetalhe(valor.camposColuna),
         camposValor: separarCamposDetalhe(valor.camposValor),
@@ -1940,10 +1975,45 @@ function obterColunaDetalhe(colunas, nome) {
 
 function separarAliasCampoDetalhe(valor) {
     const texto = String(valor || '').trim();
-    const match = texto.match(/^(.+?)\s+AS\s+([a-z_][a-z0-9_$ ]*)$/i);
-    return match
-        ? { campo: match[1].trim(), apelido: match[2].trim() }
-        : { campo: texto, apelido: texto };
+    const match = texto.match(/^([\s\S]+?)\s+AS\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$ ]*))$/i);
+    if (!match) return { expressao: texto, apelido: texto };
+    const apelido = String(match[2] ?? match[3] ?? '').replace(/""/g, '"').trim();
+    if (!apelido) throw new Error('Informe um apelido valido para a coluna exibida.');
+    return { expressao: match[1].trim(), apelido };
+}
+
+function decomporExpressaoTabelaDetalhe(expressao) {
+    const texto = String(expressao || '').trim();
+    const coalesce = texto.match(/^COALESCE\s*\(([\s\S]*)\)$/i);
+    if (coalesce) {
+        const argumentos = separarExpressoesTabelaDetalhe(coalesce[1]);
+        if (argumentos.length < 2) throw new Error('COALESCE exige pelo menos dois campos.');
+        return { tipo: 'coalesce', argumentos: argumentos.map(decomporExpressaoTabelaDetalhe) };
+    }
+    if (!/^[a-z_][a-z0-9_$.]*$/i.test(texto)) {
+        throw new Error('Expressao nao suportada em Colunas exibidas: ' + texto + '. Use apenas campos e COALESCE.');
+    }
+    return { tipo: 'campo', campo: texto };
+}
+
+function camposExpressaoTabelaDetalhe(expressao) {
+    const estrutura = typeof expressao === 'string' ? decomporExpressaoTabelaDetalhe(expressao) : expressao;
+    return estrutura.tipo === 'campo'
+        ? [estrutura.campo]
+        : estrutura.argumentos.flatMap(camposExpressaoTabelaDetalhe);
+}
+
+function resolverExpressaoTabelaDetalhe(registro, colunas, expressao) {
+    const estrutura = typeof expressao === 'string' ? decomporExpressaoTabelaDetalhe(expressao) : expressao;
+    if (estrutura.tipo === 'campo') {
+        const coluna = obterColunaDetalhe(colunas, estrutura.campo);
+        return obterValorLinha(registro, coluna);
+    }
+    for (const argumento of estrutura.argumentos) {
+        const valor = resolverExpressaoTabelaDetalhe(registro, colunas, argumento);
+        if (valor !== null && valor !== undefined) return valor;
+    }
+    return null;
 }
 
 function normalizarNomeCampoContato(valor) {
@@ -2004,7 +2074,11 @@ function widgetMapeiaContato(widget) {
 
 function detalheMapeiaContato(detalhe) {
     return [...(detalhe?.camposTabela || []), ...(detalhe?.camposLinha || []), ...(detalhe?.camposColuna || []), ...(detalhe?.camposValor || [])]
-        .some(campo => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(separarAliasCampoDetalhe(campo).campo)));
+        .some(campo => {
+            const expressao = separarAliasCampoDetalhe(campo).expressao;
+            return camposExpressaoTabelaDetalhe(expressao)
+                .some(nome => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(nome)));
+        });
 }
 
 async function enriquecerRegistrosContato(registros, colunas, contexto = dashboardContextoAtivo) {
@@ -2247,16 +2321,20 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         colunas = enriquecido.colunas;
         let registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
         if (detalhe.tipo === 'table' && detalhe.camposTabela.length) {
-            const definicoes = detalhe.camposTabela.map(separarAliasCampoDetalhe);
-            const camposAusentes = definicoes.filter(item => !obterColunaDetalhe(colunas, item.campo)).map(item => item.campo);
+            const definicoes = detalhe.camposTabela.map(item => {
+                const definicao = separarAliasCampoDetalhe(item);
+                return { ...definicao, estrutura: decomporExpressaoTabelaDetalhe(definicao.expressao) };
+            });
+            const camposAusentes = Array.from(new Set(definicoes
+                .flatMap(item => camposExpressaoTabelaDetalhe(item.estrutura))
+                .filter(nome => !obterColunaDetalhe(colunas, nome))));
             if (camposAusentes.length) throw new Error('Colunas nao retornadas pelo detalhe: ' + camposAusentes.join(', ') + '.');
             const apelidos = definicoes.map(item => item.apelido.toLowerCase());
             if (new Set(apelidos).size !== apelidos.length) throw new Error('Use apelidos diferentes nas colunas exibidas.');
             registros = registros.map(registro => {
                 const linha = { ...registro };
                 definicoes.forEach(item => {
-                    const colunaOrigem = obterColunaDetalhe(colunas, item.campo);
-                    linha[item.apelido] = obterValorLinha(registro, colunaOrigem);
+                    linha[item.apelido] = resolverExpressaoTabelaDetalhe(registro, colunas, item.estrutura);
                 });
                 return linha;
             });

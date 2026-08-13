@@ -179,6 +179,22 @@ Para trocar apenas o título visual de uma coluna, use `AS`:
 CONTATO.STATUS_CONTATO AS SITUACAO
 ```
 
+Aliases com espaços, números ou caracteres especiais devem usar aspas duplas:
+
+```text
+CONTATO.DATA_PRIMEIRO_CONTATO AS "1ª Contato"
+```
+
+É possível escolher o primeiro valor não nulo entre campos com `COALESCE`:
+
+```text
+COALESCE(CONTATO.DATA_FINALIZACAO, CONTATO.DATA_ULTIMO_CONTATO) AS "1ª Contato"
+```
+
+Em **Colunas exibidas**, são permitidos somente nomes de campos, `COALESCE` e
+aliases com `AS`. A expressão é calculada sobre o resultado combinado e não é
+enviada ao Firebird nem ao PostgreSQL como SQL.
+
 O apelido pertence à configuração do relatório combinado, não ao SQL Firebird.
 Por isso, em um `EXECUTE BLOCK`, não declare `SITUACAO` no `RETURNS` apenas para
 receber o status do PostgreSQL.
