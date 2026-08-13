@@ -2147,7 +2147,47 @@ function obterDiretivasCelula(widget) {
     return diretivas;
 }
 
-function iconeCelula(nome) {
+const iconesFontAwesomeMarca = new Set([
+    'fa-whatsapp', 'fa-telegram', 'fa-facebook', 'fa-instagram', 'fa-linkedin',
+    'fa-youtube', 'fa-x-twitter', 'fa-pix', 'fa-google', 'fa-apple'
+]);
+
+const coresIconesCelula = {
+    whatsapp: '#25D366', 'fa-whatsapp': '#25D366',
+    telegram: '#229ED9', 'fa-telegram': '#229ED9',
+    email: '#C5221F', 'fa-envelope': '#C5221F',
+    phone: '#155EEF', 'fa-phone': '#155EEF',
+    sms: '#7A5AF8', 'fa-comment-sms': '#7A5AF8',
+    link: '#175CD3', 'fa-link': '#175CD3',
+    contact: '#0A7C66', 'fa-user-plus': '#0A7C66'
+};
+
+function sanitizarCssDiretiva(css) {
+    const permitidas = new Set([
+        'color', 'background', 'background-color', 'border-color', 'border-width',
+        'border-style', 'border-radius', 'padding', 'gap', 'font-size', 'font-weight',
+        'min-width', 'height', 'box-shadow', 'text-transform'
+    ]);
+    return String(css || '').split(';').map(declaracao => {
+        const separador = declaracao.indexOf(':');
+        if (separador < 1) return '';
+        const propriedade = declaracao.slice(0, separador).trim().toLowerCase();
+        const valor = declaracao.slice(separador + 1).trim();
+        if (!permitidas.has(propriedade) || !valor || valor.length > 140) return '';
+        if (/[{}<>\\]|url\s*\(|expression\s*\(|javascript\s*:|@import/i.test(valor)) return '';
+        return `${propriedade}:${valor}`;
+    }).filter(Boolean).join(';');
+}
+
+function iconeCelula(nome, opcoes = {}) {
+    const identificador = String(nome || 'contact').trim().toLowerCase();
+    if (/^fa-[a-z0-9-]+$/.test(identificador)) {
+        const familiaInformada = String(opcoes.family || opcoes.familia || '').toLowerCase();
+        const familia = familiaInformada === 'regular'
+            ? 'fa-regular'
+            : (familiaInformada === 'brands' || iconesFontAwesomeMarca.has(identificador) ? 'fa-brands' : 'fa-solid');
+        return `<i class="${familia} ${identificador}" aria-hidden="true"></i>`;
+    }
     const paths = {
         whatsapp: '<path d="M20 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20l1.1-4a8.4 8.4 0 1 1 15.9-4.5Z"></path><path d="M8.5 7.8c.4 3 2 4.6 5 5.7"></path>',
         phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2.1Z"></path>',
@@ -2157,7 +2197,7 @@ function iconeCelula(nome) {
         link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path>',
         contact: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6M22 11h-6"></path>'
     };
-    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[nome] || paths.contact}</svg>`;
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[identificador] || paths.contact}</svg>`;
 }
 
 function renderizarConteudoCelula(widget, campo, registro, texto) {
@@ -2165,7 +2205,16 @@ function renderizarConteudoCelula(widget, campo, registro, texto) {
     const diretivas = obterDiretivasCelula(widget).filter(item => normalizarNomeCampoContato(item.campo) === nomeCampo);
     let conteudo = `<span>${escapeHtml(texto)}</span>`;
     diretivas.filter(item => item.tipo === 'icon').forEach(item => {
-        const icone = `<span class="crm-cell-icon" title="${escapeHtml(item.valor)}">${iconeCelula(item.valor)}</span>`;
+        const corInformada = item.color || item.cor || coresIconesCelula[item.valor] || '';
+        const cor = sanitizarCssDiretiva(`color:${corInformada}`).replace(/^color:/, '');
+        const cssIcone = sanitizarCssDiretiva([
+            cor ? `color:${cor}` : '',
+            item.background || item.fundo ? `background:${item.background || item.fundo}` : '',
+            item.size || item.tamanho ? `font-size:${item.size || item.tamanho}` : '',
+            item.css || ''
+        ].filter(Boolean).join(';'));
+        const estilo = cssIcone ? ` style="${escapeHtml(cssIcone)}"` : '';
+        const icone = `<span class="crm-cell-icon" title="${escapeHtml(item.valor)}"${estilo}>${iconeCelula(item.valor, item)}</span>`;
         conteudo = String(item.position || item.posicao).toLowerCase() === 'after' ? conteudo + icone : icone + conteudo;
     });
     diretivas.filter(item => item.tipo === 'action' && item.valor === 'contact').forEach(item => {
@@ -2173,8 +2222,12 @@ function renderizarConteudoCelula(widget, campo, registro, texto) {
         const nome = String(obterValorContato(registro, ['NOME_CLIENTE', 'NOMECLIENTE', 'NOME'], '')).trim();
         if (!documento) return;
         const rotulo = item.label || item.nome || 'Contato';
-        const estilo = item.color || item.cor ? ` style="--contact-action-color:${escapeHtml(item.color || item.cor)}"` : '';
-        const botao = `<button type="button" class="crm-contact-action" data-contact-action data-document="${escapeHtml(documento)}" data-name="${escapeHtml(nome)}"${estilo}>${iconeCelula(item.icon || item.icone || 'contact')}<span>${escapeHtml(rotulo)}</span></button>`;
+        const corInformada = item.color || item.cor || coresIconesCelula[item.icon || item.icone] || '#0A7C66';
+        const cor = sanitizarCssDiretiva(`color:${corInformada}`).replace(/^color:/, '') || '#0A7C66';
+        const cssBotao = sanitizarCssDiretiva(item.css || '');
+        const estiloCompleto = [`--contact-action-color:${cor}`, cssBotao].filter(Boolean).join(';');
+        const estilo = ` style="${escapeHtml(estiloCompleto)}"`;
+        const botao = `<button type="button" class="crm-contact-action" data-contact-action data-document="${escapeHtml(documento)}" data-name="${escapeHtml(nome)}"${estilo}>${iconeCelula(item.icon || item.icone || 'contact', item)}<span>${escapeHtml(rotulo)}</span></button>`;
         conteudo = String(item.position || item.posicao).toLowerCase() === 'before' ? botao + conteudo : conteudo + botao;
     });
     return conteudo;

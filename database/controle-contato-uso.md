@@ -295,6 +295,41 @@ C.DOCTOCLIENTE AS DOCUMENTO
 | `icon` | `icone` | Ícone do botão |
 | `color` | `cor` | Cor CSS, como `#0A7C66` |
 | `position` | `posicao` | `before` ou `after` |
+| `css` | - | CSS visual permitido para o botão |
+
+### Font Awesome e ícones coloridos
+
+O painel carrega a biblioteca Font Awesome Free. Para usar seus ícones, informe o
+nome com o prefixo `fa-`:
+
+```sql
+/* icon:fa-whatsapp | color:#25D366 | background:#E9FBEF | size:18px | position:before */
+C.CELULAR AS CONTATO
+```
+
+Nos botões, use `icon` e, quando necessário, `family:brands` ou
+`family:regular`. Ícones conhecidos de marcas, como WhatsApp e Telegram, já são
+identificados automaticamente:
+
+```sql
+/* action:contact | label:Registrar contato | icon:fa-whatsapp | color:#25D366 | position:after */
+C.DOCTOCLIENTE AS DOCUMENTO
+```
+
+Para personalizar o botão diretamente na diretiva:
+
+```sql
+/* action:contact | label:Registrar | icon:fa-user-plus | css:background:#123865; color:#fff; border-color:#123865; border-radius:14px; padding:7px 12px; box-shadow:0 2px 6px rgba(0,0,0,.18) | position:after */
+C.DOCTOCLIENTE AS DOCUMENTO
+```
+
+Propriedades CSS aceitas: `color`, `background`, `background-color`,
+`border-color`, `border-width`, `border-style`, `border-radius`, `padding`,
+`gap`, `font-size`, `font-weight`, `min-width`, `height`, `box-shadow` e
+`text-transform`. Regras de posicionamento, URLs, seletores e scripts são
+descartados. A versão Free usa uma cor por glifo; o efeito colorido é obtido
+combinando cor do ícone, fundo e borda. Duotone nativo depende do Font Awesome
+Pro.
 
 Exemplo em português:
 

@@ -13,6 +13,8 @@ test('manual documenta configuração, interação e exibição do controle de c
         'Colunas exibidas',
         'action:contact',
         'icon:whatsapp',
+        'Font Awesome',
+        'css:background',
         'EXECUTE BLOCK',
         'COUNT DISTINCT',
         'Filtros de relacionamento'
