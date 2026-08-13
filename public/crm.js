@@ -2102,13 +2102,20 @@ async function enriquecerRegistrosContato(registros, colunas, contexto = dashboa
     if (encontrarCampoContato(registros[0], ['STATUS_CONTATO'])) return { registros, colunas };
     const documentos = Array.from(new Set(registros.map(linha => String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim()).filter(Boolean)));
     if (!documentos.length) return { registros, colunas };
-    const response = await fetch('/api/controle-contatos', {
-        method: 'POST', headers: cabecalhosSessao(), body: JSON.stringify({ documentos })
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.status === 401) window.fazerLogout();
-    if (!response.ok) throw new Error(data.error || 'Não foi possível combinar os contatos.');
-    const indice = new Map((data.contatos || []).map(contato => [String(contato.doctocliente), contato]));
+    const contatos = [];
+    const tamanhoLote = 5000;
+    for (let inicio = 0; inicio < documentos.length; inicio += tamanhoLote) {
+        const response = await fetch('/api/controle-contatos', {
+            method: 'POST',
+            headers: cabecalhosSessao(),
+            body: JSON.stringify({ documentos: documentos.slice(inicio, inicio + tamanhoLote) })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) window.fazerLogout();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível combinar os contatos.');
+        contatos.push(...(Array.isArray(data.contatos) ? data.contatos : []));
+    }
+    const indice = new Map(contatos.map(contato => [String(contato.doctocliente), contato]));
     const mapa = {
         NOME_CLIENTE: 'nome_cliente', STATUS_CONTATO: 'status_contato', TIPO_CONTATO: 'tipo_contato', OBSERVACAO: 'observacao',
         DATA_PRIMEIRO_CONTATO: 'data_primeiro_contato', DATA_ULTIMO_CONTATO: 'data_ultimo_contato', DATA_FINALIZACAO: 'data_finalizacao',
@@ -2340,6 +2347,35 @@ function fecharRelatorioDetalhe() {
     atualizarExportacaoRelatorioDetalhe(false);
 }
 
+async function prepararDadosRelatorioDetalhe(detalhe, data, filtros) {
+    let colunas = Array.isArray(data.colunas) ? data.colunas : [];
+    const registrosBrutos = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
+    const enriquecido = await enriquecerRegistrosContato(registrosBrutos, colunas, filtros.contextoDashboard);
+    colunas = enriquecido.colunas;
+    let registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
+    if (detalhe.tipo === 'table' && detalhe.camposTabela.length) {
+        const definicoes = detalhe.camposTabela.map(item => {
+            const definicao = separarAliasCampoDetalhe(item);
+            return { ...definicao, estrutura: decomporExpressaoTabelaDetalhe(definicao.expressao) };
+        });
+        const camposAusentes = Array.from(new Set(definicoes
+            .flatMap(item => camposExpressaoTabelaDetalhe(item.estrutura))
+            .filter(nome => !obterColunaDetalhe(colunas, nome))));
+        if (camposAusentes.length) throw new Error('Colunas nao retornadas pelo detalhe: ' + camposAusentes.join(', ') + '.');
+        const apelidos = definicoes.map(item => item.apelido.toLowerCase());
+        if (new Set(apelidos).size !== apelidos.length) throw new Error('Use apelidos diferentes nas colunas exibidas.');
+        registros = registros.map(registro => {
+            const linha = { ...registro };
+            definicoes.forEach(item => {
+                linha[item.apelido] = resolverExpressaoTabelaDetalhe(registro, colunas, item.estrutura);
+            });
+            return linha;
+        });
+        colunas = definicoes.map(item => item.apelido);
+    }
+    return { colunas, registros };
+}
+
 async function abrirRelatorioDetalhe(widget, selecao = {}) {
     const detalhe = normalizarConfiguracaoDetalhe(widget?.detalhe);
     if (!widgetPossuiRelatorioDetalhe(widget) || !widgetDetailModal) return;
@@ -2388,31 +2424,7 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.details || data.error || 'Erro ao carregar o relatorio de detalhe.');
-        let colunas = Array.isArray(data.colunas) ? data.colunas : [];
-        const registrosBrutos = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
-        const enriquecido = await enriquecerRegistrosContato(registrosBrutos, colunas, filtros.contextoDashboard);
-        colunas = enriquecido.colunas;
-        let registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
-        if (detalhe.tipo === 'table' && detalhe.camposTabela.length) {
-            const definicoes = detalhe.camposTabela.map(item => {
-                const definicao = separarAliasCampoDetalhe(item);
-                return { ...definicao, estrutura: decomporExpressaoTabelaDetalhe(definicao.expressao) };
-            });
-            const camposAusentes = Array.from(new Set(definicoes
-                .flatMap(item => camposExpressaoTabelaDetalhe(item.estrutura))
-                .filter(nome => !obterColunaDetalhe(colunas, nome))));
-            if (camposAusentes.length) throw new Error('Colunas nao retornadas pelo detalhe: ' + camposAusentes.join(', ') + '.');
-            const apelidos = definicoes.map(item => item.apelido.toLowerCase());
-            if (new Set(apelidos).size !== apelidos.length) throw new Error('Use apelidos diferentes nas colunas exibidas.');
-            registros = registros.map(registro => {
-                const linha = { ...registro };
-                definicoes.forEach(item => {
-                    linha[item.apelido] = resolverExpressaoTabelaDetalhe(registro, colunas, item.estrutura);
-                });
-                return linha;
-            });
-            colunas = definicoes.map(item => item.apelido);
-        }
+        const { colunas, registros } = await prepararDadosRelatorioDetalhe(detalhe, data, filtros);
         if (!colunas.length || !registros.length) {
             if (widgetDetailStatus) {
                 widgetDetailStatus.className = 'crm-widget-detail-status';
@@ -2870,6 +2882,50 @@ function removerElementoExportacao(elemento) {
     if (elemento?.parentNode) elemento.parentNode.removeChild(elemento);
 }
 
+async function carregarRelatorioDetalheParaExportacao(widgetAtual) {
+    const widgetOrigem = contextoRelatorioDetalheAtual?.widget;
+    const selecao = contextoRelatorioDetalheAtual?.selecao || {};
+    if (!widgetOrigem) return widgetAtual;
+    const detalhe = normalizarConfiguracaoDetalhe(widgetOrigem.detalhe);
+    const filtros = {
+        ...obterFiltrosCenario(),
+        detalheValor: selecao.valor ?? '',
+        detalheCampo: selecao.campo || '',
+        detalheSerie: selecao.serie || ''
+    };
+    const response = await fetch('/api/executar-cenario', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
+        },
+        body: JSON.stringify({
+            fonte: detalhe.fonte,
+            sql: detalhe.sql,
+            filtros,
+            visualizacao: detalheMapeiaContato(detalhe) ? null : montarVisualizacaoRelatorioDetalhe(detalhe),
+            modoExecucao: 'exportacao'
+        })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) window.fazerLogout();
+    if (!response.ok) throw new Error(data.details || data.error || 'Erro ao preparar todos os registros do detalhe.');
+    const { colunas, registros } = await prepararDadosRelatorioDetalhe(detalhe, data, filtros);
+    return {
+        ...widgetAtual,
+        colunasConsulta: colunas,
+        dadosConsulta: registros,
+        dadosConsultaAgregados: data.resultadoAgregado === true,
+        mapeamentos: criarMapeamentosRelatorioDetalhe(detalhe, colunas, registros)
+    };
+}
+
+async function carregarWidgetParaExportacao(widget) {
+    if (!widget || !['table', 'pivot'].includes(widget.tipo)) return widget;
+    if (widget.relatorioDetalhe === true) return carregarRelatorioDetalheParaExportacao(widget);
+    return executarWidgetComFiltros(widget, obterFiltrosCenario(), { modoExecucao: 'exportacao' });
+}
+
 async function exportarWidgetPdf(widget) {
     if (typeof window.html2pdf !== 'function') throw new Error('Gerador de PDF indisponível.');
     const elemento = criarElementoExportacao(widget);
@@ -2948,9 +3004,10 @@ function imprimirWidget(widget) {
 async function executarExportacao(widget, formato) {
     if (!widget) return;
     try {
-        if (formato === 'pdf') await exportarWidgetPdf(widget);
-        else if (formato === 'excel') exportarWidgetExcel(widget);
-        else if (formato === 'print') imprimirWidget(widget);
+        const widgetCompleto = await carregarWidgetParaExportacao(widget);
+        if (formato === 'pdf') await exportarWidgetPdf(widgetCompleto);
+        else if (formato === 'excel') exportarWidgetExcel(widgetCompleto);
+        else if (formato === 'print') imprimirWidget(widgetCompleto);
     } catch (error) {
         window.alert(error.message || 'Não foi possível exportar o relatório.');
     }
@@ -3452,7 +3509,7 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
                 sql: widget.sql,
                 filtros,
                 visualizacao,
-                modoExecucao: 'painel'
+                modoExecucao: opcoes.modoExecucao || 'painel'
             })
         });
         const data = await response.json().catch(() => ({}));

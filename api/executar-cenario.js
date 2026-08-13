@@ -31,6 +31,10 @@ const CONSULTA_TIMEOUT_MS = 90000;
 const DRILL_CACHE_MAX_ROWS = Math.min(10000, Math.max(100, Number(process.env.BI_DRILL_CACHE_MAX_ROWS) || 3000));
 const DRILL_CACHE_MAX_BYTES = Math.min(16777216, Math.max(262144, Number(process.env.BI_DRILL_CACHE_MAX_BYTES) || 4194304));
 
+function limitarLinhas(linhas, limite) {
+    return Number.isFinite(limite) ? linhas.slice(0, limite) : linhas;
+}
+
 function obterCampo(linha, nome) {
     if (!linha) return undefined;
     if (Object.prototype.hasOwnProperty.call(linha, nome)) return linha[nome];
@@ -116,6 +120,7 @@ export default async function handler(req, res) {
         modoExecucao = 'painel'
     } = req.body || {};
     const modoNormalizado = normalizarModoExecucaoCenario(modoExecucao);
+    const limiteRetorno = modoNormalizado === 'exportacao' ? undefined : LIMITE_RETORNO;
     const erroModoExecucao = validarModoExecucaoCenario(modoNormalizado);
     if (erroModoExecucao) {
         return res.status(400).json({
@@ -171,7 +176,7 @@ export default async function handler(req, res) {
                 await client.query('BEGIN READ ONLY');
                 await client.query(`SET LOCAL statement_timeout = ${CONSULTA_TIMEOUT_MS}`);
                 const result = await client.query(preparado.sql, preparado.valores);
-                linhas = result.rows.slice(0, LIMITE_RETORNO);
+                linhas = limitarLinhas(result.rows, limiteRetorno);
                 await client.query('COMMIT');
             } catch (error) {
                 try { await client.query('ROLLBACK'); } catch (rollbackError) {}
@@ -185,8 +190,8 @@ export default async function handler(req, res) {
                 timeoutMs: CONSULTA_TIMEOUT_MS,
                 permitirFallbackCharset: true,
                 tabelasTemporarias: tabelasTemporariasConfirmadas,
-                cacheTtlMs: Number(process.env.BI_DASHBOARD_CACHE_TTL_MS || 300000),
-                cacheStaleMs: Number(process.env.BI_DASHBOARD_CACHE_STALE_MS || 900000)
+                cacheTtlMs: modoNormalizado === 'exportacao' ? 0 : Number(process.env.BI_DASHBOARD_CACHE_TTL_MS || 300000),
+                cacheStaleMs: modoNormalizado === 'exportacao' ? 0 : Number(process.env.BI_DASHBOARD_CACHE_STALE_MS || 900000)
             };
 
             if (deveTentarCacheBaseVisualizacao(preparadoBase, fonteNormalizada, visualizacao)) {
@@ -203,13 +208,13 @@ export default async function handler(req, res) {
                 );
 
                 if (avaliacaoBase.adequada) {
-                    linhas = aplicarVisualizacaoEmMemoria(linhasBase, visualizacao).slice(0, LIMITE_RETORNO);
+                    linhas = limitarLinhas(aplicarVisualizacaoEmMemoria(linhasBase, visualizacao), limiteRetorno);
                     visualizacaoAplicadaEmMemoria = true;
                     estrategiaVisualizacao = 'cache-base';
                 } else {
                     linhas = await executarConsultaFirebirdGateway(preparado.sql, preparado.valores, {
                         ...opcoesCache,
-                        limite: preparado.agregarEmMemoria ? undefined : LIMITE_RETORNO
+                        limite: preparado.agregarEmMemoria ? undefined : limiteRetorno
                     });
                     estrategiaVisualizacao = avaliacaoBase.excedeuLinhas
                         ? 'sql-agregado-limite-linhas'
@@ -218,13 +223,13 @@ export default async function handler(req, res) {
             } else {
                 linhas = await executarConsultaFirebirdGateway(preparado.sql, preparado.valores, {
                     ...opcoesCache,
-                    limite: preparado.agregarEmMemoria ? undefined : LIMITE_RETORNO
+                    limite: preparado.agregarEmMemoria ? undefined : limiteRetorno
                 });
             }
         }
 
         if (!visualizacaoAplicadaEmMemoria && preparado.agregarEmMemoria) {
-            linhas = aplicarVisualizacaoEmMemoria(linhas, visualizacao).slice(0, LIMITE_RETORNO);
+            linhas = limitarLinhas(aplicarVisualizacaoEmMemoria(linhas, visualizacao), limiteRetorno);
             visualizacaoAplicadaEmMemoria = true;
             estrategiaVisualizacao = 'execute-block-memoria';
         }
@@ -233,7 +238,7 @@ export default async function handler(req, res) {
         res.status(200).json({
             colunas: extrairColunas(linhas),
             linhas: linhas.length,
-            limite: LIMITE_PREVIA,
+            limite: modoNormalizado === 'exportacao' ? null : LIMITE_PREVIA,
             amostra: linhas.slice(0, LIMITE_PREVIA),
             dados: linhas,
             resultadoAgregado,

@@ -75,3 +75,17 @@ test('editor e cards oferecem paginacao, PDF, Excel e impressao', async () => {
     assert.match(source, /data-widget-export="print"/);
     assert.match(source, /renderizarTabelaGrafico\(conteudo, widget, \{ exportarTudo: true \}\)/);
 });
+
+test('exportacao consulta novamente sem o limite visual de mil registros', async () => {
+    const [source, api, access] = await Promise.all([
+        readFile(dashboardPath, 'utf8'),
+        readFile(new URL('../api/executar-cenario.js', import.meta.url), 'utf8'),
+        readFile(new URL('../lib/scenario-execution-access.js', import.meta.url), 'utf8')
+    ]);
+
+    assert.match(source, /carregarWidgetParaExportacao/);
+    assert.match(source, /modoExecucao: 'exportacao'/);
+    assert.match(source, /const tamanhoLote = 5000/);
+    assert.match(api, /modoNormalizado === 'exportacao' \? undefined : LIMITE_RETORNO/);
+    assert.match(access, /'exportacao'/);
+});

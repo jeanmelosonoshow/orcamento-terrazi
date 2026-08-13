@@ -12,9 +12,11 @@ test('execucao comum do painel nao exige permissao de editor', () => {
     assert.equal(validarModoExecucaoCenario('painel'), '');
     assert.equal(validarModoExecucaoCenario('detalhe'), '');
     assert.equal(validarModoExecucaoCenario('drilldown'), '');
+    assert.equal(validarModoExecucaoCenario('exportacao'), '');
     assert.equal(modoExecucaoExigeEditor('painel'), false);
     assert.equal(modoExecucaoExigeEditor('detalhe'), false);
     assert.equal(modoExecucaoExigeEditor('drilldown'), false);
+    assert.equal(modoExecucaoExigeEditor('exportacao'), false);
 });
 
 test('somente o modo de edicao exige permissao administrativa', () => {
@@ -29,6 +31,6 @@ test('API restringe o construtor sem bloquear a atualizacao dos cards', () => {
 
     assert.match(api, /modoExecucaoExigeEditor\(modoNormalizado\)/);
     assert.doesNotMatch(api, /if \(!usuarioPodeEditarCenario\(String\(session\.sub\)\)\)/);
-    assert.match(crm, /modoExecucao: 'painel'/);
+    assert.match(crm, /modoExecucao: opcoes\.modoExecucao \|\| 'painel'/);
     assert.match(crm, /modoExecucao: 'edicao'/);
 });
