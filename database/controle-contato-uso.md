@@ -280,6 +280,12 @@ Como o alias está no `RETURNS`, use uma marcação totalmente comentada:
 Ela pode ficar depois do `RETURNS`. O nome após `AS` deve ser exatamente o nome
 da coluna retornada.
 
+Aliases com espaços devem permanecer entre aspas duplas. Exemplo:
+
+```sql
+/* icon:fa-calendar-days | color:#FFDE21 | background:#123865 | size:18px | position:before */ /* AS "DATA CONTATO" */
+```
+
 ## 9. Botão de cadastro e atualização
 
 Sintaxe:

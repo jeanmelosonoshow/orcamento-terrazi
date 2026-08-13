@@ -2133,7 +2133,7 @@ function obterSqlWidget(widget) {
 
 function obterDiretivasCelula(widget) {
     const diretivas = [];
-    const regex = /\/\*\s*(icon|action)\s*:\s*([a-z0-9_-]+)([\s\S]*?)\*\/\s*[\s\S]*?\bas\s+([a-z_][a-z0-9_$]*)/gi;
+    const regex = /\/\*\s*(icon|action)\s*:\s*([a-z0-9_-]+)([\s\S]*?)\*\/\s*[\s\S]*?\bas\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$]*))/gi;
     let match;
     const sql = obterSqlWidget(widget);
     while ((match = regex.exec(sql)) !== null) {
@@ -2142,7 +2142,8 @@ function obterDiretivasCelula(widget) {
             const divisao = parte.split(/[:=]/);
             if (divisao.length >= 2) opcoes[divisao.shift().trim().toLowerCase()] = divisao.join(':').trim();
         });
-        diretivas.push({ tipo: match[1].toLowerCase(), valor: match[2].toLowerCase(), campo: match[4], ...opcoes });
+        const campo = String(match[4] || match[5] || '').replace(/""/g, '"').trim();
+        diretivas.push({ tipo: match[1].toLowerCase(), valor: match[2].toLowerCase(), campo, ...opcoes });
     }
     return diretivas;
 }
