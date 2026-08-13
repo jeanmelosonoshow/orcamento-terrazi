@@ -162,7 +162,9 @@ END`,
         }
     );
 
-    assert.match(preparado.sql, /AND \(V\.DOCTOCLIENTE IN \(:CRM_SYS_DOCUMENTOS_RELACIONAMENTO_1_1,:CRM_SYS_DOCUMENTOS_RELACIONAMENTO_1_2\)\)/);
+    assert.match(preparado.sql, /AND \(V\.DOCTOCLIENTE IN \(:CRM_REL_1_1,:CRM_REL_1_2\)\)/);
+    const identificadores = Array.from(preparado.sql.matchAll(/\b(CRM_[A-Z0-9_]+)\b/g), match => match[1]);
+    assert.ok(identificadores.every(nome => nome.length <= 31));
     assert.deepEqual(preparado.valores, ['001', '002']);
 });
 
