@@ -76,3 +76,13 @@ test('relatorio detalhe permite imprimir e exportar todos os registros para PDF 
     assert.match(javascript, /renderizarTabelaSimplesRelatorioDetalhe\(conteudo, widget, \{ exportarTudo: true \}\)/);
     assert.match(javascript, /prepararPaginacaoTabela\(widget, registros, opcoes\.exportarTudo === true\)/);
 });
+
+test('salvar contato reprocessa somente o relatorio detalhe que abriu o formulario', async () => {
+    const javascript = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+
+    assert.match(javascript, /contextoRelatorioDetalheAtual = \{ widget, selecao: \{ \.\.\.selecao \} \}/);
+    assert.match(javascript, /abrirFormularioContato\(contactAction\.dataset\.document, contactAction\.dataset\.name \|\| '', 'detalhe'\)/);
+    assert.match(javascript, /const contextoDetalhe = origemFormularioContatoAtual === 'detalhe'/);
+    assert.match(javascript, /await abrirRelatorioDetalhe\(contextoDetalhe\.widget, contextoDetalhe\.selecao\)/);
+    assert.match(javascript, /Contato salvo e relatório atualizado\./);
+});

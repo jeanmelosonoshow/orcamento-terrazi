@@ -328,6 +328,8 @@ let sequenciaContextoDrill = 0;
 let observadorTamanhoDashboard = null;
 let larguraDashboardObservada = 0;
 let widgetDetalheModalAtual = null;
+let contextoRelatorioDetalheAtual = null;
+let origemFormularioContatoAtual = 'dashboard';
 
 function cancelarAtualizacoesMenusInativos(contextoAtivo) {
     if (temporizadorAtualizacaoMenu) {
@@ -2265,6 +2267,7 @@ function fecharRelatorioDetalhe() {
     if (widgetDetailModal) widgetDetailModal.hidden = true;
     if (widgetDetalheModalAtual?.id) paginasTabelaDashboard.delete(widgetDetalheModalAtual.id);
     widgetDetalheModalAtual = null;
+    contextoRelatorioDetalheAtual = null;
     if (widgetDetailContent) widgetDetailContent.innerHTML = '';
     atualizarExportacaoRelatorioDetalhe(false);
 }
@@ -2272,6 +2275,7 @@ function fecharRelatorioDetalhe() {
 async function abrirRelatorioDetalhe(widget, selecao = {}) {
     const detalhe = normalizarConfiguracaoDetalhe(widget?.detalhe);
     if (!widgetPossuiRelatorioDetalhe(widget) || !widgetDetailModal) return;
+    contextoRelatorioDetalheAtual = { widget, selecao: { ...selecao } };
     const contexto = [
         selecao.apelido && selecao.rotulo ? selecao.apelido + ': ' + selecao.rotulo : '',
         selecao.serie ? 'Serie: ' + selecao.serie : ''
@@ -3789,6 +3793,7 @@ function obterLinhasConsultasSecundarias() {
 function fecharFormularioContato() {
     if (contactModal) contactModal.hidden = true;
     if (contactFormMessage) contactFormMessage.textContent = '';
+    origemFormularioContatoAtual = 'dashboard';
 }
 
 function cabecalhosSessao() {
@@ -3817,8 +3822,9 @@ function definirFormularioContato(contato, documento, nome) {
     }
 }
 
-async function abrirFormularioContato(documento, nome) {
+async function abrirFormularioContato(documento, nome, origem = 'dashboard') {
     if (!contactModal || !documento) return;
+    origemFormularioContatoAtual = origem;
     contactModal.hidden = false;
     if (contactFormMessage) contactFormMessage.textContent = 'Carregando contato...';
     [contactFormStatus, contactFormType, contactFormNotes, saveContactButton].forEach(campo => { if (campo) campo.disabled = true; });
@@ -3882,9 +3888,17 @@ async function salvarFormularioContato(event) {
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o contato.');
+        const contextoDetalhe = origemFormularioContatoAtual === 'detalhe'
+            ? contextoRelatorioDetalheAtual
+            : null;
         atualizarContatoNoPainel(data.contato);
         fecharFormularioContato();
-        atualizarStatusFiltros('Contato salvo.');
+        if (contextoDetalhe && !widgetDetailModal?.hidden) {
+            await abrirRelatorioDetalhe(contextoDetalhe.widget, contextoDetalhe.selecao);
+            atualizarStatusFiltros('Contato salvo e relatório atualizado.');
+        } else {
+            atualizarStatusFiltros('Contato salvo.');
+        }
     } catch (error) {
         if (contactFormMessage) contactFormMessage.textContent = error.message;
         saveContactButton.disabled = false;
@@ -4490,7 +4504,7 @@ function inicializarEditorDashboard() {
         widgetDetailContent.addEventListener('click', event => {
             const contactAction = event.target.closest('[data-contact-action]');
             if (contactAction) {
-                abrirFormularioContato(contactAction.dataset.document, contactAction.dataset.name || '');
+                abrirFormularioContato(contactAction.dataset.document, contactAction.dataset.name || '', 'detalhe');
                 return;
             }
             const pageButton = event.target.closest('[data-table-page]');
