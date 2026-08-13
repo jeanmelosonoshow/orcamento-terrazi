@@ -4,6 +4,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { requireRequestSession } from '../lib/session-token.js';
 import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
+import {
+    modoExecucaoExigeEditor,
+    normalizarModoExecucaoCenario,
+    validarModoExecucaoCenario
+} from '../lib/scenario-execution-access.js';
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
 import { resolverFiltroRelacionamento, sqlPossuiFiltroRelacionamento } from '../lib/contact-relationship-filter.js';
 import {
@@ -103,8 +108,31 @@ export default async function handler(req, res) {
 
     const session = requireRequestSession(req, res);
     if (!session) return;
-    const { fonte = 'firebird', sql, filtros = {}, visualizacao = null } = req.body || {};
-    if (!usuarioPodeEditarCenario(String(session.sub))) return res.status(403).json({ error: 'Usuario sem permissao para testar cenarios.' });
+    const {
+        fonte = 'firebird',
+        sql,
+        filtros = {},
+        visualizacao = null,
+        modoExecucao = 'painel'
+    } = req.body || {};
+    const modoNormalizado = normalizarModoExecucaoCenario(modoExecucao);
+    const erroModoExecucao = validarModoExecucaoCenario(modoNormalizado);
+    if (erroModoExecucao) {
+        return res.status(400).json({
+            error: erroModoExecucao,
+            code: 'SCENARIO_EXECUTION_MODE_INVALID'
+        });
+    }
+    if (modoExecucaoExigeEditor(modoNormalizado) && !usuarioPodeEditarCenario(String(session.sub))) {
+        console.warn('[executar-cenario] permissao de edicao negada', {
+            categoria: session.categoria || null,
+            modoExecucao: modoNormalizado
+        });
+        return res.status(403).json({
+            error: 'Usuario sem permissao para testar ou alterar consultas.',
+            code: 'SCENARIO_EDITOR_REQUIRED'
+        });
+    }
 
     const fonteNormalizada = String(fonte).toLowerCase() === 'postgres' ? 'postgres' : 'firebird';
     const tabelasTemporariasSolicitadas = fonteNormalizada === 'firebird'

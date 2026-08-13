@@ -2381,7 +2381,8 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
                 fonte: detalhe.fonte,
                 sql: detalhe.sql,
                 filtros,
-                visualizacao: detalheMapeiaContato(detalhe) ? null : montarVisualizacaoRelatorioDetalhe(detalhe)
+                visualizacao: detalheMapeiaContato(detalhe) ? null : montarVisualizacaoRelatorioDetalhe(detalhe),
+                modoExecucao: 'detalhe'
             })
         });
         const data = await response.json().catch(() => ({}));
@@ -3305,7 +3306,8 @@ async function atualizarDadosMapeadosWidget(mapeamentos) {
                 fonte: widgetTemporario.fonte,
                 sql: widgetTemporario.sql,
                 filtros: obterFiltrosCenario(),
-                visualizacao
+                visualizacao,
+                modoExecucao: 'edicao'
             })
         });
         const data = await response.json().catch(() => ({}));
@@ -3360,7 +3362,8 @@ async function executarDrillDownWidget(contexto, campo) {
                 visualizacao: montarVisualizacaoWidget(widget, {
                     campoDrill: campo,
                     filtrosDimensao: contexto.filtros
-                })
+                }),
+                modoExecucao: 'drilldown'
             })
         });
         const data = await response.json().catch(() => ({}));
@@ -3444,7 +3447,13 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
         const response = await fetch('/api/executar-cenario', {
             method: 'POST', signal: signalConsulta,
             headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}) },
-            body: JSON.stringify({ fonte: widget.fonte || 'firebird', sql: widget.sql, filtros, visualizacao })
+            body: JSON.stringify({
+                fonte: widget.fonte || 'firebird',
+                sql: widget.sql,
+                filtros,
+                visualizacao,
+                modoExecucao: 'painel'
+            })
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
@@ -4010,7 +4019,13 @@ async function executarConsultaConfigurada(consulta, filtros, visualizacao = nul
         method: 'POST',
         signal: opcoes.signal,
         headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {}) },
-        body: JSON.stringify({ fonte: consulta.fonte, sql: consulta.sql, filtros, visualizacao })
+        body: JSON.stringify({
+            fonte: consulta.fonte,
+            sql: consulta.sql,
+            filtros,
+            visualizacao,
+            modoExecucao: opcoes.modoExecucao || 'painel'
+        })
     });
     const data = await response.json().catch(() => ({}));
     if (response.status === 401) window.fazerLogout();
@@ -4039,7 +4054,12 @@ async function testarConsultaWidget() {
         const filtrosExecucao = obterFiltrosCenario();
         for (let indice = 0; indice < consultas.length; indice += 1) {
             renderizarResultadoConsulta('Executando consulta ' + (indice + 1) + ' de ' + consultas.length + '...', 'info');
-            resultadosConsultasAtuais.push(await executarConsultaConfigurada(consultas[indice], filtrosExecucao));
+            resultadosConsultasAtuais.push(await executarConsultaConfigurada(
+                consultas[indice],
+                filtrosExecucao,
+                null,
+                { modoExecucao: 'edicao' }
+            ));
         }
         const combinacaoSalva = coletarCombinacaoEditor();
         preencherSelectCampos(primaryKeySelect, resultadosConsultasAtuais[0]?.colunas, combinacaoSalva.chavePrincipal);
