@@ -175,6 +175,38 @@ test('CEP identificado fora do RJ nao entra no raio', async () => {
     assert.equal(resultado.metadata.ufReferencia, 'RJ');
 });
 
+test('filiais com o mesmo CEP sao geocodificadas e gravadas uma unica vez por chave', async () => {
+    const db = { async query(sql) { return /SELECT chave/i.test(sql) ? { rows: [] } : { rows: [] }; } };
+    const executarFirebird = async () => [
+        { IDFILIAL: '01', NOMEFILIAL: 'Filial A', CIDADE: 'Rio de Janeiro', BAIRRO: 'Centro', CEP: '20040002', UF: 'RJ' },
+        { IDFILIAL: '02', NOMEFILIAL: 'Filial B', CIDADE: 'Rio de Janeiro', BAIRRO: 'Centro', CEP: '20040002', UF: 'RJ' }
+    ];
+    const chamadas = new Map();
+    const fetchImpl = async url => {
+        const cep = String(url).split('/').pop();
+        chamadas.set(cep, (chamadas.get(cep) || 0) + 1);
+        return {
+            ok: true, status: 200,
+            async json() {
+                return {
+                    city: 'Rio de Janeiro', neighborhood: 'Centro', state: 'RJ',
+                    location: { coordinates: { latitude: '-22.9068', longitude: '-43.1729' } }
+                };
+            }
+        };
+    };
+    const resultado = await aplicarFiltroClientesProximos({
+        db, executarFirebird,
+        linhas: [{ DOCUMENTO: '1', CIDADE: 'Rio de Janeiro', BAIRRO: 'Botafogo', CEP: '22290030' }],
+        session: { categoria: 'DI', sub: '10' },
+        contexto: { filiaisTodos: true, filiais: [] },
+        configuracao: { campoCep: 'CEP', raioKm: 30 }, fetchImpl
+    });
+
+    assert.equal(chamadas.get('20040002'), 1);
+    assert.equal(resultado.metadata.filiaisConsideradas.length, 2);
+});
+
 test('a rota aplica proximidade antes do limite visual e devolve os metadados', async () => {
     const { readFile } = await import('node:fs/promises');
     const api = await readFile(new URL('../api/executar-cenario.js', import.meta.url), 'utf8');
@@ -195,4 +227,13 @@ test('relatorio principal preserva e exibe o resumo de proximidade', async () =>
     assert.match(javascript, /container\.insertAdjacentHTML\('afterbegin', resumoProximidade\)/);
     assert.match(javascript, /resultadosConsultasAtuais\.find\(resultado => resultado\.proximidade\)/);
     assert.match(css, /\.crm-table-proximity-summary/);
+});
+
+test('painel repete silenciosamente apenas falhas temporarias da fila', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const javascript = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+    assert.match(javascript, /function executarCenarioComRetentativa/);
+    assert.match(javascript, /BI_GATEWAY_QUEUE_TIMEOUT/);
+    assert.match(javascript, /BI_GATEWAY_QUEUE_FULL/);
+    assert.match(javascript, /DASHBOARD_QUEUE_RETRY_LIMIT = 1/);
 });

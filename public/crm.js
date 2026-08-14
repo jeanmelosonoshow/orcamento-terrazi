@@ -41,6 +41,8 @@ const controladoresAtualizacaoMenus = new Map();
 let temporizadorAtualizacaoMenu = null;
 const DASHBOARD_QUERY_CONCURRENCY = 1;
 const DASHBOARD_REQUEST_TIMEOUT_MS = 95000;
+const DASHBOARD_QUEUE_RETRY_LIMIT = 1;
+const DASHBOARD_QUEUE_RETRY_DELAY_MS = 1200;
 const DASHBOARD_MENU_DEBOUNCE_MS = 700;
 
 function obterViewPorHash(hash) {
@@ -3545,24 +3547,13 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
         ? AbortSignal.any([opcoes.signal, controller.signal])
         : (opcoes.signal || controller.signal);
     try {
-        const response = await fetch('/api/executar-cenario', {
-            method: 'POST', signal: signalConsulta,
-            headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}) },
-            body: JSON.stringify({
+        const data = await executarCenarioComRetentativa({
                 fonte: widget.fonte || 'firebird',
                 sql: widget.sql,
                 filtros,
                 visualizacao,
                 modoExecucao: opcoes.modoExecucao || 'painel'
-            })
-        });
-        const data = await response.json().catch(() => ({}));
-        if (response.status === 401) window.fazerLogout();
-        if (!response.ok) {
-            const error = new Error(data.details || data.error || 'Erro ao atualizar o card.');
-            error.code = data.code || 'DASHBOARD_QUERY_ERROR';
-            throw error;
-        }
+            }, { signal: signalConsulta, mensagemErro: 'Erro ao atualizar o card.' });
         const colunasRetornadas = Array.isArray(data.colunas) ? data.colunas : [];
         const colunasConsulta = widget.tipo === 'pivot'
             ? Array.from(new Set([...(Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : []), ...colunasRetornadas]))
@@ -4099,6 +4090,50 @@ function renderizarConsultasSecundarias(consultas = []) {
         </section>
     `).join('');
 }
+function aguardarRetentativaFila(ms, signal) {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(Object.assign(new DOMException('Operacao cancelada.', 'AbortError'), { code: 'DASHBOARD_CONTEXT_CHANGED' }));
+            return;
+        }
+        const timeout = setTimeout(() => {
+            signal?.removeEventListener('abort', cancelar);
+            resolve();
+        }, ms);
+        const cancelar = () => {
+            clearTimeout(timeout);
+            reject(new DOMException('Operacao cancelada.', 'AbortError'));
+        };
+        signal?.addEventListener('abort', cancelar, { once: true });
+    });
+}
+
+async function executarCenarioComRetentativa(payload, opcoes = {}) {
+    for (let tentativa = 0; tentativa <= DASHBOARD_QUEUE_RETRY_LIMIT; tentativa += 1) {
+        const response = await fetch('/api/executar-cenario', {
+            method: 'POST',
+            signal: opcoes.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) window.fazerLogout();
+        const filaTemporariamenteOcupada = ['BI_GATEWAY_QUEUE_TIMEOUT', 'BI_GATEWAY_QUEUE_FULL'].includes(data.code);
+        if (response.ok || !filaTemporariamenteOcupada || tentativa >= DASHBOARD_QUEUE_RETRY_LIMIT) {
+            if (!response.ok) {
+                const error = new Error(data.details || data.error || opcoes.mensagemErro || 'Erro ao atualizar o card.');
+                error.code = data.code || 'DASHBOARD_QUERY_ERROR';
+                throw error;
+            }
+            return data;
+        }
+        await aguardarRetentativaFila(DASHBOARD_QUEUE_RETRY_DELAY_MS + Math.floor(Math.random() * 600), opcoes.signal);
+    }
+    throw new Error(opcoes.mensagemErro || 'Erro ao atualizar o card.');
+}
 function consultaSecundariaAtiva() { return obterLinhasConsultasSecundarias().length > 0; }
 function coletarConsultasEditor() {
     const consultas = [{ alias: widgetQueryAliasInput?.value.trim() || 'principal', fonte: widgetSourceSelect?.value || 'firebird', sql: widgetSqlTextarea?.value.trim() || '' }];
@@ -4116,25 +4151,16 @@ function preencherSelectCampos(select, colunas, selecionado) { if (!select) retu
 function atualizarControlesCombinacao() { const ativa = consultaSecundariaAtiva(); if (queryCombinationBox) queryCombinationBox.hidden = !ativa; const porChave = ativa && queryCombinationModeSelect?.value === 'key'; if (primaryKeyField) primaryKeyField.hidden = !porChave; if (secondaryKeyField) secondaryKeyField.hidden = !porChave; if (calculatedFieldsBox) calculatedFieldsBox.hidden = !ativa; }
 function renderizarCamposCalculados(campos = []) { if (!calculatedFieldList) return; calculatedFieldList.innerHTML = campos.map(campo => `<div class="crm-calculated-field-row" data-calculated-field-row><label>Nome do campo<input type="text" value="${escapeHtml(campo.nome || '')}" data-calculated-name placeholder="ATINGIMENTO"></label><label>Fórmula<input type="text" value="${escapeHtml(campo.formula || '')}" data-calculated-formula placeholder="[principal.TOTAL] / [secundaria.META] * 100"></label><button type="button" data-remove-calculated-field aria-label="Remover campo" title="Remover campo">×</button></div>`).join(''); }
 async function executarConsultaConfigurada(consulta, filtros, visualizacao = null, opcoes = {}) {
-    const response = await fetch('/api/executar-cenario', {
-        method: 'POST',
-        signal: opcoes.signal,
-        headers: { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {}) },
-        body: JSON.stringify({
+    const data = await executarCenarioComRetentativa({
             fonte: consulta.fonte,
             sql: consulta.sql,
             filtros,
             visualizacao,
             modoExecucao: opcoes.modoExecucao || 'painel'
-        })
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.status === 401) window.fazerLogout();
-    if (!response.ok) {
-        const error = new Error(data.details || data.error || `Erro na consulta ${consulta.alias}.`);
-        error.code = data.code || 'DASHBOARD_QUERY_ERROR';
-        throw error;
-    }
+        }, {
+            signal: opcoes.signal,
+            mensagemErro: `Erro na consulta ${consulta.alias}.`
+        });
     return {
         ...consulta,
         colunas: Array.isArray(data.colunas) ? data.colunas : [],
