@@ -95,6 +95,84 @@ test('mantem clientes no raio, associa a filial e informa localidades sem coorde
     assert.equal(resultado.metadata.clientesAnalisados, 3);
     assert.equal(resultado.metadata.clientesProximos, 1);
     assert.equal(resultado.metadata.clientesSemCep, 1);
+    assert.equal(resultado.metadata.ufReferencia, 'RJ');
+});
+
+test('base com muitos bairros retorna por cidade e indexa progressivamente sem bloquear', async () => {
+    const db = { async query(sql) { return /SELECT chave/i.test(sql) ? { rows: [] } : { rows: [] }; } };
+    const executarFirebird = async () => [{
+        IDFILIAL: '01', NOMEFILIAL: 'Filial Centro', CIDADE: 'Rio de Janeiro',
+        BAIRRO: 'Centro', CEP: '20040002', UF: 'RJ'
+    }];
+    const linhas = Array.from({ length: 125 }, (_, indice) => ({
+        DOCUMENTO: String(indice + 1),
+        NOME: 'Cliente ' + (indice + 1),
+        CIDADE: 'Rio de Janeiro',
+        BAIRRO: 'Bairro ' + (indice + 1),
+        CEP: String(22000000 + indice)
+    }));
+    const fetchImpl = async url => ({
+        ok: true,
+        status: 200,
+        async json() {
+            const cep = String(url).split('/').pop();
+            return {
+                city: 'Rio de Janeiro', neighborhood: 'Centro', state: 'RJ',
+                location: { coordinates: {
+                    latitude: cep === '20040002' ? '-22.9068' : '-22.92',
+                    longitude: cep === '20040002' ? '-43.1729' : '-43.19'
+                } }
+            };
+        }
+    });
+
+    const resultado = await aplicarFiltroClientesProximos({
+        db, executarFirebird, linhas,
+        session: { categoria: 'DI', sub: '10' },
+        contexto: { filiaisTodos: true, filiais: [] },
+        configuracao: { campoCep: 'CEP', raioKm: 30 },
+        fetchImpl
+    });
+
+    assert.equal(resultado.linhas.length, 125);
+    assert.equal(resultado.metadata.localidadesIndexadasNestaExecucao, 120);
+    assert.equal(resultado.metadata.localidadesPendentes, 5);
+    assert.equal(resultado.metadata.clientesAproximadosPorCidade, 5);
+});
+
+test('CEP identificado fora do RJ nao entra no raio', async () => {
+    const db = { async query(sql) { return /SELECT chave/i.test(sql) ? { rows: [] } : { rows: [] }; } };
+    const executarFirebird = async () => [{
+        IDFILIAL: '01', NOMEFILIAL: 'Filial RJ', CIDADE: 'Rio de Janeiro',
+        BAIRRO: 'Centro', CEP: '20040002', UF: 'RJ'
+    }];
+    const fetchImpl = async url => {
+        const cep = String(url).split('/').pop();
+        const foraDoRio = cep === '01310930';
+        return {
+            ok: true, status: 200,
+            async json() {
+                return {
+                    city: foraDoRio ? 'Sao Paulo' : 'Rio de Janeiro',
+                    neighborhood: 'Centro',
+                    state: foraDoRio ? 'SP' : 'RJ',
+                    location: { coordinates: {
+                        latitude: foraDoRio ? '-23.5614' : '-22.9068',
+                        longitude: foraDoRio ? '-46.6559' : '-43.1729'
+                    } }
+                };
+            }
+        };
+    };
+    const resultado = await aplicarFiltroClientesProximos({
+        db, executarFirebird,
+        linhas: [{ DOCUMENTO: '1', CIDADE: 'Sao Paulo', BAIRRO: 'Centro', CEP: '01310-930' }],
+        session: { categoria: 'DI', sub: '10' },
+        contexto: { filiaisTodos: true, filiais: [] },
+        configuracao: { campoCep: 'CEP', raioKm: 30 }, fetchImpl
+    });
+    assert.equal(resultado.linhas.length, 0);
+    assert.equal(resultado.metadata.ufReferencia, 'RJ');
 });
 
 test('a rota aplica proximidade antes do limite visual e devolve os metadados', async () => {

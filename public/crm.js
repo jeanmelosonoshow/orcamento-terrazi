@@ -1723,10 +1723,12 @@ function renderizarResumoProximidade(widget, quantidadeVisivel) {
     const filiais = Array.isArray(proximidade.filiaisConsideradas)
         ? proximidade.filiaisConsideradas.length
         : 0;
+    const aproximadosPorCidade = Number(proximidade.clientesAproximadosPorCidade || 0);
+    const localidadesPendentes = Number(proximidade.localidadesPendentes || 0);
     return `
         <div class="crm-table-proximity-summary">
-            <strong>${escapeHtml(quantidadeVisivel)} cliente${quantidadeVisivel === 1 ? '' : 's'} no raio de ${escapeHtml(proximidade.raioKm)} km</strong>
-            <span>Distancia aproximada por bairro${filiais ? `, comparada com ${filiais} filial${filiais === 1 ? '' : 'is'}` : ''}${semLocalizacao ? `. ${semLocalizacao} sem localizacao` : ''}.</span>
+            <strong>${escapeHtml(quantidadeVisivel)} cliente${quantidadeVisivel === 1 ? '' : 's'} no raio de ${escapeHtml(proximidade.raioKm)} km${proximidade.ufReferencia ? ` em ${escapeHtml(proximidade.ufReferencia)}` : ''}</strong>
+            <span>Distancia aproximada por bairro${filiais ? `, comparada com ${filiais} filial${filiais === 1 ? '' : 'is'}` : ''}${aproximadosPorCidade ? `. ${aproximadosPorCidade} temporariamente estimado${aproximadosPorCidade === 1 ? '' : 's'} pela cidade` : ''}${localidadesPendentes ? `. ${localidadesPendentes} bairro${localidadesPendentes === 1 ? '' : 's'} na fila de precisao` : ''}${semLocalizacao ? `. ${semLocalizacao} sem localizacao` : ''}.</span>
         </div>
     `;
 }

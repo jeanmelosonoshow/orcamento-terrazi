@@ -58,4 +58,8 @@ O calculo usa a formula de Haversine. Para evitar milhares de consultas externas
 
 As coordenadas ficam em `bi_geolocalizacao_cache` no PostgreSQL. Na primeira abertura de bairros ainda desconhecidos, o carregamento pode levar mais tempo; nas seguintes, o cache e reutilizado.
 
+Bases grandes sao tratadas em duas etapas. Primeiro o motor localiza as cidades e elimina as claramente distantes. Depois indexa ate 120 bairros novos por atualizacao. Os bairros restantes usam temporariamente a coordenada da cidade e entram automaticamente nas proximas atualizacoes, sem bloquear o relatorio. O tamanho do lote pode ser alterado pela variavel `BI_PROXIMITY_INDEX_BATCH`, entre 20 e 600.
+
+O motor considera `RJ` como UF padrao, unificando bairros e cidades que aparecam com faixas diferentes de CEP. Filiais de outro estado nao entram no calculo e CEPs identificados fora do RJ sao sinalizados como inconsistentes. Para uma expansao futura, a UF pode ser alterada pela variavel `BI_PROXIMITY_UF`.
+
 CEPs invalidos ou sem coordenadas nao entram silenciosamente no raio. O relatorio informa quantos clientes ou localidades nao puderam ser localizados.
