@@ -2428,7 +2428,15 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         if (!colunas.length || !registros.length) {
             if (widgetDetailStatus) {
                 widgetDetailStatus.className = 'crm-widget-detail-status';
-                widgetDetailStatus.textContent = 'Nenhum registro encontrado.';
+                if (data.proximidade) {
+                    const semLocalizacao = Number(data.proximidade.clientesSemCep || 0)
+                        + Number(data.proximidade.clientesSemCoordenadas || 0);
+                    widgetDetailStatus.textContent = 'Nenhum cliente localizado em ate '
+                        + data.proximidade.raioKm + ' km'
+                        + (semLocalizacao ? '; ' + semLocalizacao + ' sem localizacao.' : '.');
+                } else {
+                    widgetDetailStatus.textContent = 'Nenhum registro encontrado.';
+                }
             }
             return;
         }
@@ -2460,7 +2468,18 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
         atualizarExportacaoRelatorioDetalhe(true);
         if (widgetDetailStatus) {
             widgetDetailStatus.className = 'crm-widget-detail-status is-success';
-            widgetDetailStatus.textContent = registros.length + ' registro' + (registros.length === 1 ? '' : 's') + '.';
+            if (data.proximidade) {
+                const proximidade = data.proximidade;
+                const pendencias = Number(proximidade.clientesSemCep || 0)
+                    + Number(proximidade.clientesSemCoordenadas || 0);
+                widgetDetailStatus.textContent = proximidade.clientesProximos
+                    + ' cliente' + (proximidade.clientesProximos === 1 ? '' : 's')
+                    + ' em ate ' + proximidade.raioKm + ' km'
+                    + (proximidade.truncado ? '; exibindo ' + proximidade.registrosRetornados : '')
+                    + (pendencias ? '; ' + pendencias + ' sem localizacao.' : '.');
+            } else {
+                widgetDetailStatus.textContent = registros.length + ' registro' + (registros.length === 1 ? '' : 's') + '.';
+            }
         }
     } catch (error) {
         if (widgetDetailStatus) {

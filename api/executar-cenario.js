@@ -12,6 +12,10 @@ import {
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
 import { resolverFiltroRelacionamento, sqlPossuiFiltroRelacionamento } from '../lib/contact-relationship-filter.js';
 import {
+    aplicarFiltroClientesProximos,
+    obterConfiguracaoClientesProximos
+} from '../lib/client-proximity-filter.js';
+import {
     obterTabelasTemporariasExecuteBlock,
     validarSqlLeitura
 } from '../lib/scenario-sql-validation.js';
@@ -140,6 +144,21 @@ export default async function handler(req, res) {
     }
 
     const fonteNormalizada = String(fonte).toLowerCase() === 'postgres' ? 'postgres' : 'firebird';
+    let configuracaoProximidade;
+    try {
+        configuracaoProximidade = obterConfiguracaoClientesProximos(sql);
+    } catch (error) {
+        return res.status(Number(error.status) || 400).json({
+            error: error.message,
+            code: error.code || 'PROXIMITY_DIRECTIVE_INVALID'
+        });
+    }
+    if (configuracaoProximidade && fonteNormalizada !== 'firebird') {
+        return res.status(400).json({
+            error: 'O filtro de clientes proximos deve ser usado em uma consulta Firebird.',
+            code: 'PROXIMITY_SOURCE_INVALID'
+        });
+    }
     const tabelasTemporariasSolicitadas = fonteNormalizada === 'firebird'
         ? obterTabelasTemporariasExecuteBlock(sql)
         : [];
@@ -169,6 +188,8 @@ export default async function handler(req, res) {
         let linhas = [];
         let visualizacaoAplicadaEmMemoria = false;
         let estrategiaVisualizacao = 'sql-direto';
+        let metadataProximidade = null;
+        let colunasProximidade = null;
 
         if (fonteNormalizada === 'postgres') {
             const client = await db.connect();
@@ -194,7 +215,7 @@ export default async function handler(req, res) {
                 cacheStaleMs: modoNormalizado === 'exportacao' ? 0 : Number(process.env.BI_DASHBOARD_CACHE_STALE_MS || 900000)
             };
 
-            if (deveTentarCacheBaseVisualizacao(preparadoBase, fonteNormalizada, visualizacao)) {
+            if (!configuracaoProximidade && deveTentarCacheBaseVisualizacao(preparadoBase, fonteNormalizada, visualizacao)) {
                 const consultaBase = prepararConsultaBaseVisualizacao(preparadoBase, DRILL_CACHE_MAX_ROWS);
                 const linhasBase = await executarConsultaFirebirdGateway(
                     consultaBase.sql,
@@ -223,9 +244,29 @@ export default async function handler(req, res) {
             } else {
                 linhas = await executarConsultaFirebirdGateway(preparado.sql, preparado.valores, {
                     ...opcoesCache,
-                    limite: preparado.agregarEmMemoria ? undefined : limiteRetorno
+                    limite: preparado.agregarEmMemoria || configuracaoProximidade ? undefined : limiteRetorno
                 });
             }
+        }
+
+        if (configuracaoProximidade) {
+            colunasProximidade = Array.from(new Set([
+                ...extrairColunas(linhas),
+                'DISTANCIA_KM',
+                'IDFILIAL_PROXIMA',
+                'FILIAL_PROXIMA'
+            ]));
+            const resultadoProximidade = await aplicarFiltroClientesProximos({
+                db,
+                executarFirebird: executarConsultaFirebirdGateway,
+                linhas,
+                session,
+                contexto: contextoConsulta,
+                configuracao: configuracaoProximidade
+            });
+            linhas = resultadoProximidade.linhas;
+            metadataProximidade = resultadoProximidade.metadata;
+            estrategiaVisualizacao = 'clientes-proximos';
         }
 
         if (!visualizacaoAplicadaEmMemoria && preparado.agregarEmMemoria) {
@@ -233,19 +274,26 @@ export default async function handler(req, res) {
             visualizacaoAplicadaEmMemoria = true;
             estrategiaVisualizacao = 'execute-block-memoria';
         }
+        linhas = limitarLinhas(linhas, limiteRetorno);
+        if (metadataProximidade) {
+            metadataProximidade.registrosRetornados = linhas.length;
+            metadataProximidade.truncado = metadataProximidade.clientesProximos > linhas.length;
+        }
         const resultadoAgregado = preparado.resultadoAgregado === true || visualizacaoAplicadaEmMemoria;
 
         res.status(200).json({
-            colunas: extrairColunas(linhas),
+            colunas: linhas.length ? extrairColunas(linhas) : (colunasProximidade || []),
             linhas: linhas.length,
             limite: modoNormalizado === 'exportacao' ? null : LIMITE_PREVIA,
             amostra: linhas.slice(0, LIMITE_PREVIA),
             dados: linhas,
             resultadoAgregado,
-            estrategiaVisualizacao
+            estrategiaVisualizacao,
+            proximidade: metadataProximidade
         });
     } catch (error) {
-        const status = fonteNormalizada === 'firebird' ? statusHttpErroConsulta(error) : 500;
+        const status = Number(error?.status)
+            || (fonteNormalizada === 'firebird' ? statusHttpErroConsulta(error) : 500);
         const codigo = String(error?.code || 'QUERY_ERROR');
         const mensagem = mensagemErroInfraestrutura(error, status);
         console.error('[executar-cenario] falha', { codigo, status, message: error?.message });
