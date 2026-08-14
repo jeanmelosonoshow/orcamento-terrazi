@@ -2,13 +2,21 @@
 
 ## Como ativar
 
-Inclua esta diretiva em qualquer lugar do SQL do relatorio de tabela:
+Inclua esta diretiva em qualquer lugar do SQL do relatorio principal de tabela ou da consulta de detalhe:
 
 ```sql
 /* filtro: clientes_proximos */
 ```
 
 A consulta precisa retornar `CEP`, `CIDADE` e `BAIRRO`. O raio padrao e 30 km.
+
+Se o `RETURNS` declara `CEP`, a diretiva deve usar exatamente esse nome:
+
+```sql
+/* filtro: clientes_proximos | campo_cep: CEP | raio_km: 30 */
+```
+
+Nao use `campo_cep: "CEP CLIENTE"` a menos que a consulta realmente retorne uma coluna com esse alias.
 
 Para personalizar:
 
@@ -33,6 +41,8 @@ CIDADE,
 DISTANCIA_KM AS "DISTANCIA (KM)",
 FILIAL_PROXIMA AS "FILIAL MAIS PROXIMA"
 ```
+
+No relatorio principal, execute novamente o teste da consulta. Os campos acrescentados aparecerao na etapa de mapeamento e podem ser definidos como linha, valor ou ignorados.
 
 ## Regras de acesso
 

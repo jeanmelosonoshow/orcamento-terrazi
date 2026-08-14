@@ -2827,6 +2827,7 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 
 .crm-pivot-group-title {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 8px;
     min-width: 0;
@@ -3550,6 +3551,29 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 .crm-chart-real:has(.crm-table-pagination) .crm-chart-table-real {
     flex: 1;
     min-height: 0;
+}
+
+.crm-table-proximity-summary {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 32px;
+    padding: 6px 9px;
+    border-left: 3px solid var(--widget-accent, #2E6F40);
+    background: rgba(46, 111, 64, 0.07);
+    color: var(--widget-color, var(--verde-escuro));
+    font-size: 0.72rem;
+}
+
+.crm-table-proximity-summary strong {
+    font-size: 0.76rem;
+}
+
+.crm-table-proximity-summary span {
+    color: var(--widget-muted, var(--muted));
+    text-align: right;
 }
 
 .crm-table-pagination {

@@ -276,6 +276,7 @@ function obterAssinaturaEstruturalCenario(conteudo) {
             delete configuracao.colunasConsulta;
             delete configuracao.dadosConsultaAgregados;
             delete configuracao.consultaAtualizadaEm;
+            delete configuracao.proximidade;
             return configuracao;
         }));
     } catch (error) {
@@ -1714,6 +1715,22 @@ function renderizarControlePaginacaoTabela(widget, paginacao) {
     `;
 }
 
+function renderizarResumoProximidade(widget, quantidadeVisivel) {
+    const proximidade = widget?.proximidade;
+    if (!proximidade) return '';
+    const semLocalizacao = Number(proximidade.clientesSemCep || 0)
+        + Number(proximidade.clientesSemCoordenadas || 0);
+    const filiais = Array.isArray(proximidade.filiaisConsideradas)
+        ? proximidade.filiaisConsideradas.length
+        : 0;
+    return `
+        <div class="crm-table-proximity-summary">
+            <strong>${escapeHtml(quantidadeVisivel)} cliente${quantidadeVisivel === 1 ? '' : 's'} no raio de ${escapeHtml(proximidade.raioKm)} km</strong>
+            <span>Distancia aproximada por bairro${filiais ? `, comparada com ${filiais} filial${filiais === 1 ? '' : 'is'}` : ''}${semLocalizacao ? `. ${semLocalizacao} sem localizacao` : ''}.</span>
+        </div>
+    `;
+}
+
 function renderizarTabelaSimples(container, widget, registros, registrosTotalizacao, camposLinha, camposColuna, valores, camposDetalhe, configuracao) {
     const dimensoes = [...camposLinha, ...camposColuna];
     const camposExibidos = [...dimensoes, ...valores];
@@ -1780,6 +1797,9 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
     const registrosOrdenados = ordenarRegistrosPorCampos(todosRegistros, camposOrdenacao);
     const paginacao = prepararPaginacaoTabela(widget, registrosOrdenados, opcoes.exportarTudo === true);
     const registros = paginacao.registros;
+    const resumoProximidade = estadoDrill?.campoAtual
+        ? ''
+        : renderizarResumoProximidade(widget, registrosOrdenados.length);
 
     if (!camposLinhaConfigurados.length || !valores.length) {
         container.innerHTML = '<div class="crm-chart-empty">Defina ao menos um campo de linha e um campo de valor.</div>';
@@ -1794,7 +1814,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
         return;
     }
     if (!registros.length) {
-        container.innerHTML = `${renderizarBreadcrumbDrill(widget, estadoDrill)}<div class="crm-chart-empty">Nenhum registro encontrado neste detalhamento.</div>`;
+        container.innerHTML = `${renderizarBreadcrumbDrill(widget, estadoDrill)}${resumoProximidade}<div class="crm-chart-empty">Nenhum registro encontrado neste relatorio.</div>`;
         return;
     }
 
@@ -1806,6 +1826,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
 
     if (widget.tipo === 'table' && !estadoDrill?.campoAtual) {
         renderizarTabelaSimples(container, widget, registros, registrosOrdenados, camposLinhaConfigurados, camposColuna, valores, camposDetalheDisponiveis, configuracao);
+        container.insertAdjacentHTML('afterbegin', resumoProximidade);
         container.insertAdjacentHTML('beforeend', renderizarControlePaginacaoTabela(widget, paginacao));
         return;
     }
@@ -1966,6 +1987,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
         : '';
     container.innerHTML = `
         ${renderizarBreadcrumbDrill(widget, estadoDrill)}
+        ${resumoProximidade}
         <div class="crm-chart-table-real">
             <table class="crm-pivot-table${possuiAgrupamentos ? ' is-sectioned' : ''}">
                 ${possuiAgrupamentos ? '' : `<thead>${cabecalho}</thead>`}
@@ -3511,7 +3533,8 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
         const enriquecido = await enriquecerRegistrosContato(combinado.dados, combinado.colunas, filtros.contextoDashboard);
         const dadosFiltrados = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
-        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: dadosFiltrados, dadosConsultaAgregados: false, consultaAtualizadaEm: new Date().toISOString() };
+        const proximidade = resultados.find(resultado => resultado.proximidade)?.proximidade || null;
+        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: dadosFiltrados, dadosConsultaAgregados: false, proximidade, consultaAtualizadaEm: new Date().toISOString() };
     }
     const visualizacao = widgetMapeiaContato(widget) ? null : montarVisualizacaoWidget(widget);
     const controller = new AbortController();
@@ -3544,7 +3567,7 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
             : colunasRetornadas;
         const dadosRetornados = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
         const enriquecido = await enriquecerRegistrosContato(dadosRetornados, colunasConsulta, filtros.contextoDashboard);
-        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: aplicarFiltrosContatoRegistros(enriquecido.registros, filtros), dadosConsultaAgregados: data.resultadoAgregado === true, consultaAtualizadaEm: new Date().toISOString() };
+        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: aplicarFiltrosContatoRegistros(enriquecido.registros, filtros), dadosConsultaAgregados: data.resultadoAgregado === true, proximidade: data.proximidade || null, consultaAtualizadaEm: new Date().toISOString() };
     } finally { clearTimeout(timeout); }
 }
 
@@ -4113,7 +4136,8 @@ async function executarConsultaConfigurada(consulta, filtros, visualizacao = nul
     return {
         ...consulta,
         colunas: Array.isArray(data.colunas) ? data.colunas : [],
-        dados: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : [])
+        dados: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []),
+        proximidade: data.proximidade || null
     };
 }
 function combinarConsultas(resultados, combinacao, camposCalculados) { if (!window.CRM_COMPOSITE_DATASETS) throw new Error('Combinador de consultas indisponível.'); return window.CRM_COMPOSITE_DATASETS.combinar(resultados, combinacao, camposCalculados, window.CRM_KPI_CALCULATOR?.avaliar); }
@@ -4278,6 +4302,9 @@ function salvarWidgetAtual() {
         camposCalculados: calculado ? [] : coletarCamposCalculadosEditor(),
         colunasConsulta: calculado ? [] : colunasConsultaAtual,
         dadosConsulta: calculado ? [] : dadosConsultaAtual,
+        proximidade: calculado
+            ? null
+            : (resultadosConsultasAtuais.find(resultado => resultado.proximidade)?.proximidade || widgetEmEdicao.proximidade || null),
         consultaAtualizadaEm: calculado ? null : new Date().toISOString(),
         limiteTop: calculado ? 0 : normalizarLimiteTopGrafico(limiteTopAtual),
         mapeamentos,

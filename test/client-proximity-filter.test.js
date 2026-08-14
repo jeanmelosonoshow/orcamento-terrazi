@@ -105,3 +105,16 @@ test('a rota aplica proximidade antes do limite visual e devolve os metadados', 
     assert.match(api, /proximidade: metadataProximidade/);
     assert.match(api, /'DISTANCIA_KM'/);
 });
+
+test('relatorio principal preserva e exibe o resumo de proximidade', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const [javascript, css] = await Promise.all([
+        readFile(new URL('../public/crm.js', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8')
+    ]);
+    assert.match(javascript, /function renderizarResumoProximidade/);
+    assert.match(javascript, /proximidade: data\.proximidade \|\| null/);
+    assert.match(javascript, /container\.insertAdjacentHTML\('afterbegin', resumoProximidade\)/);
+    assert.match(javascript, /resultadosConsultasAtuais\.find\(resultado => resultado\.proximidade\)/);
+    assert.match(css, /\.crm-table-proximity-summary/);
+});
