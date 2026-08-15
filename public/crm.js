@@ -1735,13 +1735,16 @@ function renderizarResumoProximidade(widget, quantidadeVisivel) {
     `;
 }
 
-function renderizarTabelaSimples(container, widget, registros, registrosTotalizacao, camposLinha, camposColuna, valores, camposDetalhe, configuracao) {
-    const dimensoes = [...camposLinha, ...camposColuna];
-    const camposExibidos = [...dimensoes, ...valores];
+function renderizarTabelaSimples(container, widget, registros, registrosTotalizacao, camposExibidos, camposDetalhe, configuracao) {
     const cabecalho = camposExibidos.map(campo => `<th${atributoAlinhamentoCampo(campo, campo.papel === 'valor' ? 'right' : 'left')}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`).join('');
     const corpo = registros.map(registro => {
         const filtrosLinha = [];
-        const celulasDimensao = dimensoes.map((campo, index) => {
+        const celulas = camposExibidos.map(campo => {
+            if (campo.papel === 'valor') {
+                const bruto = obterValorLinha(registro, campo.coluna);
+                const formatado = formatarValorGrafico(calcularAgregacao([bruto], campo.agregacao || 'none'), campo.formatoValor);
+                return `<td class="is-value"${atributoAlinhamentoCampo(campo, 'right')}><span class="crm-cell-content">${renderizarConteudoCelula(widget, campo, registro, formatado)}</span></td>`;
+            }
             const bruto = obterValorLinha(registro, campo.coluna);
             const rotulo = formatarDimensao(bruto, campo.formatoData);
             if (campo.papel === 'linha') {
@@ -1752,21 +1755,18 @@ function renderizarTabelaSimples(container, widget, registros, registrosTotaliza
                 : '';
             return `<td class="is-dimension"${atributoAlinhamentoCampo(campo)}><span class="crm-dimension-cell"><span class="crm-cell-content">${renderizarConteudoCelula(widget, campo, registro, rotulo)}</span>${controle}</span></td>`;
         }).join('');
-        const celulasValor = valores.map(valor => {
-            const bruto = obterValorLinha(registro, valor.coluna);
-            const formatado = formatarValorGrafico(calcularAgregacao([bruto], valor.agregacao || 'none'), valor.formatoValor);
-            return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}><span class="crm-cell-content">${renderizarConteudoCelula(widget, valor, registro, formatado)}</span></td>`;
-        }).join('');
-        return `<tr>${celulasDimensao}${celulasValor}</tr>`;
+        return `<tr>${celulas}</tr>`;
     }).join('');
-    const total = configuracao.totalLinhas ? `
-        <tr class="crm-pivot-grand-total">
-            <td${atributoAlinhamentoCampo(dimensoes[0])} colspan="${Math.max(1, dimensoes.length)}">Total geral</td>
-            ${valores.map(valor => {
-                const agregado = calcularAgregacao(registrosTotalizacao.map(registro => obterValorLinha(registro, valor.coluna)), valor.agregacao || 'none');
-                return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatarValorGrafico(agregado, valor.formatoValor))}</td>`;
-            }).join('')}
-        </tr>` : '';
+    let rotuloTotalInserido = false;
+    const total = configuracao.totalLinhas ? `<tr class="crm-pivot-grand-total">${camposExibidos.map(campo => {
+        if (campo.papel === 'valor') {
+            const agregado = calcularAgregacao(registrosTotalizacao.map(registro => obterValorLinha(registro, campo.coluna)), campo.agregacao || 'none');
+            return `<td class="is-value"${atributoAlinhamentoCampo(campo, 'right')}>${escapeHtml(formatarValorGrafico(agregado, campo.formatoValor))}</td>`;
+        }
+        const rotulo = rotuloTotalInserido ? '' : 'Total geral';
+        rotuloTotalInserido = true;
+        return `<td${atributoAlinhamentoCampo(campo)}>${rotulo}</td>`;
+    }).join('')}</tr>` : '';
     container.innerHTML = `
         <div class="crm-chart-table-real">
             <table class="crm-pivot-table crm-simple-table">
@@ -1829,7 +1829,15 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
     );
 
     if (widget.tipo === 'table' && !estadoDrill?.campoAtual) {
-        renderizarTabelaSimples(container, widget, registros, registrosOrdenados, camposLinhaConfigurados, camposColuna, valores, camposDetalheDisponiveis, configuracao);
+        renderizarTabelaSimples(
+            container,
+            widget,
+            registros,
+            registrosOrdenados,
+            mapeamentos.filter(item => item.papel !== 'ignorar'),
+            camposDetalheDisponiveis,
+            configuracao
+        );
         container.insertAdjacentHTML('afterbegin', resumoProximidade);
         container.insertAdjacentHTML('beforeend', renderizarControlePaginacaoTabela(widget, paginacao));
         return;
@@ -2160,13 +2168,16 @@ async function enriquecerRegistrosContato(registros, colunas, contexto = dashboa
 }
 
 function obterSqlWidget(widget) {
+    if (widget?.relatorioDetalhe) return String(widget?.sql || '');
     const consultas = Array.isArray(widget?.consultas) ? widget.consultas.map(item => item.sql) : [];
-    return [...consultas, widget?.sql, widget?.detalhe?.sql].filter(Boolean).join('\n');
+    return Array.from(new Set([...consultas, widget?.sql]
+        .map(sql => String(sql || '').trim())
+        .filter(Boolean))).join('\n');
 }
 
 function obterDiretivasCelula(widget) {
     const diretivas = [];
-    const regex = /\/\*\s*(icon|action)\s*:\s*([a-z0-9_-]+)([\s\S]*?)\*\/\s*[\s\S]*?\bas\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$]*))/gi;
+    const regex = /\/\*\s*(icon|action)\s*:\s*([a-z0-9_-]+)([\s\S]*?)\*\/\s*[\s\S]*?\bas\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$.]*))/gi;
     let match;
     const sql = obterSqlWidget(widget);
     while ((match = regex.exec(sql)) !== null) {
@@ -3868,11 +3879,22 @@ function renderizarMapeamentoColunas() {
     const permiteLimiteTop = papeisTipo.includes('dimensao') && papeisTipo.includes('valor');
     if (chartTopConfigBox) chartTopConfigBox.hidden = !permiteLimiteTop;
     if (chartTopLimitInput) chartTopLimitInput.value = limiteTopAtual || '';
-    columnMappingBox.innerHTML = colunasConsultaAtual.map(coluna => {
+    const colunasPorNome = new Map(colunasConsultaAtual.map(coluna => [String(coluna).toLowerCase(), coluna]));
+    const colunasOrdenadas = [
+        ...existentes.map(item => colunasPorNome.get(String(item.coluna).toLowerCase())).filter(Boolean),
+        ...colunasConsultaAtual.filter(coluna => !porNome.has(String(coluna).toLowerCase()))
+    ];
+    columnMappingBox.innerHTML = Array.from(new Set(colunasOrdenadas)).map(coluna => {
         const atual = porNome.get(String(coluna).toLowerCase()) || {};
         return `
             <article class="crm-column-row" data-column-name="${escapeHtml(coluna)}">
-                <strong>${escapeHtml(coluna)}</strong>
+                <div class="crm-column-identity">
+                    <strong>${escapeHtml(coluna)}</strong>
+                    <span class="crm-column-order-actions" aria-label="Ordenar coluna">
+                        <button type="button" data-map-move="-1" aria-label="Mover ${escapeHtml(coluna)} para cima" title="Mover para cima">&#8593;</button>
+                        <button type="button" data-map-move="1" aria-label="Mover ${escapeHtml(coluna)} para baixo" title="Mover para baixo">&#8595;</button>
+                    </span>
+                </div>
                 <label>
                     Apelido do rótulo
                     <input type="text" value="${escapeHtml(atual.apelido || coluna)}" data-map-alias>
@@ -3932,7 +3954,19 @@ function renderizarMapeamentoColunas() {
         `;
     }).join('');
     columnMappingBox.querySelectorAll('[data-column-name]').forEach(atualizarCamposMapeamento);
+    atualizarControlesOrdemMapeamento();
     renderizarConfiguracaoTabela();
+}
+
+function atualizarControlesOrdemMapeamento() {
+    if (!columnMappingBox) return;
+    const linhas = Array.from(columnMappingBox.querySelectorAll('[data-column-name]'));
+    linhas.forEach((linha, indice) => {
+        const subir = linha.querySelector('[data-map-move="-1"]');
+        const descer = linha.querySelector('[data-map-move="1"]');
+        if (subir) subir.disabled = indice === 0;
+        if (descer) descer.disabled = indice === linhas.length - 1;
+    });
 }
 
 function coletarMapeamentosColunas() {
@@ -4503,6 +4537,19 @@ function inicializarEditorDashboard() {
         });
     }
     if (columnMappingBox) {
+        columnMappingBox.addEventListener('click', event => {
+            const botao = event.target.closest('[data-map-move]');
+            if (!botao || botao.disabled) return;
+            const linha = botao.closest('[data-column-name]');
+            const direcao = Number(botao.dataset.mapMove);
+            const referencia = direcao < 0 ? linha?.previousElementSibling : linha?.nextElementSibling;
+            if (!linha || !referencia) return;
+            if (direcao < 0) columnMappingBox.insertBefore(linha, referencia);
+            else columnMappingBox.insertBefore(referencia, linha);
+            if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
+            atualizarControlesOrdemMapeamento();
+            renderizarConfiguracaoTabela();
+        });
         columnMappingBox.addEventListener('change', event => {
             if (event.target.matches('[data-map-alignment]')) {
                 event.target.dataset.userDefined = 'true';

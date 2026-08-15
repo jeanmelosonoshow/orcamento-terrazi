@@ -32,6 +32,38 @@ test('diretiva reconhece alias com espacos entre aspas em SELECT e EXECUTE BLOCK
     assert.equal(bloco[0].campo, 'DATA CONTATO');
 });
 
+test('diretivas nao duplicam o SQL principal nem vazam do relatorio de detalhe', async () => {
+    const obterDiretivasCelula = await carregarLeitorDiretivas();
+    const sql = 'SELECT /* action:contact | label:Registrar */ C.DOCUMENTO AS DOCUMENTO FROM CLIENTE C';
+    const principal = obterDiretivasCelula({
+        sql,
+        consultas: [{ alias: 'principal', sql }],
+        detalhe: { sql: 'SELECT /* action:contact */ D.DOCUMENTO AS DOCUMENTO FROM DETALHE D' }
+    });
+    const detalhe = obterDiretivasCelula({
+        relatorioDetalhe: true,
+        sql: 'SELECT /* icon:fa-route */ D.DISTANCIA AS DISTANCIA_KM FROM DETALHE D'
+    });
+
+    assert.equal(principal.length, 1);
+    assert.equal(principal[0].tipo, 'action');
+    assert.equal(detalhe.length, 1);
+    assert.equal(detalhe[0].campo, 'DISTANCIA_KM');
+});
+
+test('diretiva aceita alvo herdado com prefixo e coluna criada pelo motor', async () => {
+    const obterDiretivasCelula = await carregarLeitorDiretivas();
+    const diretivas = obterDiretivasCelula({
+        sql: `
+            /* icon:fa-check-double */ /* AS CONTATO.STATUS_CONTATO */
+            /* icon:fa-route */ /* AS DISTANCIA_KM */
+            SELECT 1 FROM RDB$DATABASE
+        `
+    });
+
+    assert.deepEqual(diretivas.map(item => item.campo), ['CONTATO.STATUS_CONTATO', 'DISTANCIA_KM']);
+});
+
 test('diretiva renderiza Font Awesome solid, regular e marcas', async () => {
     const { iconeCelula } = await carregarDiretivas();
     assert.match(iconeCelula('fa-user-plus'), /class="fa-solid fa-user-plus"/);

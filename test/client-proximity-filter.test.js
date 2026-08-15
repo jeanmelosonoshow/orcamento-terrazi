@@ -237,3 +237,13 @@ test('painel repete silenciosamente apenas falhas temporarias da fila', async ()
     assert.match(javascript, /BI_GATEWAY_QUEUE_FULL/);
     assert.match(javascript, /DASHBOARD_QUEUE_RETRY_LIMIT = 1/);
 });
+
+test('mapeamento permite ordenar inclusive colunas herdadas', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const javascript = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+    assert.match(javascript, /data-map-move="-1"/);
+    assert.match(javascript, /data-map-move="1"/);
+    assert.match(javascript, /function atualizarControlesOrdemMapeamento/);
+    assert.match(javascript, /widgetEmEdicao\.mapeamentos = coletarMapeamentosColunas\(\)/);
+    assert.match(javascript, /mapeamentos\.filter\(item => item\.papel !== 'ignorar'\),\s*camposDetalheDisponiveis/);
+});

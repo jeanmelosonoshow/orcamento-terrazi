@@ -42,6 +42,21 @@ DISTANCIA_KM AS "DISTANCIA (KM)",
 FILIAL_PROXIMA AS "FILIAL MAIS PROXIMA"
 ```
 
+No relatorio principal, use os botoes de seta na etapa de mapeamento para definir a ordem. Isso tambem permite intercalar campos enriquecidos do PostgreSQL, por exemplo colocar `CONTATO.STATUS_CONTATO` imediatamente depois de `NOME`.
+
+As colunas criadas pelo motor aceitam as mesmas diretivas de icone. Como elas nao fazem parte do SQL Firebird, associe a diretiva por um comentario `AS`:
+
+```sql
+/* icon:fa-route | color:#175CD3 | background:#EAF2FF | size:18px | position:before */ /* AS DISTANCIA_KM */
+/* icon:fa-store | color:#2E6F40 | background:#E9FBEF | size:18px | position:before */ /* AS FILIAL_PROXIMA */
+```
+
+Campos herdados do controle de contato tambem podem ser referenciados com ou sem o prefixo:
+
+```sql
+/* icon:fa-check-double | color:#123865 | position:before */ /* AS CONTATO.STATUS_CONTATO */
+```
+
 No relatorio principal, execute novamente o teste da consulta. Os campos acrescentados aparecerao na etapa de mapeamento e podem ser definidos como linha, valor ou ignorados.
 
 ## Regras de acesso
