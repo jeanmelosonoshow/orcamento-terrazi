@@ -1002,6 +1002,74 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     background: #fff;
     color: var(--verde-escuro);
 }
+
+.crm-filterable-header { position: relative; }
+.crm-table-filter-heading { display: inline-flex; align-items: center; justify-content: inherit; gap: 5px; max-width: 100%; }
+.crm-table-filter-heading > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.crm-table-filter-control { display: inline-flex; flex: 0 0 auto; }
+.crm-table-filter-control > button {
+    width: 22px; height: 22px; display: inline-grid; place-items: center; padding: 3px;
+    border: 0; border-radius: 4px; background: transparent; color: #718096; cursor: pointer;
+}
+.crm-table-filter-control > button:hover,
+.crm-table-filter-control.is-active > button { background: rgba(18,56,101,0.10); color: #123865; }
+.crm-table-filter-control.is-active > button { box-shadow: inset 0 0 0 1px rgba(18,56,101,0.25); }
+.crm-table-filter-control svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.crm-table-filter-menu {
+    position: fixed; z-index: 10020; display: grid; gap: 10px;
+    max-height: min(500px, calc(100vh - 24px)); padding: 12px;
+    border: 1px solid #C9D5E5; border-radius: 8px; background: #fff; color: #102A43;
+    box-shadow: 0 16px 38px rgba(15,36,64,0.22); text-align: left; font-size: 0.78rem; font-weight: 500;
+}
+.crm-table-filter-menu[hidden] { display: none; }
+.crm-table-filter-head, .crm-table-filter-actions, .crm-table-filter-conditions > span { display: flex; align-items: center; gap: 8px; }
+.crm-table-filter-head { justify-content: space-between; }
+.crm-table-filter-head strong { color: #123865; font-size: 0.86rem; overflow-wrap: anywhere; }
+.crm-table-filter-head button {
+    width: 28px; height: 28px; border: 1px solid #D9E2EC; border-radius: 50%;
+    background: #fff; color: #52667A; cursor: pointer;
+}
+.crm-table-filter-menu input[type="search"],
+.crm-table-filter-menu input[type="text"],
+.crm-table-filter-menu select {
+    width: 100%; min-width: 0; min-height: 34px; border: 1px solid #C9D5E5;
+    border-radius: 6px; background: #fff; color: #102A43; padding: 6px 8px; font: inherit;
+}
+.crm-table-filter-values {
+    display: grid; max-height: 178px; overflow: auto; border: 1px solid #E3EAF2; border-radius: 6px;
+}
+.crm-table-filter-values label {
+    display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; color: #243B53; cursor: pointer;
+}
+.crm-table-filter-values label + label { border-top: 1px solid #EEF2F6; }
+.crm-table-filter-values label:hover { background: #F5F8FC; }
+.crm-table-filter-values label.is-all {
+    position: sticky; top: 0; z-index: 1; background: #EDF3FA; color: #123865; font-weight: 700;
+}
+.crm-table-filter-values input[type="checkbox"] { flex: 0 0 auto; margin-top: 1px; }
+.crm-table-filter-values span { min-width: 0; overflow-wrap: anywhere; }
+.crm-table-filter-conditions { display: grid; gap: 7px; padding-top: 2px; }
+.crm-table-filter-conditions small { color: #52667A; font-weight: 700; }
+.crm-table-filter-conditions > span select, .crm-table-filter-conditions > span input { flex: 1 1 50%; }
+.crm-table-filter-conditions > select { width: 72px; justify-self: center; min-height: 30px; }
+.crm-table-filter-actions { justify-content: flex-end; padding-top: 2px; }
+.crm-table-filter-actions button, .crm-table-active-filters button {
+    min-height: 32px; padding: 6px 12px; border: 1px solid #C9D5E5; border-radius: 6px;
+    background: #fff; color: #123865; font-weight: 700; cursor: pointer;
+}
+.crm-table-filter-actions button:last-child { border-color: #123865; background: #123865; color: #fff; }
+.crm-table-active-filters {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: 0 0 8px; padding: 7px 9px; border-left: 3px solid #123865;
+    background: #EDF3FA; color: #314A61; font-size: 0.72rem;
+}
+.crm-table-active-filters span { min-width: 0; overflow-wrap: anywhere; }
+.crm-table-active-filters button { flex: 0 0 auto; min-height: 28px; padding-block: 4px; }
+.crm-table-filter-chips { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-left: 6px; }
+.crm-table-filter-chips button {
+    min-height: 24px; padding: 2px 7px; border-color: rgba(18,56,101,0.22);
+    background: #fff; font-size: 0.68rem;
+}
 .crm-chart-bars-preview,
 .crm-chart-funnel-preview,
 .crm-chart-table-preview,

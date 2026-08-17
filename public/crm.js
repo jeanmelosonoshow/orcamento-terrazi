@@ -326,6 +326,7 @@ const observadoresGraficosDashboard = new Map();
 const estadosDrillDashboard = new Map();
 const contextosDrillDashboard = new Map();
 const paginasTabelaDashboard = new Map();
+const filtrosColunaTabelaDashboard = new Map();
 let instanciaPreviaAparencia = null;
 let sequenciaContextoDrill = 0;
 let observadorTamanhoDashboard = null;
@@ -1735,8 +1736,285 @@ function renderizarResumoProximidade(widget, quantidadeVisivel) {
     `;
 }
 
-function renderizarTabelaSimples(container, widget, registros, registrosTotalizacao, camposExibidos, camposDetalhe, configuracao) {
-    const cabecalho = camposExibidos.map(campo => `<th${atributoAlinhamentoCampo(campo, campo.papel === 'valor' ? 'right' : 'left')}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`).join('');
+function chaveValorAutoFiltro(valor) {
+    if (valor === null) return 'null:';
+    if (valor === undefined) return 'undefined:';
+    if (valor instanceof Date) return 'date:' + valor.toISOString();
+    return typeof valor + ':' + String(valor);
+}
+
+function rotuloValorAutoFiltro(valor) {
+    if (valor === null || valor === undefined || valor === '') return '(Vazios)';
+    if (valor === true) return 'Sim';
+    if (valor === false) return 'Nao';
+    return String(valor);
+}
+
+function chaveEstadoAutoFiltroTabela(widgetId) {
+    return `${dashboardContextoAtivo}:${String(widgetId || '')}`;
+}
+
+function obterFiltrosColunaWidget(widgetId, criar = false) {
+    const chave = chaveEstadoAutoFiltroTabela(widgetId);
+    if (!filtrosColunaTabelaDashboard.has(chave) && criar) {
+        filtrosColunaTabelaDashboard.set(chave, new Map());
+    }
+    return filtrosColunaTabelaDashboard.get(chave) || new Map();
+}
+
+function limparFiltrosColunaWidget(widgetId) {
+    filtrosColunaTabelaDashboard.delete(chaveEstadoAutoFiltroTabela(widgetId));
+}
+
+function condicaoAutoFiltroAtiva(condicao) {
+    return condicao && String(condicao.operador || 'none') !== 'none';
+}
+
+function compararCondicaoAutoFiltro(valor, condicao) {
+    const operador = String(condicao?.operador || 'none');
+    if (operador === 'none') return true;
+    const vazio = valor === null || valor === undefined || valor === '';
+    if (operador === 'blank') return vazio;
+    if (operador === 'not_blank') return !vazio;
+
+    const texto = String(valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+    const termo = String(condicao?.valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+    if (operador === 'contains') return texto.includes(termo);
+    if (operador === 'not_contains') return !texto.includes(termo);
+    if (operador === 'starts_with') return texto.startsWith(termo);
+    if (operador === 'ends_with') return texto.endsWith(termo);
+    if (operador === 'equals') return texto === termo;
+    if (operador === 'not_equals') return texto !== termo;
+
+    const comparacao = compararValoresOrdenacao(valor, condicao?.valor ?? '');
+    if (operador === 'gt') return comparacao > 0;
+    if (operador === 'gte') return comparacao >= 0;
+    if (operador === 'lt') return comparacao < 0;
+    if (operador === 'lte') return comparacao <= 0;
+    return true;
+}
+
+function aplicarAutoFiltrosTabela(widgetId, registros) {
+    const filtros = obterFiltrosColunaWidget(widgetId);
+    if (!filtros.size) return registros;
+    return registros.filter(registro => Array.from(filtros.entries()).every(([coluna, filtro]) => {
+        const valor = obterValorLinha(registro, coluna);
+        if (Array.isArray(filtro.selecionados)) {
+            if (!new Set(filtro.selecionados).has(chaveValorAutoFiltro(valor))) return false;
+        }
+        const condicoes = (Array.isArray(filtro.condicoes) ? filtro.condicoes : []).filter(condicaoAutoFiltroAtiva);
+        if (!condicoes.length) return true;
+        const resultados = condicoes.map(condicao => compararCondicaoAutoFiltro(valor, condicao));
+        return String(filtro.combinacao || 'and').toLowerCase() === 'or'
+            ? resultados.some(Boolean)
+            : resultados.every(Boolean);
+    }));
+}
+
+function opcoesOperadorAutoFiltro(selecionado = 'none') {
+    const opcoes = [
+        ['none', 'Sem condicao'], ['contains', 'Contem'], ['not_contains', 'Nao contem'],
+        ['equals', 'Igual a'], ['not_equals', 'Diferente de'], ['starts_with', 'Comeca com'],
+        ['ends_with', 'Termina com'], ['gt', 'Maior que'], ['gte', 'Maior ou igual'],
+        ['lt', 'Menor que'], ['lte', 'Menor ou igual'], ['blank', 'Esta vazio'], ['not_blank', 'Nao esta vazio']
+    ];
+    return opcoes.map(([valor, rotulo]) => `<option value="${valor}"${valor === selecionado ? ' selected' : ''}>${rotulo}</option>`).join('');
+}
+
+function obterValoresDistintosAutoFiltro(registros, campo) {
+    const valores = new Map();
+    registros.forEach(registro => {
+        const valor = obterValorLinha(registro, campo.coluna);
+        const chave = chaveValorAutoFiltro(valor);
+        if (!valores.has(chave)) valores.set(chave, { chave, valor, rotulo: rotuloValorAutoFiltro(valor) });
+    });
+    return Array.from(valores.values()).sort((a, b) => compararValoresOrdenacao(a.valor, b.valor));
+}
+
+function renderizarMenuAutoFiltroTabela(widget, campo, registrosBase) {
+    const filtros = obterFiltrosColunaWidget(widget.id);
+    const filtro = filtros.get(String(campo.coluna)) || {};
+    const valores = obterValoresDistintosAutoFiltro(registrosBase, campo);
+    const selecionados = Array.isArray(filtro.selecionados) ? new Set(filtro.selecionados) : null;
+    const condicoes = Array.isArray(filtro.condicoes) ? filtro.condicoes : [];
+    const primeira = condicoes[0] || { operador: 'none', valor: '' };
+    const segunda = condicoes[1] || { operador: 'none', valor: '' };
+    const ativo = selecionados !== null || condicoes.some(condicaoAutoFiltroAtiva);
+    const todosMarcados = selecionados === null || valores.every(item => selecionados.has(item.chave));
+    const quantidadeMarcada = selecionados === null ? valores.length : valores.filter(item => selecionados.has(item.chave)).length;
+    return `
+        <span class="crm-table-filter-control${ativo ? ' is-active' : ''}">
+            <button type="button" data-table-filter-toggle data-filter-widget="${escapeHtml(widget.id)}" data-filter-field="${escapeHtml(campo.coluna)}" aria-label="Filtrar ${escapeHtml(obterApelidoMapeamento(campo))}" title="Filtrar coluna">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6.5 7.2v5.3l-3 1.5v-6.8z"></path></svg>
+            </button>
+            <span class="crm-table-filter-menu" data-table-filter-menu data-filter-widget="${escapeHtml(widget.id)}" data-filter-field="${escapeHtml(campo.coluna)}" hidden>
+                <span class="crm-table-filter-head"><strong>${escapeHtml(obterApelidoMapeamento(campo))}</strong><button type="button" data-table-filter-close aria-label="Fechar filtro">&times;</button></span>
+                <input type="search" placeholder="Pesquisar valores..." data-table-filter-search>
+                <span class="crm-table-filter-values" data-table-filter-values>
+                    <label class="is-all"><input type="checkbox" data-table-filter-all${todosMarcados ? ' checked' : ''}${quantidadeMarcada > 0 && !todosMarcados ? ' data-indeterminate="true"' : ''}><span>Selecionar todos</span></label>
+                    ${valores.map(item => `<label data-filter-option data-filter-search-text="${escapeHtml(item.rotulo.toLocaleLowerCase('pt-BR'))}"><input type="checkbox" value="${escapeHtml(item.chave)}" data-table-filter-value${selecionados === null || selecionados.has(item.chave) ? ' checked' : ''}><span>${escapeHtml(item.rotulo)}</span></label>`).join('')}
+                </span>
+                <span class="crm-table-filter-conditions">
+                    <small>Condicoes personalizadas</small>
+                    <span><select data-table-filter-operator="0">${opcoesOperadorAutoFiltro(primeira.operador)}</select><input type="text" value="${escapeHtml(primeira.valor || '')}" placeholder="Valor" data-table-filter-condition-value="0"></span>
+                    <select data-table-filter-combination aria-label="Combinar condicoes"><option value="and"${filtro.combinacao !== 'or' ? ' selected' : ''}>E</option><option value="or"${filtro.combinacao === 'or' ? ' selected' : ''}>OU</option></select>
+                    <span><select data-table-filter-operator="1">${opcoesOperadorAutoFiltro(segunda.operador)}</select><input type="text" value="${escapeHtml(segunda.valor || '')}" placeholder="Valor" data-table-filter-condition-value="1"></span>
+                </span>
+                <span class="crm-table-filter-actions"><button type="button" data-table-filter-clear>Limpar</button><button type="button" data-table-filter-apply>Aplicar</button></span>
+            </span>
+        </span>
+    `;
+}
+
+function renderizarCabecalhoAutoFiltro(widget, campo, registrosBase, rotulo = '') {
+    return `<span class="crm-table-filter-heading"><span>${escapeHtml(rotulo || obterApelidoMapeamento(campo))}</span>${renderizarMenuAutoFiltroTabela(widget, campo, registrosBase)}</span>`;
+}
+
+function renderizarResumoAutoFiltrosTabela(widget) {
+    const filtros = obterFiltrosColunaWidget(widget.id);
+    if (!filtros.size) return '';
+    const mapeamentos = new Map((widget.mapeamentos || []).map(item => [String(item.coluna), item]));
+    return `<div class="crm-table-active-filters"><span><strong>Filtros ativos:</strong><span class="crm-table-filter-chips">${Array.from(filtros.keys()).map(coluna => `<button type="button" data-table-filter-clear-field data-filter-widget="${escapeHtml(widget.id)}" data-filter-field="${escapeHtml(coluna)}" title="Remover este filtro">${escapeHtml(obterApelidoMapeamento(mapeamentos.get(coluna) || { coluna }))} &times;</button>`).join('')}</span></span><button type="button" data-table-filter-clear-all data-filter-widget="${escapeHtml(widget.id)}">Limpar todos</button></div>`;
+}
+
+function fecharMenusAutoFiltroTabela(exceto = null) {
+    document.querySelectorAll('[data-table-filter-menu]').forEach(menu => {
+        if (menu !== exceto) menu.hidden = true;
+    });
+}
+
+function posicionarMenuAutoFiltroTabela(menu, botao) {
+    if (!menu || !botao) return;
+    const retangulo = botao.getBoundingClientRect();
+    const largura = Math.min(360, Math.max(280, window.innerWidth - 24));
+    const esquerda = Math.min(window.innerWidth - largura - 12, Math.max(12, retangulo.right - largura));
+    const topoPreferido = retangulo.bottom + 6;
+    menu.style.width = largura + 'px';
+    menu.style.left = esquerda + 'px';
+    menu.style.top = Math.min(topoPreferido, Math.max(12, window.innerHeight - 520)) + 'px';
+}
+
+function atualizarSelecaoMenuAutoFiltro(menu) {
+    if (!menu) return;
+    const opcoes = Array.from(menu.querySelectorAll('[data-table-filter-value]'));
+    const visiveis = opcoes.filter(input => !input.closest('[data-filter-option]')?.hidden);
+    const marcadas = visiveis.filter(input => input.checked);
+    const todos = menu.querySelector('[data-table-filter-all]');
+    if (todos) {
+        todos.checked = visiveis.length > 0 && marcadas.length === visiveis.length;
+        todos.indeterminate = marcadas.length > 0 && marcadas.length < visiveis.length;
+    }
+}
+
+function renderizarTabelaAposAutoFiltro(widgetId) {
+    const id = String(widgetId || '');
+    paginasTabelaDashboard.set(id, 1);
+    if (widgetDetalheModalAtual && String(widgetDetalheModalAtual.id) === id) {
+        renderizarRelatorioDetalheAtual();
+        return;
+    }
+    const widget = obterWidgetExportacao(id);
+    const seletor = window.CSS?.escape ? window.CSS.escape(id) : id.replace(/"/g, '\\"');
+    const container = dashboardCanvas?.querySelector(`[data-widget-id="${seletor}"] [data-chart-widget]`);
+    if (widget && container) renderizarTabelaGrafico(container, widget);
+}
+
+function tratarCliqueAutoFiltroTabela(event) {
+    const alternador = event.target.closest('[data-table-filter-toggle]');
+    if (alternador) {
+        const controle = alternador.closest('.crm-table-filter-control');
+        const menu = controle?.querySelector('[data-table-filter-menu]');
+        const abrir = Boolean(menu?.hidden);
+        fecharMenusAutoFiltroTabela(menu);
+        if (menu) {
+            menu.hidden = !abrir;
+            if (abrir) {
+                posicionarMenuAutoFiltroTabela(menu, alternador);
+                menu.querySelectorAll('[data-indeterminate="true"]').forEach(input => { input.indeterminate = true; });
+                atualizarSelecaoMenuAutoFiltro(menu);
+                setTimeout(() => menu.querySelector('[data-table-filter-search]')?.focus(), 0);
+            }
+        }
+        return true;
+    }
+
+    const menu = event.target.closest('[data-table-filter-menu]');
+    const limparTodos = event.target.closest('[data-table-filter-clear-all]');
+    if (limparTodos) {
+        limparFiltrosColunaWidget(limparTodos.dataset.filterWidget);
+        renderizarTabelaAposAutoFiltro(limparTodos.dataset.filterWidget);
+        return true;
+    }
+    const limparCampo = event.target.closest('[data-table-filter-clear-field]');
+    if (limparCampo) {
+        const widgetId = String(limparCampo.dataset.filterWidget || '');
+        const filtros = obterFiltrosColunaWidget(widgetId);
+        filtros.delete(String(limparCampo.dataset.filterField || ''));
+        if (!filtros.size) limparFiltrosColunaWidget(widgetId);
+        renderizarTabelaAposAutoFiltro(widgetId);
+        return true;
+    }
+    if (!menu) return false;
+    if (event.target.closest('[data-table-filter-close]')) {
+        menu.hidden = true;
+        return true;
+    }
+    const widgetId = String(menu.dataset.filterWidget || '');
+    const campo = String(menu.dataset.filterField || '');
+    if (event.target.closest('[data-table-filter-clear]')) {
+        const filtros = obterFiltrosColunaWidget(widgetId);
+        filtros.delete(campo);
+        if (!filtros.size) limparFiltrosColunaWidget(widgetId);
+        renderizarTabelaAposAutoFiltro(widgetId);
+        return true;
+    }
+    if (event.target.closest('[data-table-filter-apply]')) {
+        const opcoes = Array.from(menu.querySelectorAll('[data-table-filter-value]'));
+        const marcadas = opcoes.filter(input => input.checked).map(input => input.value);
+        const condicoes = [0, 1].map(indice => ({
+            operador: menu.querySelector(`[data-table-filter-operator="${indice}"]`)?.value || 'none',
+            valor: menu.querySelector(`[data-table-filter-condition-value="${indice}"]`)?.value || ''
+        }));
+        const filtro = {
+            selecionados: marcadas.length === opcoes.length ? null : marcadas,
+            combinacao: menu.querySelector('[data-table-filter-combination]')?.value || 'and',
+            condicoes
+        };
+        const ativo = filtro.selecionados !== null || condicoes.some(condicaoAutoFiltroAtiva);
+        const filtros = obterFiltrosColunaWidget(widgetId, true);
+        if (ativo) filtros.set(campo, filtro);
+        else filtros.delete(campo);
+        if (!filtros.size) limparFiltrosColunaWidget(widgetId);
+        renderizarTabelaAposAutoFiltro(widgetId);
+        return true;
+    }
+    return true;
+}
+
+function tratarPesquisaAutoFiltroTabela(event) {
+    if (!event.target.matches('[data-table-filter-search]')) return;
+    const menu = event.target.closest('[data-table-filter-menu]');
+    const termo = String(event.target.value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+    menu?.querySelectorAll('[data-filter-option]').forEach(opcao => {
+        const texto = String(opcao.dataset.filterSearchText || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        opcao.hidden = Boolean(termo) && !texto.includes(termo);
+    });
+    atualizarSelecaoMenuAutoFiltro(menu);
+}
+
+function tratarSelecaoAutoFiltroTabela(event) {
+    const menu = event.target.closest('[data-table-filter-menu]');
+    if (!menu) return;
+    if (event.target.matches('[data-table-filter-all]')) {
+        menu.querySelectorAll('[data-table-filter-value]').forEach(input => {
+            if (!input.closest('[data-filter-option]')?.hidden) input.checked = event.target.checked;
+        });
+    }
+    if (event.target.matches('[data-table-filter-all], [data-table-filter-value]')) atualizarSelecaoMenuAutoFiltro(menu);
+}
+
+function renderizarTabelaSimples(container, widget, registros, registrosTotalizacao, registrosBase, camposExibidos, camposDetalhe, configuracao) {
+    const cabecalho = camposExibidos.map(campo => `<th class="crm-filterable-header"${atributoAlinhamentoCampo(campo, campo.papel === 'valor' ? 'right' : 'left')}>${renderizarCabecalhoAutoFiltro(widget, campo, registrosBase)}</th>`).join('');
     const corpo = registros.map(registro => {
         const filtrosLinha = [];
         const celulas = camposExibidos.map(campo => {
@@ -1798,12 +2076,14 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
     const camposOrdenacao = estadoDrill?.campoAtual
         ? [estadoDrill.campoAtual, ...valores]
         : mapeamentos.filter(item => item.papel !== 'ignorar');
-    const registrosOrdenados = ordenarRegistrosPorCampos(todosRegistros, camposOrdenacao);
+    const registrosFiltrados = aplicarAutoFiltrosTabela(widget.id, todosRegistros);
+    const registrosOrdenados = ordenarRegistrosPorCampos(registrosFiltrados, camposOrdenacao);
     const paginacao = prepararPaginacaoTabela(widget, registrosOrdenados, opcoes.exportarTudo === true);
     const registros = paginacao.registros;
     const resumoProximidade = estadoDrill?.campoAtual
         ? ''
         : renderizarResumoProximidade(widget, registrosOrdenados.length);
+    const resumoAutoFiltros = renderizarResumoAutoFiltrosTabela(widget);
 
     if (!camposLinhaConfigurados.length || !valores.length) {
         container.innerHTML = '<div class="crm-chart-empty">Defina ao menos um campo de linha e um campo de valor.</div>';
@@ -1818,7 +2098,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
         return;
     }
     if (!registros.length) {
-        container.innerHTML = `${renderizarBreadcrumbDrill(widget, estadoDrill)}${resumoProximidade}<div class="crm-chart-empty">Nenhum registro encontrado neste relatorio.</div>`;
+        container.innerHTML = `${renderizarBreadcrumbDrill(widget, estadoDrill)}${resumoProximidade}${resumoAutoFiltros}<div class="crm-chart-empty">Nenhum registro encontrado neste relatorio.</div>`;
         return;
     }
 
@@ -1834,11 +2114,13 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
             widget,
             registros,
             registrosOrdenados,
+            todosRegistros,
             mapeamentos.filter(item => item.papel !== 'ignorar'),
             camposDetalheDisponiveis,
             configuracao
         );
         container.insertAdjacentHTML('afterbegin', resumoProximidade);
+        container.insertAdjacentHTML('afterbegin', resumoAutoFiltros);
         container.insertAdjacentHTML('beforeend', renderizarControlePaginacaoTabela(widget, paginacao));
         return;
     }
@@ -1861,12 +2143,12 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
             ? camposCabecalho
             : [{ coluna: '__resumo__', apelido: 'Resumo', alinhamento: 'left' }];
         const cabecalhoLinhas = dimensoesCabecalho.map(campo =>
-            `<th${atributoAlinhamentoCampo(campo)}${temCabecalhoDuplo ? ' rowspan="2"' : ''}>${escapeHtml(obterApelidoMapeamento(campo))}</th>`
+            `<th class="crm-filterable-header"${atributoAlinhamentoCampo(campo)}${temCabecalhoDuplo ? ' rowspan="2"' : ''}>${campo.coluna === '__resumo__' ? escapeHtml(obterApelidoMapeamento(campo)) : renderizarCabecalhoAutoFiltro(widget, campo, todosRegistros)}</th>`
         ).join('');
         return temCabecalhoDuplo
-            ? `<tr>${cabecalhoLinhas}${colunasDinamicas.map(coluna => `<th${atributoAlinhamentoCampo(campoColunaPrincipal, 'center')} colspan="${quantidadeMetricas}">${escapeHtml(coluna.rotulo)}</th>`).join('')}${totalColunasAtivo ? `<th colspan="${quantidadeMetricas}">Total geral</th>` : ''}</tr>
-               <tr>${colunasDinamicas.concat(totalColunasAtivo ? [{ chave: '__total__' }] : []).map(() => valores.map(valor => `<th${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')).join('')}</tr>`
-            : `<tr>${cabecalhoLinhas}${valores.map(valor => `<th${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(obterApelidoMapeamento(valor))}</th>`).join('')}</tr>`;
+            ? `<tr>${cabecalhoLinhas}${colunasDinamicas.map(coluna => `<th class="crm-filterable-header"${atributoAlinhamentoCampo(campoColunaPrincipal, 'center')} colspan="${quantidadeMetricas}">${renderizarCabecalhoAutoFiltro(widget, campoColunaPrincipal, todosRegistros, coluna.rotulo)}</th>`).join('')}${totalColunasAtivo ? `<th colspan="${quantidadeMetricas}">Total geral</th>` : ''}</tr>
+               <tr>${colunasDinamicas.concat(totalColunasAtivo ? [{ chave: '__total__' }] : []).map(coluna => valores.map(valor => `<th${coluna.chave === '__total__' ? '' : ' class="crm-filterable-header"'}${atributoAlinhamentoCampo(valor, 'right')}>${coluna.chave === '__total__' ? escapeHtml(obterApelidoMapeamento(valor)) : renderizarCabecalhoAutoFiltro(widget, valor, todosRegistros)}</th>`).join('')).join('')}</tr>`
+            : `<tr>${cabecalhoLinhas}${valores.map(valor => `<th class="crm-filterable-header"${atributoAlinhamentoCampo(valor, 'right')}>${renderizarCabecalhoAutoFiltro(widget, valor, todosRegistros)}</th>`).join('')}</tr>`;
     };
     const cabecalho = montarCabecalho(camposLinha);
     const estadoRotulos = { anteriores: [] };
@@ -2000,6 +2282,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
     container.innerHTML = `
         ${renderizarBreadcrumbDrill(widget, estadoDrill)}
         ${resumoProximidade}
+        ${resumoAutoFiltros}
         <div class="crm-chart-table-real">
             <table class="crm-pivot-table${possuiAgrupamentos ? ' is-sectioned' : ''}">
                 ${possuiAgrupamentos ? '' : `<thead>${cabecalho}</thead>`}
@@ -2817,6 +3100,7 @@ function excluirWidgetDashboard(widgetId) {
     if (!confirmado) return;
     salvarWidgetsDashboard(widgets.filter(item => item.id !== widgetId));
     estadosDrillDashboard.delete(widgetId);
+    limparFiltrosColunaWidget(widgetId);
     renderizarDashboard();
 }
 
@@ -2929,7 +3213,7 @@ function criarElementoExportacao(widget) {
         }
     }
 
-    elemento.querySelectorAll('button, .crm-drill-control, .crm-table-pagination').forEach(item => item.remove());
+    elemento.querySelectorAll('button, .crm-drill-control, .crm-table-pagination, .crm-table-filter-control').forEach(item => item.remove());
     document.body.appendChild(elemento);
     return elemento;
 }
@@ -4383,6 +4667,7 @@ function salvarWidgetAtual() {
         widgets.push(atualizado);
     }
     widgets = atribuirReferenciasIndicadores(widgets);
+    limparFiltrosColunaWidget(atualizado.id);
     salvarWidgetsDashboard(widgets);
     estadosDrillDashboard.delete(atualizado.id);
     fecharModalWidget();
@@ -4638,6 +4923,7 @@ function inicializarEditorDashboard() {
 
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', async event => {
+            if (tratarCliqueAutoFiltroTabela(event)) return;
             const contactAction = event.target.closest('[data-contact-action]');
             if (contactAction) {
                 await abrirFormularioContato(contactAction.dataset.document, contactAction.dataset.name || '');
@@ -4772,6 +5058,7 @@ function inicializarEditorDashboard() {
     }
     if (widgetDetailContent) {
         widgetDetailContent.addEventListener('click', event => {
+            if (tratarCliqueAutoFiltroTabela(event)) return;
             const contactAction = event.target.closest('[data-contact-action]');
             if (contactAction) {
                 abrirFormularioContato(contactAction.dataset.document, contactAction.dataset.name || '', 'detalhe');
@@ -5161,6 +5448,12 @@ document.addEventListener('click', event => {
     if (!dentroStatusContato && contactStatusDetails) contactStatusDetails.open = false;
     if (!dentroTipoContato && contactTypeDetails) contactTypeDetails.open = false;
 });
+
+document.addEventListener('input', tratarPesquisaAutoFiltroTabela);
+document.addEventListener('change', tratarSelecaoAutoFiltroTabela);
+document.addEventListener('click', event => {
+    if (!event.target.closest('.crm-table-filter-control, [data-table-filter-menu]')) fecharMenusAutoFiltroTabela();
+}, true);
 
 [contactStatusDetails, contactTypeDetails].forEach(details => details?.addEventListener('toggle', () => {
     if (!details.open) return;
