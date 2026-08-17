@@ -256,6 +256,18 @@ A diretiva de ícone é um comentário SQL e não altera a consulta executada:
 /* icon:NOME | position:before */ CAMPO AS ALIAS
 ```
 
+Para campos acrescentados pelo sistema, como `CONTATO.*`, prefira informar o
+alvo diretamente na própria diretiva:
+
+```sql
+/* icon:fa-check-double | campo:CONTATO.STATUS_CONTATO | color:#FFDE21 | background:#123865 | size:18px | position:before */
+```
+
+Essa forma usa o nome técnico do campo e continua funcionando mesmo que o
+apelido de exibição seja alterado para `STATUS`, `SITUAÇÃO` ou outro texto no
+grid de configuração. O ícone é aplicado nas dimensões, nos cabeçalhos e nos
+valores agregados da tabela dinâmica.
+
 Também são aceitos `posicao:before` e `posicao:after`.
 
 A diretiva deve ficar imediatamente antes da expressão que contém o `AS`. O
@@ -307,6 +319,13 @@ Como o alias está no `RETURNS`, use uma marcação totalmente comentada:
 
 Ela pode ficar depois do `RETURNS`. O nome após `AS` deve ser exatamente o nome
 da coluna retornada.
+
+Também é possível usar a sintaxe explícita, que é a recomendada para campos
+herdados ou criados depois da consulta:
+
+```sql
+/* icon:fa-check-double | campo:CONTATO.STATUS_CONTATO | color:#FFDE21 | background:#123865 | size:18px | position:before */
+```
 
 Aliases com espaços devem permanecer entre aspas duplas. Exemplo:
 

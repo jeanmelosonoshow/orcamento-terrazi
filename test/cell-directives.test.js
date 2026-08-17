@@ -64,6 +64,27 @@ test('diretiva aceita alvo herdado com prefixo e coluna criada pelo motor', asyn
     assert.deepEqual(diretivas.map(item => item.campo), ['CONTATO.STATUS_CONTATO', 'DISTANCIA_KM']);
 });
 
+test('diretiva aceita campo explicito sem depender de AS no SQL', async () => {
+    const obterDiretivasCelula = await carregarLeitorDiretivas();
+    const diretivas = obterDiretivasCelula({
+        sql: `
+            /* icon:fa-check-double | campo:CONTATO.STATUS_CONTATO | color:#FFDE21 | background:#123865 */
+            EXECUTE BLOCK RETURNS (SITUACAO VARCHAR(30)) AS BEGIN SUSPEND; END
+        `
+    });
+
+    assert.equal(diretivas.length, 1);
+    assert.equal(diretivas[0].campo, 'CONTATO.STATUS_CONTATO');
+    assert.equal(diretivas[0].color, '#FFDE21');
+});
+
+test('tabela dinamica aplica diretivas em apelidos, cabecalhos e valores agregados', async () => {
+    const source = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+    assert.match(source, /normalizarNomeCampoContato\(campo\?\.apelido \|\| ''\)/);
+    assert.match(source, /somenteIcones: true/);
+    assert.match(source, /renderizarConteudoCelula\(widget, valor, registrosColuna\[0\]/);
+});
+
 test('diretiva renderiza Font Awesome solid, regular e marcas', async () => {
     const { iconeCelula } = await carregarDiretivas();
     assert.match(iconeCelula('fa-user-plus'), /class="fa-solid fa-user-plus"/);

@@ -1867,7 +1867,9 @@ function renderizarMenuAutoFiltroTabela(widget, campo, registrosBase) {
 }
 
 function renderizarCabecalhoAutoFiltro(widget, campo, registrosBase, rotulo = '') {
-    return `<span class="crm-table-filter-heading"><span>${escapeHtml(rotulo || obterApelidoMapeamento(campo))}</span>${renderizarMenuAutoFiltroTabela(widget, campo, registrosBase)}</span>`;
+    const texto = rotulo || obterApelidoMapeamento(campo);
+    const conteudo = renderizarConteudoCelula(widget, campo, registrosBase?.[0] || {}, texto, { somenteIcones: true });
+    return `<span class="crm-table-filter-heading"><span class="crm-table-filter-label">${conteudo}</span>${renderizarMenuAutoFiltroTabela(widget, campo, registrosBase)}</span>`;
 }
 
 function renderizarResumoAutoFiltrosTabela(widget) {
@@ -2162,7 +2164,8 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
                     registrosColuna.map(registro => obterValorLinha(registro, valor.coluna)),
                     valor.agregacao || 'none'
                 );
-                return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</td>`;
+                const texto = formatarValorGrafico(total, valor.formatoValor);
+                return `<td class="is-value"${atributoAlinhamentoCampo(valor, 'right')}><span class="crm-cell-content">${renderizarConteudoCelula(widget, valor, registrosColuna[0] || registrosGrupo[0] || {}, texto)}</span></td>`;
             }).join('');
         }).join('');
         const totais = totalColunasAtivo ? valores.map(valor => {
@@ -2170,7 +2173,8 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
                 registrosGrupo.map(registro => obterValorLinha(registro, valor.coluna)),
                 valor.agregacao || 'none'
             );
-            return `<td class="is-value is-total"${atributoAlinhamentoCampo(valor, 'right')}>${escapeHtml(formatarValorGrafico(total, valor.formatoValor))}</td>`;
+            const texto = formatarValorGrafico(total, valor.formatoValor);
+            return `<td class="is-value is-total"${atributoAlinhamentoCampo(valor, 'right')}><span class="crm-cell-content">${renderizarConteudoCelula(widget, valor, registrosGrupo[0] || {}, texto)}</span></td>`;
         }).join('') : '';
         return porColuna + totais;
     };
@@ -2460,18 +2464,26 @@ function obterSqlWidget(widget) {
 
 function obterDiretivasCelula(widget) {
     const diretivas = [];
-    const regex = /\/\*\s*(icon|action)\s*:\s*([a-z0-9_-]+)([\s\S]*?)\*\/\s*[\s\S]*?\bas\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$.]*))/gi;
-    let match;
     const sql = obterSqlWidget(widget);
-    while ((match = regex.exec(sql)) !== null) {
+    const regex = /\/\*\s*(icon|action)\s*:\s*([a-z0-9_-]+)([\s\S]*?)\*\//gi;
+    const ocorrencias = Array.from(sql.matchAll(regex));
+    ocorrencias.forEach((match, indice) => {
         const opcoes = {};
         String(match[3] || '').split('|').forEach(parte => {
             const divisao = parte.split(/[:=]/);
             if (divisao.length >= 2) opcoes[divisao.shift().trim().toLowerCase()] = divisao.join(':').trim();
         });
-        const campo = String(match[4] || match[5] || '').replace(/""/g, '"').trim();
+        let campo = String(opcoes.campo || opcoes.field || opcoes.coluna || opcoes.column || '').trim();
+        if (!campo) {
+            const inicioBusca = (match.index || 0) + match[0].length;
+            const fimBusca = indice + 1 < ocorrencias.length ? ocorrencias[indice + 1].index : sql.length;
+            const trecho = sql.slice(inicioBusca, fimBusca);
+            const alias = trecho.match(/\bas\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$.]*))/i);
+            campo = String(alias?.[1] || alias?.[2] || '').replace(/""/g, '"').trim();
+        }
+        if (!campo) return;
         diretivas.push({ tipo: match[1].toLowerCase(), valor: match[2].toLowerCase(), campo, ...opcoes });
-    }
+    });
     return diretivas;
 }
 
@@ -2528,9 +2540,12 @@ function iconeCelula(nome, opcoes = {}) {
     return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[identificador] || paths.contact}</svg>`;
 }
 
-function renderizarConteudoCelula(widget, campo, registro, texto) {
-    const nomeCampo = normalizarNomeCampoContato(campo?.coluna || campo);
-    const diretivas = obterDiretivasCelula(widget).filter(item => normalizarNomeCampoContato(item.campo) === nomeCampo);
+function renderizarConteudoCelula(widget, campo, registro, texto, opcoesRenderizacao = {}) {
+    const nomesCampo = new Set([
+        normalizarNomeCampoContato(campo?.coluna || campo),
+        normalizarNomeCampoContato(campo?.apelido || '')
+    ].filter(Boolean));
+    const diretivas = obterDiretivasCelula(widget).filter(item => nomesCampo.has(normalizarNomeCampoContato(item.campo)));
     let conteudo = `<span>${escapeHtml(texto)}</span>`;
     diretivas.filter(item => item.tipo === 'icon').forEach(item => {
         const corInformada = item.color || item.cor || coresIconesCelula[item.valor] || '';
@@ -2545,7 +2560,7 @@ function renderizarConteudoCelula(widget, campo, registro, texto) {
         const icone = `<span class="crm-cell-icon" title="${escapeHtml(item.valor)}"${estilo}>${iconeCelula(item.valor, item)}</span>`;
         conteudo = String(item.position || item.posicao).toLowerCase() === 'after' ? conteudo + icone : icone + conteudo;
     });
-    diretivas.filter(item => item.tipo === 'action' && item.valor === 'contact').forEach(item => {
+    diretivas.filter(item => !opcoesRenderizacao.somenteIcones && item.tipo === 'action' && item.valor === 'contact').forEach(item => {
         const documento = String(obterValorContato(registro, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
         const nome = String(obterValorContato(registro, ['NOME_CLIENTE', 'NOMECLIENTE', 'NOME'], '')).trim();
         if (!documento) return;
