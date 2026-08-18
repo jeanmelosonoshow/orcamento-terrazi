@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "reasons": [
+    {
+      "id": "PRECO_FORA_EXPECTATIVA",
+      "label": "Preço fora da expectativa",
+      "description": "O cliente considerou o valor acima do esperado.",
+      "active": true,
+      "order": 10
+    },
+    {
+      "id": "CONDICAO_PAGAMENTO",
+      "label": "Condição de pagamento",
+      "description": "As condições de pagamento não atenderam ao cliente.",
+      "active": true,
+      "order": 20
+    },
+    {
+      "id": "PRAZO_ENTREGA",
+      "label": "Prazo de entrega",
+      "description": "O prazo disponível não atendeu à necessidade do cliente.",
+      "active": true,
+      "order": 30
+    },
+    {
+      "id": "PRODUTO_INDISPONIVEL",
+      "label": "Produto indisponível",
+      "description": "O produto, medida, acabamento ou variação desejada não estava disponível.",
+      "active": true,
+      "order": 40
+    },
+    {
+      "id": "COMPROU_CONCORRENTE",
+      "label": "Comprou com concorrente",
+      "description": "O cliente informou que concluiu a compra em outra empresa.",
+      "active": true,
+      "order": 50
+    },
+    {
+      "id": "DESISTIU_COMPRA",
+      "label": "Desistiu da compra",
+      "description": "O cliente desistiu ou adiou a intenção de compra.",
+      "active": true,
+      "order": 60
+    },
+    {
+      "id": "SEM_RETORNO_CLIENTE",
+      "label": "Cliente sem retorno",
+      "description": "Não houve retorno após as tentativas de contato.",
+      "active": true,
+      "order": 70
+    },
+    {
+      "id": "ORCAMENTO_DUPLICADO",
+      "label": "Orçamento duplicado",
+      "description": "O registro foi recusado por ser uma duplicidade.",
+      "active": true,
+      "order": 80
+    },
+    {
+      "id": "OUTRO",
+      "label": "Outro motivo",
+      "description": "Use a observação para detalhar o motivo.",
+      "active": true,
+      "order": 999
+    }
+  ]
+}

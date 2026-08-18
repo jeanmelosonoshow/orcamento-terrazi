@@ -930,7 +930,8 @@ function abrirDialogoAcaoPdf() {
 
 async function confirmarOrcamentoPersistido(orcamentoId) {
     const res = await fetch(`/api/detalhe-orcamento?id=${encodeURIComponent(orcamentoId)}&t=${Date.now()}`, {
-        cache: 'no-store'
+        cache: 'no-store',
+        headers: usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}
     });
     const resultado = await res.json().catch(() => ({}));
 
@@ -972,7 +973,10 @@ async function salvarOrcamento() {
     try {
         const res = await fetch('/api/salvar-orcamento', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
+            },
             body: JSON.stringify(payload)
         });
         const saveResult = await res.json();
@@ -1263,7 +1267,6 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
-
 
 
 

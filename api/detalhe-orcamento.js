@@ -1,12 +1,22 @@
 import { db } from '@vercel/postgres';
+import { requireRequestSession } from '../lib/session-token.js';
+import { expirarOrcamentos, verificarAcessoOrcamento } from '../lib/budget-negotiation.js';
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const session = requireRequestSession(req, res);
+  if (!session) return;
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID é obrigatório' });
 
   const client = await db.connect();
 
   try {
+    await expirarOrcamentos(client);
+    if (!await verificarAcessoOrcamento(client, id, session)) {
+      return res.status(403).json({ error: 'Você não possui acesso a este orçamento.' });
+    }
     const orcamento = await client.query('SELECT * FROM orcamentos WHERE id = $1', [id]);
     
     if (orcamento.rows.length === 0) {

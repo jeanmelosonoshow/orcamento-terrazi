@@ -5,6 +5,26 @@ if (!usuarioLogadoRaw) {
 }
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
 
+function cabecalhosSessaoLista(incluirJson = false) {
+    return {
+        ...(incluirJson ? { 'Content-Type': 'application/json' } : {}),
+        ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {})
+    };
+}
+
+async function validarRespostaLista(response, mensagem) {
+    if (response.status === 401) {
+        sessionStorage.removeItem('usuarioLogado');
+        window.top.location.replace('login.html');
+        throw new Error('Sessão expirada.');
+    }
+    if (!response.ok) {
+        const dados = await response.json().catch(() => ({}));
+        throw new Error(dados.error || dados.details || mensagem);
+    }
+    return response;
+}
+
 window.todosOrcamentos = [];
 let orcamentosFiltrados = [];
 let paginaAtual = 1;
@@ -87,7 +107,8 @@ async function carregarHistorico() {
     });
 
     try {
-        const response = await fetch(`/api/listar-orcamentos?${params.toString()}`);
+        const response = await fetch(`/api/listar-orcamentos?${params.toString()}`, { headers: cabecalhosSessaoLista() });
+        await validarRespostaLista(response, 'Erro ao carregar histórico.');
         const orcamentos = await response.json();
         
         if (!orcamentos || orcamentos.length === 0) {
@@ -297,8 +318,9 @@ function renderizarCards(lista) {
                 ${statusHtml}
             </div>
             <div class="card-footer" style="display:flex; gap:8px; padding: 12px; background: #f9f9f9; border-top: 1px solid #eee;">
-                <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})" style="flex:1; background:var(--verde-escuro); color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">REABRIR</button>
-                <button class="btn-imprimir" onclick="gerarImpressaoRapida(this, ${o.id})" style="flex:1; background:white; color:var(--verde-escuro); border:1px solid var(--verde-escuro); padding:8px; border-radius:4px; cursor:pointer; font-weight:600;">IMPRIMIR</button>
+                <button class="btn-reabrir" onclick="clonagemRapida(this, ${o.id})">REABRIR</button>
+                <button class="btn-negociacao" onclick="abrirNegociacaoOrcamento(${o.id})"><i class="fa-solid fa-comments" aria-hidden="true"></i> NEGOCIAÇÃO</button>
+                <button class="btn-imprimir" onclick="gerarImpressaoRapida(this, ${o.id})">IMPRIMIR</button>
             </div>`;
         grid.appendChild(card);
     });
@@ -306,9 +328,23 @@ function renderizarCards(lista) {
 
 window.filtrarCards = filtrarOrcamentos;
 // Funções de ação (Status, Clone, Impressão) permanecem iguais...
+window.abrirNegociacaoOrcamento = (id, initialStatus = null) => {
+    if (!window.BudgetNegotiation) return;
+    window.BudgetNegotiation.open({
+        orcamentoId: id,
+        initialStatus,
+        onSaved: carregarHistorico
+    });
+};
+
 window.alterarStatusOrcamento = async (select, id) => {
     const novoStatus = select.value;
     if (novoStatus === 'PENDENTE') return;
+    if (novoStatus === 'CANCELADO') {
+        select.value = 'PENDENTE';
+        window.abrirNegociacaoOrcamento(id, 'RECUSADO');
+        return;
+    }
     if (!confirm(`Deseja alterar o status do orçamento #${id} para ${novoStatus}?`)) {
         select.value = 'PENDENTE';
         return;
@@ -317,7 +353,7 @@ window.alterarStatusOrcamento = async (select, id) => {
     try {
         const response = await fetch('/api/status-orcamento', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: cabecalhosSessaoLista(true),
             body: JSON.stringify({ id, status: novoStatus })
         });
         if (response.ok) {
@@ -338,7 +374,8 @@ window.clonagemRapida = async (btn, id) => {
     btn.innerText = "AGUARDE...";
     btn.disabled = true;
     try {
-        const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
+        const res = await fetch(`/api/detalhe-orcamento?id=${id}`, { headers: cabecalhosSessaoLista() });
+        await validarRespostaLista(res, 'Erro ao reabrir orçamento.');
         const orcamento = await res.json();
         localStorage.setItem('clonar_orcamento', JSON.stringify(orcamento));
         window.location.href = obterPaginaOrcamentoLista(orcamento.idfilial || usuarioLogado.idfilial);
@@ -354,7 +391,8 @@ window.gerarImpressaoRapida = async (btn, id) => {
     btn.innerText = "AGUARDE...";
     btn.disabled = true;
     try {
-        const res = await fetch(`/api/detalhe-orcamento?id=${id}`);
+        const res = await fetch(`/api/detalhe-orcamento?id=${id}`, { headers: cabecalhosSessaoLista() });
+        await validarRespostaLista(res, 'Erro ao carregar orçamento para impressão.');
         const data = await res.json();
         
         const nomeClienteFinanceiro = (data.cliente_nome || 'Consumidor').replace(/[/\\?%*:|"<>]/g, '-');
@@ -503,6 +541,3 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput')?.addEventListener('input', filtrarOrcamentos);
     carregarHistorico();
 });
-
-
-

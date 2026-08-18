@@ -1,8 +1,14 @@
 import { db } from '@vercel/postgres';
 import { emailClienteValido, normalizarEmailCliente } from '../lib/customer-identifiers.js';
+import { requireRequestSession } from '../lib/session-token.js';
+import { definirContextoAuditoria } from '../lib/budget-negotiation.js';
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  const session = requireRequestSession(req, res);
+  if (!session) return;
 
   const client = await db.connect();
   const orcamento = req.body;
@@ -47,6 +53,7 @@ export default async function handler(req, res) {
     }
 
     await client.query('BEGIN');
+    await definirContextoAuditoria(client, session, orcamento.orcamento_id ? 'EDICAO ORCAMENTO' : 'CRIACAO ORCAMENTO');
 
     const dadosCabecalho = [
       orcamento.valid_until && orcamento.valid_until !== "" ? orcamento.valid_until : null,
@@ -93,7 +100,7 @@ export default async function handler(req, res) {
           status
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id
-      `, [...dadosCabecalho, 'Pendente']);
+      `, [...dadosCabecalho, 'PENDENTE']);
 
       orcamentoId = resultOrcamento.rows[0].id;
     }
@@ -111,10 +118,10 @@ export default async function handler(req, res) {
         ) VALUES ($1, $2, $3, $4, $5)
       `, [
         orcamentoId,
-        parseInt(v.idfuncionario, 10) || null,
+        parseInt(session.sub, 10) || null,
         limitarTexto(v.nome_funcionario || '', 255),
-        limitarTexto(v.categoria || '', 5),
-        limitarTexto(v.idfilial || '', 2)
+        limitarTexto(session.categoria || '', 5),
+        limitarTexto(session.idfilial || '', 2)
       ]);
     }
 

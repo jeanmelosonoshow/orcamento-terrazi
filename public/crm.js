@@ -2655,6 +2655,17 @@ function renderizarConteudoCelula(widget, campo, registro, texto, opcoesRenderiz
         const botao = `<button type="button" class="crm-contact-action" data-contact-action data-document="${escapeHtml(documento)}" data-name="${escapeHtml(nome)}"${estilo}>${iconeCelula(item.icon || item.icone || 'contact', item)}<span>${escapeHtml(rotulo)}</span></button>`;
         conteudo = String(item.position || item.posicao).toLowerCase() === 'before' ? botao + conteudo : conteudo + botao;
     });
+    diretivas.filter(item => !opcoesRenderizacao.somenteIcones && ['negotiation', 'negociacao'].includes(item.valor)).forEach(item => {
+        const orcamentoId = String(obterValorContato(registro, ['ID_ORCAMENTO', 'ORCAMENTO_ID', 'IDORCAMENTO'], '')).trim();
+        if (!/^\d+$/.test(orcamentoId)) return;
+        const rotulo = item.label || item.nome || 'Negociar';
+        const corInformada = item.color || item.cor || '#123C7C';
+        const cor = sanitizarCssDiretiva(`color:${corInformada}`).replace(/^color:/, '') || '#123C7C';
+        const cssBotao = sanitizarCssDiretiva(item.css || '');
+        const estiloCompleto = [`--contact-action-color:${cor}`, cssBotao].filter(Boolean).join(';');
+        const botao = `<button type="button" class="crm-contact-action" data-budget-negotiation-action data-budget-id="${escapeHtml(orcamentoId)}" style="${escapeHtml(estiloCompleto)}">${iconeCelula(item.icon || item.icone || 'fa-comments', item)}<span>${escapeHtml(rotulo)}</span></button>`;
+        conteudo = String(item.position || item.posicao).toLowerCase() === 'before' ? botao + conteudo : conteudo + botao;
+    });
     return conteudo;
 }
 
@@ -4617,6 +4628,37 @@ async function salvarFormularioContato(event) {
         saveContactButton.disabled = false;
     }
 }
+
+async function atualizarWidgetAposNegociacao(widgetId) {
+    const widgets = obterWidgetsDashboard();
+    const indice = widgets.findIndex(widget => String(widget.id) === String(widgetId));
+    if (indice < 0) return;
+    try {
+        atualizarStatusFiltros('Atualizando relatorio da negociacao...');
+        widgets[indice] = await executarWidgetComFiltros(widgets[indice], obterFiltrosCenario());
+        salvarWidgetsDashboard(widgets);
+        renderizarDashboard();
+        atualizarStatusFiltros('Negociacao salva e relatorio atualizado.');
+    } catch (error) {
+        atualizarStatusFiltros('Negociacao salva, mas o relatorio nao pode ser atualizado.', true);
+    }
+}
+
+function abrirGestaoNegociacao(elemento, origem = 'dashboard') {
+    const orcamentoId = Number.parseInt(elemento?.dataset?.budgetId, 10);
+    if (!orcamentoId || !window.BudgetNegotiation) return;
+    const card = elemento.closest('[data-widget-id]');
+    const widgetId = card?.dataset.widgetId || contextoRelatorioDetalheAtual?.widget?.id || widgetDetalheModalAtual?.id || '';
+    window.BudgetNegotiation.open({
+        orcamentoId,
+        onSaved: async () => {
+            if (widgetId) await atualizarWidgetAposNegociacao(widgetId);
+            if (origem === 'detalhe' && contextoRelatorioDetalheAtual && !widgetDetailModal?.hidden) {
+                await abrirRelatorioDetalhe(contextoRelatorioDetalheAtual.widget, contextoRelatorioDetalheAtual.selecao);
+            }
+        }
+    });
+}
 function renderizarConsultasSecundarias(consultas = []) {
     if (!secondaryQueriesBox) return;
     secondaryQueriesBox.innerHTML = consultas.map((consulta, indice) => `
@@ -5184,6 +5226,11 @@ function inicializarEditorDashboard() {
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', async event => {
             if (tratarCliqueAutoFiltroTabela(event)) return;
+            const budgetAction = event.target.closest('[data-budget-negotiation-action]');
+            if (budgetAction) {
+                abrirGestaoNegociacao(budgetAction);
+                return;
+            }
             const contactAction = event.target.closest('[data-contact-action]');
             if (contactAction) {
                 await abrirFormularioContato(contactAction.dataset.document, contactAction.dataset.name || '');
@@ -5319,6 +5366,11 @@ function inicializarEditorDashboard() {
     if (widgetDetailContent) {
         widgetDetailContent.addEventListener('click', event => {
             if (tratarCliqueAutoFiltroTabela(event)) return;
+            const budgetAction = event.target.closest('[data-budget-negotiation-action]');
+            if (budgetAction) {
+                abrirGestaoNegociacao(budgetAction, 'detalhe');
+                return;
+            }
             const contactAction = event.target.closest('[data-contact-action]');
             if (contactAction) {
                 abrirFormularioContato(contactAction.dataset.document, contactAction.dataset.name || '', 'detalhe');

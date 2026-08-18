@@ -133,6 +133,22 @@ input[type="text"], #statusFilter {
     width: 100% !important;
 }
 
+.card-footer .btn-reabrir,
+.card-footer .btn-negociacao,
+.card-footer .btn-imprimir {
+    flex: 1 1 0;
+    min-height: 36px;
+    padding: 7px 9px;
+    border-radius: 4px;
+    font-size: .68rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.card-footer .btn-reabrir { border: 1px solid var(--verde-escuro); background: var(--verde-escuro); color: #fff; }
+.card-footer .btn-negociacao { border: 1px solid #b97900; background: #fff8e8; color: #765100; }
+.card-footer .btn-imprimir { border: 1px solid var(--verde-escuro); background: #fff; color: var(--verde-escuro); }
+
 /* CARD PREMIUM */
 .orcamento-card {
     background: var(--painel, white);
@@ -486,4 +502,3 @@ input[type="text"], #statusFilter {
     border-color: var(--verde-escuro);
     color: #fff;
 }
-

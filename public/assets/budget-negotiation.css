@@ -1,0 +1,45 @@
+.budget-negotiation-modal[hidden] { display: none; }
+.budget-negotiation-modal { position: fixed; inset: 0; z-index: 2600; display: grid; place-items: center; padding: 18px; font-family: Inter, Arial, sans-serif; color: #102f55; }
+.budget-negotiation-backdrop { position: absolute; inset: 0; background: rgba(8, 26, 48, .58); backdrop-filter: blur(2px); }
+.budget-negotiation-panel { position: relative; width: min(960px, 100%); max-height: min(860px, calc(100vh - 36px)); overflow: auto; background: #fff; border: 1px solid #d8e2ee; border-radius: 8px; box-shadow: 0 24px 70px rgba(8, 35, 66, .24); }
+.budget-negotiation-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 20px 22px; background: #fff; border-bottom: 1px solid #dce5ef; }
+.budget-negotiation-eyebrow { display: block; margin-bottom: 4px; color: #b97900; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.budget-negotiation-head h2 { margin: 0; color: #123c7c; font-size: 1.35rem; }
+.budget-negotiation-close { width: 36px; height: 36px; border: 1px solid #d8e2ee; border-radius: 6px; background: #fff; color: #123c7c; font-size: 1.35rem; cursor: pointer; }
+.budget-negotiation-summary { display: grid; grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(120px, 1fr)); gap: 1px; margin: 0; background: #dce5ef; border-bottom: 1px solid #dce5ef; }
+.budget-negotiation-summary div { min-width: 0; padding: 13px 18px; background: #f7f9fc; }
+.budget-negotiation-summary dt { margin-bottom: 4px; color: #64748b; font-size: .65rem; font-weight: 800; text-transform: uppercase; }
+.budget-negotiation-summary dd { margin: 0; overflow-wrap: anywhere; color: #102f55; font-size: .82rem; font-weight: 700; }
+.budget-negotiation-body { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(300px, .95fr); gap: 0; }
+.budget-negotiation-column { padding: 20px 22px 24px; }
+.budget-negotiation-column + .budget-negotiation-column { border-left: 1px solid #dce5ef; background: #fbfcfe; }
+.budget-negotiation-section-title { display: flex; align-items: center; gap: 9px; margin: 0 0 16px; font-size: 1rem; }
+.budget-negotiation-section-title i { color: #d59b00; }
+.budget-negotiation-form { display: grid; gap: 13px; }
+.budget-negotiation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.budget-negotiation-form label { display: grid; gap: 6px; color: #344c67; font-size: .71rem; font-weight: 800; text-transform: uppercase; }
+.budget-negotiation-form select,
+.budget-negotiation-form textarea { width: 100%; box-sizing: border-box; border: 1px solid #cfdbea; border-radius: 6px; background: #fff; color: #102f55; font: inherit; }
+.budget-negotiation-form select { min-height: 42px; padding: 8px 10px; }
+.budget-negotiation-form textarea { min-height: 90px; padding: 10px 12px; resize: vertical; }
+.budget-negotiation-form button { justify-self: end; min-height: 40px; padding: 0 18px; border: 0; border-radius: 6px; background: #123c7c; color: #fff; font-weight: 800; cursor: pointer; }
+.budget-negotiation-form button:disabled { opacity: .55; cursor: not-allowed; }
+.budget-negotiation-message { min-height: 18px; color: #a12a2a; font-size: .74rem; }
+.budget-negotiation-history { display: grid; gap: 0; margin: 22px 0 0; padding: 0; list-style: none; border-left: 2px solid #dbe5ef; }
+.budget-negotiation-history li { position: relative; display: grid; gap: 3px; padding: 0 0 16px 18px; }
+.budget-negotiation-history li::before { content: ''; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #d59b00; border: 2px solid #fff; box-shadow: 0 0 0 1px #d59b00; }
+.budget-negotiation-history strong { font-size: .76rem; }
+.budget-negotiation-history span { color: #687b91; font-size: .7rem; }
+.budget-negotiation-history small { color: #40556d; font-size: .7rem; white-space: pre-wrap; }
+.budget-negotiation-empty { padding: 18px; border: 1px dashed #cfdbea; color: #687b91; font-size: .78rem; text-align: center; }
+.budget-negotiation-loading { padding: 48px 22px; color: #52677e; text-align: center; }
+body.budget-negotiation-open { overflow: hidden; }
+
+@media (max-width: 760px) {
+    .budget-negotiation-modal { padding: 0; place-items: stretch; }
+    .budget-negotiation-panel { width: 100%; max-height: 100vh; border-radius: 0; }
+    .budget-negotiation-summary { grid-template-columns: 1fr 1fr; }
+    .budget-negotiation-body { grid-template-columns: 1fr; }
+    .budget-negotiation-column + .budget-negotiation-column { border-left: 0; border-top: 1px solid #dce5ef; }
+    .budget-negotiation-grid { grid-template-columns: 1fr; }
+}
