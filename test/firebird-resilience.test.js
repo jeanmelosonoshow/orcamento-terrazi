@@ -63,7 +63,7 @@ test('atualizacao do painel limita concorrencia e preserva falhas individuais', 
 
 test('cards ocultos para a categoria ficam fora da fila de execucao', async () => {
     const source = await readFile(dashboardPath, 'utf8');
-    const obterIndices = extrairFuncao(source, 'obterIndicesWidgetsExecutaveis', 'async function executarWidgetComFiltros');
+    const obterIndices = extrairFuncao(source, 'obterIndicesWidgetsExecutaveis', 'function prioridadeExecucaoWidget');
     const widgets = [
         { id: 'visivel', sql: 'select 1', visivel: true, usaFiltros: true },
         { id: 'oculto', sql: 'select 1', visivel: false, usaFiltros: true },
@@ -80,4 +80,27 @@ test('cards ocultos para a categoria ficam fora da fila de execucao', async () =
     assert.deepEqual(obterIndices(widgets, widget => widget.visivel, widget => widget.usaFiltros, false), [0, 2]);
     assert.match(source, /if \(!widgetVisivelParaCategoria\(widget\)\) \{\s*throw new Error\('Card oculto para esta categoria\.'\);/);
     assert.match(source, /widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, !atualizacaoMenu/);
+});
+
+test('indicadores rapidos entram na fila antes de tabelas e relatorios geograficos', async () => {
+    const source = await readFile(dashboardPath, 'utf8');
+    const prioridade = extrairFuncao(source, 'prioridadeExecucaoWidget', 'function ordenarIndicesExecucaoWidgets');
+
+    assert.ok(prioridade({ tipo: 'kpi', sql: 'select 1' }) < prioridade({ tipo: 'table', sql: 'select 1' }));
+    assert.ok(prioridade({ tipo: 'table', sql: 'select 1' }) < prioridade({ tipo: 'pivot', sql: 'select 1' }));
+    assert.ok(
+        prioridade({ tipo: 'table', sql: '/* filtro: clientes_proximos */ select 1' })
+        > prioridade({ tipo: 'table', sql: 'select 1' })
+    );
+    assert.match(source, /ordenarIndicesExecucaoWidgets\(widgets, obterIndicesWidgetsExecutaveis/);
+    assert.match(source, /Executando \"' \+ tituloCard/);
+});
+
+test('relacionamento ja aplicado no servidor evita enriquecimento redundante', async () => {
+    const source = await readFile(dashboardPath, 'utf8');
+
+    assert.match(source, /function widgetPossuiFiltroRelacionamentoNoServidor/);
+    assert.match(source, /&& !widgetMapeiaContato\(widget\)/);
+    assert.match(source, /aplicarRelacionamentoResultadoWidget\(widget, dadosRetornados, colunasConsulta, filtros\)/);
+    assert.match(source, /versaoRelacionamentoDashboard = Date\.now\(\)/);
 });

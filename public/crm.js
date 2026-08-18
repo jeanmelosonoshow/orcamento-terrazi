@@ -334,6 +334,7 @@ let larguraDashboardObservada = 0;
 let widgetDetalheModalAtual = null;
 let contextoRelatorioDetalheAtual = null;
 let origemFormularioContatoAtual = 'dashboard';
+let versaoRelacionamentoDashboard = 0;
 
 function cancelarAtualizacoesMenusInativos(contextoAtivo) {
     if (temporizadorAtualizacaoMenu) {
@@ -2409,6 +2410,31 @@ function widgetMapeiaContato(widget) {
         .some(item => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(item.coluna)));
 }
 
+function widgetPossuiFiltroRelacionamentoNoServidor(widget) {
+    const consultas = Array.isArray(widget?.consultas) && widget.consultas.length
+        ? widget.consultas
+        : [{ sql: widget?.sql || '' }];
+    const consultasSql = consultas.filter(consulta => String(consulta?.sql || '').trim());
+    return consultasSql.length > 0 && consultasSql.every(consulta =>
+        /\/\*\s*(?:operador\s*=\s*(?:AND|OR)\s*\|\s*)?relacionamento\s*\|\s*campo\s*:/i.test(String(consulta.sql || ''))
+    );
+}
+
+async function aplicarRelacionamentoResultadoWidget(widget, registros, colunas, filtros) {
+    if (
+        filtros.contextoDashboard === 'clientes'
+        && widgetPossuiFiltroRelacionamentoNoServidor(widget)
+        && !widgetMapeiaContato(widget)
+    ) {
+        return { registros, colunas };
+    }
+    const enriquecido = await enriquecerRegistrosContato(registros, colunas, filtros.contextoDashboard);
+    return {
+        registros: aplicarFiltrosContatoRegistros(enriquecido.registros, filtros),
+        colunas: enriquecido.colunas
+    };
+}
+
 function detalheMapeiaContato(detalhe) {
     return [...(detalhe?.camposTabela || []), ...(detalhe?.camposLinha || []), ...(detalhe?.camposColuna || []), ...(detalhe?.camposValor || [])]
         .some(campo => {
@@ -3651,7 +3677,8 @@ function obterFiltrosCenario() {
         statusContato: contactStatusInputs.filter(input => input.checked).map(input => input.value),
         tiposContato: contactTypeInputs.filter(input => input.checked).map(input => input.value),
         dataContatoInicial: contactDateStart?.value || '',
-        dataContatoFinal: contactDateEnd?.value || ''
+        dataContatoFinal: contactDateEnd?.value || '',
+        versaoRelacionamento: versaoRelacionamentoDashboard
     };
 }
 
@@ -3837,6 +3864,43 @@ function obterIndicesWidgetsExecutaveis(
         .filter(index => index >= 0);
 }
 
+function prioridadeExecucaoWidget(widget) {
+    const prioridades = {
+        kpi: 0,
+        'kpi-target': 0,
+        'kpi-calculated': 0,
+        gauge: 1,
+        bullet: 1,
+        bar: 2,
+        line: 2,
+        area: 2,
+        donut: 2,
+        pie: 2,
+        ranking: 3,
+        table: 5,
+        pivot: 6
+    };
+    const consultas = Array.isArray(widget?.consultas) && widget.consultas.length
+        ? widget.consultas
+        : [{ sql: widget?.sql || '' }];
+    const penalidadeConsultas = Math.max(0, consultas.length - 1);
+    const consultaGeografica = consultas.some(consulta => /filtro\s*:\s*clientes_proximos/i.test(String(consulta?.sql || '')));
+    return (prioridades[String(widget?.tipo || '').toLowerCase()] ?? 4)
+        + penalidadeConsultas
+        + (consultaGeografica ? 3 : 0);
+}
+
+function ordenarIndicesExecucaoWidgets(widgets, indices) {
+    return [...indices].sort((indiceA, indiceB) => {
+        const prioridade = prioridadeExecucaoWidget(widgets[indiceA]) - prioridadeExecucaoWidget(widgets[indiceB]);
+        if (prioridade) return prioridade;
+        const duracaoA = Number(widgets[indiceA]?.desempenhoExecucao?.duracaoMs) || 0;
+        const duracaoB = Number(widgets[indiceB]?.desempenhoExecucao?.duracaoMs) || 0;
+        if (duracaoA !== duracaoB) return duracaoA - duracaoB;
+        return indiceA - indiceB;
+    });
+}
+
 async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
     if (!widgetVisivelParaCategoria(widget)) {
         throw new Error('Card oculto para esta categoria.');
@@ -3849,10 +3913,9 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
             resultados.push(await executarConsultaConfigurada(consulta, filtros, null, opcoes));
         }
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
-        const enriquecido = await enriquecerRegistrosContato(combinado.dados, combinado.colunas, filtros.contextoDashboard);
-        const dadosFiltrados = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
+        const enriquecido = await aplicarRelacionamentoResultadoWidget(widget, combinado.dados, combinado.colunas, filtros);
         const proximidade = resultados.find(resultado => resultado.proximidade)?.proximidade || null;
-        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: dadosFiltrados, dadosConsultaAgregados: false, proximidade, consultaAtualizadaEm: new Date().toISOString() };
+        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: enriquecido.registros, dadosConsultaAgregados: false, proximidade, metricasServidor: resultados.map(resultado => resultado.metricas).filter(Boolean), consultaAtualizadaEm: new Date().toISOString() };
     }
     const visualizacao = widgetMapeiaContato(widget) ? null : montarVisualizacaoWidget(widget);
     const controller = new AbortController();
@@ -3873,8 +3936,8 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
             ? Array.from(new Set([...(Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : []), ...colunasRetornadas]))
             : colunasRetornadas;
         const dadosRetornados = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
-        const enriquecido = await enriquecerRegistrosContato(dadosRetornados, colunasConsulta, filtros.contextoDashboard);
-        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: aplicarFiltrosContatoRegistros(enriquecido.registros, filtros), dadosConsultaAgregados: data.resultadoAgregado === true, proximidade: data.proximidade || null, consultaAtualizadaEm: new Date().toISOString() };
+        const enriquecido = await aplicarRelacionamentoResultadoWidget(widget, dadosRetornados, colunasConsulta, filtros);
+        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: enriquecido.registros, dadosConsultaAgregados: data.resultadoAgregado === true, proximidade: data.proximidade || null, metricasServidor: data.metricas || null, consultaAtualizadaEm: new Date().toISOString() };
     } finally { clearTimeout(timeout); }
 }
 
@@ -3937,10 +4000,9 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
 
     const widgets = obterWidgetsDashboard(contextoExecucao);
     const atualizacaoMenu = opcoes?.origem === 'menu';
-    const totalCardsVisiveis = widgets.filter(widgetVisivelParaCategoria).length;
-    const indices = obterIndicesWidgetsExecutaveis(
+    const indices = ordenarIndicesExecucaoWidgets(widgets, obterIndicesWidgetsExecutaveis(
         widgets, widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, !atualizacaoMenu
-    );
+    ));
     if (!indices.length) return atualizarInterface('Filtros aplicados.');
 
     const controladorMenu = atualizacaoMenu ? new AbortController() : null;
@@ -3954,8 +4016,7 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
         applyFiltersButton.textContent = 'Aplicando...';
     }
     if (resetFiltersButton) resetFiltersButton.disabled = true;
-    atualizarInterface('Atualizando ' + totalCardsVisiveis + ' card' + (totalCardsVisiveis === 1 ? '' : 's')
-        + ' por ' + indices.length + ' consulta' + (indices.length === 1 ? '' : 's') + '...');
+    atualizarInterface('Preparando ' + indices.length + ' consulta' + (indices.length === 1 ? '' : 's') + '...');
     const filtrosConsulta = obterFiltrosCenario();
     let atualizados = 0;
     let falhas = 0;
@@ -3966,11 +4027,21 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
     await executarComConcorrenciaLimitada(
         indices,
         DASHBOARD_QUERY_CONCURRENCY,
-        index => {
+        async index => {
             if (controladorMenu?.signal.aborted || (atualizacaoMenu && dashboardContextoAtivo !== contextoExecucao)) {
                 throw Object.assign(new Error('Atualizacao substituida por outro menu.'), { code: 'DASHBOARD_CONTEXT_CHANGED' });
             }
-            return executarWidgetComFiltros(widgets[index], filtrosConsulta, { signal: controladorMenu?.signal });
+            const tituloCard = String(widgets[index]?.titulo || ('Card ' + (index + 1))).trim();
+            atualizarInterface('Executando "' + tituloCard + '": ' + concluidos + ' de ' + indices.length + ' consultas concluidas...');
+            const inicioExecucao = performance.now();
+            const resultado = await executarWidgetComFiltros(widgets[index], filtrosConsulta, { signal: controladorMenu?.signal });
+            return {
+                ...resultado,
+                desempenhoExecucao: {
+                    duracaoMs: Math.round(performance.now() - inicioExecucao),
+                    atualizadoEm: new Date().toISOString()
+                }
+            };
         },
         (resultado, index) => {
             concluidos += 1;
@@ -4398,6 +4469,7 @@ async function salvarFormularioContato(event) {
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o contato.');
+        versaoRelacionamentoDashboard = Date.now();
         const contextoDetalhe = origemFormularioContatoAtual === 'detalhe'
             ? contextoRelatorioDetalheAtual
             : null;
@@ -4502,7 +4574,8 @@ async function executarConsultaConfigurada(consulta, filtros, visualizacao = nul
         ...consulta,
         colunas: Array.isArray(data.colunas) ? data.colunas : [],
         dados: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []),
-        proximidade: data.proximidade || null
+        proximidade: data.proximidade || null,
+        metricas: data.metricas || null
     };
 }
 function combinarConsultas(resultados, combinacao, camposCalculados) { if (!window.CRM_COMPOSITE_DATASETS) throw new Error('Combinador de consultas indisponível.'); return window.CRM_COMPOSITE_DATASETS.combinar(resultados, combinacao, camposCalculados, window.CRM_KPI_CALCULATOR?.avaliar); }

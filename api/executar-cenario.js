@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { requireRequestSession } from '../lib/session-token.js';
 import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
+import { criarCacheGatewayAmbiente } from '../lib/bi-gateway-cache.js';
 import {
     modoExecucaoExigeEditor,
     normalizarModoExecucaoCenario,
@@ -34,6 +35,7 @@ const LIMITE_PREVIA = 100;
 const CONSULTA_TIMEOUT_MS = 90000;
 const DRILL_CACHE_MAX_ROWS = Math.min(10000, Math.max(100, Number(process.env.BI_DRILL_CACHE_MAX_ROWS) || 3000));
 const DRILL_CACHE_MAX_BYTES = Math.min(16777216, Math.max(262144, Number(process.env.BI_DRILL_CACHE_MAX_BYTES) || 4194304));
+const cacheFiltroRelacionamento = criarCacheGatewayAmbiente();
 
 function limitarLinhas(linhas, limite) {
     return Number.isFinite(limite) ? linhas.slice(0, limite) : linhas;
@@ -107,6 +109,7 @@ function mensagemErroInfraestrutura(error, status) {
 }
 
 export default async function handler(req, res) {
+    const inicioRequisicao = Date.now();
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -178,10 +181,22 @@ export default async function handler(req, res) {
         }
 
         const contextoConsulta = montarContextoConsulta(filtros, session);
+        let metadataRelacionamento = null;
         if (fonteNormalizada === 'firebird' && sqlPossuiFiltroRelacionamento(sql)) {
-            const relacionamento = await resolverFiltroRelacionamento(db, contextoConsulta);
+            const inicioRelacionamento = Date.now();
+            const relacionamento = await resolverFiltroRelacionamento(db, contextoConsulta, {
+                cache: cacheFiltroRelacionamento,
+                ttlMs: Number(process.env.CONTACT_RELATIONSHIP_CACHE_TTL_MS) || 60000,
+                logger: console
+            });
             contextoConsulta.relacionamentoModo = relacionamento.modo;
             contextoConsulta.documentosRelacionamento = relacionamento.documentos;
+            metadataRelacionamento = {
+                cache: relacionamento.cache || 'DISABLED',
+                modo: relacionamento.modo,
+                documentos: relacionamento.documentos.length,
+                duracaoMs: Date.now() - inicioRelacionamento
+            };
         }
         const preparadoBase = prepararSqlCenario(sql, fonteNormalizada, contextoConsulta);
         const preparado = prepararConsultaVisual(preparadoBase, fonteNormalizada, visualizacao);
@@ -289,14 +304,18 @@ export default async function handler(req, res) {
             dados: linhas,
             resultadoAgregado,
             estrategiaVisualizacao,
-            proximidade: metadataProximidade
+            proximidade: metadataProximidade,
+            metricas: {
+                duracaoMs: Date.now() - inicioRequisicao,
+                relacionamento: metadataRelacionamento
+            }
         });
     } catch (error) {
         const status = Number(error?.status)
             || (fonteNormalizada === 'firebird' ? statusHttpErroConsulta(error) : 500);
         const codigo = String(error?.code || 'QUERY_ERROR');
         const mensagem = mensagemErroInfraestrutura(error, status);
-        console.error('[executar-cenario] falha', { codigo, status, message: error?.message });
+        console.error('[executar-cenario] falha', { codigo, status, duracaoMs: Date.now() - inicioRequisicao, message: error?.message });
         if (status >= 503) res.setHeader('Retry-After', '1');
         res.status(status).json({
             error: mensagem,
