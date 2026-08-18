@@ -212,6 +212,115 @@
         });
     }
 
+    function contrasteCor(cor) {
+        var hex = String(cor || '').replace('#', '');
+        if (!/^[0-9a-f]{6}$/i.test(hex)) return '#FFFFFF';
+        var canais = [0, 2, 4].map(function (indice) {
+            var canal = parseInt(hex.slice(indice, indice + 2), 16) / 255;
+            return canal <= 0.03928 ? canal / 12.92 : Math.pow((canal + 0.055) / 1.055, 2.4);
+        });
+        return ((0.2126 * canais[0]) + (0.7152 * canais[1]) + (0.0722 * canais[2])) > 0.42
+            ? '#17304A'
+            : '#FFFFFF';
+    }
+
+    function renderizarFunil(contexto) {
+        var serie = contexto.dados.series[0];
+        var largura = contexto.container.clientWidth || 480;
+        var valores = serie.valores.map(function (valor) { return Math.max(0, numero(valor)); });
+        var maiorValor = Math.max.apply(null, valores.concat([0]));
+        var larguraRotulo = Math.max(84, Math.min(190, Math.round(largura * (contexto.compacto ? 0.28 : 0.34))));
+        var dados = contexto.dados.categorias.map(function (nome, index) {
+            var cor = contexto.paleta[index % contexto.paleta.length];
+            return {
+                name: nome,
+                value: valores[index],
+                itemStyle: { color: cor },
+                label: {
+                    color: contrasteCor(cor),
+                    rich: {
+                        etapa: {
+                            color: contrasteCor(cor),
+                            fontSize: contexto.compacto ? 10 : 12,
+                            fontWeight: 700,
+                            lineHeight: contexto.compacto ? 14 : 17,
+                            width: larguraRotulo,
+                            overflow: 'truncate',
+                            align: 'center'
+                        },
+                        valor: {
+                            color: contrasteCor(cor),
+                            fontSize: contexto.compacto ? 11 : 15,
+                            fontWeight: 700,
+                            lineHeight: contexto.compacto ? 15 : 20,
+                            align: 'center'
+                        },
+                        percentual: {
+                            color: contrasteCor(cor),
+                            fontSize: 10,
+                            fontWeight: 500,
+                            opacity: 0.82,
+                            lineHeight: 13,
+                            align: 'center'
+                        }
+                    }
+                }
+            };
+        });
+        return Object.assign({}, contexto.base, {
+            legend: { show: false },
+            tooltip: Object.assign({}, contexto.base.tooltip, {
+                trigger: 'item',
+                valueFormatter: function (valor) { return contexto.formatar(valor, serie.formato); }
+            }),
+            series: [{
+                name: serie.nome,
+                type: 'funnel',
+                sort: 'descending',
+                funnelAlign: 'center',
+                left: contexto.compacto ? '2%' : '4%',
+                width: contexto.compacto ? '96%' : '92%',
+                top: contexto.compacto ? 4 : 10,
+                bottom: contexto.compacto ? 4 : 10,
+                min: 0,
+                max: maiorValor || 1,
+                minSize: contexto.compacto ? '40%' : '34%',
+                maxSize: '98%',
+                gap: contexto.compacto ? 3 : 5,
+                label: {
+                    show: true,
+                    position: 'inside',
+                    formatter: function (params) {
+                        var percentual = maiorValor ? (numero(params.value) / maiorValor) * 100 : 0;
+                        var principal = '{etapa|' + params.name + '}\n{valor|' + contexto.formatar(params.value, serie.formato) + '}';
+                        return contexto.compacto
+                            ? principal
+                            : principal + '\n{percentual|' + percentual.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '% da maior etapa}';
+                    }
+                },
+                labelLine: { show: false },
+                itemStyle: {
+                    borderColor: 'rgba(255,255,255,0.92)',
+                    borderWidth: 2,
+                    borderRadius: contexto.compacto ? 3 : 5,
+                    shadowBlur: contexto.compacto ? 0 : 8,
+                    shadowColor: 'rgba(17,40,65,0.14)',
+                    shadowOffsetY: 2
+                },
+                emphasis: {
+                    focus: 'self',
+                    label: { fontWeight: 700 },
+                    itemStyle: {
+                        shadowBlur: 18,
+                        shadowColor: 'rgba(17,40,65,0.28)',
+                        shadowOffsetY: 4
+                    }
+                },
+                data: dados
+            }]
+        });
+    }
+
     function normalizarData(valor, index) {
         var texto = String(valor || '');
         var iso = /^\d{4}-\d{2}-\d{2}/.exec(texto);
@@ -244,6 +353,7 @@
         bullet: renderizarBullet,
         ranking: renderizarRanking,
         sparkline: renderizarSparkline,
+        funnel: renderizarFunil,
         calendar: renderizarCalendario
     });
 })();

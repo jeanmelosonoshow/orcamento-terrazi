@@ -1424,22 +1424,6 @@ function montarOpcaoECharts(widget, dados, container) {
             }]
         };
     }
-    if (widget.tipo === 'funnel') {
-        return {
-            ...base,
-            tooltip: { ...base.tooltip, trigger: 'item' },
-            series: [{
-                type: 'funnel',
-                left: compacto ? '4%' : '10%',
-                width: compacto ? '92%' : '80%',
-                top: 8,
-                bottom: 8,
-                minSize: '10%',
-                label: { show: !compacto, formatter: '{b}' },
-                data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] }))
-            }]
-        };
-    }
     if (widget.tipo === 'treemap') {
         return {
             ...base,

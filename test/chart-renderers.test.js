@@ -44,6 +44,7 @@ test('cada modelo especializado gera uma estrutura visual propria', async () => 
         bullet: ['bar', 'scatter'],
         ranking: ['bar', 'bar'],
         sparkline: ['line', 'line'],
+        funnel: ['funnel'],
         calendar: ['heatmap']
     };
 
@@ -53,6 +54,24 @@ test('cada modelo especializado gera uma estrutura visual propria', async () => 
         const opcao = renderizadores[tipo](contexto);
         assert.deepEqual(Array.from(opcao.series, serie => serie.type), seriesEsperadas, tipo);
     }
+});
+
+test('funil mantem etapas legiveis e informa valor e participacao', async () => {
+    const renderizadores = await carregarGlobal('../public/assets/charts/chart-renderers.js', 'CRM_CHART_RENDERERS');
+    const contexto = criarContexto('funnel');
+    contexto.dados.categorias = ['Expirado', 'Pendente', 'Gerou venda'];
+    contexto.dados.series = [{ nome: 'Orcamentos', formato: 'integer', valores: [120, 45, 18] }];
+    const opcao = renderizadores.funnel(contexto);
+    const serie = opcao.series[0];
+
+    assert.equal(serie.minSize, '34%');
+    assert.equal(serie.maxSize, '98%');
+    assert.equal(serie.label.position, 'inside');
+    assert.equal(serie.labelLine.show, false);
+    assert.match(serie.label.formatter({ name: 'Pendente', value: 45 }), /45/);
+    assert.match(serie.label.formatter({ name: 'Pendente', value: 45 }), /37,5% da maior etapa/);
+    assert.equal(serie.data.length, 3);
+    assert.ok(serie.data.every(item => item.itemStyle.color && item.label.color));
 });
 
 test('catalogo de icones possui grupos, ids unicos e variedade', async () => {
