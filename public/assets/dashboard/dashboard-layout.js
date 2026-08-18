@@ -26,6 +26,10 @@
         return a.y < b.y + b.h && a.y + a.h > b.y;
     }
 
+    function faixasHorizontaisSeSobrepoem(a, b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x;
+    }
+
     function ajustarLargurasDireita(layouts, larguraCanvas, opcoes = {}) {
         const margemDireita = Math.max(0, Number(opcoes.margemDireita) || 12);
         const espacoEntreCards = Math.max(0, Number(opcoes.espacoEntreCards) || 12);
@@ -55,10 +59,40 @@
         });
     }
 
+    function ajustarAlturasAbaixo(layouts, alturaCanvas, opcoes = {}) {
+        const margemInferior = Math.max(0, Number(opcoes.margemInferior) || 12);
+        const espacoEntreCards = Math.max(0, Number(opcoes.espacoEntreCards) || 12);
+        const alturaMinima = Math.max(1, Number(opcoes.alturaMinima) || 180);
+        const limiteCanvas = Math.max(alturaMinima, Number(alturaCanvas) || alturaMinima);
+        const bases = (Array.isArray(layouts) ? layouts : []).map(layout => ({
+            ...layout,
+            x: Math.max(0, Number(layout.x) || 0),
+            y: Math.max(0, Number(layout.y) || 0),
+            w: Math.max(1, Number(layout.w) || 1),
+            h: Math.max(alturaMinima, Number(layout.h) || alturaMinima)
+        }));
+
+        return bases.map(atual => {
+            const proximoY = bases.reduce((limite, outro) => {
+                if (outro.id === atual.id || outro.y <= atual.y || !faixasHorizontaisSeSobrepoem(atual, outro)) {
+                    return limite;
+                }
+                return Math.min(limite, outro.y - espacoEntreCards);
+            }, limiteCanvas - margemInferior);
+            const alturaDisponivel = Math.max(alturaMinima, proximoY - atual.y);
+            const alturaAteCanvas = Math.max(alturaMinima, limiteCanvas - margemInferior - atual.y);
+            return {
+                ...atual,
+                h: Math.min(Math.max(atual.h, alturaDisponivel), alturaAteCanvas)
+            };
+        });
+    }
+
     global.CRM_DASHBOARD_LAYOUT = Object.freeze({
         categorias,
         normalizarCategoriasPermitidas,
         widgetVisivelParaCategoria,
-        ajustarLargurasDireita
+        ajustarLargurasDireita,
+        ajustarAlturasAbaixo
     });
 })(window);

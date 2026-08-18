@@ -3032,12 +3032,15 @@ function normalizarWidgetsDashboard(widgets) {
     }));
 }
 
-function obterLayoutsRenderizacao(widgets) {
+function obterLayoutsRenderizacao(widgets, alturaCanvas = 0) {
     const layoutsBase = widgets.map((widget, index) => ({ id: widget.id, ...obterLayoutWidget(widget, index) }));
     const larguraCanvas = dashboardCanvas?.clientWidth || 0;
-    const layouts = larguraCanvas > 0 && window.CRM_DASHBOARD_LAYOUT?.ajustarLargurasDireita
+    const layoutsLargura = larguraCanvas > 0 && window.CRM_DASHBOARD_LAYOUT?.ajustarLargurasDireita
         ? window.CRM_DASHBOARD_LAYOUT.ajustarLargurasDireita(layoutsBase, larguraCanvas)
         : layoutsBase;
+    const layouts = alturaCanvas > 0 && window.CRM_DASHBOARD_LAYOUT?.ajustarAlturasAbaixo
+        ? window.CRM_DASHBOARD_LAYOUT.ajustarAlturasAbaixo(layoutsLargura, alturaCanvas)
+        : layoutsLargura;
     return new Map(layouts.map(layout => [layout.id, layout]));
 }
 
@@ -3072,7 +3075,7 @@ function obterAlturaCanvasPreferida() {
 }
 
 function atualizarAlturaCanvas(widgets) {
-    if (!dashboardCanvas) return;
+    if (!dashboardCanvas) return 0;
     const alturaConteudo = widgets.reduce((maior, widget, index) => {
         const layout = obterLayoutWidget(widget, index);
         return Math.max(maior, layout.y + layout.h + 28);
@@ -3087,6 +3090,7 @@ function atualizarAlturaCanvas(widgets) {
     if (increaseCanvasHeightButton) {
         increaseCanvasHeightButton.disabled = alturaPreferida >= dashboardCanvasMaxHeight;
     }
+    return alturaFinal;
 }
 
 function ajustarAlturaCanvas(direcao) {
@@ -3381,10 +3385,10 @@ function renderizarDashboard() {
     const widgets = editorAtivo
         ? todosWidgets
         : todosWidgets.filter(widget => widgetVisivelParaCategoria(widget));
+    const alturaCanvas = atualizarAlturaCanvas(widgets);
     const layoutsRenderizacao = editorAtivo
         ? new Map(widgets.map((widget, index) => [widget.id, obterLayoutWidget(widget, index)]))
-        : obterLayoutsRenderizacao(widgets);
-    atualizarAlturaCanvas(widgets);
+        : obterLayoutsRenderizacao(widgets, alturaCanvas);
     if (!widgets.length) {
         dashboardCanvas.innerHTML = `
             <div class="crm-dashboard-empty">
