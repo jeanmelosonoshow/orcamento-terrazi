@@ -21,7 +21,7 @@
     </script>
     <title>Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.0/css/all.min.css">
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260817-1">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260819-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -427,6 +427,26 @@
                         <input type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="Sem limite" data-chart-top-limit>
                     </label>
                 </section>
+                <section class="crm-funnel-config" data-funnel-config hidden>
+                    <div class="crm-table-config-head">
+                        <strong>Leitura do funil</strong>
+                        <span>Escolha uma única forma de interpretar os percentuais.</span>
+                    </div>
+                    <label class="crm-funnel-mode-field">
+                        Cálculo apresentado
+                        <select data-funnel-mode>
+                            <option value="total">Percentual do total</option>
+                            <option value="stages">Conversão por etapas</option>
+                        </select>
+                    </label>
+                    <div class="crm-funnel-stages" data-funnel-stages hidden>
+                        <div>
+                            <strong>Nome e ordem das etapas</strong>
+                            <span>A primeira etapa representa a entrada; as demais são comparadas com a etapa anterior.</span>
+                        </div>
+                        <div class="crm-funnel-stage-list" data-funnel-stage-list></div>
+                    </div>
+                </section>
                 <section class="crm-table-config" data-table-config hidden>
                     <div class="crm-table-config-head">
                         <strong>Opções da tabela</strong>
@@ -588,13 +608,13 @@
     </div>
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
     <script src="assets/icons/widget-icons.js?v=crm-20260728-1"></script>
-    <script src="assets/charts/chart-renderers.js?v=crm-20260819-1"></script>
+    <script src="assets/charts/chart-renderers.js?v=crm-20260819-2"></script>
     <script src="assets/charts/kpi-calculator.js?v=crm-20260728-1"></script>
     <script src="assets/charts/composite-datasets.js?v=crm-20260807-1"></script>
     <script src="assets/dashboard/dashboard-layout.js?v=crm-20260818-1"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
-    <script src="crm.js?v=crm-20260819-1"></script>
+    <script src="crm.js?v=crm-20260819-2"></script>
 </body>
 </html>

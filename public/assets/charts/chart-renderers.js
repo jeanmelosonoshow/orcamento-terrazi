@@ -229,6 +229,10 @@
         var largura = contexto.container.clientWidth || 480;
         var valores = serie.valores.map(function (valor) { return Math.max(0, numero(valor)); });
         var maiorValor = Math.max.apply(null, valores.concat([0]));
+        var total = valores.reduce(function (soma, valor) { return soma + valor; }, 0);
+        var modo = (contexto.dados.funil && contexto.dados.funil.modo)
+            || (contexto.widget.funil && contexto.widget.funil.modo)
+            || 'total';
         var larguraRotulo = Math.max(84, Math.min(190, Math.round(largura * (contexto.compacto ? 0.28 : 0.34))));
         var dados = contexto.dados.categorias.map(function (nome, index) {
             var cor = contexto.paleta[index % contexto.paleta.length];
@@ -276,7 +280,7 @@
             series: [{
                 name: serie.nome,
                 type: 'funnel',
-                sort: 'descending',
+                sort: modo === 'stages' ? 'none' : 'descending',
                 funnelAlign: 'center',
                 left: contexto.compacto ? '2%' : '4%',
                 width: contexto.compacto ? '96%' : '92%',
@@ -291,11 +295,18 @@
                     show: true,
                     position: 'inside',
                     formatter: function (params) {
-                        var percentual = maiorValor ? (numero(params.value) / maiorValor) * 100 : 0;
+                        var indice = params.dataIndex;
+                        var anterior = indice > 0 ? valores[indice - 1] : 0;
+                        var percentual = modo === 'stages'
+                            ? (indice === 0 ? (numero(params.value) > 0 ? 100 : 0) : (anterior ? (numero(params.value) / anterior) * 100 : 0))
+                            : (total ? (numero(params.value) / total) * 100 : 0);
+                        var legendaPercentual = modo === 'stages'
+                            ? (indice === 0 ? '% etapa inicial' : '% da etapa anterior')
+                            : '% do total';
                         var principal = '{etapa|' + params.name + '}\n{valor|' + contexto.formatar(params.value, serie.formato) + '}';
                         return contexto.compacto
                             ? principal
-                            : principal + '\n{percentual|' + percentual.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '% da maior etapa}';
+                            : principal + '\n{percentual|' + percentual.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + legendaPercentual + '}';
                     }
                 },
                 labelLine: { show: false },

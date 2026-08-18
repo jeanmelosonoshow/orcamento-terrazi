@@ -10,6 +10,14 @@ async function carregarGlobal(caminho, propriedade) {
     return sandbox.window[propriedade];
 }
 
+async function carregarConfiguracaoFunil() {
+    const fonte = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+    const inicio = fonte.indexOf('function normalizarChaveEtapaFunil');
+    const fim = fonte.indexOf('function ordenarELimitarTopGrafico', inicio);
+    assert.ok(inicio >= 0 && fim > inicio);
+    return Function(`${fonte.slice(inicio, fim)}; return { normalizarConfiguracaoFunil, aplicarConfiguracaoFunil };`)();
+}
+
 function criarContexto(tipo = 'bar') {
     return {
         widget: { tipo },
@@ -69,9 +77,67 @@ test('funil mantem etapas legiveis e informa valor e participacao', async () => 
     assert.equal(serie.label.position, 'inside');
     assert.equal(serie.labelLine.show, false);
     assert.match(serie.label.formatter({ name: 'Pendente', value: 45 }), /45/);
-    assert.match(serie.label.formatter({ name: 'Pendente', value: 45 }), /37,5% da maior etapa/);
+    assert.match(serie.label.formatter({ name: 'Pendente', value: 45, dataIndex: 1 }), /24,6% do total/);
     assert.equal(serie.data.length, 3);
     assert.ok(serie.data.every(item => item.itemStyle.color && item.label.color));
+});
+
+test('funil por etapas preserva ordem e calcula conversao sobre a etapa anterior', async () => {
+    const renderizadores = await carregarGlobal('../public/assets/charts/chart-renderers.js', 'CRM_CHART_RENDERERS');
+    const contexto = criarContexto('funnel');
+    contexto.widget.funil = { modo: 'stages' };
+    contexto.dados.categorias = ['Criados', 'Em negociacao', 'Gerou venda'];
+    contexto.dados.series = [{ nome: 'Orcamentos', formato: 'integer', valores: [100, 60, 15] }];
+    const serie = renderizadores.funnel(contexto).series[0];
+
+    assert.equal(serie.sort, 'none');
+    assert.match(serie.label.formatter({ name: 'Criados', value: 100, dataIndex: 0 }), /100% etapa inicial/);
+    assert.match(serie.label.formatter({ name: 'Em negociacao', value: 60, dataIndex: 1 }), /60% da etapa anterior/);
+    assert.match(serie.label.formatter({ name: 'Gerou venda', value: 15, dataIndex: 2 }), /25% da etapa anterior/);
+});
+
+test('configuracao das etapas renomeia, reordena e preserva etapa sem movimento', async () => {
+    const { aplicarConfiguracaoFunil } = await carregarConfiguracaoFunil();
+    const dados = {
+        categorias: ['Pendente', 'Venda'],
+        dimensoes: [
+            { campo: 'STATUS', valor: 'PENDENTE', rotulo: 'Pendente' },
+            { campo: 'STATUS', valor: 'VENDA', rotulo: 'Venda' }
+        ],
+        nomeDimensao: 'Status',
+        series: [{ nome: 'Total', valores: [100, 15] }]
+    };
+    const resultado = aplicarConfiguracaoFunil({
+        funil: {
+            modo: 'stages',
+            etapas: [
+                { valor: 'PENDENTE', rotulo: 'Orcamentos criados', ordem: 1 },
+                { valor: 'NEGOCIACAO', rotulo: 'Em negociacao', ordem: 2 },
+                { valor: 'VENDA', rotulo: 'Gerou venda', ordem: 3 }
+            ]
+        }
+    }, dados);
+
+    assert.deepEqual(resultado.categorias, ['Orcamentos criados', 'Em negociacao', 'Gerou venda']);
+    assert.deepEqual(resultado.series[0].valores, [100, 0, 15]);
+    assert.equal(resultado.dimensoes[1].valor, 'NEGOCIACAO');
+});
+
+test('editor oferece modos exclusivos e configuracao de nome e ordem das etapas', async () => {
+    const [html, script] = await Promise.all([
+        readFile(new URL('../public/crm.html', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm.js', import.meta.url), 'utf8')
+    ]);
+
+    assert.match(html, /data-funnel-mode/);
+    assert.match(html, /value="total">Percentual do total/);
+    assert.match(html, /value="stages">Conversão por etapas/);
+    assert.match(html, /data-funnel-stage-list/);
+    assert.match(script, /data-funnel-stage-label/);
+    assert.match(script, /data-funnel-stage-order/);
+    assert.match(script, /function normalizarConfiguracaoFunil/);
+    assert.match(script, /function aplicarConfiguracaoFunil/);
+    assert.match(script, /funil: calculado \? normalizarConfiguracaoFunil\(\) : configuracaoFunil/);
 });
 
 test('catalogo de icones possui grupos, ids unicos e variedade', async () => {

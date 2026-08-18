@@ -2282,6 +2282,104 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     display: none;
 }
 
+.crm-funnel-config {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 280px);
+    gap: 14px;
+    align-items: end;
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid var(--linha);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent, var(--dourado)) 7%, #fff);
+}
+
+.crm-funnel-config[hidden],
+.crm-funnel-stages[hidden] {
+    display: none;
+}
+
+.crm-funnel-mode-field {
+    display: grid;
+    gap: 6px;
+    color: var(--verde-escuro);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.crm-funnel-mode-field select,
+.crm-funnel-stage-row input {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font: inherit;
+    padding: 7px 9px;
+}
+
+.crm-funnel-stages {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--linha);
+}
+
+.crm-funnel-stages > div:first-child strong,
+.crm-funnel-stages > div:first-child span {
+    display: block;
+}
+
+.crm-funnel-stages > div:first-child strong {
+    color: var(--verde-escuro);
+}
+
+.crm-funnel-stages > div:first-child span,
+.crm-funnel-stage-empty {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.crm-funnel-stage-list {
+    display: grid;
+    gap: 8px;
+}
+
+.crm-funnel-stage-row {
+    display: grid;
+    grid-template-columns: minmax(160px, 1.15fr) minmax(180px, 1fr) 90px;
+    gap: 10px;
+    align-items: end;
+    padding: 10px;
+    border: 1px solid color-mix(in srgb, var(--linha) 78%, transparent);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.72);
+}
+
+.crm-funnel-stage-row label {
+    display: grid;
+    gap: 5px;
+    color: var(--verde-escuro);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.crm-funnel-stage-row output {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    color: var(--verde-escuro);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .crm-chart-top-config label {
     display: grid;
     gap: 6px;
@@ -2302,7 +2400,9 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 }
 
 @media (max-width: 700px) {
-    .crm-chart-top-config {
+    .crm-chart-top-config,
+    .crm-funnel-config,
+    .crm-funnel-stage-row {
         grid-template-columns: 1fr;
     }
 }

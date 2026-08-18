@@ -166,6 +166,10 @@ const columnMappingBox = document.querySelector('[data-column-mapping]');
 const mappingNote = document.querySelector('[data-mapping-note]');
 const chartTopConfigBox = document.querySelector('[data-chart-top-config]');
 const chartTopLimitInput = document.querySelector('[data-chart-top-limit]');
+const funnelConfigBox = document.querySelector('[data-funnel-config]');
+const funnelModeSelect = document.querySelector('[data-funnel-mode]');
+const funnelStagesBox = document.querySelector('[data-funnel-stages]');
+const funnelStageList = document.querySelector('[data-funnel-stage-list]');
 const tableConfigBox = document.querySelector('[data-table-config]');
 const tableTotalRowsInput = document.querySelector('[data-table-total-rows]');
 const tableTotalColumnsInput = document.querySelector('[data-table-total-columns]');
@@ -321,6 +325,7 @@ let filiaisRascunho = [];
 let vendedoresRascunho = [];
 let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, paginacao: false, registrosPorPagina: 25, limiteExibicao: 0, agrupamentos: [], subtotais: [] };
 let limiteTopAtual = 0;
+let configuracaoFunilAtual = { modo: 'total', etapas: [] };
 const instanciasGraficosDashboard = new Map();
 const observadoresGraficosDashboard = new Map();
 const estadosDrillDashboard = new Map();
@@ -671,6 +676,7 @@ function criarWidgetPadrao(tipo = 'bar') {
         w: 420,
         h: 300,
         limiteTop: 0,
+        funil: { modo: 'total', etapas: [] },
         mapeamentos: [],
         fonte: 'firebird',
         sql: '',
@@ -854,7 +860,12 @@ function renderizarPreviaAparencia() {
     }
     const aparencia = coletarAparenciaWidget();
     const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
-    const widgetPrevia = { ...(widgetEmEdicao || {}), tipo, aparencia };
+    const widgetPrevia = {
+        ...(widgetEmEdicao || {}),
+        tipo,
+        aparencia,
+        funil: tipo === 'funnel' ? coletarConfiguracaoFunil() : widgetEmEdicao?.funil
+    };
     const titulo = widgetTitleInput?.value.trim() || 'Titulo do indicador';
     appearancePreview.innerHTML = `
         <div class="crm-appearance-preview-card" style="${obterEstiloAparenciaWidget(widgetPrevia)}">
@@ -1016,6 +1027,66 @@ function normalizarLimiteTopGrafico(valor) {
     return Number.isFinite(limite) && limite > 0 ? Math.min(limite, 1000) : 0;
 }
 
+function normalizarChaveEtapaFunil(valor) {
+    return String(valor ?? '').trim().toUpperCase();
+}
+
+function normalizarConfiguracaoFunil(valor = {}) {
+    const modo = valor.modo === 'stages' ? 'stages' : 'total';
+    const campoDimensao = String(valor.campoDimensao || '').trim();
+    const chaves = new Set();
+    const etapas = (Array.isArray(valor.etapas) ? valor.etapas : []).map((etapa, indice) => {
+        const valorEtapa = String(etapa?.valor ?? '').trim();
+        return {
+            valor: valorEtapa,
+            rotulo: String(etapa?.rotulo || valorEtapa).trim() || valorEtapa,
+            ordem: Math.max(1, Math.floor(Number(etapa?.ordem) || (indice + 1)))
+        };
+    }).filter(etapa => {
+        const chave = normalizarChaveEtapaFunil(etapa.valor);
+        if (!chave || chaves.has(chave)) return false;
+        chaves.add(chave);
+        return true;
+    });
+    return { modo, campoDimensao, etapas };
+}
+
+function aplicarConfiguracaoFunil(widget, dados) {
+    const configuracao = normalizarConfiguracaoFunil(widget?.funil);
+    if (configuracao.modo !== 'stages') return { ...dados, funil: configuracao };
+    const indicePorValor = new Map((dados.dimensoes || []).map((dimensao, indice) => [
+        normalizarChaveEtapaFunil(dimensao.valor), indice
+    ]));
+    const usados = new Set();
+    const etapasConfiguradas = [...configuracao.etapas]
+        .sort((a, b) => (a.ordem - b.ordem) || a.rotulo.localeCompare(b.rotulo, 'pt-BR'))
+        .map(etapa => {
+            const chave = normalizarChaveEtapaFunil(etapa.valor);
+            usados.add(chave);
+            return { ...etapa, indice: indicePorValor.has(chave) ? indicePorValor.get(chave) : -1 };
+        });
+    const etapasNovas = (dados.dimensoes || []).map((dimensao, indice) => ({
+        valor: String(dimensao.valor ?? ''),
+        rotulo: String(dimensao.rotulo || dimensao.valor || ''),
+        ordem: etapasConfiguradas.length + indice + 1,
+        indice
+    })).filter(etapa => !usados.has(normalizarChaveEtapaFunil(etapa.valor)));
+    const etapas = [...etapasConfiguradas, ...etapasNovas];
+    if (!etapas.length) return { ...dados, funil: configuracao };
+    return {
+        ...dados,
+        categorias: etapas.map(etapa => etapa.rotulo),
+        dimensoes: etapas.map(etapa => etapa.indice >= 0
+            ? { ...dados.dimensoes[etapa.indice], rotulo: etapa.rotulo }
+            : { campo: dados.dimensoes?.[0]?.campo || '', apelido: dados.nomeDimensao || '', valor: etapa.valor, rotulo: etapa.rotulo }),
+        series: dados.series.map(serie => ({
+            ...serie,
+            valores: etapas.map(etapa => etapa.indice >= 0 ? serie.valores[etapa.indice] : 0)
+        })),
+        funil: configuracao
+    };
+}
+
 function ordenarELimitarTopGrafico(grupos, limiteTop, obterValor) {
     const limite = normalizarLimiteTopGrafico(limiteTop);
     if (!limite || grupos.length <= 1) return grupos;
@@ -1074,7 +1145,7 @@ function prepararDadosGrafico(widget) {
     const valorRankingTop = valores.find(valor => obterOrdenacaoCampo(valor) !== 'none') || valores[0];
     const gruposExibidos = ordenarELimitarTopGrafico(
         gruposOrdenados,
-        widget.limiteTop,
+        widget.tipo === 'funnel' && normalizarConfiguracaoFunil(widget.funil).modo === 'stages' ? 0 : widget.limiteTop,
         grupo => calcularAgregacao(
             grupo.linhas.map(linha => obterValorLinha(linha, valorRankingTop.coluna)),
             agregacaoDados(valorRankingTop)
@@ -1103,12 +1174,13 @@ function prepararDadosGrafico(widget) {
         })
     })));
 
-    return {
+    const dadosPreparados = {
         categorias: gruposExibidos.map(grupo => grupo.rotulo),
         dimensoes: gruposExibidos.map(grupo => ({ campo: dimensao?.coluna || '', apelido: dimensao ? obterApelidoMapeamento(dimensao) : '', valor: grupo.valor, rotulo: grupo.rotulo })),
         nomeDimensao: dimensao ? obterApelidoMapeamento(dimensao) : '',
         series
     };
+    return widget.tipo === 'funnel' ? aplicarConfiguracaoFunil(widget, dadosPreparados) : dadosPreparados;
 }
 
 const tiposKpiCalculaveis = new Set(['kpi', 'kpi-target', 'kpi-calculated']);
@@ -3036,6 +3108,7 @@ function normalizarWidgetsDashboard(widgets) {
     return atribuirReferenciasIndicadores(widgets).map((widget, index) => ({
         ...widget,
         limiteTop: normalizarLimiteTopGrafico(widget.limiteTop),
+        funil: normalizarConfiguracaoFunil(widget.funil),
         categoriasPermitidas: obterCategoriasPermitidasWidget(widget),
         aparencia: obterAparenciaWidget(widget),
         ...obterLayoutWidget(widget, index)
@@ -4218,6 +4291,78 @@ function renderizarConfiguracaoTabela() {
         : '<span>Selecione um agrupamento para configurar subtotais.</span>';
 }
 
+function obterDimensaoConfiguradaFunil() {
+    return coletarMapeamentosColunas().find(item => item.papel === 'dimensao') || null;
+}
+
+function coletarConfiguracaoFunil() {
+    const linhas = funnelStageList
+        ? Array.from(funnelStageList.querySelectorAll('[data-funnel-stage-value]'))
+        : [];
+    const dimensao = obterDimensaoConfiguradaFunil();
+    configuracaoFunilAtual = normalizarConfiguracaoFunil({
+        modo: funnelModeSelect?.value || configuracaoFunilAtual.modo,
+        campoDimensao: dimensao?.coluna || configuracaoFunilAtual.campoDimensao,
+        etapas: linhas.length ? linhas.map((linha, indice) => ({
+            valor: linha.dataset.funnelStageValue,
+            rotulo: linha.querySelector('[data-funnel-stage-label]')?.value.trim() || linha.dataset.funnelStageValue,
+            ordem: linha.querySelector('[data-funnel-stage-order]')?.value || (indice + 1)
+        })) : configuracaoFunilAtual.etapas
+    });
+    return configuracaoFunilAtual;
+}
+
+function renderizarConfiguracaoFunil() {
+    if (!funnelConfigBox) return;
+    const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
+    const ativo = tipo === 'funnel';
+    funnelConfigBox.hidden = !ativo;
+    if (!ativo) return;
+    const dimensao = obterDimensaoConfiguradaFunil();
+    const campoDimensao = String(dimensao?.coluna || '');
+    const configuracaoAnterior = normalizarConfiguracaoFunil(configuracaoFunilAtual);
+    if (funnelModeSelect) funnelModeSelect.value = configuracaoAnterior.modo;
+    const etapasAnteriores = configuracaoAnterior.campoDimensao
+        && campoDimensao
+        && configuracaoAnterior.campoDimensao !== campoDimensao
+        ? []
+        : configuracaoAnterior.etapas;
+    const porValor = new Map(etapasAnteriores.map(etapa => [normalizarChaveEtapaFunil(etapa.valor), etapa]));
+    let proximaOrdem = etapasAnteriores.reduce((maior, etapa) => Math.max(maior, etapa.ordem), 0) + 1;
+    if (dimensao) {
+        dadosConsultaAtual.forEach(linha => {
+            const valor = obterValorLinha(linha, dimensao.coluna);
+            const chave = normalizarChaveEtapaFunil(valor);
+            if (!chave || porValor.has(chave)) return;
+            porValor.set(chave, {
+                valor: String(valor),
+                rotulo: formatarDimensao(valor, dimensao.formatoData),
+                ordem: proximaOrdem++
+            });
+        });
+    }
+    configuracaoFunilAtual = normalizarConfiguracaoFunil({
+        modo: configuracaoAnterior.modo,
+        campoDimensao,
+        etapas: Array.from(porValor.values())
+    });
+    if (funnelModeSelect) funnelModeSelect.value = configuracaoFunilAtual.modo;
+    if (funnelStagesBox) funnelStagesBox.hidden = configuracaoFunilAtual.modo !== 'stages';
+    if (!funnelStageList) return;
+    const etapasOrdenadas = [...configuracaoFunilAtual.etapas]
+        .sort((a, b) => (a.ordem - b.ordem) || a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
+    funnelStageList.innerHTML = !dimensao
+        ? '<span class="crm-funnel-stage-empty">Selecione uma coluna como Dimensão para configurar as etapas.</span>'
+        : etapasOrdenadas.length
+            ? etapasOrdenadas.map((etapa, indice) => `
+                <div class="crm-funnel-stage-row" data-funnel-stage-value="${escapeHtml(etapa.valor)}">
+                    <label>Resultado da dimensão<output title="${escapeHtml(etapa.valor)}">${escapeHtml(etapa.valor)}</output></label>
+                    <label>Nome exibido<input type="text" value="${escapeHtml(etapa.rotulo)}" data-funnel-stage-label></label>
+                    <label>Ordem<input type="number" min="1" max="999" step="1" value="${etapa.ordem || (indice + 1)}" data-funnel-stage-order></label>
+                </div>`).join('')
+            : '<span class="crm-funnel-stage-empty">A consulta ainda não retornou valores para a dimensão selecionada.</span>';
+}
+
 function renderizarMapeamentoColunas() {
     if (!columnMappingBox) return;
     const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
@@ -4227,6 +4372,7 @@ function renderizarMapeamentoColunas() {
     if (!colunasConsultaAtual.length) {
         columnMappingBox.innerHTML = '';
         if (chartTopConfigBox) chartTopConfigBox.hidden = true;
+        if (funnelConfigBox) funnelConfigBox.hidden = true;
         if (tableConfigBox) tableConfigBox.hidden = true;
         if (mappingNote) mappingNote.textContent = 'Execute a consulta para carregar as colunas retornadas.';
         return;
@@ -4234,7 +4380,7 @@ function renderizarMapeamentoColunas() {
 
     if (mappingNote) mappingNote.textContent = 'Defina como cada coluna retornada deve ser usada no grafico.';
     const papeisTipo = obterPapeisGrafico(tipo);
-    const permiteLimiteTop = papeisTipo.includes('dimensao') && papeisTipo.includes('valor');
+    const permiteLimiteTop = tipo !== 'funnel' && papeisTipo.includes('dimensao') && papeisTipo.includes('valor');
     if (chartTopConfigBox) chartTopConfigBox.hidden = !permiteLimiteTop;
     if (chartTopLimitInput) chartTopLimitInput.value = limiteTopAtual || '';
     const colunasPorNome = new Map(colunasConsultaAtual.map(coluna => [String(coluna).toLowerCase(), coluna]));
@@ -4314,6 +4460,7 @@ function renderizarMapeamentoColunas() {
     columnMappingBox.querySelectorAll('[data-column-name]').forEach(atualizarCamposMapeamento);
     atualizarControlesOrdemMapeamento();
     renderizarConfiguracaoTabela();
+    renderizarConfiguracaoFunil();
 }
 
 function atualizarControlesOrdemMapeamento() {
@@ -4627,6 +4774,7 @@ function abrirModalWidget(widgetId) {
     }
     configuracaoTabelaAtual = obterConfiguracaoTabela(widgetEmEdicao);
     limiteTopAtual = normalizarLimiteTopGrafico(widgetEmEdicao.limiteTop);
+    configuracaoFunilAtual = normalizarConfiguracaoFunil(widgetEmEdicao.funil);
     if (widgetTitleInput) widgetTitleInput.value = widgetEmEdicao.titulo || '';
     const consultasWidget = Array.isArray(widgetEmEdicao.consultas) && widgetEmEdicao.consultas.length
         ? widgetEmEdicao.consultas
@@ -4667,6 +4815,7 @@ function fecharModalWidget() {
     assinaturaConsultaAtual = '';
     resultadosConsultasAtuais = [];
     limiteTopAtual = 0;
+    configuracaoFunilAtual = { modo: 'total', campoDimensao: '', etapas: [] };
 }
 
 function validarMapeamentoWidget(mapeamentos) {
@@ -4675,6 +4824,23 @@ function validarMapeamentoWidget(mapeamentos) {
     const faltantes = papeis.filter(papel => !mapeamentos.some(item => item.papel === papel));
     if (faltantes.length) {
         renderizarResultadoConsulta(`Falta definir: ${faltantes.join(', ')}.`, 'error');
+        setEtapaWidget('mapping');
+        return false;
+    }
+    return true;
+}
+
+function validarConfiguracaoFunil(configuracao) {
+    const tipo = widgetTypeSelect?.value || widgetEmEdicao?.tipo || 'bar';
+    if (tipo !== 'funnel' || configuracao.modo !== 'stages') return true;
+    if (!configuracao.etapas.length) {
+        renderizarResultadoConsulta('A consulta precisa retornar as etapas do funil.', 'error');
+        setEtapaWidget('mapping');
+        return false;
+    }
+    const ordens = configuracao.etapas.map(etapa => etapa.ordem);
+    if (new Set(ordens).size !== ordens.length) {
+        renderizarResultadoConsulta('Defina uma ordem diferente para cada etapa do funil.', 'error');
         setEtapaWidget('mapping');
         return false;
     }
@@ -4703,6 +4869,8 @@ function salvarWidgetAtual() {
     }
     const mapeamentos = calculado ? [] : coletarMapeamentosColunas();
     if (!calculado && !validarMapeamentoWidget(mapeamentos)) return;
+    const configuracaoFunil = coletarConfiguracaoFunil();
+    if (!calculado && !validarConfiguracaoFunil(configuracaoFunil)) return;
     const detalhe = coletarConfiguracaoDetalhe();
     if (!validarConfiguracaoDetalhe(detalhe)) return;
     const categoriasPermitidas = coletarCategoriasWidget();
@@ -4729,6 +4897,7 @@ function salvarWidgetAtual() {
             : (resultadosConsultasAtuais.find(resultado => resultado.proximidade)?.proximidade || widgetEmEdicao.proximidade || null),
         consultaAtualizadaEm: calculado ? null : new Date().toISOString(),
         limiteTop: calculado ? 0 : normalizarLimiteTopGrafico(limiteTopAtual),
+        funil: calculado ? normalizarConfiguracaoFunil() : configuracaoFunil,
         mapeamentos,
         calculo: calculado ? configuracaoCalculo : (widgetEmEdicao.calculo || null),
         detalhe,
@@ -4929,6 +5098,7 @@ function inicializarEditorDashboard() {
             configuracaoTabelaAtual.agrupamentos = configuracaoTabelaAtual.agrupamentos.filter(coluna => colunasLinhaAtuais.includes(String(coluna)));
             configuracaoTabelaAtual.subtotais = configuracaoTabelaAtual.subtotais.filter(coluna => colunasLinhaAtuais.includes(String(coluna)));
             renderizarConfiguracaoTabela();
+            renderizarConfiguracaoFunil();
         });
     }
     if (chartTopLimitInput) {
@@ -4940,6 +5110,20 @@ function inicializarEditorDashboard() {
         coletarConfiguracaoTabela();
         if (event.target.matches('[data-group-field], [data-table-pagination]')) renderizarConfiguracaoTabela();
     });
+    if (funnelModeSelect) {
+        funnelModeSelect.addEventListener('change', () => {
+            coletarConfiguracaoFunil();
+            renderizarConfiguracaoFunil();
+            renderizarPreviaAparencia();
+        });
+    }
+    if (funnelStageList) {
+        funnelStageList.addEventListener('input', () => coletarConfiguracaoFunil());
+        funnelStageList.addEventListener('change', event => {
+            coletarConfiguracaoFunil();
+            if (event.target.matches('[data-funnel-stage-order]')) renderizarConfiguracaoFunil();
+        });
+    }
     if (widgetTypeSelect) {
         widgetTypeSelect.addEventListener('change', () => {
             if (widgetEmEdicao) widgetEmEdicao.mapeamentos = coletarMapeamentosColunas();
