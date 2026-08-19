@@ -88,6 +88,21 @@ test('APIs exigem sessao, verificam acesso e usam as funcoes do banco', async ()
     assert.match(status, /definirContextoAuditoria/);
 });
 
+test('Funil combina os contatos dos orcamentos em lote e respeita o acesso da sessao', async () => {
+    const [api, script] = await Promise.all([
+        ler('../api/controle-contatos-orcamento.js'),
+        ler('../public/crm.js')
+    ]);
+    assert.match(api, /requireRequestSession/);
+    assert.match(api, /LIMITE_ORCAMENTOS = 5000/);
+    assert.match(api, /ANY\(\$1::integer\[\]\)/i);
+    assert.match(api, /v\.id_funcionario = \$3/i);
+    assert.match(api, /v\.id_filial = \$4/i);
+    assert.match(script, /fetch\(ehFunil \? '\/api\/controle-contatos-orcamento'/);
+    assert.match(script, /CONTATO_NEGOCIACAO\./);
+    assert.match(script, /\['ID_ORCAMENTO', 'ORCAMENTO_ID', 'IDORCAMENTO'\]/);
+});
+
 test('historico e BI compartilham a mesma janela de gestao', async () => {
     const [crmHtml, crmScript, listaHtml, listaScript, componente, manual] = await Promise.all([
         ler('../public/crm.html'),
@@ -108,6 +123,7 @@ test('historico e BI compartilham a mesma janela de gestao', async () => {
     assert.match(componente, /motivoRecusa/);
     assert.match(manual, /action:negotiation/);
     assert.match(manual, /ID_ORCAMENTO/);
+    assert.match(manual, /CONTATO_NEGOCIACAO\.STATUS_CONTATO/);
 });
 
 test('manutencao possui endpoint protegido e agendamento diario', async () => {

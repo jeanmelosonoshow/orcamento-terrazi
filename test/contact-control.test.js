@@ -63,7 +63,7 @@ test('enriquecimento consulta contatos em lote sem uma chamada por linha', async
     assert.match(manutencao, /fn_executar_manutencao_contatos/);
     assert.match(manutencao, /return \{ ok: false, executada: false/);
     assert.match(script, /function enriquecerRegistrosContato/);
-    assert.match(script, /fetch\('\/api\/controle-contatos'/);
+    assert.match(script, /'\/api\/controle-contatos'/);
 });
 
 test('Carteira possui filtros, formulario e diretivas de celula', async () => {

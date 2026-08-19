@@ -181,3 +181,25 @@ automaticamente.
 O padrao **Pendente + Sem contato** tambem mantem no resultado os orcamentos que
 ainda nao possuem registro em `controle_contato_orcamento`. As demais selecoes
 incluem somente os IDs que atendem aos status, canais e datas escolhidos.
+
+### Colunas herdadas do contato
+
+Quando a consulta principal ou de detalhe retorna `ID_ORCAMENTO`,
+`ORCAMENTO_ID` ou `IDORCAMENTO`, o Funil combina automaticamente os dados do
+Postgres e disponibiliza estas colunas no editor:
+
+- `CONTATO_NEGOCIACAO.STATUS_CONTATO`;
+- `CONTATO_NEGOCIACAO.TIPO_CONTATO`;
+- `CONTATO_NEGOCIACAO.OBSERVACAO`;
+- `CONTATO_NEGOCIACAO.DATA_PRIMEIRO_CONTATO`;
+- `CONTATO_NEGOCIACAO.DATA_ULTIMO_CONTATO`;
+- `CONTATO_NEGOCIACAO.DATA_FINALIZACAO`;
+- `CONTATO_NEGOCIACAO.IDFUNCIONARIO`;
+- `CONTATO_NEGOCIACAO.IDVENDEDOR`;
+- `CONTATO_NEGOCIACAO.QTDE_CONTATO`;
+- `CONTATO_NEGOCIACAO.DATA_ULTIMA_ATUALIZACAO`.
+
+Voce escolhe quais delas serao exibidas. Orcamentos sem contato recebem
+`PENDENTE` e `SEM CONTATO` apenas na visualizacao, sem criar registros vazios no
+banco. A leitura e feita em lotes e respeita a categoria, a filial e a identidade
+do usuario autenticado.

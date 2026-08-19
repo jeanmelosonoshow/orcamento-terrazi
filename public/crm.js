@@ -2447,13 +2447,16 @@ function dataLocalContato(valor) {
 }
 
 function aplicarFiltrosContatoRegistros(registros, filtros = {}) {
-    if (!Array.isArray(registros) || filtros.contextoDashboard !== 'clientes') return registros;
+    const contexto = filtros.contextoDashboard;
+    if (!Array.isArray(registros) || !['clientes', 'funil'].includes(contexto)) return registros;
     const statusSelecionados = new Set((filtros.statusContato || []).map(item => String(item).toUpperCase()));
     const tiposSelecionados = new Set((filtros.tiposContato || []).map(item => String(item).toUpperCase()));
     if (!statusSelecionados.size || !tiposSelecionados.size) return [];
     return registros.filter(linha => {
-        const documento = String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
-        if (!documento) return true;
+        const chaveRelacionamento = contexto === 'funil'
+            ? String(obterValorContato(linha, ['ID_ORCAMENTO', 'ORCAMENTO_ID', 'IDORCAMENTO'], '')).trim()
+            : String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
+        if (!chaveRelacionamento) return true;
         const campoStatus = encontrarCampoContato(linha, ['STATUS_CONTATO']);
         const campoTipo = encontrarCampoContato(linha, ['TIPO_CONTATO', 'ULTIMO_CANAL_CONTATO']);
         if (campoStatus && !linha[campoStatus]) linha[campoStatus] = 'PENDENTE';
@@ -2475,6 +2478,9 @@ const colunasEnriquecimentoContato = [
     'IDFUNCIONARIO', 'IDVENDEDOR', 'QTDE_CONTATO', 'DATA_ULTIMA_ATUALIZACAO'
 ];
 
+const colunasEnriquecimentoContatoNegociacao = colunasEnriquecimentoContato
+    .filter(campo => campo !== 'NOME_CLIENTE');
+
 function widgetMapeiaContato(widget) {
     return (Array.isArray(widget?.mapeamentos) ? widget.mapeamentos : [])
         .some(item => colunasEnriquecimentoContato.includes(normalizarNomeCampoContato(item.coluna)));
@@ -2492,7 +2498,7 @@ function widgetPossuiFiltroRelacionamentoNoServidor(widget) {
 
 async function aplicarRelacionamentoResultadoWidget(widget, registros, colunas, filtros) {
     if (
-        filtros.contextoDashboard === 'clientes'
+        ['clientes', 'funil'].includes(filtros.contextoDashboard)
         && widgetPossuiFiltroRelacionamentoNoServidor(widget)
         && !widgetMapeiaContato(widget)
     ) {
@@ -2515,38 +2521,52 @@ function detalheMapeiaContato(detalhe) {
 }
 
 async function enriquecerRegistrosContato(registros, colunas, contexto = dashboardContextoAtivo) {
-    if (contexto !== 'clientes' || !Array.isArray(registros) || !registros.length) return { registros, colunas };
+    if (!['clientes', 'funil'].includes(contexto) || !Array.isArray(registros) || !registros.length) return { registros, colunas };
     if (encontrarCampoContato(registros[0], ['STATUS_CONTATO'])) return { registros, colunas };
-    const documentos = Array.from(new Set(registros.map(linha => String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim()).filter(Boolean)));
-    if (!documentos.length) return { registros, colunas };
+    const ehFunil = contexto === 'funil';
+    const nomesChave = ehFunil ? ['ID_ORCAMENTO', 'ORCAMENTO_ID', 'IDORCAMENTO'] : ['DOCTOCLIENTE', 'DOCUMENTO'];
+    const chaves = Array.from(new Set(registros
+        .map(linha => String(obterValorContato(linha, nomesChave, '')).trim())
+        .filter(Boolean)));
+    if (!chaves.length) return { registros, colunas };
     const contatos = [];
     const tamanhoLote = 5000;
-    for (let inicio = 0; inicio < documentos.length; inicio += tamanhoLote) {
-        const response = await fetch('/api/controle-contatos', {
+    for (let inicio = 0; inicio < chaves.length; inicio += tamanhoLote) {
+        const response = await fetch(ehFunil ? '/api/controle-contatos-orcamento' : '/api/controle-contatos', {
             method: 'POST',
             headers: cabecalhosSessao(),
-            body: JSON.stringify({ documentos: documentos.slice(inicio, inicio + tamanhoLote) })
+            body: JSON.stringify(ehFunil
+                ? { orcamentos: chaves.slice(inicio, inicio + tamanhoLote) }
+                : { documentos: chaves.slice(inicio, inicio + tamanhoLote) })
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) window.fazerLogout();
         if (!response.ok) throw new Error(data.error || 'Não foi possível combinar os contatos.');
         contatos.push(...(Array.isArray(data.contatos) ? data.contatos : []));
     }
-    const indice = new Map(contatos.map(contato => [String(contato.doctocliente), contato]));
-    const mapa = {
+    const indice = new Map(contatos.map(contato => [String(ehFunil ? contato.orcamentoId : contato.doctocliente), contato]));
+    const mapaCliente = {
         NOME_CLIENTE: 'nome_cliente', STATUS_CONTATO: 'status_contato', TIPO_CONTATO: 'tipo_contato', OBSERVACAO: 'observacao',
         DATA_PRIMEIRO_CONTATO: 'data_primeiro_contato', DATA_ULTIMO_CONTATO: 'data_ultimo_contato', DATA_FINALIZACAO: 'data_finalizacao',
         IDFUNCIONARIO: 'idfuncionario', IDVENDEDOR: 'idvendedor', QTDE_CONTATO: 'qtde_contato', DATA_ULTIMA_ATUALIZACAO: 'data_ultima_atualizacao'
     };
+    const mapaNegociacao = {
+        STATUS_CONTATO: 'statusContato', TIPO_CONTATO: 'tipoContato', OBSERVACAO: 'observacao',
+        DATA_PRIMEIRO_CONTATO: 'dataPrimeiroContato', DATA_ULTIMO_CONTATO: 'dataUltimoContato', DATA_FINALIZACAO: 'dataFinalizacao',
+        IDFUNCIONARIO: 'idfuncionario', IDVENDEDOR: 'idvendedor', QTDE_CONTATO: 'qtdeContato', DATA_ULTIMA_ATUALIZACAO: 'dataUltimaAtualizacao'
+    };
+    const campos = ehFunil ? colunasEnriquecimentoContatoNegociacao : colunasEnriquecimentoContato;
+    const mapa = ehFunil ? mapaNegociacao : mapaCliente;
+    const prefixo = ehFunil ? 'CONTATO_NEGOCIACAO.' : 'CONTATO.';
     registros.forEach(linha => {
-        const documento = String(obterValorContato(linha, ['DOCTOCLIENTE', 'DOCUMENTO'], '')).trim();
-        const contato = indice.get(documento);
-        colunasEnriquecimentoContato.forEach(campo => {
+        const chave = String(obterValorContato(linha, nomesChave, '')).trim();
+        const contato = indice.get(chave);
+        campos.forEach(campo => {
             const padrao = campo === 'STATUS_CONTATO' ? 'PENDENTE' : (campo === 'TIPO_CONTATO' ? 'SEM CONTATO' : null);
-            linha['CONTATO.' + campo] = contato?.[mapa[campo]] ?? padrao;
+            linha[prefixo + campo] = contato?.[mapa[campo]] ?? padrao;
         });
     });
-    const novasColunas = Array.from(new Set([...(colunas || []), ...colunasEnriquecimentoContato.map(campo => 'CONTATO.' + campo)]));
+    const novasColunas = Array.from(new Set([...(colunas || []), ...campos.map(campo => prefixo + campo)]));
     return { registros, colunas: novasColunas };
 }
 
