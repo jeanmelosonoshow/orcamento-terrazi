@@ -6,7 +6,7 @@
     "editoresIdFuncionario": ["142","752"]
   },
   "arquitetos": {
-    "editoresVinculoOrcamentoIdFuncionario": ["142","752","4"]
+    "editoresVinculoOrcamentoIdFuncionario": ["142","752"]
   },
   "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
   "scenarioEditorFuncionarioIds": ["142","752","4"],
