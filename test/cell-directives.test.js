@@ -78,6 +78,35 @@ test('diretiva aceita campo explicito sem depender de AS no SQL', async () => {
     assert.equal(diretivas[0].color, '#FFDE21');
 });
 
+test('acao de negociacao reconhece identificador qualificado sem AS no detalhe', async () => {
+    const obterDiretivasCelula = await carregarLeitorDiretivas();
+    const diretivas = obterDiretivasCelula({
+        relatorioDetalhe: true,
+        sql: `
+            SELECT
+                /* action:negotiation | label:Negociar | icon:fa-comments | position:after */
+                O.ID_ORCAMENTO,
+                O.IDFILIAL,
+                O.NOME_VENDEDOR
+            FROM ORCAMENTO O
+        `
+    });
+
+    assert.equal(diretivas.length, 1);
+    assert.equal(diretivas[0].tipo, 'action');
+    assert.equal(diretivas[0].valor, 'negotiation');
+    assert.equal(diretivas[0].campo, 'ID_ORCAMENTO');
+});
+
+test('apelido visual com espaco corresponde ao campo da acao com sublinhado', async () => {
+    const source = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+    const inicio = source.indexOf('function normalizarNomeCampoContato');
+    const fim = source.indexOf('function encontrarCampoContato', inicio);
+    const normalizar = Function(`${source.slice(inicio, fim)}; return normalizarNomeCampoContato;`)();
+
+    assert.equal(normalizar('ID ORCAMENTO'), normalizar('O.ID_ORCAMENTO'));
+});
+
 test('tabela dinamica aplica diretivas em apelidos, cabecalhos e valores agregados', async () => {
     const source = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
     assert.match(source, /normalizarNomeCampoContato\(campo\?\.apelido \|\| ''\)/);

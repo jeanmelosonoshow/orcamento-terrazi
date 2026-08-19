@@ -106,6 +106,9 @@ JOIN STATUS_NEGOCIACAO N
 Tambem e aceito `action:negociacao`. As mesmas opcoes de `label`, `icon`, `css`,
 `color` e `position` das outras diretivas podem ser usadas.
 
+A coluna logo abaixo da diretiva pode ser escrita tanto como
+`O.ID AS ID_ORCAMENTO` quanto como `O.ID_ORCAMENTO`, sem a palavra `AS`.
+
 Ao salvar pela janela, apenas o card que originou a acao e reprocessado. Se a
 acao estiver em um relatorio de detalhe, o detalhe aberto tambem e atualizado.
 

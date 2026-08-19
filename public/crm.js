@@ -2412,7 +2412,12 @@ function resolverExpressaoTabelaDetalhe(registro, colunas, expressao) {
 }
 
 function normalizarNomeCampoContato(valor) {
-    return String(valor || '').split('.').pop().trim().toUpperCase();
+    return String(valor || '')
+        .split('.')
+        .pop()
+        .trim()
+        .toUpperCase()
+        .replace(/[\s-]+/g, '_');
 }
 
 function encontrarCampoContato(linha, nomes) {
@@ -2553,6 +2558,50 @@ function obterSqlWidget(widget) {
         .filter(Boolean))).join('\n');
 }
 
+function extrairExpressaoAposDiretiva(trecho) {
+    const texto = String(trecho || '').replace(/^\s+/, '');
+    let nivel = 0;
+    let aspas = '';
+    for (let indice = 0; indice < texto.length; indice += 1) {
+        const caractere = texto[indice];
+        const proximo = texto[indice + 1];
+        if (aspas) {
+            if (caractere === aspas) {
+                if (proximo === aspas) indice += 1;
+                else aspas = '';
+            }
+            continue;
+        }
+        if (caractere === "'" || caractere === '"') {
+            aspas = caractere;
+            continue;
+        }
+        if (caractere === '(') nivel += 1;
+        else if (caractere === ')') nivel = Math.max(0, nivel - 1);
+        else if (caractere === ',' && nivel === 0) return texto.slice(0, indice).trim();
+        else if (
+            nivel === 0
+            && texto.slice(indice, indice + 4).toLowerCase() === 'from'
+            && !/[a-z0-9_$]/i.test(texto[indice - 1] || '')
+            && !/[a-z0-9_$]/i.test(texto[indice + 4] || '')
+        ) return texto.slice(0, indice).trim();
+    }
+    return texto.trim();
+}
+
+function inferirCampoAposDiretiva(trecho) {
+    const alvoComentado = String(trecho || '').match(/^\s*\/\*\s*(?:as\s+)?(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$.]*))\s*\*\//i);
+    if (alvoComentado) return String(alvoComentado[1] || alvoComentado[2] || '').replace(/""/g, '"').trim();
+    const expressao = extrairExpressaoAposDiretiva(trecho);
+    if (!expressao) return '';
+    const aliasExplicito = expressao.match(/\bas\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$.]*))\s*$/i);
+    if (aliasExplicito) return String(aliasExplicito[1] || aliasExplicito[2] || '').replace(/""/g, '"').trim();
+    const aliasImplicito = expressao.match(/\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$]*))\s*$/i);
+    if (aliasImplicito) return String(aliasImplicito[1] || aliasImplicito[2] || '').replace(/""/g, '"').trim();
+    const campoDireto = expressao.match(/(?:^|\.)(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$]*))\s*$/i);
+    return String(campoDireto?.[1] || campoDireto?.[2] || '').replace(/""/g, '"').trim();
+}
+
 function obterDiretivasCelula(widget) {
     const diretivas = [];
     const sql = obterSqlWidget(widget);
@@ -2569,8 +2618,7 @@ function obterDiretivasCelula(widget) {
             const inicioBusca = (match.index || 0) + match[0].length;
             const fimBusca = indice + 1 < ocorrencias.length ? ocorrencias[indice + 1].index : sql.length;
             const trecho = sql.slice(inicioBusca, fimBusca);
-            const alias = trecho.match(/\bas\s+(?:"((?:[^"]|"")+)"|([a-z_][a-z0-9_$.]*))/i);
-            campo = String(alias?.[1] || alias?.[2] || '').replace(/""/g, '"').trim();
+            campo = inferirCampoAposDiretiva(trecho);
         }
         if (!campo) return;
         diretivas.push({ tipo: match[1].toLowerCase(), valor: match[2].toLowerCase(), campo, ...opcoes });
