@@ -64,6 +64,16 @@ test('cada modelo especializado gera uma estrutura visual propria', async () => 
     }
 });
 
+test('matrizes reservam espaco para a escala e nao sobrepoem legenda ao grafico', async () => {
+    const renderizadores = await carregarGlobal('../public/assets/charts/chart-renderers.js', 'CRM_CHART_RENDERERS');
+    for (const tipo of ['heatmap', 'cohort']) {
+        const opcao = renderizadores[tipo](criarContexto(tipo));
+        assert.equal(opcao.legend.show, false);
+        assert.ok(opcao.grid.bottom >= 72);
+        assert.ok(opcao.visualMap.bottom >= 6);
+    }
+});
+
 test('funil mantem etapas legiveis e informa valor e participacao', async () => {
     const renderizadores = await carregarGlobal('../public/assets/charts/chart-renderers.js', 'CRM_CHART_RENDERERS');
     const contexto = criarContexto('funnel');

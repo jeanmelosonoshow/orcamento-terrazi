@@ -29,13 +29,14 @@
         var extensao = limiteVisual(matriz.map(function (item) { return item[2]; }));
         var formato = percentual ? 'percent' : (dados.series[0] && dados.series[0].formato);
         return Object.assign({}, contexto.base, {
+            legend: { show: false },
             tooltip: Object.assign({}, contexto.base.tooltip, {
                 trigger: 'item',
                 formatter: function (params) {
                     return dados.categorias[params.value[1]] + ' / ' + colunas[params.value[0]] + ': ' + contexto.formatar(params.value[2], formato);
                 }
             }),
-            grid: { left: contexto.compacto ? 8 : 18, right: 12, top: 12, bottom: contexto.compacto ? 28 : 42, containLabel: true },
+            grid: { left: contexto.compacto ? 8 : 18, right: 12, top: 12, bottom: contexto.compacto ? 48 : 72, containLabel: true },
             xAxis: { type: 'category', data: colunas, splitArea: { show: true }, axisLabel: { hideOverlap: true } },
             yAxis: { type: 'category', data: dados.categorias, inverse: true, splitArea: { show: true }, axisLabel: { hideOverlap: true } },
             visualMap: {
@@ -44,7 +45,7 @@
                 calculable: !contexto.compacto,
                 orient: 'horizontal',
                 left: 'center',
-                bottom: 0,
+                bottom: contexto.compacto ? 2 : 6,
                 itemWidth: contexto.compacto ? 8 : 12,
                 itemHeight: contexto.compacto ? 70 : 110,
                 textStyle: { color: contexto.textoGrafico },
