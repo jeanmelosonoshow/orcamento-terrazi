@@ -2793,16 +2793,24 @@ function formatarCelulaRelatorioDetalhe(valor) {
 }
 
 function renderizarTabelaSimplesRelatorioDetalhe(container, widget, opcoes = {}) {
-    const registros = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
+    const registrosBase = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
     const colunas = Array.isArray(widget.colunasConsulta) ? widget.colunasConsulta : [];
-    if (!registros.length || !colunas.length) {
+    if (!registrosBase.length || !colunas.length) {
         container.innerHTML = '<div class="crm-chart-empty">Nenhum registro encontrado.</div>';
         return;
     }
+    const registros = aplicarAutoFiltrosTabela(widget.id, registrosBase);
     const paginacao = prepararPaginacaoTabela(widget, registros, opcoes.exportarTudo === true);
-    const numericas = new Set(colunas.filter(coluna => registros.some(registro => typeof obterValorLinha(registro, coluna) === 'number')));
-    const cabecalho = colunas.map(coluna =>
-        '<th' + (numericas.has(coluna) ? ' data-align="right"' : '') + '>' + escapeHtml(coluna) + '</th>'
+    const numericas = new Set(colunas.filter(coluna => registrosBase.some(registro => typeof obterValorLinha(registro, coluna) === 'number')));
+    const mapeamentos = new Map((widget.mapeamentos || []).map(item => [String(item.coluna).toLowerCase(), item]));
+    const campos = colunas.map(coluna => mapeamentos.get(String(coluna).toLowerCase()) || {
+        coluna,
+        apelido: coluna,
+        alinhamento: numericas.has(coluna) ? 'right' : 'left'
+    });
+    const cabecalho = campos.map(campo =>
+        '<th class="crm-filterable-header"' + atributoAlinhamentoCampo(campo, numericas.has(campo.coluna) ? 'right' : 'left') + '>'
+        + renderizarCabecalhoAutoFiltro(widget, campo, registrosBase) + '</th>'
     ).join('');
     const corpo = paginacao.registros.map(registro =>
         '<tr>' + colunas.map(coluna => {
@@ -2818,9 +2826,13 @@ function renderizarTabelaSimplesRelatorioDetalhe(container, widget, opcoes = {})
             return '<td data-align="right">' + escapeHtml(formatarCelulaRelatorioDetalhe(soma)) + '</td>';
         }).join('') + '</tr>'
         : '';
-    container.innerHTML = '<div class="crm-chart-table-real"><table class="crm-pivot-table crm-simple-table"><thead><tr>'
-        + cabecalho + '</tr></thead><tbody>' + corpo + total + '</tbody></table></div>'
-        + renderizarControlePaginacaoTabela(widget, paginacao);
+    const resumoAutoFiltros = renderizarResumoAutoFiltrosTabela(widget);
+    const conteudo = registros.length
+        ? '<div class="crm-chart-table-real"><table class="crm-pivot-table crm-simple-table"><thead><tr>'
+            + cabecalho + '</tr></thead><tbody>' + corpo + total + '</tbody></table></div>'
+            + renderizarControlePaginacaoTabela(widget, paginacao)
+        : '<div class="crm-chart-empty">Nenhum registro encontrado com os filtros aplicados.</div>';
+    container.innerHTML = resumoAutoFiltros + conteudo;
 }
 
 function renderizarRelatorioDetalheAtual() {

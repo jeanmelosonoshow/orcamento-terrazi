@@ -70,6 +70,22 @@ test('tabela e tabela dinamica renderizam menus, pesquisa e resumo de filtros', 
     assert.match(source, /renderizarResumoAutoFiltrosTabela/);
 });
 
+test('auto-filtro atende tabelas e tabelas dinamicas tanto no principal quanto no detalhe', async () => {
+    const source = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+    const inicioTabelaDetalhe = source.indexOf('function renderizarTabelaSimplesRelatorioDetalhe');
+    const fimTabelaDetalhe = source.indexOf('\nfunction renderizarRelatorioDetalheAtual', inicioTabelaDetalhe);
+    const tabelaDetalhe = source.slice(inicioTabelaDetalhe, fimTabelaDetalhe);
+    const inicioRenderDetalhe = source.indexOf('function renderizarRelatorioDetalheAtual');
+    const fimRenderDetalhe = source.indexOf('\nfunction montarVisualizacaoRelatorioDetalhe', inicioRenderDetalhe);
+    const renderDetalhe = source.slice(inicioRenderDetalhe, fimRenderDetalhe);
+
+    assert.match(tabelaDetalhe, /aplicarAutoFiltrosTabela\(widget\.id, registrosBase\)/);
+    assert.match(tabelaDetalhe, /renderizarCabecalhoAutoFiltro\(widget, campo, registrosBase\)/);
+    assert.match(tabelaDetalhe, /renderizarResumoAutoFiltrosTabela\(widget\)/);
+    assert.match(renderDetalhe, /renderizarTabelaSimplesRelatorioDetalhe/);
+    assert.match(renderDetalhe, /renderizarTabelaGrafico/);
+});
+
 test('exportacao remove os controles de filtro, mas usa o conjunto filtrado', async () => {
     const source = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
     assert.match(source, /\.crm-table-filter-control/);
