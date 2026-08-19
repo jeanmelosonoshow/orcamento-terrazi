@@ -9,6 +9,6 @@
     "editoresVinculoOrcamentoIdFuncionario": ["142","752"]
   },
   "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
-  "scenarioEditorFuncionarioIds": ["142","752","4"],
+  "scenarioEditorFuncionarioIds": ["142","752"],
   "architectBudgetEditorFuncionarioIds": ["142","752"]
 }
