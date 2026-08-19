@@ -35,6 +35,40 @@ test('status finalizado inclui somente documentos encontrados no Postgres', asyn
     assert.deepEqual(resultado, { modo: 'incluir', documentos: ['456'] });
 });
 
+test('funil resolve os contatos pela chave do orcamento', async () => {
+    const chamadas = [];
+    const db = { query: async (sql, valores) => {
+        chamadas.push({ sql, valores });
+        return { rows: [{ chave_relacionamento: 41 }, { chave_relacionamento: 73 }] };
+    } };
+    const resultado = await resolverFiltroRelacionamento(db, {
+        contextoDashboard: 'funil',
+        statusContato: ['FINALIZADO'],
+        tiposContato: ['WHATSAPP']
+    });
+
+    assert.deepEqual(resultado, { modo: 'incluir', documentos: ['41', '73'] });
+    assert.match(chamadas[0].sql, /FROM controle_contato_orcamento/i);
+    assert.match(chamadas[0].sql, /SELECT orcamento_id AS chave_relacionamento/i);
+});
+
+test('cache de relacionamento separa clientes e orcamentos', async () => {
+    let consultas = 0;
+    const db = { query: async () => ({ rows: [{ chave_relacionamento: ++consultas }] }) };
+    const itens = new Map();
+    const cache = {
+        obter: async chave => itens.get(chave) || null,
+        definir: async (chave, item) => itens.set(chave, item)
+    };
+    const selecao = { statusContato: ['FINALIZADO'], tiposContato: ['EMAIL'] };
+
+    await resolverFiltroRelacionamento(db, { ...selecao, contextoDashboard: 'clientes' }, { cache });
+    await resolverFiltroRelacionamento(db, { ...selecao, contextoDashboard: 'funil' }, { cache });
+
+    assert.equal(consultas, 2);
+    assert.equal(itens.size, 2);
+});
+
 test('fora da Carteira a diretiva nao restringe os dados', async () => {
     let executou = false;
     const db = { query: async () => { executou = true; return { rows: [] }; } };

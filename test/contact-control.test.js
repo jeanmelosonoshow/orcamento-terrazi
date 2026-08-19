@@ -86,6 +86,20 @@ test('Carteira possui filtros, formulario e diretivas de celula', async () => {
     assert.match(script, /timeZone: 'America\/Sao_Paulo'/);
 });
 
+test('Funil exibe filtros proprios de contato por orcamento', async () => {
+    const [html, script, api] = await Promise.all([
+        ler('../public/crm.html'),
+        ler('../public/crm.js'),
+        ler('../api/executar-cenario.js')
+    ]);
+    assert.match(html, /data-contact-filters-title/);
+    assert.match(script, /\['clientes', 'funil'\]\.includes\(proximoContexto\)/);
+    assert.match(script, /Relacionamento dos orcamentos/);
+    assert.match(script, /dashboardContextoAtivo === 'funil'/);
+    assert.match(script, /if \(usaRelacionamentoFunil\) return true;[\s\S]*const parametros = categoriaCodigo/);
+    assert.doesNotMatch(api, /fonteNormalizada === 'firebird' && sqlPossuiFiltroRelacionamento/);
+});
+
 test('executor reconhece parametros dos filtros de contato', async () => {
     const parametros = await ler('../lib/scenario-sql-parameters.js');
     for (const nome of ['status_contato', 'tipos_contato', 'data_contato_inicial', 'data_contato_final']) {

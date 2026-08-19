@@ -124,6 +124,7 @@ const applyFiltersButton = document.querySelector('[data-apply-filters]');
 const resetFiltersButton = document.querySelector('[data-reset-filters]');
 const filterStatus = document.querySelector('[data-filter-status]');
 const contactFilters = document.querySelector('[data-contact-filters]');
+const contactFiltersTitle = document.querySelector('[data-contact-filters-title]');
 const contactStatusInputs = Array.from(document.querySelectorAll('[data-contact-status]'));
 const contactTypeInputs = Array.from(document.querySelectorAll('[data-contact-type]'));
 const contactStatusAll = document.querySelector('[data-contact-status-all]');
@@ -374,7 +375,13 @@ function trocarContextoDashboard(viewName) {
     }
 
     if (dashboardWorkspace.parentElement !== host) host.appendChild(dashboardWorkspace);
-    if (contactFilters) contactFilters.hidden = proximoContexto !== 'clientes';
+    const contextoComRelacionamento = ['clientes', 'funil'].includes(proximoContexto);
+    if (contactFilters) contactFilters.hidden = !contextoComRelacionamento;
+    if (contactFiltersTitle) {
+        contactFiltersTitle.textContent = proximoContexto === 'funil'
+            ? 'Relacionamento dos orcamentos'
+            : 'Relacionamento';
+    }
     if (dashboardCanvas) {
         const titulo = document.querySelector('.crm-page-title h1')?.textContent || 'Painel';
         dashboardCanvas.setAttribute('aria-label', 'Area de inteligencia de negocio - ' + titulo);
@@ -3905,6 +3912,9 @@ async function executarDrillDownWidget(contexto, campo) {
 function widgetUtilizaFiltrosVisiveis(widget) {
     const consultas = Array.isArray(widget?.consultas) && widget.consultas.length ? widget.consultas : [{ sql: widget?.sql || '' }];
     if (dashboardContextoAtivo === 'clientes') return consultas.some(consulta => String(consulta.sql || '').trim());
+    const usaRelacionamentoFunil = dashboardContextoAtivo === 'funil'
+        && consultas.some(consulta => /\/\*\s*(?:operador\s*=\s*(?:AND|OR)\s*\|\s*)?relacionamento\s*\||:(?:status_contato|tipos_contato|data_contato_inicial|data_contato_final)\b/i.test(String(consulta.sql || '')));
+    if (usaRelacionamentoFunil) return true;
     const parametros = categoriaCodigo === 'VD'
         ? /:(data_inicial|data_final|idvendedor)\b/i
         : (categoriaCodigo === 'CX'

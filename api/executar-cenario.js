@@ -182,7 +182,7 @@ export default async function handler(req, res) {
 
         const contextoConsulta = montarContextoConsulta(filtros, session);
         let metadataRelacionamento = null;
-        if (fonteNormalizada === 'firebird' && sqlPossuiFiltroRelacionamento(sql)) {
+        if (sqlPossuiFiltroRelacionamento(sql)) {
             const inicioRelacionamento = Date.now();
             const relacionamento = await resolverFiltroRelacionamento(db, contextoConsulta, {
                 cache: cacheFiltroRelacionamento,

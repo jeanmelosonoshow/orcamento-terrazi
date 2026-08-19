@@ -151,3 +151,30 @@ O formulario grava:
 
 Depois de `FINALIZADO`, o contato fica bloqueado para alteracoes. A negociacao e
 o contato sao controles diferentes: finalizar um contato nao encerra a venda.
+
+## 8. Filtros de relacionamento no Funil
+
+O menu **Funil de Orcamentos** exibe filtros de status, canal e data da ultima
+atualizacao do contato. Para um card ou relatorio participar desses filtros,
+adicione a diretiva abaixo na consulta, em um ponto onde uma condicao `AND` seja
+valida:
+
+```sql
+SELECT
+    O.ID AS ID_ORCAMENTO,
+    O.CLIENTE_NOME,
+    O.VALOR_TOTAL
+FROM ORCAMENTOS O
+WHERE 1 = 1
+  /* relacionamento | campo: O.ID */
+ORDER BY O.ID DESC;
+```
+
+No Funil, o motor interpreta `campo: O.ID` como o `orcamento_id` da tabela
+`controle_contato_orcamento`. Na Carteira de Clientes, a mesma diretiva continua
+usando o documento do cliente. O contexto do menu faz essa separacao
+automaticamente.
+
+O padrao **Pendente + Sem contato** tambem mantem no resultado os orcamentos que
+ainda nao possuem registro em `controle_contato_orcamento`. As demais selecoes
+incluem somente os IDs que atendem aos status, canais e datas escolhidos.
