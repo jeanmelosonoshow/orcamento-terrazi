@@ -1060,10 +1060,11 @@ function aplicarConfiguracaoFunil(widget, dados) {
     const usados = new Set();
     const etapasConfiguradas = [...configuracao.etapas]
         .sort((a, b) => (a.ordem - b.ordem) || a.rotulo.localeCompare(b.rotulo, 'pt-BR'))
+        .filter(etapa => indicePorValor.has(normalizarChaveEtapaFunil(etapa.valor)))
         .map(etapa => {
             const chave = normalizarChaveEtapaFunil(etapa.valor);
             usados.add(chave);
-            return { ...etapa, indice: indicePorValor.has(chave) ? indicePorValor.get(chave) : -1 };
+            return { ...etapa, indice: indicePorValor.get(chave) };
         });
     const etapasNovas = (dados.dimensoes || []).map((dimensao, indice) => ({
         valor: String(dimensao.valor ?? ''),
@@ -1076,14 +1077,15 @@ function aplicarConfiguracaoFunil(widget, dados) {
     return {
         ...dados,
         categorias: etapas.map(etapa => etapa.rotulo),
-        dimensoes: etapas.map(etapa => etapa.indice >= 0
-            ? { ...dados.dimensoes[etapa.indice], rotulo: etapa.rotulo }
-            : { campo: dados.dimensoes?.[0]?.campo || '', apelido: dados.nomeDimensao || '', valor: etapa.valor, rotulo: etapa.rotulo }),
+        dimensoes: etapas.map(etapa => ({ ...dados.dimensoes[etapa.indice], rotulo: etapa.rotulo })),
         series: dados.series.map(serie => ({
             ...serie,
-            valores: etapas.map(etapa => etapa.indice >= 0 ? serie.valores[etapa.indice] : 0)
+            valores: etapas.map(etapa => serie.valores[etapa.indice])
         })),
-        funil: configuracao
+        funil: {
+            ...configuracao,
+            etapas: etapas.map(({ indice, ...etapa }) => etapa)
+        }
     };
 }
 
@@ -4338,20 +4340,30 @@ function renderizarConfiguracaoFunil() {
         && configuracaoAnterior.campoDimensao !== campoDimensao
         ? []
         : configuracaoAnterior.etapas;
-    const porValor = new Map(etapasAnteriores.map(etapa => [normalizarChaveEtapaFunil(etapa.valor), etapa]));
-    let proximaOrdem = etapasAnteriores.reduce((maior, etapa) => Math.max(maior, etapa.ordem), 0) + 1;
+    const etapasAnterioresPorValor = new Map(etapasAnteriores.map(etapa => [normalizarChaveEtapaFunil(etapa.valor), etapa]));
+    const porValor = new Map();
     if (dimensao) {
         dadosConsultaAtual.forEach(linha => {
             const valor = obterValorLinha(linha, dimensao.coluna);
             const chave = normalizarChaveEtapaFunil(valor);
             if (!chave || porValor.has(chave)) return;
+            const etapaAnterior = etapasAnterioresPorValor.get(chave);
             porValor.set(chave, {
                 valor: String(valor),
-                rotulo: formatarDimensao(valor, dimensao.formatoData),
-                ordem: proximaOrdem++
+                rotulo: etapaAnterior?.rotulo || formatarDimensao(valor, dimensao.formatoData),
+                ordem: etapaAnterior?.ordem || 0
             });
         });
     }
+    const ordensUtilizadas = new Set(Array.from(porValor.values()).map(etapa => etapa.ordem).filter(Boolean));
+    let proximaOrdem = 1;
+    porValor.forEach(etapa => {
+        if (etapa.ordem) return;
+        while (ordensUtilizadas.has(proximaOrdem)) proximaOrdem += 1;
+        etapa.ordem = proximaOrdem;
+        ordensUtilizadas.add(proximaOrdem);
+        proximaOrdem += 1;
+    });
     configuracaoFunilAtual = normalizarConfiguracaoFunil({
         modo: configuracaoAnterior.modo,
         campoDimensao,

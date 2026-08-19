@@ -96,7 +96,7 @@ test('funil por etapas preserva ordem e calcula conversao sobre a etapa anterior
     assert.match(serie.label.formatter({ name: 'Gerou venda', value: 15, dataIndex: 2 }), /25% da etapa anterior/);
 });
 
-test('configuracao das etapas renomeia, reordena e preserva etapa sem movimento', async () => {
+test('configuracao das etapas renomeia, reordena e remove etapa ausente do retorno', async () => {
     const { aplicarConfiguracaoFunil } = await carregarConfiguracaoFunil();
     const dados = {
         categorias: ['Pendente', 'Venda'],
@@ -118,9 +118,9 @@ test('configuracao das etapas renomeia, reordena e preserva etapa sem movimento'
         }
     }, dados);
 
-    assert.deepEqual(resultado.categorias, ['Orcamentos criados', 'Em negociacao', 'Gerou venda']);
-    assert.deepEqual(resultado.series[0].valores, [100, 0, 15]);
-    assert.equal(resultado.dimensoes[1].valor, 'NEGOCIACAO');
+    assert.deepEqual(resultado.categorias, ['Orcamentos criados', 'Gerou venda']);
+    assert.deepEqual(resultado.series[0].valores, [100, 15]);
+    assert.deepEqual(resultado.funil.etapas.map(etapa => etapa.valor), ['PENDENTE', 'VENDA']);
 });
 
 test('editor oferece modos exclusivos e configuracao de nome e ordem das etapas', async () => {
