@@ -54,6 +54,8 @@ const displayTotalGeral = document.getElementById('displayTotalGeral');
 let quoteCart = [];
 let currentOrcamentoId = null;
 let currentCustomerKey = '';
+let currentArchitect = null;
+let changeCurrentArchitect = false;
 let customerMatchController = null;
 let ultimaChaveBuscaCliente = '';
 let preenchendoClienteExistente = false;
@@ -435,6 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
         currentOrcamentoId = data.id || null;
         currentCustomerKey = currentOrcamentoId ? obterChaveCliente() : '';
+        currentArchitect = data.arquiteto ? { ...data.arquiteto, vinculado: true } : null;
+        changeCurrentArchitect = false;
         if (currentOrcamentoId) generatePdfBtn.innerText = `GERAR ORÇAMENTO PDF #${currentOrcamentoId}`;
         quoteCart = (data.items || []).map(item => {
             const isCustomProduct = ehProdutoPersonalizado(item);
@@ -648,9 +652,21 @@ generatePdfBtn.addEventListener('click', async () => {
 
     if (decisaoOrcamento === 'update') currentCustomerKey = obterChaveCliente();
     const estadoAnterior = decisaoOrcamento === 'new' ? prepararNovoOrcamentoAPartirDoAtual() : null;
+    const estadoArquitetoAntesDaDecisao = {
+        currentArchitect: currentArchitect ? { ...currentArchitect } : null,
+        changeCurrentArchitect
+    };
+
+    const definiuArquiteto = await definirArquitetoAntesDeGerarOrcamento();
+    if (!definiuArquiteto) {
+        if (estadoAnterior) restaurarOrcamentoAnterior(estadoAnterior);
+        return;
+    }
 
     const acao = await abrirDialogoAcaoPdf();
     if (!acao) {
+        currentArchitect = estadoArquitetoAntesDaDecisao.currentArchitect;
+        changeCurrentArchitect = estadoArquitetoAntesDaDecisao.changeCurrentArchitect;
         if (estadoAnterior) restaurarOrcamentoAnterior(estadoAnterior);
         return;
     }
@@ -675,6 +691,10 @@ generatePdfBtn.addEventListener('click', async () => {
             await gerarDownloadPdf(element, filename);
         }
     } catch (error) {
+        if (!gerouComSucesso) {
+            currentArchitect = estadoArquitetoAntesDaDecisao.currentArchitect;
+            changeCurrentArchitect = estadoArquitetoAntesDaDecisao.changeCurrentArchitect;
+        }
         if (estadoAnterior && !gerouComSucesso) restaurarOrcamentoAnterior(estadoAnterior);
         console.error('Erro ao gerar orçamento:', error);
         alert(error.message || 'Erro ao gerar o orçamento. Tente novamente.');
@@ -753,11 +773,15 @@ function prepararNovoOrcamentoAPartirDoAtual() {
     const estadoAnterior = {
         currentOrcamentoId,
         currentCustomerKey,
+        currentArchitect,
+        changeCurrentArchitect,
         itemIds: quoteCart.map(item => item.item_orcamento_id || null)
     };
 
     currentOrcamentoId = null;
     currentCustomerKey = '';
+    currentArchitect = null;
+    changeCurrentArchitect = false;
     quoteCart.forEach(item => { item.item_orcamento_id = null; });
     generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
     return estadoAnterior;
@@ -766,6 +790,8 @@ function prepararNovoOrcamentoAPartirDoAtual() {
 function restaurarOrcamentoAnterior(estadoAnterior) {
     currentOrcamentoId = estadoAnterior.currentOrcamentoId;
     currentCustomerKey = estadoAnterior.currentCustomerKey;
+    currentArchitect = estadoAnterior.currentArchitect;
+    changeCurrentArchitect = estadoAnterior.changeCurrentArchitect;
     quoteCart.forEach((item, index) => {
         item.item_orcamento_id = estadoAnterior.itemIds[index] || null;
     });
@@ -886,6 +912,8 @@ function limparFormularioOrcamento() {
     quoteCart = [];
     currentOrcamentoId = null;
     currentCustomerKey = '';
+    currentArchitect = null;
+    changeCurrentArchitect = false;
     localStorage.removeItem('clonar_orcamento');
 
     generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
@@ -894,6 +922,180 @@ function limparFormularioOrcamento() {
 }
 
 window.limparOrcamento = limparFormularioOrcamento;
+
+function cabecalhosSessaoOrcamento() {
+    return { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}) };
+}
+
+function abrirPerguntaArquiteto({ titulo, mensagem, confirmar, recusar }) {
+    const dialog = document.createElement('div');
+    dialog.className = 'pdf-action-dialog architect-budget-dialog is-open';
+    dialog.innerHTML = `
+        <div class="pdf-action-card architect-budget-card" role="dialog" aria-modal="true" aria-labelledby="architectBudgetQuestionTitle">
+            <button class="pdf-action-close" type="button" data-architect-question="cancel" aria-label="Fechar">&times;</button>
+            <span class="architect-budget-eyebrow">Arquiteto responsável</span>
+            <h2 id="architectBudgetQuestionTitle">${escaparHtml(titulo)}</h2>
+            <p>${escaparHtml(mensagem)}</p>
+            <div class="pdf-action-buttons">
+                <button type="button" class="pdf-action-secondary" data-architect-question="no">${escaparHtml(recusar)}</button>
+                <button type="button" class="pdf-action-primary" data-architect-question="yes">${escaparHtml(confirmar)}</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+    document.body.classList.add('modal-open');
+    return new Promise(resolve => {
+        const fechar = resultado => {
+            document.removeEventListener('keydown', teclado);
+            dialog.remove();
+            document.body.classList.remove('modal-open');
+            resolve(resultado);
+        };
+        const teclado = event => { if (event.key === 'Escape') fechar('cancel'); };
+        dialog.addEventListener('click', event => {
+            if (event.target === dialog) fechar('cancel');
+            const acao = event.target.closest('[data-architect-question]')?.dataset.architectQuestion;
+            if (acao) fechar(acao);
+        });
+        document.addEventListener('keydown', teclado);
+    });
+}
+
+function formatarCpfArquitetoOrcamento(valor) {
+    return String(valor || '').replace(/\D/g, '').slice(0, 11)
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+function abrirSeletorArquiteto(preSelecionado = null) {
+    const dialog = document.createElement('div');
+    dialog.className = 'pdf-action-dialog architect-budget-dialog is-open';
+    dialog.innerHTML = `
+        <div class="pdf-action-card architect-budget-card architect-picker-card" role="dialog" aria-modal="true" aria-labelledby="architectPickerTitle">
+            <button class="pdf-action-close" type="button" data-architect-picker-cancel aria-label="Fechar">&times;</button>
+            <span class="architect-budget-eyebrow">Vínculo do orçamento</span>
+            <h2 id="architectPickerTitle">Selecionar arquiteto</h2>
+            <label class="architect-picker-search"><span>Pesquisar</span><input type="search" placeholder="Nome, CPF ou CAU" data-architect-picker-search></label>
+            <div class="architect-picker-results" data-architect-picker-results><span>Carregando arquitetos...</span></div>
+            <div class="architect-picker-footer">
+                <span data-architect-picker-status>Selecione um arquiteto para continuar.</span>
+                <button type="button" class="pdf-action-secondary" data-architect-picker-cancel>Cancelar</button>
+                <button type="button" class="pdf-action-primary" data-architect-picker-confirm disabled>Confirmar arquiteto</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+    document.body.classList.add('modal-open');
+    const pesquisa = dialog.querySelector('[data-architect-picker-search]');
+    const resultados = dialog.querySelector('[data-architect-picker-results]');
+    const status = dialog.querySelector('[data-architect-picker-status]');
+    const confirmar = dialog.querySelector('[data-architect-picker-confirm]');
+    let selecionado = preSelecionado;
+    let controlador = null;
+    let temporizador = null;
+
+    return new Promise(resolve => {
+        const fechar = resultado => {
+            controlador?.abort();
+            clearTimeout(temporizador);
+            document.removeEventListener('keydown', teclado);
+            dialog.remove();
+            document.body.classList.remove('modal-open');
+            resolve(resultado);
+        };
+        const teclado = event => { if (event.key === 'Escape') fechar(null); };
+        const renderizar = arquitetos => {
+            const lista = [...arquitetos];
+            if (preSelecionado && !lista.some(item => Number(item.id) === Number(preSelecionado.id))) lista.unshift(preSelecionado);
+            if (!lista.length) {
+                resultados.innerHTML = '<span>Nenhum arquiteto encontrado. Cadastre-o primeiro em Arquitetos & RT.</span>';
+                confirmar.disabled = true;
+                return;
+            }
+            resultados.innerHTML = lista.map(arquiteto => `
+                <label class="architect-picker-option">
+                    <input type="radio" name="architect-budget-selection" value="${Number(arquiteto.id)}"${Number(selecionado?.id) === Number(arquiteto.id) ? ' checked' : ''}>
+                    <span><strong>${escaparHtml(arquiteto.nome)}</strong><small>CAU ${escaparHtml(arquiteto.registroCau)} · CPF ${escaparHtml(formatarCpfArquitetoOrcamento(arquiteto.cpf))}</small></span>
+                </label>
+            `).join('');
+            confirmar.disabled = !selecionado;
+            resultados.querySelectorAll('input[type="radio"]').forEach(input => input.addEventListener('change', () => {
+                selecionado = lista.find(item => Number(item.id) === Number(input.value)) || null;
+                confirmar.disabled = !selecionado;
+                status.textContent = selecionado ? selecionado.nome : 'Selecione um arquiteto para continuar.';
+            }));
+        };
+        const carregar = async () => {
+            controlador?.abort();
+            controlador = new AbortController();
+            status.textContent = 'Buscando arquitetos...';
+            try {
+                const response = await fetch('/api/arquitetos?busca=' + encodeURIComponent(pesquisa.value.trim()), {
+                    headers: cabecalhosSessaoOrcamento(), cache: 'no-store', signal: controlador.signal
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.error || 'Nao foi possivel carregar os arquitetos.');
+                renderizar(Array.isArray(data.arquitetos) ? data.arquitetos : []);
+                status.textContent = selecionado ? selecionado.nome : 'Selecione um arquiteto para continuar.';
+            } catch (error) {
+                if (error?.name === 'AbortError') return;
+                resultados.innerHTML = '<span>' + escaparHtml(error.message) + '</span>';
+                status.textContent = 'Falha ao carregar a lista.';
+            }
+        };
+        pesquisa.addEventListener('input', () => {
+            clearTimeout(temporizador);
+            temporizador = setTimeout(carregar, 280);
+        });
+        dialog.addEventListener('click', event => {
+            if (event.target === dialog || event.target.closest('[data-architect-picker-cancel]')) fechar(null);
+            if (event.target.closest('[data-architect-picker-confirm]') && selecionado) fechar(selecionado);
+        });
+        document.addEventListener('keydown', teclado);
+        carregar();
+        pesquisa.focus();
+    });
+}
+
+async function definirArquitetoAntesDeGerarOrcamento() {
+    const vinculoExistente = Boolean(currentOrcamentoId && currentArchitect?.vinculado);
+    if (vinculoExistente) {
+        if (!usuarioLogado.podeAlterarArquitetoOrcamento) return true;
+        const decisao = await abrirPerguntaArquiteto({
+            titulo: 'Arquiteto já vinculado',
+            mensagem: `${currentArchitect.nome} está vinculado a este orçamento. Deseja manter ou selecionar outro arquiteto?`,
+            confirmar: 'Alterar arquiteto',
+            recusar: 'Manter atual'
+        });
+        if (decisao === 'cancel') return false;
+        if (decisao === 'no') return true;
+        const selecionado = await abrirSeletorArquiteto(currentArchitect);
+        if (!selecionado) return false;
+        changeCurrentArchitect = Number(selecionado.id) !== Number(currentArchitect.id);
+        currentArchitect = { ...selecionado, vinculado: !changeCurrentArchitect };
+        return true;
+    }
+
+    const decisao = await abrirPerguntaArquiteto({
+        titulo: 'Informar arquiteto?',
+        mensagem: 'Este orçamento possui arquiteto ou responsável técnico relacionado?',
+        confirmar: 'Selecionar arquiteto',
+        recusar: 'Gerar sem arquiteto'
+    });
+    if (decisao === 'cancel') return false;
+    if (decisao === 'no') {
+        currentArchitect = null;
+        changeCurrentArchitect = false;
+        return true;
+    }
+    const selecionado = await abrirSeletorArquiteto();
+    if (!selecionado) return false;
+    currentArchitect = { ...selecionado, vinculado: false };
+    changeCurrentArchitect = false;
+    return true;
+}
+
 function abrirDialogoAcaoPdf() {
     const dialog = document.getElementById('pdfActionDialog');
     if (!dialog) return Promise.resolve('download');
@@ -944,6 +1146,8 @@ async function confirmarOrcamentoPersistido(orcamentoId) {
 async function salvarOrcamento() {
     const payload = {
         orcamento_id: currentOrcamentoId && currentCustomerKey === obterChaveCliente() ? currentOrcamentoId : null,
+        arquiteto_id: currentArchitect?.id || null,
+        alterar_arquiteto: changeCurrentArchitect,
         cust_name: custName.value,
         cust_doc: obterApenasDigitos(custDoc.value),
         cust_phone: obterApenasDigitos(custPhone.value),
@@ -986,6 +1190,8 @@ async function salvarOrcamento() {
         }
 
         atualizarIdsItensSalvos(saveResult.items || []);
+        currentArchitect = saveResult.arquiteto ? { ...saveResult.arquiteto, vinculado: true } : null;
+        changeCurrentArchitect = false;
 
         const orcamentoSalvoId = saveResult.orcamentoId;
         if (!orcamentoSalvoId) throw new Error('O banco não retornou o número do orçamento salvo.');
@@ -1267,7 +1473,4 @@ function exibirUsuarioLogado() {
     }
 }
 window.fazerLogout = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
-
-
-
 

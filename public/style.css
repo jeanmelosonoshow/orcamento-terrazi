@@ -616,3 +616,71 @@ body.is-embedded-budget #top-bar-user { display: none !important; }
     font-size: 0.86rem;
     overflow-wrap: anywhere;
 }
+
+.architect-budget-card { width: min(100%, 480px); }
+.architect-picker-card { width: min(100%, 640px); }
+.architect-budget-eyebrow {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--madeira, #B98B5F);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+.architect-picker-search {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+    color: var(--verde-escuro);
+    font-size: .7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+.architect-picker-search input {
+    min-height: 44px;
+    padding: 9px 12px;
+    border: 1px solid var(--borda);
+    border-radius: 6px;
+    color: #222;
+    font-size: .9rem;
+    text-transform: none;
+}
+.architect-picker-results {
+    max-height: min(46vh, 360px);
+    overflow-y: auto;
+    border: 1px solid var(--borda);
+    border-radius: 6px;
+    background: #fff;
+}
+.architect-picker-results > span { display: block; padding: 18px; color: #666; font-size: .84rem; }
+.architect-picker-option {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--borda);
+    cursor: pointer;
+}
+.architect-picker-option:last-child { border-bottom: 0; }
+.architect-picker-option:has(input:checked) { background: var(--verde-claro); }
+.architect-picker-option input { width: 17px; height: 17px; accent-color: var(--verde-escuro); }
+.architect-picker-option strong,
+.architect-picker-option small { display: block; overflow-wrap: anywhere; }
+.architect-picker-option strong { color: var(--verde-escuro); font-size: .86rem; }
+.architect-picker-option small { margin-top: 4px; color: #666; font-size: .73rem; }
+.architect-picker-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 9px;
+    align-items: center;
+    margin-top: 14px;
+}
+.architect-picker-footer > span { color: #666; font-size: .76rem; overflow-wrap: anywhere; }
+.architect-picker-footer button { min-height: 42px; }
+.architect-picker-footer button:disabled { opacity: .5; cursor: not-allowed; }
+
+@media (max-width: 560px) {
+    .architect-picker-footer { grid-template-columns: 1fr; }
+}

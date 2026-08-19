@@ -1,6 +1,7 @@
 import { db } from '@vercel/postgres';
 import { requireRequestSession } from '../lib/session-token.js';
 import { expirarOrcamentos, verificarAcessoOrcamento } from '../lib/budget-negotiation.js';
+import { obterVinculoArquitetoOrcamento } from '../lib/architects.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -24,10 +25,12 @@ export default async function handler(req, res) {
     }
 
     const itens = await client.query('SELECT * FROM itens_orcamento WHERE orcamento_id = $1', [id]);
+    const arquiteto = await obterVinculoArquitetoOrcamento(client, id);
 
     res.status(200).json({
       ...orcamento.rows[0],
-      items: itens.rows
+      items: itens.rows,
+      arquiteto
     });
   } catch (error) {
     console.error(error);

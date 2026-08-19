@@ -204,22 +204,31 @@
 
         <section class="crm-view crm-bi-view" data-crm-view="arquitetos" hidden>
             <div data-dashboard-host="arquitetos"></div>
-            <section class="crm-module-content" aria-label="Resumo de arquitetos e responsáveis técnicos">
-                <div class="crm-static-kpis">
-                    <article class="crm-static-kpi"><span>Parceiros ativos</span><strong>—</strong><small>Arquitetos e RT</small></article>
-                    <article class="crm-static-kpi"><span>Indicações</span><strong>—</strong><small>No período</small></article>
-                    <article class="crm-static-kpi"><span>Vendas indicadas</span><strong>—</strong><small>Conversões atribuídas</small></article>
-                    <article class="crm-static-kpi"><span>Comissões</span><strong>—</strong><small>Em acompanhamento</small></article>
-                </div>
-                <div class="crm-operational-grid">
-                    <section class="crm-operational-section">
-                        <header><div><span class="crm-eyebrow">Parcerias</span><h2>Relacionamentos em destaque</h2></div></header>
-                        <div class="crm-empty-operational"><strong>Nenhum parceiro destacado</strong><span>Os relacionamentos com maior atividade aparecerão aqui.</span></div>
-                    </section>
-                    <section class="crm-operational-section">
-                        <header><div><span class="crm-eyebrow">Agenda</span><h2>Próximas ações</h2></div></header>
-                        <div class="crm-empty-operational"><strong>Agenda livre</strong><span>Visitas, retornos e eventos serão exibidos neste espaço.</span></div>
-                    </section>
+            <section class="crm-module-content crm-architect-manager" aria-label="Cadastro de arquitetos e responsáveis técnicos" data-architect-manager>
+                <header class="crm-architect-manager-header">
+                    <div>
+                        <span class="crm-eyebrow">Rede de parceiros</span>
+                        <h2>Arquitetos e responsáveis técnicos</h2>
+                    </div>
+                    <button type="button" class="crm-primary-command" data-architect-form-toggle aria-expanded="false">Cadastrar arquiteto</button>
+                </header>
+                <form class="crm-architect-form" data-architect-form hidden>
+                    <label>Nome<input type="text" maxlength="180" autocomplete="name" required data-architect-name></label>
+                    <label>CPF<input type="text" maxlength="14" inputmode="numeric" required data-architect-cpf></label>
+                    <label>Registro no CAU<input type="text" maxlength="30" required data-architect-cau></label>
+                    <label>Telefone<input type="tel" maxlength="16" inputmode="numeric" autocomplete="tel" required data-architect-phone></label>
+                    <label>Telefone alternativo<input type="tel" maxlength="16" inputmode="numeric" data-architect-phone-alt></label>
+                    <label>E-mail<input type="email" maxlength="254" autocomplete="email" required data-architect-email></label>
+                    <div class="crm-architect-form-actions">
+                        <span data-architect-form-message aria-live="polite"></span>
+                        <button type="button" data-architect-form-cancel>Cancelar</button>
+                        <button type="submit" class="crm-primary-command" data-architect-save>Salvar cadastro</button>
+                    </div>
+                </form>
+                <div class="crm-architect-directory">
+                    <label class="crm-architect-search"><span>Localizar arquiteto</span><input type="search" placeholder="Nome, CPF ou CAU" data-architect-search></label>
+                    <span class="crm-architect-directory-status" data-architect-directory-status>Carregando cadastros...</span>
+                    <div class="crm-architect-list" data-architect-list></div>
                 </div>
             </section>
         </section>

@@ -18,7 +18,8 @@ const FIREBIRD_TIMEOUT_MS = 12000;
 function carregarPermissoes() {
     const fallback = {
         allowedLoginCategories: ['GR', 'SU', 'VD', 'DI', 'CX'],
-        scenarioEditorFuncionarioIds: []
+        scenarioEditorFuncionarioIds: [],
+        architectBudgetEditorFuncionarioIds: []
     };
 
     try {
@@ -26,16 +27,21 @@ function carregarPermissoes() {
         const config = JSON.parse(fs.readFileSync(permissionsPath, 'utf8'));
         const categoriasLogin = config.allowedLoginCategories || config.categorias?.loginPermitido;
         const editoresCenarios = config.scenarioEditorFuncionarioIds || config.cenarios?.editoresIdFuncionario;
+        const editoresArquitetos = config.architectBudgetEditorFuncionarioIds || config.arquitetos?.editoresVinculoOrcamentoIdFuncionario;
         const allowedLoginCategories = Array.isArray(categoriasLogin)
             ? categoriasLogin.map(categoria => String(categoria).trim().toUpperCase()).filter(Boolean)
             : fallback.allowedLoginCategories;
         const scenarioEditorFuncionarioIds = Array.isArray(editoresCenarios)
             ? editoresCenarios.map(id => String(id).trim()).filter(Boolean)
             : fallback.scenarioEditorFuncionarioIds;
+        const architectBudgetEditorFuncionarioIds = Array.isArray(editoresArquitetos)
+            ? editoresArquitetos.map(id => String(id).trim()).filter(Boolean)
+            : fallback.architectBudgetEditorFuncionarioIds;
 
         return {
             allowedLoginCategories: allowedLoginCategories.length ? allowedLoginCategories : fallback.allowedLoginCategories,
-            scenarioEditorFuncionarioIds
+            scenarioEditorFuncionarioIds,
+            architectBudgetEditorFuncionarioIds
         };
     } catch (error) {
         return fallback;
@@ -87,11 +93,13 @@ export default async function handler(req, res) {
 
         const idFuncionario = result[0].ID_FUNCIONARIO;
         const podeEditarCenarios = permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
+        const podeAlterarArquitetoOrcamento = permissoes.architectBudgetEditorFuncionarioIds.includes(String(idFuncionario));
         const sessionUser = {
             idfuncionario: idFuncionario,
             categoria: result[0].CATEGORIA,
             idfilial: result[0].ID_FILIAL,
-            idvendedor: result[0].ID_VENDEDOR
+            idvendedor: result[0].ID_VENDEDOR,
+            architectBudgetEditor: podeAlterarArquitetoOrcamento
         };
         return res.status(200).json({
             autorizado: true,
@@ -99,6 +107,7 @@ export default async function handler(req, res) {
             nomefuncionario: result[0].NOME_FUNCIONARIO,
             podeEditarCenarios,
             canEditScenarios: podeEditarCenarios,
+            podeAlterarArquitetoOrcamento,
             sessionToken: createSessionToken(sessionUser)
         });
     } catch (error) {

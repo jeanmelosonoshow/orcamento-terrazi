@@ -2,6 +2,7 @@ import { db } from '@vercel/postgres';
 import { emailClienteValido, normalizarEmailCliente } from '../lib/customer-identifiers.js';
 import { requireRequestSession } from '../lib/session-token.js';
 import { definirContextoAuditoria } from '../lib/budget-negotiation.js';
+import { sincronizarArquitetoOrcamento } from '../lib/architects.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -191,6 +192,12 @@ export default async function handler(req, res) {
       }
     }
 
+    const arquitetoVinculado = await sincronizarArquitetoOrcamento(client, {
+      orcamentoId,
+      arquitetoId: orcamento.arquiteto_id,
+      alterar: orcamento.alterar_arquiteto === true
+    }, session);
+
     await client.query('COMMIT');
 
     const confirmacao = await client.query('SELECT id FROM orcamentos WHERE id = $1', [orcamentoId]);
@@ -198,12 +205,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Orçamento não confirmado no banco após salvamento.' });
     }
 
-    res.status(200).json({ success: true, orcamentoId, items: itensSalvos });
+    res.status(200).json({ success: true, orcamentoId, items: itensSalvos, arquiteto: arquitetoVinculado });
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("Erro ao salvar no banco:", error);
-    res.status(500).json({ error: 'Erro ao salvar orçamento', details: error.message });
+    const status = Number(error?.statusCode) || 500;
+    res.status(status).json({ error: status >= 500 ? 'Erro ao salvar orçamento' : error.message, details: error.message, code: error?.code || null });
   } finally {
     client.release();
   }

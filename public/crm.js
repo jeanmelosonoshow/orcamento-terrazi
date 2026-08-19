@@ -78,6 +78,7 @@ function ativarView(viewName) {
     }
     atualizarTituloView(viewValida);
     if (crmBiViews.has(viewValida)) trocarContextoDashboard(viewValida);
+    if (viewValida === 'arquitetos') carregarArquitetosCrm();
 }
 
 document.addEventListener('click', event => {
@@ -135,6 +136,24 @@ const contactStatusSummary = document.querySelector('[data-contact-status-summar
 const contactTypeSummary = document.querySelector('[data-contact-type-summary]');
 const contactDateStart = document.querySelector('[data-contact-date-start]');
 const contactDateEnd = document.querySelector('[data-contact-date-end]');
+const architectManager = document.querySelector('[data-architect-manager]');
+const architectFormToggle = document.querySelector('[data-architect-form-toggle]');
+const architectForm = document.querySelector('[data-architect-form]');
+const architectFormCancel = document.querySelector('[data-architect-form-cancel]');
+const architectSaveButton = document.querySelector('[data-architect-save]');
+const architectFormMessage = document.querySelector('[data-architect-form-message]');
+const architectName = document.querySelector('[data-architect-name]');
+const architectCpf = document.querySelector('[data-architect-cpf]');
+const architectCau = document.querySelector('[data-architect-cau]');
+const architectPhone = document.querySelector('[data-architect-phone]');
+const architectPhoneAlt = document.querySelector('[data-architect-phone-alt]');
+const architectEmail = document.querySelector('[data-architect-email]');
+const architectSearch = document.querySelector('[data-architect-search]');
+const architectList = document.querySelector('[data-architect-list]');
+const architectDirectoryStatus = document.querySelector('[data-architect-directory-status]');
+let architectSearchTimer = null;
+let architectRequestController = null;
+let arquitetosCrmCarregados = false;
 
 function aplicarVisibilidadeFiltrosPorCategoria() {
     if (crmFilialFilter) crmFilialFilter.hidden = categoriaSemFiltrosFilialVendedor;
@@ -4621,6 +4640,113 @@ function cabecalhosSessao() {
     return { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}) };
 }
 
+function formatarCpfArquiteto(valor) {
+    return String(valor || '').replace(/\D/g, '').slice(0, 11)
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+function formatarTelefoneArquiteto(valor) {
+    const digitos = String(valor || '').replace(/\D/g, '').slice(0, 11);
+    if (digitos.length <= 10) return digitos.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+    return digitos.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+}
+
+function alternarFormularioArquiteto(aberto) {
+    if (!architectForm) return;
+    architectForm.hidden = !aberto;
+    architectFormToggle?.setAttribute('aria-expanded', String(aberto));
+    if (aberto) setTimeout(() => architectName?.focus(), 0);
+    else {
+        architectForm.reset();
+        if (architectFormMessage) {
+            architectFormMessage.textContent = '';
+            architectFormMessage.className = '';
+        }
+    }
+}
+
+function renderizarDiretorioArquitetos(arquitetos) {
+    if (!architectList) return;
+    if (!arquitetos.length) {
+        architectList.innerHTML = '<div class="crm-empty-operational"><strong>Nenhum arquiteto encontrado</strong><span>Cadastre um novo parceiro ou altere os termos da pesquisa.</span></div>';
+        return;
+    }
+    architectList.innerHTML = arquitetos.map(arquiteto => `
+        <article>
+            <strong>${escapeHtml(arquiteto.nome)}</strong>
+            <span>CAU ${escapeHtml(arquiteto.registroCau)} · CPF ${escapeHtml(formatarCpfArquiteto(arquiteto.cpf))}</span>
+            <span>${escapeHtml(formatarTelefoneArquiteto(arquiteto.telefone))} · ${escapeHtml(arquiteto.email)}</span>
+        </article>
+    `).join('');
+}
+
+async function carregarArquitetosCrm(forcar = false) {
+    if (!architectManager || (arquitetosCrmCarregados && !forcar && !architectSearch?.value)) return;
+    architectRequestController?.abort();
+    architectRequestController = new AbortController();
+    if (architectDirectoryStatus) architectDirectoryStatus.textContent = 'Carregando cadastros...';
+    try {
+        const busca = String(architectSearch?.value || '').trim();
+        const response = await fetch('/api/arquitetos?busca=' + encodeURIComponent(busca), {
+            headers: cabecalhosSessao(),
+            cache: 'no-store',
+            signal: architectRequestController.signal
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Nao foi possivel carregar os arquitetos.');
+        const arquitetos = Array.isArray(data.arquitetos) ? data.arquitetos : [];
+        renderizarDiretorioArquitetos(arquitetos);
+        arquitetosCrmCarregados = true;
+        if (architectDirectoryStatus) architectDirectoryStatus.textContent = `${arquitetos.length} cadastro${arquitetos.length === 1 ? '' : 's'} encontrado${arquitetos.length === 1 ? '' : 's'}.`;
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        if (architectDirectoryStatus) architectDirectoryStatus.textContent = error.message;
+        if (architectList) architectList.innerHTML = '';
+    }
+}
+
+async function salvarCadastroArquiteto(event) {
+    event.preventDefault();
+    if (!architectForm || !architectSaveButton) return;
+    architectSaveButton.disabled = true;
+    if (architectFormMessage) {
+        architectFormMessage.textContent = 'Salvando cadastro...';
+        architectFormMessage.className = '';
+    }
+    try {
+        const response = await fetch('/api/arquitetos', {
+            method: 'POST',
+            headers: cabecalhosSessao(),
+            body: JSON.stringify({
+                nome: architectName?.value,
+                cpf: architectCpf?.value,
+                registroCau: architectCau?.value,
+                telefone: architectPhone?.value,
+                telefoneAlternativo: architectPhoneAlt?.value,
+                email: architectEmail?.value
+            })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Nao foi possivel salvar o arquiteto.');
+        architectForm.reset();
+        if (architectFormMessage) {
+            architectFormMessage.textContent = 'Arquiteto cadastrado com sucesso.';
+            architectFormMessage.className = 'is-success';
+        }
+        arquitetosCrmCarregados = false;
+        await carregarArquitetosCrm(true);
+    } catch (error) {
+        if (architectFormMessage) {
+            architectFormMessage.textContent = error.message;
+            architectFormMessage.className = 'is-error';
+        }
+    } finally {
+        architectSaveButton.disabled = false;
+    }
+}
+
 function definirFormularioContato(contato, documento, nome) {
     const existente = Boolean(contato);
     if (contactDocument) contactDocument.textContent = documento;
@@ -5490,6 +5616,15 @@ function inicializarEditorDashboard() {
     closeWidgetDetailButtons.forEach(button => button.addEventListener('click', fecharRelatorioDetalhe));
     closeContactModalButtons.forEach(button => button.addEventListener('click', fecharFormularioContato));
     if (contactForm) contactForm.addEventListener('submit', salvarFormularioContato);
+    if (architectFormToggle) architectFormToggle.addEventListener('click', () => alternarFormularioArquiteto(architectForm?.hidden !== false));
+    if (architectFormCancel) architectFormCancel.addEventListener('click', () => alternarFormularioArquiteto(false));
+    if (architectForm) architectForm.addEventListener('submit', salvarCadastroArquiteto);
+    if (architectCpf) architectCpf.addEventListener('input', () => { architectCpf.value = formatarCpfArquiteto(architectCpf.value); });
+    [architectPhone, architectPhoneAlt].forEach(input => input?.addEventListener('input', () => { input.value = formatarTelefoneArquiteto(input.value); }));
+    if (architectSearch) architectSearch.addEventListener('input', () => {
+        clearTimeout(architectSearchTimer);
+        architectSearchTimer = setTimeout(() => carregarArquitetosCrm(true), 280);
+    });
     if (indentSqlViewerButton) indentSqlViewerButton.addEventListener('click', indentarSqlVisualizador);
     if (copySqlViewerButton) copySqlViewerButton.addEventListener('click', copiarSqlVisualizador);
     if (pasteSqlViewerButton) pasteSqlViewerButton.addEventListener('click', colarSqlVisualizador);

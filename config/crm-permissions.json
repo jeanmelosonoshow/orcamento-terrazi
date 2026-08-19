@@ -5,6 +5,10 @@
   "cenarios": {
     "editoresIdFuncionario": []
   },
+  "arquitetos": {
+    "editoresVinculoOrcamentoIdFuncionario": []
+  },
   "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
-  "scenarioEditorFuncionarioIds": []
+  "scenarioEditorFuncionarioIds": [],
+  "architectBudgetEditorFuncionarioIds": []
 }
