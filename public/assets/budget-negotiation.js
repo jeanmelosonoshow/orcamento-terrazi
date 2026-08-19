@@ -42,6 +42,26 @@
         })[valor] || valor;
     }
 
+    function renderizarLinhaSaida(saida = {}, desabilitada = false, obrigatoria = true) {
+        return `
+            <div class="budget-sale-row" data-budget-sale-row>
+                <label>Filial da saída
+                    <input name="idfilialsaida" type="text" maxlength="2" autocomplete="off" value="${escapeHtml(saida.idfilialsaida || '')}" ${obrigatoria ? 'required' : ''} ${desabilitada ? 'disabled' : ''}>
+                </label>
+                <label>Número da saída
+                    <input name="numerosaida" type="number" min="1" step="1" inputmode="numeric" value="${escapeHtml(saida.numerosaida || '')}" ${obrigatoria ? 'required' : ''} ${desabilitada ? 'disabled' : ''}>
+                </label>
+                ${desabilitada ? '' : '<button type="button" class="budget-sale-remove" data-budget-remove-sale aria-label="Remover pedido" title="Remover pedido"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>'}
+            </div>`;
+    }
+
+    function obterSaidasFormulario(form) {
+        return Array.from(form?.querySelectorAll('[data-budget-sale-row]') || []).map(linha => ({
+            idfilialsaida: linha.querySelector('[name="idfilialsaida"]')?.value || '',
+            numerosaida: linha.querySelector('[name="numerosaida"]')?.value || ''
+        }));
+    }
+
     function garantirModal() {
         if (modal) return modal;
         document.body.insertAdjacentHTML('beforeend', `
@@ -58,11 +78,25 @@
         modal = document.querySelector('[data-budget-negotiation-modal]');
         modal.addEventListener('click', evento => {
             if (evento.target.closest('[data-budget-negotiation-close]')) close();
+            const adicionar = evento.target.closest('[data-budget-add-sale]');
+            if (adicionar) {
+                adicionar.closest('[data-budget-sale-fields]')?.querySelector('[data-budget-sale-rows]')
+                    ?.insertAdjacentHTML('beforeend', renderizarLinhaSaida());
+                return;
+            }
+            const remover = evento.target.closest('[data-budget-remove-sale]');
+            if (remover) {
+                const linha = remover.closest('[data-budget-sale-row]');
+                const lista = linha?.parentElement;
+                if (!linha || !lista) return;
+                if (lista.querySelectorAll('[data-budget-sale-row]').length > 1) linha.remove();
+                else linha.querySelectorAll('input').forEach(input => { input.value = ''; });
+            }
         });
         modal.addEventListener('submit', tratarFormulario);
         modal.addEventListener('change', evento => {
             if (!evento.target.matches('[data-budget-negotiation-form] [name="status"]')) return;
-            atualizarCampoMotivoRecusa(evento.target.form, evento.target.value);
+            atualizarCamposCondicionais(evento.target.form, evento.target.value);
         });
         return modal;
     }
@@ -78,6 +112,24 @@
         }
     }
 
+    function atualizarCamposSaida(form, status) {
+        const campos = form?.querySelector('[data-budget-sale-fields]');
+        const lista = campos?.querySelector('[data-budget-sale-rows]');
+        const gerouVenda = status === 'GEROU VENDA';
+        if (campos) campos.hidden = !gerouVenda;
+        if (lista && !lista.children.length) lista.innerHTML = renderizarLinhaSaida();
+        const inputs = campos?.querySelectorAll('input') || [];
+        inputs.forEach(input => {
+            input.required = gerouVenda;
+        });
+        if (!gerouVenda && lista) lista.innerHTML = renderizarLinhaSaida({}, false, false);
+    }
+
+    function atualizarCamposCondicionais(form, status) {
+        atualizarCampoMotivoRecusa(form, status);
+        atualizarCamposSaida(form, status);
+    }
+
     function renderizar(dados) {
         estado.dados = dados;
         const o = dados.orcamento || {};
@@ -87,6 +139,7 @@
         const statusSelecionado = negociacaoEncerrada ? statusAtual : (estado.initialStatus || statusAtual);
         const contatoFinalizado = contato?.finalizado === true;
         const historico = Array.isArray(dados.historico) ? dados.historico : [];
+        const saidas = Array.isArray(dados.saidas) ? dados.saidas : [];
         const motivosRecusa = Array.isArray(dados.motivosRecusa) ? dados.motivosRecusa : [];
         const content = modal.querySelector('[data-budget-negotiation-content]');
         content.innerHTML = `
@@ -111,6 +164,12 @@
                                 ${motivosRecusa.map(motivo => `<option value="${escapeHtml(motivo.id)}" title="${escapeHtml(motivo.description || motivo.label)}">${escapeHtml(motivo.label)}</option>`).join('')}
                             </select>
                         </label>
+                        <div class="budget-sale-fields" data-budget-sale-fields ${statusSelecionado === 'GEROU VENDA' ? '' : 'hidden'}>
+                            <div class="budget-sale-list" data-budget-sale-rows>
+                                ${(saidas.length ? saidas : [{}]).map(saida => renderizarLinhaSaida(saida, negociacaoEncerrada, statusSelecionado === 'GEROU VENDA')).join('')}
+                            </div>
+                            <button type="button" class="budget-sale-add" data-budget-add-sale ${negociacaoEncerrada ? 'hidden' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i> Adicionar pedido</button>
+                        </div>
                         <label>Observação da etapa
                             <textarea name="observacao" maxlength="10000" placeholder="Registre o motivo, a condição negociada ou o próximo passo." ${negociacaoEncerrada ? 'disabled' : ''}></textarea>
                         </label>
@@ -127,6 +186,13 @@
                                 ${item.observacao ? `<small>${escapeHtml(item.observacao)}</small>` : ''}
                             </li>`).join('') : '<li><span>Sem movimentacoes registradas.</span></li>'}
                     </ol>
+                    ${statusAtual === 'GEROU VENDA' ? `
+                        <form class="budget-negotiation-form budget-sale-later" data-budget-sale-add-form>
+                            <h4>Adicionar outro pedido</h4>
+                            <div class="budget-sale-list">${renderizarLinhaSaida()}</div>
+                            <div class="budget-negotiation-message" data-budget-sale-message></div>
+                            <button type="submit">Vincular pedido</button>
+                        </form>` : ''}
                 </section>
                 <section class="budget-negotiation-column">
                     <h3 class="budget-negotiation-section-title"><i class="fa-solid fa-comments" aria-hidden="true"></i> Contato sobre o orcamento</h3>
@@ -196,8 +262,14 @@
                 orcamentoId: estado.orcamentoId,
                 status: campos.get('status'),
                 motivoRecusa: campos.get('motivoRecusa'),
+                saidas: obterSaidasFormulario(form),
                 observacao: campos.get('observacao')
             }, '[data-budget-negotiation-message]');
+        } else if (form.matches('[data-budget-sale-add-form]')) {
+            enviar(form, '/api/saidas-orcamento', {
+                orcamentoId: estado.orcamentoId,
+                saidas: obterSaidasFormulario(form)
+            }, '[data-budget-sale-message]');
         } else if (form.matches('[data-budget-contact-form]')) {
             enviar(form, '/api/controle-contato-orcamento', {
                 orcamentoId: estado.orcamentoId,

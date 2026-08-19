@@ -1,6 +1,12 @@
 import { db } from '@vercel/postgres';
 import { requireRequestSession } from '../lib/session-token.js';
-import { definirContextoAuditoria, normalizarStatus, verificarAcessoOrcamento } from '../lib/budget-negotiation.js';
+import {
+  definirContextoAuditoria,
+  normalizarSaidasOrcamento,
+  normalizarStatus,
+  numeroSessao,
+  verificarAcessoOrcamento
+} from '../lib/budget-negotiation.js';
 
 const STATUS_PERMITIDOS = new Set(['GEROU VENDA']);
 
@@ -13,8 +19,12 @@ export default async function handler(req, res) {
 
   const id = Number.parseInt(req.body?.id, 10) || null;
   const status = normalizarStatus(req.body?.status);
+  const saidas = normalizarSaidasOrcamento(req.body?.saidas);
   if (!id || !status) return res.status(400).json({ error: 'ID e Status são obrigatórios' });
   if (!STATUS_PERMITIDOS.has(status)) return res.status(400).json({ error: 'Status inválido.' });
+  if (!saidas) {
+    return res.status(400).json({ error: 'Informe ao menos uma saída válida, sem pedidos duplicados.' });
+  }
 
   const client = await db.connect();
 
@@ -38,10 +48,27 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Este orçamento já foi finalizado e não pode ter o status alterado.' });
     }
 
-    await client.query(
-      'UPDATE orcamentos SET status = $1 WHERE id = $2',
-      [status, id]
-    );
+    const negociacaoCriada = await client.query(`
+      INSERT INTO status_negociacao (
+        orcamento_id, status_negociacao, idfuncionario, idvendedor, origem
+      ) VALUES ($1, $2, $3, $4, 'HISTORICO ORCAMENTO')
+      RETURNING id
+    `, [id, status, numeroSessao(session.sub), numeroSessao(session.idvendedor)]);
+    await client.query(`
+      INSERT INTO orcamento_saida (
+        orcamento_id, status_negociacao_id, idfilialsaida, numerosaida,
+        idfuncionario, idvendedor
+      )
+      SELECT $1, $2, item.idfilialsaida, item.numerosaida, $5, $6
+        FROM UNNEST($3::text[], $4::integer[]) AS item(idfilialsaida, numerosaida)
+    `, [
+      id,
+      negociacaoCriada.rows[0].id,
+      saidas.map(item => item.idfilialsaida),
+      saidas.map(item => item.numerosaida),
+      numeroSessao(session.sub),
+      numeroSessao(session.idvendedor)
+    ]);
     await client.query('COMMIT');
 
     res.status(200).json({ success: true });

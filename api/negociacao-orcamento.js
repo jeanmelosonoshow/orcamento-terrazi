@@ -7,6 +7,8 @@ import {
     expirarOrcamentos,
     normalizarContatoOrcamento,
     normalizarNegociacao,
+    normalizarSaidaOrcamento,
+    normalizarSaidasOrcamento,
     normalizarStatus,
     numeroSessao,
     textoLimitado,
@@ -52,6 +54,11 @@ export default async function handler(req, res) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: 'Selecione um motivo de recusa valido.' });
             }
+            const saidas = status === 'GEROU VENDA' ? normalizarSaidasOrcamento(req.body?.saidas) : [];
+            if (status === 'GEROU VENDA' && !saidas) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: 'Informe ao menos uma saida valida, sem pedidos duplicados.' });
+            }
 
             const atual = await client.query(`
                 SELECT n.status_negociacao,
@@ -77,18 +84,36 @@ export default async function handler(req, res) {
                 return res.status(409).json({ error: 'Atualize a validade do orcamento antes de reabrir a negociacao.' });
             }
 
-            await client.query(`
+            const negociacaoCriada = await client.query(`
                 INSERT INTO status_negociacao (
                     orcamento_id, status_negociacao, motivo_recusa, motivo_recusa_descricao,
                     observacao, idfuncionario, idvendedor, origem
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'GESTAO FUNIL')
+                RETURNING id
             `, [
                 orcamentoId, status, motivoRecusa?.id || null, motivoRecusa?.label || null,
                 observacao || null, numeroSessao(session.sub), numeroSessao(session.idvendedor)
             ]);
+            if (status === 'GEROU VENDA') {
+                await client.query(`
+                    INSERT INTO orcamento_saida (
+                        orcamento_id, status_negociacao_id, idfilialsaida, numerosaida,
+                        idfuncionario, idvendedor
+                    )
+                    SELECT $1, $2, item.idfilialsaida, item.numerosaida, $5, $6
+                      FROM UNNEST($3::text[], $4::integer[]) AS item(idfilialsaida, numerosaida)
+                `, [
+                    orcamentoId,
+                    negociacaoCriada.rows[0].id,
+                    saidas.map(item => item.idfilialsaida),
+                    saidas.map(item => item.numerosaida),
+                    numeroSessao(session.sub),
+                    numeroSessao(session.idvendedor)
+                ]);
+            }
         }
 
-        const [orcamento, historico, contato] = await Promise.all([
+        const [orcamento, historico, contato, saidas] = await Promise.all([
             client.query(`
                 SELECT o.id, o.cliente_nome, o.cliente_doc, o.telefone_cliente, o.email_cliente,
                        o.valor_total, o.status, o.data_criacao, o.data_validade,
@@ -102,7 +127,12 @@ export default async function handler(req, res) {
                  WHERE orcamento_id = $1
                  ORDER BY data_status DESC, id DESC
             `, [orcamentoId]),
-            client.query('SELECT * FROM controle_contato_orcamento WHERE orcamento_id = $1', [orcamentoId])
+            client.query('SELECT * FROM controle_contato_orcamento WHERE orcamento_id = $1', [orcamentoId]),
+            client.query(`
+                SELECT * FROM orcamento_saida
+                 WHERE orcamento_id = $1
+                 ORDER BY data_vinculo, id
+            `, [orcamentoId])
         ]);
         await client.query('COMMIT');
         return res.status(200).json({
@@ -110,6 +140,7 @@ export default async function handler(req, res) {
             negociacao: normalizarNegociacao(historico.rows.find(item => item.vigente)),
             historico: historico.rows.map(normalizarNegociacao),
             contato: normalizarContatoOrcamento(contato.rows[0]),
+            saidas: saidas.rows.map(normalizarSaidaOrcamento),
             motivosRecusa: listarMotivosRecusa()
         });
     } catch (error) {

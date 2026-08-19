@@ -345,6 +345,11 @@ window.alterarStatusOrcamento = async (select, id) => {
         window.abrirNegociacaoOrcamento(id, 'RECUSADO');
         return;
     }
+    if (novoStatus === 'GEROU VENDA') {
+        select.value = 'PENDENTE';
+        window.abrirNegociacaoOrcamento(id, 'GEROU VENDA');
+        return;
+    }
     if (!confirm(`Deseja alterar o status do orçamento #${id} para ${novoStatus}?`)) {
         select.value = 'PENDENTE';
         return;

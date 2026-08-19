@@ -89,6 +89,24 @@ CREATE INDEX IF NOT EXISTS idx_status_negociacao_funcionario
     ON status_negociacao (idfuncionario, data_status DESC)
     WHERE idfuncionario IS NOT NULL;
 
+CREATE TABLE IF NOT EXISTS orcamento_saida (
+    id BIGSERIAL PRIMARY KEY,
+    orcamento_id INTEGER NOT NULL REFERENCES orcamentos(id) ON DELETE CASCADE,
+    status_negociacao_id BIGINT NOT NULL REFERENCES status_negociacao(id),
+    idfilialsaida VARCHAR(2) NOT NULL,
+    numerosaida INTEGER NOT NULL,
+    idfuncionario BIGINT,
+    idvendedor BIGINT,
+    data_vinculo TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_orcamento_saida UNIQUE (orcamento_id, idfilialsaida, numerosaida),
+    CONSTRAINT ck_orcamento_saida_filial CHECK (BTRIM(idfilialsaida) <> ''),
+    CONSTRAINT ck_orcamento_saida_numero CHECK (numerosaida > 0)
+);
+CREATE INDEX IF NOT EXISTS idx_orcamento_saida_referencia
+    ON orcamento_saida (idfilialsaida, numerosaida);
+CREATE INDEX IF NOT EXISTS idx_orcamento_saida_negociacao
+    ON orcamento_saida (status_negociacao_id);
+
 CREATE TABLE IF NOT EXISTS controle_contato_orcamento (
     orcamento_id INTEGER PRIMARY KEY REFERENCES orcamentos(id) ON DELETE CASCADE,
     status_contato VARCHAR(30) NOT NULL DEFAULT 'PENDENTE',

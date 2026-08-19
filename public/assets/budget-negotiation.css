@@ -16,11 +16,20 @@
 .budget-negotiation-section-title { display: flex; align-items: center; gap: 9px; margin: 0 0 16px; font-size: 1rem; }
 .budget-negotiation-section-title i { color: #d59b00; }
 .budget-negotiation-form { display: grid; gap: 13px; }
+.budget-negotiation-form [hidden] { display: none; }
 .budget-negotiation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.budget-sale-fields, .budget-sale-list { display: grid; gap: 10px; }
+.budget-sale-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) 38px; gap: 10px; align-items: end; }
+.budget-negotiation-form .budget-sale-remove { width: 38px; min-height: 42px; padding: 0; justify-self: stretch; border: 1px solid #e4c7c7; background: #fff5f5; color: #a12a2a; }
+.budget-negotiation-form .budget-sale-add { justify-self: start; border: 1px solid #cfdbea; background: #f7f9fc; color: #123c7c; }
+.budget-sale-later { margin-top: 18px; padding-top: 17px; border-top: 1px solid #dce5ef; }
+.budget-sale-later h4 { margin: 0; color: #123c7c; font-size: .86rem; }
 .budget-negotiation-form label { display: grid; gap: 6px; color: #344c67; font-size: .71rem; font-weight: 800; text-transform: uppercase; }
 .budget-negotiation-form select,
+.budget-negotiation-form input,
 .budget-negotiation-form textarea { width: 100%; box-sizing: border-box; border: 1px solid #cfdbea; border-radius: 6px; background: #fff; color: #102f55; font: inherit; }
-.budget-negotiation-form select { min-height: 42px; padding: 8px 10px; }
+.budget-negotiation-form select,
+.budget-negotiation-form input { min-height: 42px; padding: 8px 10px; }
 .budget-negotiation-form textarea { min-height: 90px; padding: 10px 12px; resize: vertical; }
 .budget-negotiation-form button { justify-self: end; min-height: 40px; padding: 0 18px; border: 0; border-radius: 6px; background: #123c7c; color: #fff; font-weight: 800; cursor: pointer; }
 .budget-negotiation-form button:disabled { opacity: .55; cursor: not-allowed; }
@@ -42,4 +51,8 @@ body.budget-negotiation-open { overflow: hidden; }
     .budget-negotiation-body { grid-template-columns: 1fr; }
     .budget-negotiation-column + .budget-negotiation-column { border-left: 0; border-top: 1px solid #dce5ef; }
     .budget-negotiation-grid { grid-template-columns: 1fr; }
+    .budget-sale-row { grid-template-columns: minmax(0, 1fr) 38px; }
+    .budget-sale-row label:first-child { grid-column: 1; grid-row: 1; }
+    .budget-sale-row label:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+    .budget-sale-row .budget-sale-remove { grid-column: 2; grid-row: 1; }
 }

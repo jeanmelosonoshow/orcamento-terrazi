@@ -13,6 +13,7 @@ No SQL Editor do branch correto, execute todo o arquivo:
 O script pode ser executado novamente. Ele cria:
 
 - `status_negociacao`: historico de todas as etapas;
+- `orcamento_saida`: um ou mais pedidos gerados por cada orcamento;
 - `controle_contato_orcamento`: contato atual vinculado ao `orcamento_id`;
 - indices para status, data, orcamento e funcionario;
 - gatilhos para manter `orcamentos.status` e a negociacao sincronizados;
@@ -30,6 +31,7 @@ Depois da instalacao, valide:
 
 ```sql
 SELECT to_regclass('public.status_negociacao') AS status_negociacao,
+       to_regclass('public.orcamento_saida') AS orcamento_saida,
        to_regclass('public.controle_contato_orcamento') AS contatos;
 
 SELECT status_negociacao, COUNT(*)
@@ -38,6 +40,10 @@ SELECT status_negociacao, COUNT(*)
  ORDER BY status_negociacao;
 
 SELECT fn_expirar_orcamentos();
+
+SELECT orcamento_id, idfilialsaida, numerosaida, data_vinculo
+  FROM orcamento_saida
+ ORDER BY data_vinculo DESC;
 ```
 
 ## 2. Regras automaticas
@@ -55,6 +61,12 @@ SELECT fn_expirar_orcamentos();
 Ao recusar, o motivo pre-cadastrado e obrigatorio. A observacao da etapa continua
 livre e opcional. O banco grava o `id` do motivo e uma copia da descricao exibida
 naquele momento; assim, futuras alteracoes no JSON nao mudam o historico antigo.
+
+Ao selecionar **Gerou venda**, o formulario exige pelo menos um pedido, composto
+pela filial e pelo numero da saida. O botao **Adicionar pedido** permite informar
+varios pedidos na mesma confirmacao. Eles sao gravados em `orcamento_saida`,
+vinculados ao orcamento e a movimentacao `GEROU VENDA`. Depois da conclusao,
+novos pedidos ainda podem ser vinculados sem duplicar a etapa da negociacao.
 
 As mudancas terminais funcionam nos dois sentidos. Atualizar o status principal
 gera a etapa correspondente; inserir a etapa atualiza o status principal.

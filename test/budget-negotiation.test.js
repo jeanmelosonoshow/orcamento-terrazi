@@ -4,7 +4,11 @@ import { readFile } from 'node:fs/promises';
 import {
     STATUS_NEGOCIACAO,
     normalizarContatoOrcamento,
+    normalizarIdFilialSaida,
     normalizarNegociacao,
+    normalizarNumeroSaida,
+    normalizarSaidaOrcamento,
+    normalizarSaidasOrcamento,
     normalizarStatus
 } from '../lib/budget-negotiation.js';
 import { listarMotivosRecusa, obterMotivoRecusa } from '../lib/budget-rejection-reasons.js';
@@ -28,6 +32,12 @@ test('migracao cria historico, contato, indices e sincronizacao bidirecional', a
     assert.match(sql, /motivo_recusa VARCHAR\(50\)/i);
     assert.match(sql, /motivo_recusa_descricao VARCHAR\(120\)/i);
     assert.match(sql, /ck_status_negociacao_motivo_recusa/i);
+    assert.match(sql, /CREATE TABLE IF NOT EXISTS orcamento_saida/i);
+    assert.match(sql, /idfilialsaida VARCHAR\(2\)/i);
+    assert.match(sql, /numerosaida INTEGER/i);
+    assert.match(sql, /uq_orcamento_saida/i);
+    assert.match(sql, /idx_orcamento_saida_referencia/i);
+    assert.match(sql, /numerosaida > 0/i);
 });
 
 test('catalogo JSON possui motivos ativos, ordenados e identificadores estaveis', () => {
@@ -44,10 +54,34 @@ test('status de negociacao cobre todas as etapas comerciais', () => {
         'EXPIRADO', 'GEROU VENDA', 'RECUSADO'
     ]);
     assert.equal(normalizarStatus(' Em negociacao '), 'EM NEGOCIACAO');
+    assert.equal(normalizarIdFilialSaida(' 01 '), '01');
+    assert.equal(normalizarIdFilialSaida('019'), null);
+    assert.equal(normalizarNumeroSaida('12345'), 12345);
+    assert.equal(normalizarNumeroSaida('12abc'), null);
+    assert.deepEqual(normalizarSaidasOrcamento([
+        { idfilialsaida: ' 01 ', numerosaida: '123' },
+        { idfilialsaida: 'CD', numerosaida: 456 }
+    ]), [
+        { idfilialsaida: '01', numerosaida: 123 },
+        { idfilialsaida: 'CD', numerosaida: 456 }
+    ]);
+    assert.equal(normalizarSaidasOrcamento([
+        { idfilialsaida: '01', numerosaida: 123 },
+        { idfilialsaida: '01', numerosaida: 123 }
+    ]), null);
 });
 
 test('normalizadores entregam contratos estaveis para a interface', () => {
-    assert.equal(normalizarNegociacao({ status_negociacao: 'EXPIRADO', vigente: true }).status, 'EXPIRADO');
+    const negociacao = normalizarNegociacao({ status_negociacao: 'GEROU VENDA', vigente: true });
+    assert.equal(negociacao.status, 'GEROU VENDA');
+    assert.deepEqual(normalizarSaidaOrcamento({
+        id: 9, orcamento_id: 12, status_negociacao_id: 3,
+        idfilialsaida: '01', numerosaida: 123
+    }), {
+        id: 9, orcamentoId: 12, statusNegociacaoId: 3,
+        idfilialsaida: '01', numerosaida: 123,
+        idfuncionario: undefined, idvendedor: undefined, dataVinculo: undefined
+    });
     assert.deepEqual(normalizarContatoOrcamento({
         orcamento_id: 12,
         status_contato: 'FINALIZADO',
@@ -69,19 +103,26 @@ test('normalizadores entregam contratos estaveis para a interface', () => {
 });
 
 test('APIs exigem sessao, verificam acesso e usam as funcoes do banco', async () => {
-    const [negociacao, contato, listar, salvar, status] = await Promise.all([
+    const [negociacao, contato, saidas, listar, salvar, status] = await Promise.all([
         ler('../api/negociacao-orcamento.js'),
         ler('../api/controle-contato-orcamento.js'),
+        ler('../api/saidas-orcamento.js'),
         ler('../api/listar-orcamentos.js'),
         ler('../api/salvar-orcamento.js'),
         ler('../api/status-orcamento.js')
     ]);
-    for (const api of [negociacao, contato, listar, salvar, status]) assert.match(api, /requireRequestSession/);
+    for (const api of [negociacao, contato, saidas, listar, salvar, status]) assert.match(api, /requireRequestSession/);
     assert.match(negociacao, /verificarAcessoOrcamento/);
     assert.match(contato, /verificarAcessoOrcamento/);
     assert.match(negociacao, /INSERT INTO status_negociacao/i);
     assert.match(negociacao, /obterMotivoRecusa/);
     assert.match(negociacao, /motivo_recusa_descricao/i);
+    assert.match(negociacao, /normalizarSaidasOrcamento/);
+    assert.match(negociacao, /INSERT INTO orcamento_saida/i);
+    assert.match(saidas, /verificarAcessoOrcamento/);
+    assert.match(saidas, /status_negociacao = 'GEROU VENDA'/i);
+    assert.match(saidas, /error\?\.code === '23505'/);
+    assert.match(status, /INSERT INTO status_negociacao/i);
     assert.match(contato, /ON CONFLICT \(orcamento_id\) DO UPDATE/i);
     assert.match(listar, /expirarOrcamentos/);
     assert.match(salvar, /definirContextoAuditoria/);
@@ -104,12 +145,13 @@ test('Funil combina os contatos dos orcamentos em lote e respeita o acesso da se
 });
 
 test('historico e BI compartilham a mesma janela de gestao', async () => {
-    const [crmHtml, crmScript, listaHtml, listaScript, componente, manual] = await Promise.all([
+    const [crmHtml, crmScript, listaHtml, listaScript, componente, estilo, manual] = await Promise.all([
         ler('../public/crm.html'),
         ler('../public/crm.js'),
         ler('../public/lista-orcamentos.html'),
         ler('../public/script-lista.js'),
         ler('../public/assets/budget-negotiation.js'),
+        ler('../public/assets/budget-negotiation.css'),
         ler('../database/negociacao-orcamento-uso.md')
     ]);
     assert.match(crmHtml, /assets\/budget-negotiation\.js/);
@@ -121,9 +163,20 @@ test('historico e BI compartilham a mesma janela de gestao', async () => {
     assert.match(componente, /data-budget-contact-form/);
     assert.match(componente, /data-budget-rejection-reason/);
     assert.match(componente, /motivoRecusa/);
+    assert.match(componente, /data-budget-sale-fields/);
+    assert.match(componente, /name="idfilialsaida"/);
+    assert.match(componente, /name="numerosaida"/);
+    assert.match(componente, /atualizarCamposSaida/);
+    assert.match(componente, /data-budget-add-sale/);
+    assert.match(componente, /data-budget-remove-sale/);
+    assert.match(componente, /data-budget-sale-add-form/);
+    assert.match(componente, /'\/api\/saidas-orcamento'/);
+    assert.match(estilo, /\.budget-negotiation-form \[hidden\] \{ display: none; \}/);
+    assert.match(listaScript, /abrirNegociacaoOrcamento\(id, 'GEROU VENDA'\)/);
     assert.match(manual, /action:negotiation/);
     assert.match(manual, /ID_ORCAMENTO/);
     assert.match(manual, /CONTATO_NEGOCIACAO\.STATUS_CONTATO/);
+    assert.match(manual, /`orcamento_saida`/);
 });
 
 test('manutencao possui endpoint protegido e agendamento diario', async () => {
