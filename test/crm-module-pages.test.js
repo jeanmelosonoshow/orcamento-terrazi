@@ -25,18 +25,22 @@ test('os cenarios e alturas usam armazenamento independente por modulo', () => {
     assert.ok(script.includes('obterConfigDashboardAtivo().altura'));
 });
 
-test('visao geral e carteira de clientes contem somente BI', () => {
+test('visao geral, carteira de clientes e funil contem somente BI', () => {
     const inicioGeral = html.indexOf('data-crm-view="visao-geral"');
     const inicioClientes = html.indexOf('data-crm-view="clientes"');
     const inicioFunil = html.indexOf('data-crm-view="funil"');
+    const inicioArquitetos = html.indexOf('data-crm-view="arquitetos"');
     const geral = html.slice(inicioGeral, inicioClientes);
     const clientes = html.slice(inicioClientes, inicioFunil);
+    const funil = html.slice(inicioFunil, inicioArquitetos);
     assert.match(geral, /data-dashboard-workspace/);
     assert.doesNotMatch(geral, /crm-static-kpis|crm-operational-section|crm-modules/);
     assert.match(clientes, /data-dashboard-host="clientes"/);
     assert.doesNotMatch(clientes, /crm-module-content|crm-static-kpis|crm-operational-section/);
+    assert.match(funil, /data-dashboard-host="funil"/);
+    assert.doesNotMatch(funil, /crm-module-content|crm-static-kpis|crm-operational-section/);
 
-    for (const modulo of ['funil', 'arquitetos', 'reativacao']) {
+    for (const modulo of ['arquitetos', 'reativacao']) {
         const inicio = html.indexOf('data-crm-view="' + modulo + '"');
         const proximo = html.indexOf('data-crm-view="', inicio + 20);
         const view = html.slice(inicio, proximo > inicio ? proximo : undefined);
