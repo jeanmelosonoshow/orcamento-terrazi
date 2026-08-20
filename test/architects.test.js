@@ -14,6 +14,7 @@ test('cadastro de arquiteto valida CPF, CAU, telefones e email', () => {
     const arquiteto = normalizarArquitetoEntrada({
         nome: '  Ana   Souza  ',
         cpf: '529.982.247-25',
+        nascimento: '1990-05-18',
         registroCau: ' a12345-6 ',
         telefone: '(21) 99999-1234',
         telefoneAlternativo: '(21) 3333-1234',
@@ -22,11 +23,20 @@ test('cadastro de arquiteto valida CPF, CAU, telefones e email', () => {
     assert.deepEqual(arquiteto, {
         nome: 'Ana Souza',
         cpf: '52998224725',
+        nascimento: '1990-05-18',
         registroCau: 'A12345-6',
         telefone: '21999991234',
         telefoneAlternativo: '2133331234',
         email: 'ana@exemplo.com'
     });
+    assert.throws(() => normalizarArquitetoEntrada({
+        nome: 'Ana Souza',
+        cpf: '52998224725',
+        nascimento: '2099-01-01',
+        registroCau: 'A12345-6',
+        telefone: '21999991234',
+        email: 'ana@exemplo.com'
+    }), /futuro/i);
 });
 
 test('permissao de troca do arquiteto vem exclusivamente da sessao assinada', () => {
@@ -61,6 +71,8 @@ test('migracao cria cadastros, vinculo unico, fotografia historica e bloqueio de
     const sql = await readFile(new URL('../database/arquitetos.sql', import.meta.url), 'utf8');
     assert.match(sql, /CREATE TABLE IF NOT EXISTS arquiteto\s*\(/i);
     assert.match(sql, /CREATE TABLE IF NOT EXISTS arquiteto_orcamento\s*\(/i);
+    assert.match(sql, /nascimento DATE/i);
+    assert.match(sql, /ADD COLUMN IF NOT EXISTS nascimento DATE/i);
     assert.match(sql, /UNIQUE \(orcamento_id\)/i);
     assert.match(sql, /nome_arquiteto VARCHAR\(180\)/i);
     assert.match(sql, /registro_cau_arquiteto VARCHAR\(30\)/i);
@@ -77,6 +89,7 @@ test('menu possui cadastro real e o orcamento pergunta antes de PDF ou WhatsApp'
 
     assert.match(html, /data-architect-form/);
     assert.match(html, /data-architect-cau/);
+    assert.match(html, /data-architect-birth/);
     assert.match(crm, /fetch\('\/api\/arquitetos/);
     const indiceArquiteto = budget.indexOf('await definirArquitetoAntesDeGerarOrcamento()');
     const indiceAcaoPdf = budget.indexOf('await abrirDialogoAcaoPdf()', indiceArquiteto);

@@ -149,6 +149,7 @@ const architectSaveButton = document.querySelector('[data-architect-save]');
 const architectFormMessage = document.querySelector('[data-architect-form-message]');
 const architectName = document.querySelector('[data-architect-name]');
 const architectCpf = document.querySelector('[data-architect-cpf]');
+const architectBirth = document.querySelector('[data-architect-birth]');
 const architectCau = document.querySelector('[data-architect-cau]');
 const architectPhone = document.querySelector('[data-architect-phone]');
 const architectPhoneAlt = document.querySelector('[data-architect-phone-alt]');
@@ -4840,6 +4841,7 @@ async function salvarCadastroArquiteto(event) {
             body: JSON.stringify({
                 nome: architectName?.value,
                 cpf: architectCpf?.value,
+                nascimento: architectBirth?.value,
                 registroCau: architectCau?.value,
                 telefone: architectPhone?.value,
                 telefoneAlternativo: architectPhoneAlt?.value,
@@ -6293,6 +6295,7 @@ function iniciarModulo(nomeModulo, inicializador) {
 function inicializarAplicacao() {
     const hashInicial = window.location.hash || '#visao-geral';
 
+    if (architectBirth) architectBirth.max = formatarDataInput(new Date());
     limparFiltrosPersistidos();
     iniciarModulo('isolamento dos menus', repararCenariosDuplicadosEntreMenus);
     iniciarModulo('navegacao', () => ativarView(obterViewPorHash(hashInicial)));

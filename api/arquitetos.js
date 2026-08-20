@@ -75,12 +75,12 @@ export default async function handler(req, res) {
         }
         const resultado = await db.query(`
             INSERT INTO arquiteto (
-                nome, cpf, registro_cau, telefone, telefone_alternativo, email,
+                nome, cpf, nascimento, registro_cau, telefone, telefone_alternativo, email,
                 idfilial_cadastro, idfuncionario_cadastro
-            ) VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, $8)
+            ) VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9)
             RETURNING *
         `, [
-            arquiteto.nome, arquiteto.cpf, arquiteto.registroCau, arquiteto.telefone,
+            arquiteto.nome, arquiteto.cpf, arquiteto.nascimento, arquiteto.registroCau, arquiteto.telefone,
             arquiteto.telefoneAlternativo, arquiteto.email, idfilial, idfuncionario
         ]);
         return res.status(201).json({ arquiteto: normalizarArquiteto(resultado.rows[0]) });

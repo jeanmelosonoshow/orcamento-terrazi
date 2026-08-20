@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS arquiteto (
     id BIGSERIAL PRIMARY KEY,
     nome VARCHAR(180) NOT NULL,
     cpf VARCHAR(11) NOT NULL,
+    nascimento DATE,
     registro_cau VARCHAR(30) NOT NULL,
     telefone VARCHAR(15) NOT NULL,
     telefone_alternativo VARCHAR(15),
@@ -16,6 +17,8 @@ CREATE TABLE IF NOT EXISTS arquiteto (
     CONSTRAINT ck_arquiteto_cpf CHECK (cpf ~ '^[0-9]{11}$'),
     CONSTRAINT ck_arquiteto_telefone CHECK (telefone ~ '^[0-9]{10,11}$')
 );
+
+ALTER TABLE arquiteto ADD COLUMN IF NOT EXISTS nascimento DATE;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_arquiteto_cpf ON arquiteto (cpf);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_arquiteto_cau ON arquiteto (UPPER(registro_cau));
