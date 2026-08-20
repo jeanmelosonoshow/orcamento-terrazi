@@ -3,12 +3,12 @@
     "loginPermitido": ["VD", "GR", "SU", "DI", "CX"]
   },
   "cenarios": {
-    "editoresIdFuncionario": ["142","752","4"]
+    "editoresIdFuncionario": ["142","752"]
   },
   "arquitetos": {
-    "editoresVinculoOrcamentoIdFuncionario": ["142","752","4"]
+    "editoresVinculoOrcamentoIdFuncionario": ["142","752"]
   },
   "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
-  "scenarioEditorFuncionarioIds": ["142","752","4"],
-  "architectBudgetEditorFuncionarioIds": ["142","752","4"]
+  "scenarioEditorFuncionarioIds": ["142","752"],
+  "architectBudgetEditorFuncionarioIds": ["142","752"]
 }
