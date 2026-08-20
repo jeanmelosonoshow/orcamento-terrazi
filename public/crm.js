@@ -151,9 +151,18 @@ const architectEmail = document.querySelector('[data-architect-email]');
 const architectSearch = document.querySelector('[data-architect-search]');
 const architectList = document.querySelector('[data-architect-list]');
 const architectDirectoryStatus = document.querySelector('[data-architect-directory-status]');
+const architectDirectoryFooter = document.querySelector('[data-architect-directory-footer]');
+const architectExpandButton = document.querySelector('[data-architect-expand]');
+const architectPagination = document.querySelector('[data-architect-pagination]');
+const architectPageStatus = document.querySelector('[data-architect-page-status]');
 let architectSearchTimer = null;
 let architectRequestController = null;
 let arquitetosCrmCarregados = false;
+let architectDirectoryExpanded = false;
+let architectDirectoryPage = 1;
+let architectDirectoryTotalPages = 1;
+let architectDirectoryColumns = 1;
+let architectDirectoryResizeTimer = null;
 
 function aplicarVisibilidadeFiltrosPorCategoria() {
     if (crmFilialFilter) crmFilialFilter.hidden = categoriaSemFiltrosFilialVendedor;
@@ -4667,19 +4676,79 @@ function alternarFormularioArquiteto(aberto) {
     }
 }
 
-function renderizarDiretorioArquitetos(arquitetos) {
+function obterQuantidadeColunasArquitetos() {
+    const largura = architectList?.clientWidth || architectManager?.clientWidth || window.innerWidth;
+    if (largura >= 1320) return 4;
+    if (largura >= 940) return 3;
+    if (largura >= 620) return 2;
+    return 1;
+}
+
+function obterIniciaisArquiteto(nome) {
+    const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    return ((partes[0]?.[0] || '') + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase() || 'AR';
+}
+
+function renderizarIconeDiretorioArquiteto(tipo) {
+    const caminhos = {
+        phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"></path>',
+        email: '<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path>',
+        branch: '<path d="M3 21h18"></path><path d="M6 21V7l6-4 6 4v14"></path><path d="M9 9h1M14 9h1M9 13h1M14 13h1M10 21v-4h4v4"></path>'
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${caminhos[tipo] || ''}</svg>`;
+}
+
+function atualizarControlesDiretorioArquitetos(paginacao, quantidade) {
+    const total = Number(paginacao?.total || 0);
+    const pagina = Number(paginacao?.pagina || 1);
+    architectDirectoryTotalPages = Number(paginacao?.totalPaginas || 1);
+    const limite = Number(paginacao?.limite || quantidade || 1);
+    const inicio = quantidade ? ((pagina - 1) * limite) + 1 : 0;
+    const fim = quantidade ? inicio + quantidade - 1 : 0;
+    if (architectDirectoryStatus) {
+        architectDirectoryStatus.textContent = total
+            ? `Exibindo ${inicio}-${fim} de ${total} arquitetos.`
+            : 'Nenhum cadastro encontrado.';
+    }
+    const podeExpandir = !architectDirectoryExpanded && total > architectDirectoryColumns;
+    const podeRecolher = architectDirectoryExpanded && total > architectDirectoryColumns;
+    const possuiPaginas = architectDirectoryExpanded && architectDirectoryTotalPages > 1;
+    if (architectDirectoryFooter) architectDirectoryFooter.hidden = !podeExpandir && !podeRecolher && !possuiPaginas;
+    if (architectExpandButton) {
+        architectExpandButton.hidden = !podeExpandir && !podeRecolher;
+        architectExpandButton.textContent = architectDirectoryExpanded ? 'Mostrar menos' : 'Mostrar mais';
+    }
+    if (architectPagination) architectPagination.hidden = !possuiPaginas;
+    if (architectPageStatus) architectPageStatus.textContent = `${pagina} de ${architectDirectoryTotalPages}`;
+    architectPagination?.querySelector('[data-architect-page="-1"]')?.toggleAttribute('disabled', pagina <= 1);
+    architectPagination?.querySelector('[data-architect-page="1"]')?.toggleAttribute('disabled', pagina >= architectDirectoryTotalPages);
+}
+
+function renderizarDiretorioArquitetos(arquitetos, paginacao = {}) {
     if (!architectList) return;
     if (!arquitetos.length) {
         architectList.innerHTML = '<div class="crm-empty-operational"><strong>Nenhum arquiteto encontrado</strong><span>Cadastre um novo parceiro ou altere os termos da pesquisa.</span></div>';
+        atualizarControlesDiretorioArquitetos(paginacao, 0);
         return;
     }
     architectList.innerHTML = arquitetos.map(arquiteto => `
-        <article>
-            <strong>${escapeHtml(arquiteto.nome)}</strong>
-            <span>CAU ${escapeHtml(arquiteto.registroCau)} · CPF ${escapeHtml(formatarCpfArquiteto(arquiteto.cpf))}</span>
-            <span>${escapeHtml(formatarTelefoneArquiteto(arquiteto.telefone))} · ${escapeHtml(arquiteto.email)}</span>
+        <article class="crm-architect-card">
+            <div class="crm-architect-card-avatar">${escapeHtml(obterIniciaisArquiteto(arquiteto.nome))}</div>
+            <div class="crm-architect-card-main">
+                <div class="crm-architect-card-heading">
+                    <strong>${escapeHtml(arquiteto.nome)}</strong>
+                    <span class="crm-architect-cau">CAU ${escapeHtml(arquiteto.registroCau)}</span>
+                </div>
+                <span class="crm-architect-document">CPF ${escapeHtml(formatarCpfArquiteto(arquiteto.cpf))}</span>
+                <div class="crm-architect-card-contacts">
+                    <a href="tel:${escapeHtml(String(arquiteto.telefone || '').replace(/\D/g, ''))}">${renderizarIconeDiretorioArquiteto('phone')}<span>${escapeHtml(formatarTelefoneArquiteto(arquiteto.telefone))}</span></a>
+                    <a href="mailto:${escapeHtml(arquiteto.email)}">${renderizarIconeDiretorioArquiteto('email')}<span>${escapeHtml(arquiteto.email)}</span></a>
+                </div>
+                <span class="crm-architect-origin">${renderizarIconeDiretorioArquiteto('branch')} Origem do cadastro: filial ${escapeHtml(arquiteto.idfilialCadastro || 'não informada')}</span>
+            </div>
         </article>
     `).join('');
+    atualizarControlesDiretorioArquitetos(paginacao, arquitetos.length);
 }
 
 async function carregarArquitetosCrm(forcar = false) {
@@ -4689,7 +4758,14 @@ async function carregarArquitetosCrm(forcar = false) {
     if (architectDirectoryStatus) architectDirectoryStatus.textContent = 'Carregando cadastros...';
     try {
         const busca = String(architectSearch?.value || '').trim();
-        const response = await fetch('/api/arquitetos?busca=' + encodeURIComponent(busca), {
+        architectDirectoryColumns = obterQuantidadeColunasArquitetos();
+        const limite = architectDirectoryColumns * (architectDirectoryExpanded ? 3 : 1);
+        const parametros = new URLSearchParams({
+            busca,
+            pagina: String(architectDirectoryPage),
+            limite: String(limite)
+        });
+        const response = await fetch('/api/arquitetos?' + parametros.toString(), {
             headers: cabecalhosSessao(),
             cache: 'no-store',
             signal: architectRequestController.signal
@@ -4697,13 +4773,13 @@ async function carregarArquitetosCrm(forcar = false) {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Nao foi possivel carregar os arquitetos.');
         const arquitetos = Array.isArray(data.arquitetos) ? data.arquitetos : [];
-        renderizarDiretorioArquitetos(arquitetos);
+        renderizarDiretorioArquitetos(arquitetos, data.paginacao || {});
         arquitetosCrmCarregados = true;
-        if (architectDirectoryStatus) architectDirectoryStatus.textContent = `${arquitetos.length} cadastro${arquitetos.length === 1 ? '' : 's'} encontrado${arquitetos.length === 1 ? '' : 's'}.`;
     } catch (error) {
         if (error?.name === 'AbortError') return;
         if (architectDirectoryStatus) architectDirectoryStatus.textContent = error.message;
         if (architectList) architectList.innerHTML = '';
+        if (architectDirectoryFooter) architectDirectoryFooter.hidden = true;
     }
 }
 
@@ -4736,6 +4812,7 @@ async function salvarCadastroArquiteto(event) {
             architectFormMessage.className = 'is-success';
         }
         arquitetosCrmCarregados = false;
+        architectDirectoryPage = 1;
         await carregarArquitetosCrm(true);
     } catch (error) {
         if (architectFormMessage) {
@@ -5623,8 +5700,35 @@ function inicializarEditorDashboard() {
     [architectPhone, architectPhoneAlt].forEach(input => input?.addEventListener('input', () => { input.value = formatarTelefoneArquiteto(input.value); }));
     if (architectSearch) architectSearch.addEventListener('input', () => {
         clearTimeout(architectSearchTimer);
+        architectDirectoryPage = 1;
         architectSearchTimer = setTimeout(() => carregarArquitetosCrm(true), 280);
     });
+    if (architectExpandButton) architectExpandButton.addEventListener('click', () => {
+        architectDirectoryExpanded = !architectDirectoryExpanded;
+        architectDirectoryPage = 1;
+        carregarArquitetosCrm(true);
+    });
+    if (architectPagination) architectPagination.addEventListener('click', event => {
+        const botao = event.target.closest('[data-architect-page]');
+        if (!botao || botao.disabled) return;
+        architectDirectoryPage = Math.max(1, Math.min(architectDirectoryTotalPages, architectDirectoryPage + Number(botao.dataset.architectPage || 0)));
+        carregarArquitetosCrm(true);
+    });
+    if (window.ResizeObserver && architectManager) {
+        let larguraDiretorioArquitetos = Math.round(architectManager.clientWidth || 0);
+        new ResizeObserver(() => {
+            const novaLargura = Math.round(architectManager.clientWidth || 0);
+            if (!novaLargura || novaLargura === larguraDiretorioArquitetos) return;
+            larguraDiretorioArquitetos = novaLargura;
+            clearTimeout(architectDirectoryResizeTimer);
+            architectDirectoryResizeTimer = setTimeout(() => {
+                const novasColunas = obterQuantidadeColunasArquitetos();
+                if (novasColunas === architectDirectoryColumns) return;
+                architectDirectoryPage = 1;
+                carregarArquitetosCrm(true);
+            }, 180);
+        }).observe(architectManager);
+    }
     if (indentSqlViewerButton) indentSqlViewerButton.addEventListener('click', indentarSqlVisualizador);
     if (copySqlViewerButton) copySqlViewerButton.addEventListener('click', copiarSqlVisualizador);
     if (pasteSqlViewerButton) pasteSqlViewerButton.addEventListener('click', colarSqlVisualizador);

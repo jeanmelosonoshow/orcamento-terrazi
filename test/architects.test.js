@@ -86,3 +86,21 @@ test('menu possui cadastro real e o orcamento pergunta antes de PDF ou WhatsApp'
     assert.match(saveApi, /sincronizarArquitetoOrcamento/);
     assert.match(detailApi, /obterVinculoArquitetoOrcamento/);
 });
+
+test('diretorio fica antes do BI, mostra ate tres linhas e pagina os demais sem filtrar filial', async () => {
+    const html = await readFile(new URL('../public/crm.html', import.meta.url), 'utf8');
+    const crm = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+    const api = await readFile(new URL('../api/arquitetos.js', import.meta.url), 'utf8');
+    const inicioView = html.indexOf('data-crm-view="arquitetos"');
+    const inicioDiretorio = html.indexOf('data-architect-manager', inicioView);
+    const inicioBi = html.indexOf('data-dashboard-host="arquitetos"', inicioView);
+
+    assert.ok(inicioView >= 0 && inicioDiretorio > inicioView && inicioBi > inicioDiretorio);
+    assert.match(html, /data-architect-expand/);
+    assert.match(html, /data-architect-pagination/);
+    assert.match(crm, /architectDirectoryColumns \* \(architectDirectoryExpanded \? 3 : 1\)/);
+    assert.match(crm, /architectDirectoryTotalPages/);
+    assert.match(api, /LIMIT \$3 OFFSET \$4/);
+    assert.match(api, /COUNT\(\*\)::INTEGER AS total/);
+    assert.doesNotMatch(api, /WHERE[\s\S]{0,100}idfilial_cadastro\s*=/i);
+});

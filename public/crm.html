@@ -203,7 +203,6 @@
         </section>
 
         <section class="crm-view crm-bi-view" data-crm-view="arquitetos" hidden>
-            <div data-dashboard-host="arquitetos"></div>
             <section class="crm-module-content crm-architect-manager" aria-label="Cadastro de arquitetos e responsáveis técnicos" data-architect-manager>
                 <header class="crm-architect-manager-header">
                     <div>
@@ -229,8 +228,17 @@
                     <label class="crm-architect-search"><span>Localizar arquiteto</span><input type="search" placeholder="Nome, CPF ou CAU" data-architect-search></label>
                     <span class="crm-architect-directory-status" data-architect-directory-status>Carregando cadastros...</span>
                     <div class="crm-architect-list" data-architect-list></div>
+                    <footer class="crm-architect-directory-footer" data-architect-directory-footer hidden>
+                        <button type="button" class="crm-architect-expand" data-architect-expand>Mostrar mais</button>
+                        <div class="crm-architect-pagination" data-architect-pagination hidden>
+                            <button type="button" data-architect-page="-1" aria-label="Página anterior" title="Página anterior">‹</button>
+                            <span data-architect-page-status></span>
+                            <button type="button" data-architect-page="1" aria-label="Próxima página" title="Próxima página">›</button>
+                        </div>
+                    </footer>
                 </div>
             </section>
+            <div data-dashboard-host="arquitetos"></div>
         </section>
 
         <section class="crm-view crm-bi-view" data-crm-view="reativacao" hidden>

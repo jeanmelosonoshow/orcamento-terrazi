@@ -24,16 +24,32 @@ export default async function handler(req, res) {
     try {
         if (req.method === 'GET') {
             const busca = String(req.query?.busca || '').trim().slice(0, 100);
+            const pagina = Math.max(1, Math.min(100000, Number.parseInt(req.query?.pagina, 10) || 1));
+            const limite = Math.max(1, Math.min(100, Number.parseInt(req.query?.limite, 10) || 100));
+            const offset = (pagina - 1) * limite;
             const termo = `%${busca}%`;
-            const resultado = await db.query(`
-                SELECT *
-                  FROM arquiteto
-                 WHERE ativo = TRUE
-                   AND ($1 = '' OR nome ILIKE $2 OR cpf LIKE $2 OR registro_cau ILIKE $2)
-                 ORDER BY nome
-                 LIMIT 100
-            `, [busca, termo]);
-            return res.status(200).json({ arquitetos: resultado.rows.map(normalizarArquiteto) });
+            const parametrosBusca = [busca, termo];
+            const [resultado, contagem] = await Promise.all([
+                db.query(`
+                    SELECT *
+                      FROM arquiteto
+                     WHERE ativo = TRUE
+                       AND ($1 = '' OR nome ILIKE $2 OR cpf LIKE $2 OR registro_cau ILIKE $2)
+                     ORDER BY nome, id
+                     LIMIT $3 OFFSET $4
+                `, [...parametrosBusca, limite, offset]),
+                db.query(`
+                    SELECT COUNT(*)::INTEGER AS total
+                      FROM arquiteto
+                     WHERE ativo = TRUE
+                       AND ($1 = '' OR nome ILIKE $2 OR cpf LIKE $2 OR registro_cau ILIKE $2)
+                `, parametrosBusca)
+            ]);
+            const total = Number(contagem.rows[0]?.total || 0);
+            return res.status(200).json({
+                arquitetos: resultado.rows.map(normalizarArquiteto),
+                paginacao: { pagina, limite, total, totalPaginas: Math.max(1, Math.ceil(total / limite)) }
+            });
         }
 
         const arquiteto = normalizarArquitetoEntrada(req.body);
