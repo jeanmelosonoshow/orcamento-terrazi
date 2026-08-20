@@ -104,3 +104,18 @@ test('diretorio fica antes do BI, mostra ate tres linhas e pagina os demais sem 
     assert.match(api, /COUNT\(\*\)::INTEGER AS total/);
     assert.doesNotMatch(api, /WHERE[\s\S]{0,100}idfilial_cadastro\s*=/i);
 });
+
+test('menu de arquitetos oferece filtro multiplo global ligado ao BI', async () => {
+    const html = await readFile(new URL('../public/crm.html', import.meta.url), 'utf8');
+    const crm = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+    const api = await readFile(new URL('../api/arquitetos.js', import.meta.url), 'utf8');
+
+    assert.match(html, /data-architect-filter/);
+    assert.match(html, /data-architect-filter-search/);
+    assert.match(crm, /proximoContexto === 'arquitetos'/);
+    assert.match(crm, /arquitetosTodos:/);
+    assert.match(crm, /setArquitetosSelecionados\(arquitetosRascunho\)/);
+    assert.match(api, /somenteOpcoes/);
+    assert.match(api, /SELECT id, nome, cpf, registro_cau/);
+    assert.doesNotMatch(api, /idfilial_cadastro\s*=\s*\$/i);
+});

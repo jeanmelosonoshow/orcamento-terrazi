@@ -121,6 +121,11 @@ const crmVendedorTrigger = document.querySelector('[data-vendedor-trigger]');
 const crmVendedorPanel = document.querySelector('[data-vendedor-panel]');
 const crmVendedorSearch = document.querySelector('[data-vendedor-search]');
 const crmVendedorOptions = document.querySelector('[data-vendedor-options]');
+const crmArchitectFilter = document.querySelector('[data-architect-filter]');
+const crmArchitectTrigger = document.querySelector('[data-architect-trigger]');
+const crmArchitectPanel = document.querySelector('[data-architect-panel]');
+const crmArchitectFilterSearch = document.querySelector('[data-architect-filter-search]');
+const crmArchitectOptions = document.querySelector('[data-architect-options]');
 const applyFiltersButton = document.querySelector('[data-apply-filters]');
 const resetFiltersButton = document.querySelector('[data-reset-filters]');
 const filterStatus = document.querySelector('[data-filter-status]');
@@ -350,8 +355,11 @@ let etapaWidgetAtual = 'sql';
 let modoEdicaoCenario = false;
 let filiaisDisponiveis = [];
 let vendedoresDisponiveis = [];
+let arquitetosDisponiveis = [];
 let filiaisRascunho = [];
 let vendedoresRascunho = [];
+let arquitetosRascunho = [];
+let arquitetosFiltroCarregados = false;
 let configuracaoTabelaAtual = { totalLinhas: false, totalColunas: false, repetirRotulos: false, paginacao: false, registrosPorPagina: 25, limiteExibicao: 0, agrupamentos: [], subtotais: [] };
 let limiteTopAtual = 0;
 let configuracaoFunilAtual = { modo: 'total', etapas: [] };
@@ -403,6 +411,11 @@ function trocarContextoDashboard(viewName) {
     }
 
     if (dashboardWorkspace.parentElement !== host) host.appendChild(dashboardWorkspace);
+    const contextoArquitetos = proximoContexto === 'arquitetos';
+    document.body.classList.toggle('crm-architect-filter-active', contextoArquitetos);
+    if (crmArchitectFilter) crmArchitectFilter.hidden = !contextoArquitetos;
+    if (contextoArquitetos) carregarFiltroArquitetos();
+    else if (crmArchitectPanel) crmArchitectPanel.hidden = true;
     const contextoComRelacionamento = ['clientes', 'funil'].includes(proximoContexto);
     if (contactFilters) contactFilters.hidden = !contextoComRelacionamento;
     if (contactFiltersTitle) {
@@ -687,6 +700,21 @@ function getVendedoresSelecionados() {
 function setVendedoresSelecionados(vendedores) {
     const lista = Array.from(new Set((vendedores || []).map(vendedor => String(vendedor)).filter(Boolean)));
     sessionStorage.setItem('crmVendedoresSelecionados', JSON.stringify(lista));
+}
+
+function getArquitetosSelecionados() {
+    try {
+        const salvos = JSON.parse(sessionStorage.getItem('crmArquitetosSelecionados') || '[]');
+        if (Array.isArray(salvos)) return salvos.map(String).filter(Boolean);
+    } catch (error) {
+        // Ignora uma selecao antiga invalida e restaura todos os arquitetos.
+    }
+    return [];
+}
+
+function setArquitetosSelecionados(arquitetos) {
+    const lista = Array.from(new Set((arquitetos || []).map(arquiteto => String(arquiteto)).filter(Boolean)));
+    sessionStorage.setItem('crmArquitetosSelecionados', JSON.stringify(lista));
 }
 if (crmUserName) crmUserName.textContent = nome;
 if (crmUserMeta) crmUserMeta.textContent = categoria;
@@ -3676,7 +3704,7 @@ function obterSessaoAssinadaVisualizadorSql() {
 function obterNomesParametrosSql(sql) {
     const permitidos = new Set([
         'categoria', 'data_inicial', 'data_final', 'filiais',
-        'vendedores', 'idfuncionario', 'idfilial', 'idvendedor'
+        'vendedores', 'arquitetos', 'idfuncionario', 'idfilial', 'idvendedor'
     ]);
     const pesquisavel = String(sql || '').replace(
         /('(?:''|[^'])*'|"(?:""|[^"])*"|--[^\r\n]*|\/\*[\s\S]*?\*\/)/g,
@@ -3712,6 +3740,7 @@ function renderizarParametrosVisualizadorSql(sql) {
         data_final: filtros.dataFinal,
         filiais: filtros.filiais,
         vendedores: filtros.vendedores,
+        arquitetos: filtros.arquitetos,
         idfuncionario: String(sessao.sub || '').trim(),
         idfilial: String(sessao.idfilial || '').trim(),
         idvendedor: String(sessao.idvendedor || '').trim()
@@ -3840,8 +3869,10 @@ function setEtapaWidget(etapa) {
 function obterFiltrosCenario() {
     const filiaisSelecionadas = categoriaSemFiltrosFilialVendedor ? [] : getFiliaisSelecionadas();
     const vendedoresSelecionados = categoriaSemFiltrosFilialVendedor ? [] : getVendedoresSelecionados();
+    const arquitetosSelecionados = dashboardContextoAtivo === 'arquitetos' ? getArquitetosSelecionados() : [];
     const idsFiliaisDisponiveis = filiaisDisponiveis.map(filial => String(filial.idfilial));
     const idsVendedoresDisponiveis = vendedoresDisponiveis.map(vendedor => String(vendedor.idvendedor));
+    const idsArquitetosDisponiveis = arquitetosDisponiveis.map(arquiteto => String(arquiteto.id));
     return {
         contextoDashboard: dashboardContextoAtivo,
         dataInicial: sessionStorage.getItem('crmDataInicial') || crmDataInicial?.value || '',
@@ -3855,6 +3886,10 @@ function obterFiltrosCenario() {
         vendedoresTodos: categoriaSemFiltrosFilialVendedor || (
             idsVendedoresDisponiveis.length > 0
             && idsVendedoresDisponiveis.every(id => vendedoresSelecionados.includes(id))
+        ),
+        arquitetos: arquitetosSelecionados,
+        arquitetosTodos: dashboardContextoAtivo !== 'arquitetos' || !idsArquitetosDisponiveis.length || (
+            idsArquitetosDisponiveis.every(id => arquitetosSelecionados.includes(id))
         ),
         idfuncionario: idFuncionarioLogado || '',
         idfilial: categoriaCodigo === 'VD' ? '' : (filialId || ''),
@@ -4023,11 +4058,13 @@ function widgetUtilizaFiltrosVisiveis(widget) {
     const usaRelacionamentoFunil = dashboardContextoAtivo === 'funil'
         && consultas.some(consulta => /\/\*\s*(?:operador\s*=\s*(?:AND|OR)\s*\|\s*)?relacionamento\s*\||:(?:status_contato|tipos_contato|data_contato_inicial|data_contato_final)\b/i.test(String(consulta.sql || '')));
     if (usaRelacionamentoFunil) return true;
+    if (dashboardContextoAtivo === 'arquitetos'
+        && consultas.some(consulta => /:(?:arquitetos)\b|filtro\s*=\s*:arquitetos\b/i.test(String(consulta.sql || '')))) return true;
     const parametros = categoriaCodigo === 'VD'
         ? /:(data_inicial|data_final|idvendedor)\b/i
         : (categoriaCodigo === 'CX'
             ? /:(data_inicial|data_final|idfilial)\b/i
-            : /:(data_inicial|data_final|filiais|vendedores)\b/i);
+            : /:(data_inicial|data_final|filiais|vendedores|arquitetos)\b/i);
     return consultas.some(consulta => parametros.test(String(consulta.sql || '')));
 }
 
@@ -4177,13 +4214,18 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
     if (!crmSellerFilter?.hidden && vendedoresDisponiveis.length && !vendedoresRascunho.length) {
         return atualizarInterface('Selecione ao menos um vendedor.', true);
     }
+    if (!crmArchitectFilter?.hidden && arquitetosDisponiveis.length && !arquitetosRascunho.length) {
+        return atualizarInterface('Selecione ao menos um arquiteto.', true);
+    }
 
     sessionStorage.setItem('crmDataInicial', dataInicial);
     sessionStorage.setItem('crmDataFinal', dataFinal);
     setFiliaisSelecionadas(filiaisRascunho);
     setVendedoresSelecionados(vendedoresRascunho);
+    setArquitetosSelecionados(arquitetosRascunho);
     if (crmFilialPanel) crmFilialPanel.hidden = true;
     if (crmVendedorPanel) crmVendedorPanel.hidden = true;
+    if (crmArchitectPanel) crmArchitectPanel.hidden = true;
     definirPaginaOrcamento();
 
     const widgets = obterWidgetsDashboard(contextoExecucao);
@@ -4812,8 +4854,10 @@ async function salvarCadastroArquiteto(event) {
             architectFormMessage.className = 'is-success';
         }
         arquitetosCrmCarregados = false;
+        arquitetosFiltroCarregados = false;
         architectDirectoryPage = 1;
         await carregarArquitetosCrm(true);
+        await carregarFiltroArquitetos(true);
     } catch (error) {
         if (architectFormMessage) {
             architectFormMessage.textContent = error.message;
@@ -5763,7 +5807,8 @@ function limparFiltrosPersistidos() {
         'crmDataFinal',
         'crmFiliaisSelecionadas',
         'crmFilialSelecionada',
-        'crmVendedoresSelecionados'
+        'crmVendedoresSelecionados',
+        'crmArquitetosSelecionados'
     ].forEach(chave => sessionStorage.removeItem(chave));
 }
 
@@ -5802,16 +5847,20 @@ async function restaurarFiltrosPadrao() {
     limparFiltrosPersistidos();
     filiaisRascunho = [];
     vendedoresRascunho = [];
+    arquitetosRascunho = [];
     if (crmFilialSearch) crmFilialSearch.value = '';
     if (crmVendedorSearch) crmVendedorSearch.value = '';
+    if (crmArchitectFilterSearch) crmArchitectFilterSearch.value = '';
     if (crmFilialPanel) crmFilialPanel.hidden = true;
     if (crmVendedorPanel) crmVendedorPanel.hidden = true;
+    if (crmArchitectPanel) crmArchitectPanel.hidden = true;
     restaurarFiltrosContatoPadrao();
     inicializarPeriodo();
 
     try {
         await carregarFiliais();
         await carregarVendedores(true);
+        await carregarFiltroArquitetos(true);
         await aplicarFiltrosDashboard();
     } catch (error) {
         atualizarStatusFiltros('Não foi possível restaurar os filtros.', true);
@@ -5929,6 +5978,83 @@ function renderizarOpcoesVendedores(vendedores, termo = '') {
     crmVendedorOptions.innerHTML = opcaoTodos + opcoes;
     const todosCheckbox = crmVendedorOptions.querySelector('[data-vendedor-all]');
     if (todosCheckbox) todosCheckbox.indeterminate = vendedoresRascunho.length > 0 && !todosSelecionados;
+}
+
+function atualizarResumoArquitetos(arquitetos, selecionados) {
+    if (!crmArchitectTrigger) return;
+    const idsDisponiveis = arquitetos.map(arquiteto => String(arquiteto.id));
+    const selecionadosDisponiveis = arquitetos.filter(arquiteto => selecionados.includes(String(arquiteto.id)));
+    if (idsDisponiveis.length && selecionadosDisponiveis.length === idsDisponiveis.length) {
+        crmArchitectTrigger.textContent = 'Todos os arquitetos';
+    } else if (!selecionadosDisponiveis.length) {
+        crmArchitectTrigger.textContent = 'Selecione os arquitetos';
+    } else if (selecionadosDisponiveis.length === 1) {
+        crmArchitectTrigger.textContent = selecionadosDisponiveis[0].nome;
+    } else {
+        crmArchitectTrigger.textContent = `${selecionadosDisponiveis.length} arquitetos selecionados`;
+    }
+}
+
+function renderizarOpcoesFiltroArquitetos(arquitetos, termo = '') {
+    if (!crmArchitectOptions) return;
+    const termoBusca = String(termo || '').trim().toLowerCase();
+    const filtrados = arquitetos.filter(arquiteto => (
+        `${arquiteto.nome || ''} ${arquiteto.cpf || ''} ${arquiteto.registroCau || ''}`.toLowerCase().includes(termoBusca)
+    ));
+    const idsDisponiveis = arquitetos.map(arquiteto => String(arquiteto.id));
+    const todosSelecionados = idsDisponiveis.length > 0 && idsDisponiveis.every(id => arquitetosRascunho.includes(id));
+    const opcaoTodos = `
+        <label class="crm-multiselect-option is-all">
+            <input type="checkbox"${todosSelecionados ? ' checked' : ''} data-architect-all>
+            <span>Todos</span>
+        </label>
+    `;
+    const opcoes = filtrados.length ? filtrados.map(arquiteto => {
+        const id = String(arquiteto.id);
+        const checked = arquitetosRascunho.includes(id) ? ' checked' : '';
+        const complemento = [arquiteto.registroCau ? `CAU ${arquiteto.registroCau}` : '', formatarCpfArquiteto(arquiteto.cpf)].filter(Boolean).join(' · ');
+        return `
+            <label class="crm-multiselect-option">
+                <input type="checkbox" value="${escapeHtml(id)}"${checked} data-architect-checkbox>
+                <span>${escapeHtml(arquiteto.nome)}${complemento ? `<small>${escapeHtml(complemento)}</small>` : ''}</span>
+            </label>
+        `;
+    }).join('') : '<div class="crm-multiselect-empty">Nenhum arquiteto encontrado.</div>';
+    crmArchitectOptions.innerHTML = opcaoTodos + opcoes;
+    const todosCheckbox = crmArchitectOptions.querySelector('[data-architect-all]');
+    if (todosCheckbox) todosCheckbox.indeterminate = arquitetosRascunho.length > 0 && !todosSelecionados;
+}
+
+async function carregarFiltroArquitetos(selecionarTodos = false) {
+    if (!crmArchitectFilter || !crmArchitectTrigger || !crmArchitectOptions || dashboardContextoAtivo !== 'arquitetos') return;
+    if (arquitetosFiltroCarregados && !selecionarTodos) return;
+    crmArchitectTrigger.disabled = true;
+    crmArchitectTrigger.textContent = 'Carregando arquitetos...';
+    try {
+        const data = await fetchJsonComTimeout('/api/arquitetos?modo=filtro');
+        arquitetosDisponiveis = Array.isArray(data.arquitetos) ? data.arquitetos : [];
+        arquitetosFiltroCarregados = true;
+        if (!arquitetosDisponiveis.length) {
+            arquitetosRascunho = [];
+            crmArchitectTrigger.textContent = 'Nenhum arquiteto encontrado';
+            crmArchitectOptions.innerHTML = '<div class="crm-multiselect-empty">Nenhum arquiteto encontrado.</div>';
+            return;
+        }
+        const idsDisponiveis = arquitetosDisponiveis.map(arquiteto => String(arquiteto.id));
+        const temSelecaoSalva = sessionStorage.getItem('crmArquitetosSelecionados') !== null;
+        arquitetosRascunho = temSelecaoSalva && !selecionarTodos
+            ? getArquitetosSelecionados().filter(id => idsDisponiveis.includes(id))
+            : idsDisponiveis;
+        if (!arquitetosRascunho.length) arquitetosRascunho = idsDisponiveis;
+        if (!temSelecaoSalva || selecionarTodos) setArquitetosSelecionados(arquitetosRascunho);
+        atualizarResumoArquitetos(arquitetosDisponiveis, arquitetosRascunho);
+        renderizarOpcoesFiltroArquitetos(arquitetosDisponiveis);
+        crmArchitectTrigger.disabled = false;
+    } catch (error) {
+        arquitetosDisponiveis = [];
+        arquitetosFiltroCarregados = false;
+        crmArchitectTrigger.textContent = 'Erro ao carregar arquitetos';
+    }
 }
 
 async function carregarVendedores(selecionarTodos = false) {
@@ -6093,11 +6219,13 @@ async function carregarFiliais() {
 document.addEventListener('click', event => {
     const dentroFilial = event.target.closest('[data-filial-multiselect]');
     const dentroVendedor = event.target.closest('[data-vendedor-multiselect]');
+    const dentroArquiteto = event.target.closest('[data-architect-multiselect]');
     const dentroStatusContato = event.target.closest('[data-contact-status-filter]');
     const dentroTipoContato = event.target.closest('[data-contact-type-filter]');
 
     if (!dentroFilial && crmFilialPanel) crmFilialPanel.hidden = true;
     if (!dentroVendedor && crmVendedorPanel) crmVendedorPanel.hidden = true;
+    if (!dentroArquiteto && crmArchitectPanel) crmArchitectPanel.hidden = true;
     if (!dentroStatusContato && contactStatusDetails) contactStatusDetails.open = false;
     if (!dentroTipoContato && contactTypeDetails) contactTypeDetails.open = false;
 });
@@ -6117,6 +6245,7 @@ document.addEventListener('click', event => {
 
 document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
+    if (crmArchitectPanel) crmArchitectPanel.hidden = true;
     [contactStatusDetails, contactTypeDetails].forEach(details => {
         if (details) details.open = false;
     });
@@ -6174,6 +6303,7 @@ function inicializarAplicacao() {
         atualizarResumoFiltrosContato();
         await carregarFiliais();
         await carregarVendedores();
+        await carregarFiltroArquitetos();
         if (applyFiltersButton) applyFiltersButton.addEventListener('click', aplicarFiltrosDashboard);
         if (resetFiltersButton) resetFiltersButton.addEventListener('click', restaurarFiltrosPadrao);
         [crmDataInicial, crmDataFinal].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('')));
@@ -6192,6 +6322,29 @@ function inicializarAplicacao() {
             atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.');
         });
         [contactDateStart, contactDateEnd].forEach(input => input?.addEventListener('change', () => atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.')));
+        if (crmArchitectTrigger) crmArchitectTrigger.addEventListener('click', () => {
+            if (!crmArchitectPanel) return;
+            crmArchitectPanel.hidden = !crmArchitectPanel.hidden;
+            if (!crmArchitectPanel.hidden) crmArchitectFilterSearch?.focus();
+        });
+        if (crmArchitectFilterSearch) crmArchitectFilterSearch.addEventListener('input', () => {
+            renderizarOpcoesFiltroArquitetos(arquitetosDisponiveis, crmArchitectFilterSearch.value);
+        });
+        if (crmArchitectOptions) crmArchitectOptions.addEventListener('change', event => {
+            const idsDisponiveis = arquitetosDisponiveis.map(arquiteto => String(arquiteto.id));
+            if (event.target.matches('[data-architect-all]')) {
+                arquitetosRascunho = event.target.checked ? idsDisponiveis : [];
+            } else if (event.target.matches('[data-architect-checkbox]')) {
+                const selecionados = new Set(arquitetosRascunho);
+                const id = String(event.target.value);
+                if (event.target.checked) selecionados.add(id);
+                else selecionados.delete(id);
+                arquitetosRascunho = Array.from(selecionados);
+            } else return;
+            atualizarResumoArquitetos(arquitetosDisponiveis, arquitetosRascunho);
+            renderizarOpcoesFiltroArquitetos(arquitetosDisponiveis, crmArchitectFilterSearch?.value || '');
+            atualizarStatusFiltros('Filtros alterados. Clique em Aplicar.');
+        });
         filtrosDashboardProntos = true;
         solicitarAtualizacaoCenarioMenu(dashboardContextoAtivo);
     });

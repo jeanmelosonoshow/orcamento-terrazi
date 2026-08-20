@@ -211,12 +211,14 @@ body {
 }
 
 .crm-period-fields > div,
-.crm-seller-filter {
+.crm-seller-filter,
+.crm-architect-filter {
     display: grid;
     gap: 7px;
 }
 
-.crm-seller-filter[hidden] {
+.crm-seller-filter[hidden],
+.crm-architect-filter[hidden] {
     display: none;
 }
 
@@ -290,6 +292,14 @@ body {
 
 .crm-multiselect-option > span {
     color: #17324d !important;
+}
+
+.crm-multiselect-option > span small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: .67rem;
+    font-weight: 600;
 }
 
 .crm-multiselect-option:hover {
@@ -2672,6 +2682,15 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     .crm-filter-grid {
         grid-column: span 2;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    body.crm-architect-filter-active .crm-branch-control {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    body.crm-architect-filter-active .crm-filter-grid {
+        grid-column: span 3;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 

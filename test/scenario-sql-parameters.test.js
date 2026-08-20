@@ -82,6 +82,24 @@ test('aplica filtros opcionais somente para selecoes parciais', () => {
     assert.deepEqual(preparado.valores, ['01', '02']);
 });
 
+test('filtro de arquitetos aceita todos ou uma selecao parcial', () => {
+    const sql = `SELECT AO.* FROM arquiteto_orcamento AO WHERE 1 = 1
+/* operador = AND | campo: AO.ARQUITETO_ID | filtro = :arquitetos */`;
+    const todos = prepararSqlCenario(sql, 'postgres', {
+        arquitetos: ['1', '2'],
+        arquitetosTodos: true
+    });
+    const parcial = prepararSqlCenario(sql, 'postgres', {
+        arquitetos: ['2', '7'],
+        arquitetosTodos: false
+    });
+
+    assert.doesNotMatch(todos.sql, /ARQUITETO_ID\s+IN/i);
+    assert.deepEqual(todos.valores, []);
+    assert.match(parcial.sql, /AND AO\.ARQUITETO_ID IN \(\$1,\$2\)/i);
+    assert.deepEqual(parcial.valores, ['2', '7']);
+});
+
 test('aceita operador logico AND ou OR na diretiva opcional', () => {
     const preparado = prepararSqlCenario(
         `SELECT * FROM VENDAS V WHERE V.ATIVO = 'S'

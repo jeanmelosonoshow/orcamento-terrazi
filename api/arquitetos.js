@@ -24,6 +24,21 @@ export default async function handler(req, res) {
     try {
         if (req.method === 'GET') {
             const busca = String(req.query?.busca || '').trim().slice(0, 100);
+            const somenteOpcoes = String(req.query?.modo || '').trim().toLowerCase() === 'filtro';
+            if (somenteOpcoes) {
+                const resultado = await db.query(`
+                    SELECT id, nome, cpf, registro_cau
+                      FROM arquiteto
+                     WHERE ativo = TRUE
+                     ORDER BY nome, id
+                `);
+                return res.status(200).json({ arquitetos: resultado.rows.map(linha => ({
+                    id: Number(linha.id),
+                    nome: linha.nome,
+                    cpf: linha.cpf,
+                    registroCau: linha.registro_cau
+                })) });
+            }
             const pagina = Math.max(1, Math.min(100000, Number.parseInt(req.query?.pagina, 10) || 1));
             const limite = Math.max(1, Math.min(100, Number.parseInt(req.query?.limite, 10) || 100));
             const offset = (pagina - 1) * limite;

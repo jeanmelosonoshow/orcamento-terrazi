@@ -21,7 +21,7 @@
     </script>
     <title>Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.0/css/all.min.css">
-    <link rel="stylesheet" href="crm-style.css?v=crm-20260819-1">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20260820-5">
     <link rel="stylesheet" href="assets/budget-negotiation.css?v=20260820-2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 </head>
@@ -100,6 +100,16 @@
                             <div class="crm-multiselect-panel" data-vendedor-panel hidden>
                                 <input id="crmVendedorSearch" type="search" placeholder="Pesquisar vendedor..." data-vendedor-search>
                                 <div class="crm-multiselect-options" data-vendedor-options></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="crm-architect-filter" data-architect-filter hidden>
+                        <label for="crmArquitetoSearch">Arquitetos</label>
+                        <div class="crm-multiselect" data-architect-multiselect>
+                            <button id="crmArquitetoSelect" class="crm-multiselect-trigger" type="button" data-architect-trigger disabled>Carregando arquitetos...</button>
+                            <div class="crm-multiselect-panel" data-architect-panel hidden>
+                                <input id="crmArquitetoSearch" type="search" placeholder="Pesquisar nome, CPF ou CAU..." data-architect-filter-search>
+                                <div class="crm-multiselect-options" data-architect-options></div>
                             </div>
                         </div>
                     </div>
@@ -317,7 +327,7 @@
                     </div>
                     <label class="crm-sql-field">
                         Console SQL
-                        <textarea data-widget-sql spellcheck="false" placeholder="Use SELECT, WITH ou EXECUTE BLOCK retornavel e parametros como :categoria, :data_inicial, :data_final, :filiais, :vendedores, :idfuncionario, :idfilial e :idvendedor."></textarea>
+                        <textarea data-widget-sql spellcheck="false" placeholder="Use SELECT, WITH ou EXECUTE BLOCK retornavel e parametros como :categoria, :data_inicial, :data_final, :filiais, :vendedores, :arquitetos, :idfuncionario, :idfilial e :idvendedor."></textarea>
                     </label>
                     <div data-secondary-queries></div>
                     <section class="crm-query-combination" data-query-combination hidden>
@@ -336,6 +346,7 @@
                         <span>:data_final</span>
                         <span>:filiais</span>
                         <span>:vendedores</span>
+                        <span>:arquitetos</span>
                         <span>:idfuncionario</span>
                         <span>:idfilial</span>
                         <span>:idvendedor</span>
@@ -617,6 +628,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=crm-20260727-3"></script>
     <script src="assets/budget-negotiation.js?v=20260820-2"></script>
-    <script src="crm.js?v=crm-20260820-4"></script>
+    <script src="crm.js?v=crm-20260820-5"></script>
 </body>
 </html>
