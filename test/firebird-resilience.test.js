@@ -79,7 +79,8 @@ test('cards ocultos para a categoria ficam fora da fila de execucao', async () =
     assert.deepEqual(indices, [0]);
     assert.deepEqual(obterIndices(widgets, widget => widget.visivel, widget => widget.usaFiltros, false), [0, 2]);
     assert.match(source, /if \(!widgetVisivelParaCategoria\(widget\)\) \{\s*throw new Error\('Card oculto para esta categoria\.'\);/);
-    assert.match(source, /widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, !atualizacaoMenu/);
+    assert.match(source, /atualizacaoCompleta = atualizacaoMenu \|\| opcoes\?\.origem === 'acao'/);
+    assert.match(source, /widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, !atualizacaoCompleta/);
 });
 
 test('indicadores rapidos entram na fila antes de tabelas e relatorios geograficos', async () => {

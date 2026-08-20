@@ -128,6 +128,8 @@ test('menu de arquitetos oferece filtro multiplo global ligado ao BI', async () 
     assert.match(crm, /proximoContexto === 'arquitetos'/);
     assert.match(crm, /arquitetosTodos:/);
     assert.match(crm, /setArquitetosSelecionados\(arquitetosRascunho\)/);
+    assert.match(crm, /preparacaoFiltrosContexto\.finally/);
+    assert.match(crm, /carregarFiltroArquitetos\(\)[\s\S]*solicitarAtualizacaoCenarioMenu\(proximoContexto\)/);
     assert.match(api, /somenteOpcoes/);
     assert.match(api, /SELECT id, nome, cpf, registro_cau/);
     assert.doesNotMatch(api, /idfilial_cadastro\s*=\s*\$/i);

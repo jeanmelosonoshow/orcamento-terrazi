@@ -415,8 +415,10 @@ function trocarContextoDashboard(viewName) {
     const contextoArquitetos = proximoContexto === 'arquitetos';
     document.body.classList.toggle('crm-architect-filter-active', contextoArquitetos);
     if (crmArchitectFilter) crmArchitectFilter.hidden = !contextoArquitetos;
-    if (contextoArquitetos) carregarFiltroArquitetos();
-    else if (crmArchitectPanel) crmArchitectPanel.hidden = true;
+    const preparacaoFiltrosContexto = contextoArquitetos
+        ? carregarFiltroArquitetos()
+        : Promise.resolve();
+    if (!contextoArquitetos && crmArchitectPanel) crmArchitectPanel.hidden = true;
     const contextoComRelacionamento = ['clientes', 'funil'].includes(proximoContexto);
     if (contactFilters) contactFilters.hidden = !contextoComRelacionamento;
     if (contactFiltersTitle) {
@@ -431,16 +433,19 @@ function trocarContextoDashboard(viewName) {
     renderizarDashboard();
     contextoViewRenderizado = proximoContexto;
     if (entrouNoContexto) {
-        const widgetsMenu = obterWidgetsDashboard(proximoContexto);
-        const totalCards = widgetsMenu.filter(widgetVisivelParaCategoria).length;
-        const quantidade = obterIndicesWidgetsExecutaveis(
-            widgetsMenu, widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, false
-        ).length;
-        atualizarStatusFiltros(quantidade
-            ? 'Aguardando atualizacao: ' + totalCards + ' card' + (totalCards === 1 ? '' : 's')
-                + ', ' + quantidade + ' consulta' + (quantidade === 1 ? '' : 's') + '...'
-            : totalCards + ' card' + (totalCards === 1 ? '' : 's') + '; nenhuma consulta necessaria.');
-        solicitarAtualizacaoCenarioMenu(proximoContexto);
+        preparacaoFiltrosContexto.finally(() => {
+            if (dashboardContextoAtivo !== proximoContexto) return;
+            const widgetsMenu = obterWidgetsDashboard(proximoContexto);
+            const totalCards = widgetsMenu.filter(widgetVisivelParaCategoria).length;
+            const quantidade = obterIndicesWidgetsExecutaveis(
+                widgetsMenu, widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, false
+            ).length;
+            atualizarStatusFiltros(quantidade
+                ? 'Aguardando atualizacao: ' + totalCards + ' card' + (totalCards === 1 ? '' : 's')
+                    + ', ' + quantidade + ' consulta' + (quantidade === 1 ? '' : 's') + '...'
+                : totalCards + ' card' + (totalCards === 1 ? '' : 's') + '; nenhuma consulta necessaria.');
+            solicitarAtualizacaoCenarioMenu(proximoContexto);
+        });
     }
 }
 
@@ -4231,8 +4236,9 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
 
     const widgets = obterWidgetsDashboard(contextoExecucao);
     const atualizacaoMenu = opcoes?.origem === 'menu';
+    const atualizacaoCompleta = atualizacaoMenu || opcoes?.origem === 'acao';
     const indices = ordenarIndicesExecucaoWidgets(widgets, obterIndicesWidgetsExecutaveis(
-        widgets, widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, !atualizacaoMenu
+        widgets, widgetVisivelParaCategoria, widgetUtilizaFiltrosVisiveis, !atualizacaoCompleta
     ));
     if (!indices.length) return atualizarInterface('Filtros aplicados.');
 
@@ -4968,11 +4974,9 @@ async function salvarFormularioContato(event) {
             : null;
         atualizarContatoNoPainel(data.contato);
         fecharFormularioContato();
+        await atualizarMenuAposAcao('Contato salvo. Atualizando o menu...');
         if (contextoDetalhe && !widgetDetailModal?.hidden) {
             await abrirRelatorioDetalhe(contextoDetalhe.widget, contextoDetalhe.selecao);
-            atualizarStatusFiltros('Contato salvo e relatório atualizado.');
-        } else {
-            atualizarStatusFiltros('Contato salvo.');
         }
     } catch (error) {
         if (contactFormMessage) contactFormMessage.textContent = error.message;
@@ -4980,30 +4984,24 @@ async function salvarFormularioContato(event) {
     }
 }
 
-async function atualizarWidgetAposNegociacao(widgetId) {
-    const widgets = obterWidgetsDashboard();
-    const indice = widgets.findIndex(widget => String(widget.id) === String(widgetId));
-    if (indice < 0) return;
+async function atualizarMenuAposAcao(mensagem = 'Registro salvo. Atualizando o menu...') {
+    const contexto = dashboardContextoAtivo;
+    if (!crmBiViews.has(contexto)) return;
     try {
-        atualizarStatusFiltros('Atualizando relatorio da negociacao...');
-        widgets[indice] = await executarWidgetComFiltros(widgets[indice], obterFiltrosCenario());
-        salvarWidgetsDashboard(widgets);
-        renderizarDashboard();
-        atualizarStatusFiltros('Negociacao salva e relatorio atualizado.');
+        atualizarStatusFiltros(mensagem);
+        await aplicarFiltrosDashboard({ contexto, origem: 'acao' });
     } catch (error) {
-        atualizarStatusFiltros('Negociacao salva, mas o relatorio nao pode ser atualizado.', true);
+        atualizarStatusFiltros('Registro salvo, mas o menu nao pode ser atualizado.', true);
     }
 }
 
 function abrirGestaoNegociacao(elemento, origem = 'dashboard') {
     const orcamentoId = Number.parseInt(elemento?.dataset?.budgetId, 10);
     if (!orcamentoId || !window.BudgetNegotiation) return;
-    const card = elemento.closest('[data-widget-id]');
-    const widgetId = card?.dataset.widgetId || contextoRelatorioDetalheAtual?.widget?.id || widgetDetalheModalAtual?.id || '';
     window.BudgetNegotiation.open({
         orcamentoId,
         onSaved: async () => {
-            if (widgetId) await atualizarWidgetAposNegociacao(widgetId);
+            await atualizarMenuAposAcao('Alteracao salva. Atualizando todos os cards do menu...');
             if (origem === 'detalhe' && contextoRelatorioDetalheAtual && !widgetDetailModal?.hidden) {
                 await abrirRelatorioDetalhe(contextoRelatorioDetalheAtual.widget, contextoRelatorioDetalheAtual.selecao);
             }
