@@ -43,7 +43,7 @@ test('opcoes dos filtros usam texto escuro com alto contraste e cache renovado',
     assert.match(style, /\.crm-multiselect-option > span\s*\{[\s\S]*?color:\s*#17324d !important;/);
     assert.match(html, /font-awesome\/7\.3\.0\/css\/all\.min\.css/);
     assert.match(html, /crm-style\.css\?v=crm-20260820-5/);
-    assert.match(html, /crm\.js\?v=crm-20260820-6/);
+    assert.match(html, /crm\.js\?v=crm-20260821-1/);
 });
 test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => {
     const inicio = script.indexOf('async function restaurarFiltrosPadrao()');
@@ -53,6 +53,12 @@ test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => 
     assert.match(rotina, /await carregarFiliais\(\)/);
     assert.match(rotina, /await carregarVendedores\(true\)/);
     assert.match(rotina, /await aplicarFiltrosDashboard\(\)/);
+});
+
+test('visualizador SQL mostra as filiais permitidas da sessao assinada', () => {
+    assert.match(script, /'data_final', 'filiais_permitidas', 'filiais'/);
+    assert.match(script, /filiais_permitidas: Array\.isArray\(sessao\.filiaisPermitidas\)/);
+    assert.match(script, /obterSessaoAssinadaVisualizadorSql/);
 });
 
 

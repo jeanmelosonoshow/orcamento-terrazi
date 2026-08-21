@@ -3709,7 +3709,7 @@ function obterSessaoAssinadaVisualizadorSql() {
 
 function obterNomesParametrosSql(sql) {
     const permitidos = new Set([
-        'categoria', 'data_inicial', 'data_final', 'filiais',
+        'categoria', 'data_inicial', 'data_final', 'filiais_permitidas', 'filiais',
         'vendedores', 'arquitetos', 'idfuncionario', 'idfilial', 'idvendedor'
     ]);
     const pesquisavel = String(sql || '').replace(
@@ -3744,6 +3744,7 @@ function renderizarParametrosVisualizadorSql(sql) {
         categoria: String(sessao.categoria || '').trim().toUpperCase(),
         data_inicial: filtros.dataInicial,
         data_final: filtros.dataFinal,
+        filiais_permitidas: Array.isArray(sessao.filiaisPermitidas) ? sessao.filiaisPermitidas : [],
         filiais: filtros.filiais,
         vendedores: filtros.vendedores,
         arquitetos: filtros.arquitetos,
