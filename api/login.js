@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createSessionToken } from '../lib/session-token.js';
 import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
+import { resolverFiliaisPermitidasOrcamento } from '../lib/budget-access-scope.js';
 const require = createRequire(import.meta.url);
 const crypto = require('crypto');
 
@@ -92,6 +93,11 @@ export default async function handler(req, res) {
         }
 
         const idFuncionario = result[0].ID_FUNCIONARIO;
+        const filiaisPermitidas = await resolverFiliaisPermitidasOrcamento({
+            categoria: result[0].CATEGORIA,
+            sub: idFuncionario,
+            idfilial: result[0].ID_FILIAL
+        });
         const podeEditarCenarios = permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
         const podeAlterarArquitetoOrcamento = permissoes.architectBudgetEditorFuncionarioIds.includes(String(idFuncionario));
         const sessionUser = {
@@ -99,6 +105,7 @@ export default async function handler(req, res) {
             categoria: result[0].CATEGORIA,
             idfilial: result[0].ID_FILIAL,
             idvendedor: result[0].ID_VENDEDOR,
+            filiaisPermitidas,
             architectBudgetEditor: podeAlterarArquitetoOrcamento
         };
         return res.status(200).json({

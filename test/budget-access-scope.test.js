@@ -27,8 +27,16 @@ test('supervisor recebe somente as filiais vinculadas no Firebird', async () => 
     assert.deepEqual(filiais, ['01', '02']);
     assert.deepEqual(chamada.valores, [142]);
     assert.match(chamada.sql, /F\.IDSUPERVISOR = \?/i);
-    assert.equal(chamada.opcoes.cacheTtlMs, 300000);
+    assert.equal(chamada.opcoes.cacheTtlMs, 0);
     assert.equal(chamada.opcoes.cacheStaleMs, 0);
+});
+
+test('supervisor reutiliza as filiais assinadas durante toda a sessao', async () => {
+    const filiais = await resolverFiliaisPermitidasOrcamento(
+        { categoria: 'SU', sub: '142', filiaisPermitidas: [' 01 ', '02', '01'] },
+        { executarFirebird: async () => { throw new Error('nao deveria consultar'); } }
+    );
+    assert.deepEqual(filiais, ['01', '02']);
 });
 
 test('demais categorias resolvem o escopo sem consultar o Firebird', async () => {
