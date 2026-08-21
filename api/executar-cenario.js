@@ -11,6 +11,10 @@ import {
     validarModoExecucaoCenario
 } from '../lib/scenario-execution-access.js';
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
+import {
+    resolverFiliaisPermitidasOrcamento,
+    sqlUsaFiliaisPermitidas
+} from '../lib/budget-access-scope.js';
 import { resolverFiltroRelacionamento, sqlPossuiFiltroRelacionamento } from '../lib/contact-relationship-filter.js';
 import {
     aplicarFiltroClientesProximos,
@@ -181,6 +185,9 @@ export default async function handler(req, res) {
         }
 
         const contextoConsulta = montarContextoConsulta(filtros, session);
+        if (sqlUsaFiliaisPermitidas(sql)) {
+            contextoConsulta.filiaisPermitidas = await resolverFiliaisPermitidasOrcamento(session);
+        }
         let metadataRelacionamento = null;
         if (sqlPossuiFiltroRelacionamento(sql)) {
             const inicioRelacionamento = Date.now();

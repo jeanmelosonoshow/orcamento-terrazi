@@ -2,10 +2,13 @@ import { db } from '@vercel/postgres';
 import { requireRequestSession } from '../lib/session-token.js';
 import {
     normalizarContatoOrcamento,
-    normalizarStatus,
     numeroSessao,
     textoLimitado
 } from '../lib/budget-negotiation.js';
+import {
+    normalizarCategoriaAcessoOrcamento,
+    resolverFiliaisPermitidasOrcamento
+} from '../lib/budget-access-scope.js';
 
 const LIMITE_ORCAMENTOS = 5000;
 
@@ -28,6 +31,8 @@ export default async function handler(req, res) {
     if (!orcamentos.length) return res.status(200).json({ contatos: [] });
 
     try {
+        const categoria = normalizarCategoriaAcessoOrcamento(session.categoria);
+        const filiaisPermitidas = await resolverFiliaisPermitidasOrcamento(session);
         const resultado = await db.query(`
             SELECT c.orcamento_id, c.status_contato, c.tipo_contato, c.observacao,
                    c.data_primeiro_contato, c.data_ultimo_contato, c.data_finalizacao,
@@ -36,7 +41,13 @@ export default async function handler(req, res) {
               JOIN orcamentos o ON o.id = c.orcamento_id
              WHERE c.orcamento_id = ANY($1::integer[])
                AND (
-                   $2::text IN ('DI', 'SU')
+                   $2::text = 'DI'
+                   OR ($2::text = 'SU' AND EXISTS (
+                       SELECT 1
+                         FROM vendedor_orcamento v
+                        WHERE v.id_orcamento = o.id
+                          AND v.id_filial = ANY($5::text[])
+                   ))
                    OR ($2::text = 'VD' AND EXISTS (
                        SELECT 1
                          FROM vendedor_orcamento v
@@ -52,9 +63,10 @@ export default async function handler(req, res) {
                )
         `, [
             orcamentos,
-            normalizarStatus(session.categoria),
+            categoria,
             numeroSessao(session.sub),
-            textoLimitado(session.idfilial, 2)
+            textoLimitado(session.idfilial, 2),
+            filiaisPermitidas
         ]);
         return res.status(200).json({
             contatos: resultado.rows.map(normalizarContatoOrcamento).filter(Boolean)

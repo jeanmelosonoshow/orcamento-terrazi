@@ -1,6 +1,10 @@
 import { db } from '@vercel/postgres';
 import { requireRequestSession } from '../lib/session-token.js';
-import { expirarOrcamentos, normalizarStatus } from '../lib/budget-negotiation.js';
+import { expirarOrcamentos } from '../lib/budget-negotiation.js';
+import {
+  normalizarCategoriaAcessoOrcamento,
+  resolverFiliaisPermitidasOrcamento
+} from '../lib/budget-access-scope.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -12,13 +16,14 @@ export default async function handler(req, res) {
   const client = await db.connect();
   
   // Captura dados do usuário logado e filtros de busca
-  const categoria = normalizarStatus(session.categoria);
+  const categoria = normalizarCategoriaAcessoOrcamento(session.categoria);
   const idfuncionario = session.sub;
   const idfilial = session.idfilial;
   const { buscaVendedor, buscaFilial } = req.query;
 
   try {
     await expirarOrcamentos(client);
+    const filiaisPermitidas = await resolverFiliaisPermitidasOrcamento(session);
     let query = `
       SELECT 
         o.id,
@@ -49,7 +54,11 @@ export default async function handler(req, res) {
     const params = [];
 
     // --- REGRAS DE HIERARQUIA ---
-    if (categoria === 'VD') {
+    if (categoria === 'SU') {
+      params.push(filiaisPermitidas);
+      query += ` AND v.id_filial = ANY($${params.length}::text[])`;
+    }
+    else if (categoria === 'VD') {
       params.push(idfuncionario);
       query += ` AND v.id_funcionario = $${params.length}`;
     } 

@@ -42,6 +42,20 @@ test('prepara parametros Firebird por categoria e listas', () => {
     assert.deepEqual(preparado.valores, ['GR', '01', '02', '632']);
 });
 
+test('injeta no PostgreSQL o escopo de filiais calculado pelo servidor', () => {
+    const preparado = prepararSqlCenario(
+        'SELECT * FROM vendedor_orcamento V WHERE V.id_filial IN (:filiais_permitidas)',
+        'postgres',
+        { filiaisPermitidas: ['01', '02'] }
+    );
+
+    assert.equal(
+        preparado.sql,
+        'SELECT * FROM vendedor_orcamento V WHERE V.id_filial IN ($1,$2)'
+    );
+    assert.deepEqual(preparado.valores, ['01', '02']);
+});
+
 test('remove filtros opcionais quando Todos esta selecionado', () => {
     const preparado = prepararSqlCenario(
         `SELECT * FROM VENDAS V

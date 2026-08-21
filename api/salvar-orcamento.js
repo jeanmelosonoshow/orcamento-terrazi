@@ -68,7 +68,8 @@ export default async function handler(req, res) {
       parseFloat(orcamento.total_value) || 0
     ];
 
-    let orcamentoId = parseInt(orcamento.orcamento_id, 10) || null;
+    const orcamentoExistenteId = parseInt(orcamento.orcamento_id, 10) || null;
+    let orcamentoId = orcamentoExistenteId;
 
     if (orcamentoId) {
       await client.query(`
@@ -84,8 +85,6 @@ export default async function handler(req, res) {
           valor_total = $9
         WHERE id = $10
       `, [...dadosCabecalho, orcamentoId]);
-
-      await client.query('DELETE FROM vendedor_orcamento WHERE id_orcamento = $1', [orcamentoId]);
     } else {
       const resultOrcamento = await client.query(`
         INSERT INTO orcamentos (
@@ -109,21 +108,47 @@ export default async function handler(req, res) {
     // 2. Vínculo na tabela VENDEDOR_ORCAMENTO
     const v = orcamento.dados_vendedor; 
     if (v) {
-      await client.query(`
-        INSERT INTO VENDEDOR_ORCAMENTO (
-          id_orcamento, 
-          id_funcionario, 
-          nome_funcionario, 
-          categoria, 
-          id_filial
-        ) VALUES ($1, $2, $3, $4, $5)
-      `, [
-        orcamentoId,
-        parseInt(session.sub, 10) || null,
-        limitarTexto(v.nome_funcionario || '', 255),
-        limitarTexto(session.categoria || '', 5),
-        limitarTexto(session.idfilial || '', 2)
-      ]);
+      const idFuncionarioSessao = parseInt(session.sub, 10) || null;
+      const idVendedorSessao = parseInt(session.idvendedor, 10) || null;
+      let vinculoEncontrado = false;
+
+      if (orcamentoExistenteId) {
+        const vinculo = await client.query(`
+          UPDATE vendedor_orcamento
+             SET id_vendedor = COALESCE(id_vendedor, $3)
+           WHERE id_orcamento = $1
+             AND id_funcionario = $2
+         RETURNING id_vendedor_orcamento
+        `, [orcamentoId, idFuncionarioSessao, idVendedorSessao]);
+        vinculoEncontrado = vinculo.rowCount > 0;
+        if (!vinculoEncontrado) {
+          const existente = await client.query(
+            'SELECT 1 FROM vendedor_orcamento WHERE id_orcamento = $1 LIMIT 1',
+            [orcamentoId]
+          );
+          vinculoEncontrado = existente.rowCount > 0;
+        }
+      }
+
+      if (!vinculoEncontrado) {
+        await client.query(`
+          INSERT INTO vendedor_orcamento (
+            id_orcamento,
+            id_funcionario,
+            nome_funcionario,
+            categoria,
+            id_filial,
+            id_vendedor
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+        `, [
+          orcamentoId,
+          idFuncionarioSessao,
+          limitarTexto(v.nome_funcionario || '', 255),
+          limitarTexto(session.categoria || '', 5),
+          limitarTexto(session.idfilial || '', 2),
+          idVendedorSessao
+        ]);
+      }
     }
 
     // 3. Sincroniza os itens vinculados

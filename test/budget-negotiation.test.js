@@ -38,6 +38,8 @@ test('migracao cria historico, contato, indices e sincronizacao bidirecional', a
     assert.match(sql, /uq_orcamento_saida/i);
     assert.match(sql, /idx_orcamento_saida_referencia/i);
     assert.match(sql, /numerosaida > 0/i);
+    assert.match(sql, /ALTER TABLE vendedor_orcamento\s+ADD COLUMN IF NOT EXISTS id_vendedor BIGINT/i);
+    assert.match(sql, /idx_vendedor_orcamento_vendedor/i);
 });
 
 test('catalogo JSON possui motivos ativos, ordenados e identificadores estaveis', () => {
@@ -126,6 +128,10 @@ test('APIs exigem sessao, verificam acesso e usam as funcoes do banco', async ()
     assert.match(contato, /ON CONFLICT \(orcamento_id\) DO UPDATE/i);
     assert.match(listar, /expirarOrcamentos/);
     assert.match(salvar, /definirContextoAuditoria/);
+    assert.match(salvar, /id_vendedor/i);
+    assert.match(salvar, /session\.idvendedor/i);
+    assert.doesNotMatch(salvar, /DELETE FROM vendedor_orcamento/i);
+    assert.match(salvar, /SET id_vendedor = COALESCE\(id_vendedor, \$3\)/i);
     assert.match(status, /definirContextoAuditoria/);
 });
 
@@ -137,6 +143,8 @@ test('Funil combina os contatos dos orcamentos em lote e respeita o acesso da se
     assert.match(api, /requireRequestSession/);
     assert.match(api, /LIMITE_ORCAMENTOS = 5000/);
     assert.match(api, /ANY\(\$1::integer\[\]\)/i);
+    assert.match(api, /resolverFiliaisPermitidasOrcamento/);
+    assert.match(api, /v\.id_filial = ANY\(\$5::text\[\]\)/i);
     assert.match(api, /v\.id_funcionario = \$3/i);
     assert.match(api, /v\.id_filial = \$4/i);
     assert.match(script, /fetch\(ehFunil \? '\/api\/controle-contatos-orcamento'/);
