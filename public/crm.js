@@ -3712,6 +3712,17 @@ function obterSessaoAssinadaVisualizadorSql() {
     }
 }
 
+function obterNomesFiltrosDiretivasSql(sql) {
+    const encontrados = [];
+    const diretiva = /\/\*\s*(?:operador\s*=\s*(?:AND|OR)\s*\|\s*)?campo\s*:\s*[a-z_][a-z0-9_$]*(?:\s*\.\s*[a-z_][a-z0-9_$]*)*\s*\|\s*filtro\s*=\s*:(filiais|vendedores|arquitetos)\s*\*\//gi;
+    let resultado = null;
+    while ((resultado = diretiva.exec(String(sql || ''))) !== null) {
+        const nome = resultado[1].toLowerCase();
+        if (!encontrados.includes(nome)) encontrados.push(nome);
+    }
+    return encontrados;
+}
+
 function obterNomesParametrosSql(sql) {
     const permitidos = new Set([
         'categoria', 'data_inicial', 'data_final', 'filiais_permitidas', 'filiais',
@@ -3728,6 +3739,9 @@ function obterNomesParametrosSql(sql) {
         const nome = resultado[1].toLowerCase();
         if (permitidos.has(nome) && !encontrados.includes(nome)) encontrados.push(nome);
     }
+    obterNomesFiltrosDiretivasSql(sql).forEach(nome => {
+        if (!encontrados.includes(nome)) encontrados.push(nome);
+    });
     return encontrados;
 }
 
@@ -4063,6 +4077,7 @@ async function executarDrillDownWidget(contexto, campo) {
 function widgetUtilizaFiltrosVisiveis(widget) {
     const consultas = Array.isArray(widget?.consultas) && widget.consultas.length ? widget.consultas : [{ sql: widget?.sql || '' }];
     if (dashboardContextoAtivo === 'clientes') return consultas.some(consulta => String(consulta.sql || '').trim());
+    if (consultas.some(consulta => obterNomesFiltrosDiretivasSql(consulta.sql).length > 0)) return true;
     const usaRelacionamentoFunil = dashboardContextoAtivo === 'funil'
         && consultas.some(consulta => /\/\*\s*(?:operador\s*=\s*(?:AND|OR)\s*\|\s*)?relacionamento\s*\||:(?:status_contato|tipos_contato|data_contato_inicial|data_contato_final)\b/i.test(String(consulta.sql || '')));
     if (usaRelacionamentoFunil) return true;

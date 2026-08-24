@@ -40,6 +40,13 @@ test('selecoes individuais ativam as diretivas e somente o clique em Todos as ne
     assert.doesNotMatch(script, /todosCheckbox\.indeterminate = (?:filiais|vendedores)Rascunho/);
 });
 
+test('diretivas de filial e vendedor sao reconhecidas no visualizador e em todos os menus', () => {
+    assert.match(script, /function obterNomesFiltrosDiretivasSql/);
+    assert.match(script, /filtro\\s\*=\\s\*:\(filiais\|vendedores\|arquitetos\)/);
+    assert.match(script, /obterNomesFiltrosDiretivasSql\(sql\)\.forEach/);
+    assert.match(script, /consultas\.some\(consulta => obterNomesFiltrosDiretivasSql\(consulta\.sql\)\.length > 0\)/);
+});
+
 test('status final e simples e identifica nominalmente cards com erro', () => {
     assert.match(script, /atualizarStatusFiltros\('Atualizacao concluida\.'\)/);
     assert.match(script, /Atualizacao concluida com erro em:/);
@@ -51,7 +58,7 @@ test('opcoes dos filtros usam texto escuro com alto contraste e cache renovado',
     assert.match(style, /\.crm-multiselect-option > span\s*\{[\s\S]*?color:\s*#17324d !important;/);
     assert.match(html, /font-awesome\/7\.3\.0\/css\/all\.min\.css/);
     assert.match(html, /crm-style\.css\?v=crm-20260820-5/);
-    assert.match(html, /crm\.js\?v=crm-20260824-2/);
+    assert.match(html, /crm\.js\?v=crm-20260824-3/);
 });
 test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => {
     const inicio = script.indexOf('async function restaurarFiltrosPadrao()');
