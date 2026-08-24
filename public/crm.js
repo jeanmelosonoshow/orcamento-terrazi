@@ -837,7 +837,8 @@ function renderizarIconeWidget(iconeId, classe = '') {
 function obterEstiloAparenciaWidget(widget = {}) {
     const aparencia = obterAparenciaWidget(widget);
     const paleta = obterPaletaWidget(widget);
-    let fundo = 'rgba(255,255,255,0.94)';
+    const temaEscuro = document.documentElement.dataset.colorMode === 'dark';
+    let fundo = temaEscuro ? '#1B2621' : 'rgba(255,255,255,0.94)';
     let baseContraste = '#FFFFFF';
     if (aparencia.fundoTipo === 'solid') {
         fundo = aparencia.fundoCor;
@@ -846,9 +847,9 @@ function obterEstiloAparenciaWidget(widget = {}) {
         fundo = `linear-gradient(135deg, ${aparencia.gradienteInicio}, ${aparencia.gradienteFim})`;
         baseContraste = aparencia.gradienteInicio;
     }
-    const texto = aparencia.fundoTipo === 'light' ? '#17304A' : obterContrasteCor(baseContraste);
-    const textoSuave = texto === '#FFFFFF' ? 'rgba(255,255,255,0.72)' : 'rgba(23,48,74,0.66)';
-    const linha = texto === '#FFFFFF' ? 'rgba(255,255,255,0.20)' : 'rgba(23,48,74,0.13)';
+    const texto = aparencia.fundoTipo === 'light' ? (temaEscuro ? '#EDF4EF' : '#17304A') : obterContrasteCor(baseContraste);
+    const textoSuave = texto === '#FFFFFF' || (temaEscuro && aparencia.fundoTipo === 'light') ? 'rgba(237,244,239,0.70)' : 'rgba(23,48,74,0.66)';
+    const linha = texto === '#FFFFFF' || (temaEscuro && aparencia.fundoTipo === 'light') ? 'rgba(237,244,239,0.18)' : 'rgba(23,48,74,0.13)';
     const iconeContraste = obterContrasteCor(aparencia.iconeCor);
     const alinhamentoFlex = { left: 'start', center: 'center', right: 'end' }[aparencia.alinhamento] || 'start';
     return `--widget-background:${fundo};--widget-color:${texto};--widget-muted:${textoSuave};--widget-line:${linha};--widget-accent:${paleta[0]};--widget-icon-color:${aparencia.iconeCor};--widget-icon-foreground:${iconeContraste};--widget-align:${aparencia.alinhamento};--widget-justify:${alinhamentoFlex};`;
@@ -1479,6 +1480,7 @@ function montarOpcaoECharts(widget, dados, container) {
     const paleta = obterPaletaWidget(widget);
     const aparencia = obterAparenciaWidget(widget);
     const baseContraste = aparencia.fundoTipo === 'solid' ? aparencia.fundoCor : aparencia.gradienteInicio;
+    const temaEscuro = document.documentElement.dataset.colorMode === 'dark';
     const textoGrafico = aparencia.fundoTipo === 'light' ? cores.texto : obterContrasteCor(baseContraste);
     const primeiraSerie = dados.series[0];
     const largura = container?.clientWidth || 480;
@@ -1496,8 +1498,8 @@ function montarOpcaoECharts(widget, dados, container) {
         tooltip: {
             trigger: 'axis',
             confine: true,
-            backgroundColor: 'rgba(255,255,255,0.96)',
-            borderColor: 'rgba(23,48,74,0.16)',
+            backgroundColor: temaEscuro ? 'rgba(27,38,33,0.98)' : 'rgba(255,255,255,0.96)',
+            borderColor: temaEscuro ? 'rgba(237,244,239,0.18)' : 'rgba(23,48,74,0.16)',
             textStyle: { color: cores.texto },
             valueFormatter: formatarTooltip
         },
@@ -6400,6 +6402,11 @@ function inicializarAplicacao() {
 }
 
 inicializarAplicacao();
+
+window.addEventListener('appcolormodechange', () => {
+    if (instanciaPreviaAparencia) atualizarPreviaAparencia();
+    renderizarDashboard();
+});
 
 const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
 if (sidebarToggle) {

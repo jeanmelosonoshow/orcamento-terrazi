@@ -41,6 +41,7 @@
         Object.entries(theme.colors || {}).forEach(([key, value]) => {
             (cssVars[key] || []).forEach(cssVar => document.documentElement.style.setProperty(cssVar, value));
         });
+        window.AppColorMode?.refresh?.();
 
         const configuredLogo = window.ORCAMENTO_CONFIG?.logoUrl || theme.logoUrl;
         if (configuredLogo) {

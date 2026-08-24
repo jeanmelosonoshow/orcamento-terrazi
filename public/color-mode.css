@@ -1,0 +1,303 @@
+:root {
+    --app-bg: var(--fundo, #f4efe6);
+    --app-surface: var(--painel, #fffefa);
+    --app-surface-raised: #ffffff;
+    --app-surface-soft: #f8f6f1;
+    --app-border: var(--linha, #e4d8c8);
+    --app-text: var(--texto, #2b2925);
+    --app-muted: var(--muted, #7d746a);
+    --app-shadow: 0 14px 34px rgba(50, 38, 27, 0.08);
+}
+
+html[data-color-mode="dark"] {
+    color-scheme: dark;
+    --fundo: #0d1411;
+    --painel: #151e1a;
+    --cinza-suave: #101815;
+    --linha: #314039;
+    --borda: #314039;
+    --texto: #edf4ef;
+    --text: #edf4ef;
+    --muted: #a8b6ad;
+    --app-bg: #0d1411;
+    --app-surface: #151e1a;
+    --app-surface-raised: #1b2621;
+    --app-surface-soft: #111a16;
+    --app-border: #314039;
+    --app-text: #edf4ef;
+    --app-muted: #a8b6ad;
+    --app-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+}
+
+body {
+    transition: background-color 180ms ease, color 180ms ease;
+}
+
+.app-color-mode-toggle {
+    position: fixed;
+    z-index: 12000;
+    right: 18px;
+    bottom: 76px;
+    width: 42px;
+    height: 42px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--app-border) 76%, var(--app-text));
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--app-surface-raised) 94%, transparent);
+    color: var(--app-text);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.app-color-mode-toggle:hover {
+    transform: translateY(-2px);
+    border-color: var(--dourado, #c5a47e);
+}
+
+.app-color-mode-toggle:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--dourado, #c5a47e) 48%, transparent);
+    outline-offset: 3px;
+}
+
+.app-color-mode-toggle svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+body.is-embedded-budget .app-color-mode-toggle { display: none; }
+
+html[data-color-mode="dark"] body {
+    background: var(--app-bg);
+    color: var(--app-text);
+}
+
+html[data-color-mode="dark"] input,
+html[data-color-mode="dark"] select,
+html[data-color-mode="dark"] textarea {
+    background-color: var(--app-surface-raised);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+html[data-color-mode="dark"] input::placeholder,
+html[data-color-mode="dark"] textarea::placeholder { color: #84948a; }
+
+html[data-color-mode="dark"] input:focus,
+html[data-color-mode="dark"] select:focus,
+html[data-color-mode="dark"] textarea:focus {
+    border-color: color-mix(in srgb, var(--dourado, #c5a47e) 72%, #fff);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--dourado, #c5a47e) 17%, transparent);
+}
+
+/* CRM e area de BI */
+html[data-color-mode="dark"] .crm-main,
+html[data-color-mode="dark"] .crm-dashboard-workspace { background-color: var(--app-bg); }
+
+html[data-color-mode="dark"] .crm-branch-control,
+html[data-color-mode="dark"] .crm-user-box,
+html[data-color-mode="dark"] .crm-kpi,
+html[data-color-mode="dark"] .crm-panel,
+html[data-color-mode="dark"] .crm-module,
+html[data-color-mode="dark"] .crm-dashboard-editor,
+html[data-color-mode="dark"] .crm-module-content,
+html[data-color-mode="dark"] .crm-operational-section,
+html[data-color-mode="dark"] .crm-architect-directory,
+html[data-color-mode="dark"] .crm-modal-card,
+html[data-color-mode="dark"] .crm-widget-detail-content {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-text);
+    box-shadow: var(--app-shadow);
+}
+
+html[data-color-mode="dark"] .crm-page-title,
+html[data-color-mode="dark"] .crm-user-box span,
+html[data-color-mode="dark"] .crm-header h1,
+html[data-color-mode="dark"] .crm-panel h2,
+html[data-color-mode="dark"] .crm-kpi strong,
+html[data-color-mode="dark"] .crm-module strong,
+html[data-color-mode="dark"] .crm-architect-manager h2,
+html[data-color-mode="dark"] .crm-modal-head h2,
+html[data-color-mode="dark"] .crm-widget-detail-content h3 { color: var(--app-text); }
+
+html[data-color-mode="dark"] .crm-branch-control input,
+html[data-color-mode="dark"] .crm-seller-filter input,
+html[data-color-mode="dark"] .crm-multiselect-trigger,
+html[data-color-mode="dark"] .crm-filial-readonly,
+html[data-color-mode="dark"] .crm-multiselect-panel,
+html[data-color-mode="dark"] .crm-reset-filters,
+html[data-color-mode="dark"] .crm-icon-button,
+html[data-color-mode="dark"] .crm-secondary-button,
+html[data-color-mode="dark"] .crm-query-source-head button,
+html[data-color-mode="dark"] .crm-calculated-fields-head button,
+html[data-color-mode="dark"] .crm-table-filter-popover,
+html[data-color-mode="dark"] .crm-table-filter-control > button,
+html[data-color-mode="dark"] .crm-table-filter-actions button,
+html[data-color-mode="dark"] .crm-sql-viewer-editor,
+html[data-color-mode="dark"] .crm-query-table-wrap,
+html[data-color-mode="dark"] .crm-appearance-panel,
+html[data-color-mode="dark"] .crm-calculation-config,
+html[data-color-mode="dark"] .crm-table-config,
+html[data-color-mode="dark"] .crm-detail-config {
+    background: var(--app-surface-raised);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+html[data-color-mode="dark"] .crm-multiselect-option,
+html[data-color-mode="dark"] .crm-multiselect-option > span { color: var(--app-text) !important; }
+html[data-color-mode="dark"] .crm-multiselect-option:hover { background: rgba(197, 164, 126, 0.13); }
+html[data-color-mode="dark"] .crm-multiselect-option.is-all { background: rgba(255, 255, 255, 0.025); }
+
+html[data-color-mode="dark"] .crm-dashboard-canvas {
+    background-color: #101815;
+    background-image:
+        linear-gradient(rgba(127, 151, 137, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(127, 151, 137, 0.08) 1px, transparent 1px);
+}
+
+html[data-color-mode="dark"] .crm-dashboard-widget {
+    border-color: color-mix(in srgb, var(--widget-accent, var(--dourado)) 48%, var(--app-border));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+html[data-color-mode="dark"] .crm-dashboard-widget[style*="--widget-background:#fff"],
+html[data-color-mode="dark"] .crm-dashboard-widget[style*="--widget-background:#ffffff"] {
+    --widget-background: var(--app-surface-raised) !important;
+    --widget-color: var(--app-text) !important;
+    --widget-muted: var(--app-muted) !important;
+    --widget-line: var(--app-border) !important;
+}
+
+html[data-color-mode="dark"] .crm-widget-detail-table,
+html[data-color-mode="dark"] .crm-query-table,
+html[data-color-mode="dark"] .crm-dashboard-table { color: var(--app-text); }
+
+html[data-color-mode="dark"] .crm-widget-detail-table th,
+html[data-color-mode="dark"] .crm-query-table th,
+html[data-color-mode="dark"] .crm-dashboard-table th,
+html[data-color-mode="dark"] .crm-table-filter-values label:first-child {
+    background: #202d27;
+    color: #dfeae3;
+    border-color: var(--app-border);
+}
+
+html[data-color-mode="dark"] .crm-widget-detail-table td,
+html[data-color-mode="dark"] .crm-query-table td,
+html[data-color-mode="dark"] .crm-dashboard-table td,
+html[data-color-mode="dark"] .crm-table-filter-values label {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+html[data-color-mode="dark"] .crm-table-filter-head strong,
+html[data-color-mode="dark"] .crm-table-filter-control.is-active > button { color: #d7e7dc; }
+html[data-color-mode="dark"] .crm-table-filter-control.is-active > button { background: rgba(197, 164, 126, 0.16); }
+
+html[data-color-mode="dark"] .crm-modal-backdrop { background: rgba(2, 7, 5, 0.76); }
+html[data-color-mode="dark"] .crm-contact-filters,
+html[data-color-mode="dark"] .crm-contact-customer,
+html[data-color-mode="dark"] .crm-query-help,
+html[data-color-mode="dark"] .crm-query-result,
+html[data-color-mode="dark"] .crm-sql-viewer-parameters,
+html[data-color-mode="dark"] .crm-widget-detail-context,
+html[data-color-mode="dark"] .crm-empty-operational {
+    background: var(--app-surface-soft);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+html[data-color-mode="dark"] .crm-budget-frame-wrap,
+html[data-color-mode="dark"] .crm-budget-frame { background: var(--app-bg); border-color: var(--app-border); }
+
+/* Gerador de orcamentos */
+html[data-color-mode="dark"] header,
+html[data-color-mode="dark"] .results-section,
+html[data-color-mode="dark"] .quote-sidebar,
+html[data-color-mode="dark"] .quote-footer,
+html[data-color-mode="dark"] .product-card,
+html[data-color-mode="dark"] .item-quote-edit,
+html[data-color-mode="dark"] .pdf-action-card,
+html[data-color-mode="dark"] .architect-picker-results {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+html[data-color-mode="dark"] .product-card h4,
+html[data-color-mode="dark"] .product-card .price,
+html[data-color-mode="dark"] .pdf-action-card h2,
+html[data-color-mode="dark"] .customer-match-details dd,
+html[data-color-mode="dark"] .architect-picker-search,
+html[data-color-mode="dark"] .architect-picker-option strong { color: var(--app-text); }
+
+html[data-color-mode="dark"] .item-controls-grid input,
+html[data-color-mode="dark"] .architect-picker-search input { background: var(--app-surface-raised); color: var(--app-text); border-color: var(--app-border); }
+html[data-color-mode="dark"] .architect-picker-option { border-color: var(--app-border); }
+html[data-color-mode="dark"] .architect-picker-option:has(input:checked) { background: rgba(197, 164, 126, 0.13); }
+html[data-color-mode="dark"] .pdf-action-close,
+html[data-color-mode="dark"] .pdf-action-secondary,
+html[data-color-mode="dark"] .btn-history { background: var(--app-surface-raised) !important; color: var(--app-text) !important; }
+
+/* Historico de orcamentos */
+html[data-color-mode="dark"] .lista-header,
+html[data-color-mode="dark"] .orcamento-card,
+html[data-color-mode="dark"] .status-filter-menu,
+html[data-color-mode="dark"] .status-filter-toggle,
+html[data-color-mode="dark"] .pagination-btn {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+html[data-color-mode="dark"] .premium-title,
+html[data-color-mode="dark"] .total-valor-bold,
+html[data-color-mode="dark"] .select-wrapper label,
+html[data-color-mode="dark"] .status-filter-arrow { color: var(--app-text); }
+html[data-color-mode="dark"] .card-footer { border-color: var(--app-border); }
+html[data-color-mode="dark"] .total-label,
+html[data-color-mode="dark"] .validade-row,
+html[data-color-mode="dark"] .pagination-summary { color: var(--app-muted); }
+html[data-color-mode="dark"] .status-filter-option:hover,
+html[data-color-mode="dark"] .status-filter-option.is-selected { background: rgba(197, 164, 126, 0.14); color: var(--app-text); }
+html[data-color-mode="dark"] .card-footer .btn-imprimir,
+html[data-color-mode="dark"] .btn-imprimir { background: var(--app-surface-raised); color: var(--app-text); border-color: #839d8d !important; }
+html[data-color-mode="dark"] .card-footer .btn-negociacao { background: #3b2d13; color: #ffd27a; border-color: #876922; }
+
+/* Login */
+html[data-color-mode="dark"] .login-page::after {
+    background: linear-gradient(90deg, rgba(5, 13, 22, 0.91), rgba(6, 18, 29, 0.78)), linear-gradient(180deg, rgba(4, 11, 18, 0.28), rgba(4, 11, 18, 0.7));
+}
+html[data-color-mode="dark"] .login-shell { background: rgba(8, 18, 25, 0.65); border-color: rgba(191, 214, 201, 0.2); }
+html[data-color-mode="dark"] .brand-panel { background: linear-gradient(135deg, rgba(15, 31, 40, 0.9), rgba(10, 24, 29, 0.7)); color: var(--app-text); }
+html[data-color-mode="dark"] .login-container { background: rgba(15, 27, 34, 0.93); border-color: rgba(191, 214, 201, 0.16); }
+html[data-color-mode="dark"] .brand-copy h1,
+html[data-color-mode="dark"] .brand-metric strong,
+html[data-color-mode="dark"] .login-container h2 { color: #f0f6f2; }
+html[data-color-mode="dark"] .brand-copy p,
+html[data-color-mode="dark"] .brand-metric span,
+html[data-color-mode="dark"] .login-container > p,
+html[data-color-mode="dark"] .footer-text,
+html[data-color-mode="dark"] label { color: #b8c7cd; }
+html[data-color-mode="dark"] .brand-metric { background: rgba(17, 37, 43, 0.7); border-color: rgba(191, 214, 201, 0.16); }
+html[data-color-mode="dark"] .login-card-eyebrow { background: rgba(93, 151, 218, 0.15); color: #9fc7f3; }
+html[data-color-mode="dark"] .login-container input { background: #17272e; color: #f0f6f2; border-color: #3c5057; }
+html[data-color-mode="dark"] .footer-text { border-color: #34474d; }
+
+@media (max-width: 640px) {
+    .app-color-mode-toggle { right: 12px; bottom: 68px; width: 40px; height: 40px; }
+}
+
+@media print {
+    .app-color-mode-toggle { display: none !important; }
+}
