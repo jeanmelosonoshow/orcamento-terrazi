@@ -28,8 +28,16 @@ test('recarregamento remove selecoes anteriores e aplica os filtros padrao', () 
 test('informa ao servidor quando Todos esta selecionado nos filtros visiveis', () => {
     assert.match(script, /filiaisTodos: categoriaSemFiltrosFilialVendedor/);
     assert.match(script, /vendedoresTodos: categoriaSemFiltrosFilialVendedor/);
-    assert.match(script, /idsFiliaisDisponiveis\.every/);
-    assert.match(script, /idsVendedoresDisponiveis\.every/);
+    assert.match(script, /filiaisTodosRascunho/);
+    assert.match(script, /vendedoresTodosRascunho/);
+});
+
+test('selecoes individuais ativam as diretivas e somente o clique em Todos as neutraliza', () => {
+    assert.match(script, /event\.target\.matches\('\[data-filial-checkbox\]'\)[\s\S]*?filiaisTodosRascunho = false;/);
+    assert.match(script, /event\.target\.matches\('\[data-vendedor-checkbox\]'\)[\s\S]*?vendedoresTodosRascunho = false;/);
+    assert.match(script, /event\.target\.matches\('\[data-filial-all\]'\)[\s\S]*?filiaisTodosRascunho = event\.target\.checked;/);
+    assert.match(script, /event\.target\.matches\('\[data-vendedor-all\]'\)[\s\S]*?vendedoresTodosRascunho = event\.target\.checked;/);
+    assert.doesNotMatch(script, /todosCheckbox\.indeterminate = (?:filiais|vendedores)Rascunho/);
 });
 
 test('status final e simples e identifica nominalmente cards com erro', () => {
@@ -43,7 +51,7 @@ test('opcoes dos filtros usam texto escuro com alto contraste e cache renovado',
     assert.match(style, /\.crm-multiselect-option > span\s*\{[\s\S]*?color:\s*#17324d !important;/);
     assert.match(html, /font-awesome\/7\.3\.0\/css\/all\.min\.css/);
     assert.match(html, /crm-style\.css\?v=crm-20260820-5/);
-    assert.match(html, /crm\.js\?v=crm-20260824-1/);
+    assert.match(html, /crm\.js\?v=crm-20260824-2/);
 });
 test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => {
     const inicio = script.indexOf('async function restaurarFiltrosPadrao()');
