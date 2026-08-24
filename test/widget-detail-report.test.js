@@ -30,6 +30,13 @@ test('tabela detalhe permite escolher e ordenar colunas Firebird e contato', asy
     assert.match(javascript, /Use apelidos diferentes nas colunas exibidas/);
 });
 
+test('consulta detalhe valida sem linhas exibe estado vazio sem acusar colunas ausentes', async () => {
+    const javascript = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8');
+
+    assert.match(javascript, /if \(!registrosBrutos\.length\) return \{ colunas, registros: \[\] \};/);
+    assert.match(javascript, /widgetDetailStatus\.textContent = 'Sem resultado';/);
+});
+
 test('colunas do detalhe aceitam COALESCE e alias entre aspas duplas', async () => {
     const [html, javascript] = await Promise.all([
         readFile(new URL('../public/crm.html', import.meta.url), 'utf8'),

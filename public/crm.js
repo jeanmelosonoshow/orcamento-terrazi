@@ -2929,6 +2929,7 @@ function fecharRelatorioDetalhe() {
 async function prepararDadosRelatorioDetalhe(detalhe, data, filtros) {
     let colunas = Array.isArray(data.colunas) ? data.colunas : [];
     const registrosBrutos = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
+    if (!registrosBrutos.length) return { colunas, registros: [] };
     const enriquecido = await enriquecerRegistrosContato(registrosBrutos, colunas, filtros.contextoDashboard);
     colunas = enriquecido.colunas;
     let registros = aplicarFiltrosContatoRegistros(enriquecido.registros, filtros);
@@ -3014,7 +3015,7 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
                         + data.proximidade.raioKm + ' km'
                         + (semLocalizacao ? '; ' + semLocalizacao + ' sem localizacao.' : '.');
                 } else {
-                    widgetDetailStatus.textContent = 'Nenhum registro encontrado.';
+                    widgetDetailStatus.textContent = 'Sem resultado';
                 }
             }
             return;
