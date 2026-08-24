@@ -32,6 +32,63 @@ Depois de alterar essa lista, o usuario precisa sair e entrar novamente. A permi
 - Usuario autorizado pode trocar o arquiteto ao atualizar um orcamento reaberto.
 - Um orcamento sem arquiteto pode ser salvo normalmente.
 
+## Filtro de arquitetos no BI
+
+O filtro visivel **Arquitetos** pertence ao menu **Arquitetos & RT**. Para que
+um card ou relatorio desse menu responda a selecao, coloque a diretiva abaixo em
+um ponto do `WHERE` onde uma condicao `AND` seja valida:
+
+```sql
+/* operador = AND | campo: AO.ARQUITETO_ID | filtro = :arquitetos */
+```
+
+Troque `AO.ARQUITETO_ID` pelo alias e campo usados na sua consulta. Exemplo:
+
+```sql
+SELECT
+    AO.ORCAMENTO_ID,
+    AO.ARQUITETO_ID,
+    A.NOME,
+    O.VALOR_TOTAL
+FROM ARQUITETO_ORCAMENTO AO
+JOIN ARQUITETO A
+  ON A.ID = AO.ARQUITETO_ID
+JOIN ORCAMENTOS O
+  ON O.ID = AO.ORCAMENTO_ID
+WHERE AO.ATIVO = TRUE
+
+/* operador = AND | campo: AO.ARQUITETO_ID | filtro = :arquitetos */
+```
+
+Quando um ou mais arquitetos forem selecionados e o usuario clicar em
+**Aplicar**, o servidor transforma a diretiva em uma condicao parametrizada
+equivalente a:
+
+```sql
+AND AO.ARQUITETO_ID IN (:arquitetos)
+```
+
+Quando **Todos os arquitetos** estiver selecionado, a diretiva e neutralizada e
+nao restringe o resultado. O operador padrao e `AND`, portanto esta forma curta
+tambem e valida:
+
+```sql
+/* campo: AO.ARQUITETO_ID | filtro = :arquitetos */
+```
+
+Use `OR` apenas quando a estrutura logica da consulta exigir:
+
+```sql
+AND (
+    O.STATUS = 'PENDENTE'
+    /* operador = OR | campo: AO.ARQUITETO_ID | filtro = :arquitetos */
+)
+```
+
+A diretiva funciona em consultas PostgreSQL e Firebird, desde que o campo
+informado exista na fonte daquela consulta. O visualizador SQL mostra
+`:arquitetos` e os IDs aplicados para facilitar a conferencia.
+
 ## Consultas para BI
 
 ```sql

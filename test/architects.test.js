@@ -134,3 +134,13 @@ test('menu de arquitetos oferece filtro multiplo global ligado ao BI', async () 
     assert.match(api, /SELECT id, nome, cpf, registro_cau/);
     assert.doesNotMatch(api, /idfilial_cadastro\s*=\s*\$/i);
 });
+
+test('manual documenta a diretiva do filtro de arquitetos', async () => {
+    const manual = await readFile(new URL('../database/arquitetos-uso.md', import.meta.url), 'utf8');
+
+    assert.match(manual, /filtro = :arquitetos/);
+    assert.match(manual, /campo: AO\.ARQUITETO_ID/);
+    assert.match(manual, /Todos os arquitetos/);
+    assert.match(manual, /operador = OR/);
+    assert.match(manual, /PostgreSQL e Firebird/);
+});
