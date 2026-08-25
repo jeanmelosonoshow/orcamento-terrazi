@@ -182,6 +182,68 @@ html[data-color-mode="dark"] .crm-widget-detail-table,
 html[data-color-mode="dark"] .crm-query-table,
 html[data-color-mode="dark"] .crm-dashboard-table { color: var(--app-text); }
 
+html[data-color-mode="dark"] .crm-chart-table-real {
+    background: #17211c;
+    border-color: #3a4a42;
+    color: #edf4ef;
+    scrollbar-color: #65766c #111a16;
+}
+
+html[data-color-mode="dark"] .crm-chart-table-real table {
+    background: #17211c;
+    color: #edf4ef;
+}
+
+html[data-color-mode="dark"] .crm-chart-table-real thead th {
+    background: #24322b;
+    color: #f3f8f5;
+    border-bottom-color: #4a5b52;
+    box-shadow: inset 0 -1px 0 #4a5b52;
+}
+
+html[data-color-mode="dark"] .crm-chart-table-real tbody td {
+    background: #17211c;
+    color: #dce7e0;
+    border-bottom-color: #334139;
+}
+
+html[data-color-mode="dark"] .crm-chart-table-real tbody tr:nth-child(even) td {
+    background: #1b2721;
+}
+
+html[data-color-mode="dark"] .crm-chart-table-real tbody tr:hover td {
+    background: #26362e;
+    color: #ffffff;
+}
+
+html[data-color-mode="dark"] .crm-chart-table-real .crm-table-filter-control > button {
+    background: #1b2822;
+    color: #b8c9bf;
+}
+
+html[data-color-mode="dark"] .crm-chart-table-real .crm-table-filter-control > button:hover,
+html[data-color-mode="dark"] .crm-chart-table-real .crm-table-filter-control.is-active > button {
+    background: #35483e;
+    color: #ffffff;
+}
+
+html[data-color-mode="dark"] .crm-widget-detail-content .crm-table-pagination {
+    background: #17211c;
+    border-color: #3a4a42;
+    color: #b8c7be;
+}
+
+html[data-color-mode="dark"] .crm-widget-detail-content .crm-table-pagination button {
+    background: #24322b;
+    border-color: #4a5b52;
+    color: #f3f8f5;
+}
+
+html[data-color-mode="dark"] .crm-widget-detail-content .crm-table-pagination button:not(:disabled):hover {
+    background: #31443a;
+    border-color: #789083;
+}
+
 html[data-color-mode="dark"] .crm-widget-detail-table th,
 html[data-color-mode="dark"] .crm-query-table th,
 html[data-color-mode="dark"] .crm-dashboard-table th,

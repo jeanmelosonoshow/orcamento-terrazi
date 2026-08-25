@@ -1560,7 +1560,17 @@ function montarOpcaoECharts(widget, dados, container) {
     if (widget.tipo === 'pie' || widget.tipo === 'donut') {
         return {
             ...base,
-            legend: { show: !compacto, type: 'scroll', orient: largura > 560 ? 'vertical' : 'horizontal', right: largura > 560 ? 0 : 'auto' },
+            legend: {
+                show: !compacto,
+                type: 'scroll',
+                orient: largura > 560 ? 'vertical' : 'horizontal',
+                right: largura > 560 ? 0 : 'auto',
+                textStyle: {
+                    color: textoGrafico,
+                    textBorderWidth: 0,
+                    textShadowBlur: 0
+                }
+            },
             tooltip: { ...base.tooltip, trigger: 'item' },
             series: [{
                 type: 'pie',
@@ -1568,7 +1578,17 @@ function montarOpcaoECharts(widget, dados, container) {
                 center: largura > 560 ? ['42%', '52%'] : ['50%', '54%'],
                 avoidLabelOverlap: true,
                 data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] })),
-                label: { show: !compacto, formatter: '{b}\n{d}%', overflow: 'truncate' },
+                label: {
+                    show: !compacto,
+                    formatter: '{b}\n{d}%',
+                    overflow: 'truncate',
+                    color: textoGrafico,
+                    textBorderWidth: 0,
+                    textShadowBlur: 0
+                },
+                labelLine: {
+                    lineStyle: { color: temaEscuro ? '#789083' : 'rgba(23,48,74,0.48)' }
+                },
                 emphasis: { scale: true, scaleSize: 8 }
             }]
         };

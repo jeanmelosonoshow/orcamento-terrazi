@@ -42,9 +42,13 @@ test('tema escuro cobre as superficies principais sem alterar fundos customizado
     assert.match(css, /html\[data-color-mode="dark"\]/);
     assert.match(css, /\.crm-dashboard-widget/);
     assert.match(css, /\.crm-modal-card/);
+    assert.match(css, /\.crm-chart-table-real tbody tr:nth-child\(even\)/);
+    assert.match(css, /\.crm-widget-detail-content \.crm-table-pagination/);
     assert.match(css, /\.product-card/);
     assert.match(css, /\.orcamento-card/);
     assert.match(css, /\.login-container/);
     assert.match(crm, /aparencia\.fundoTipo === 'light' \? \(temaEscuro/);
     assert.match(crm, /backgroundColor: temaEscuro/);
+    assert.match(crm, /textBorderWidth: 0/);
+    assert.match(crm, /textShadowBlur: 0/);
 });
