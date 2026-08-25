@@ -44,6 +44,10 @@ test('tema escuro cobre as superficies principais sem alterar fundos customizado
     assert.match(css, /\.crm-modal-card/);
     assert.match(css, /\.crm-chart-table-real tbody tr:nth-child\(even\)/);
     assert.match(css, /\.crm-widget-detail-content \.crm-table-pagination/);
+    assert.match(css, /\.crm-architect-form \{/);
+    assert.match(css, /\.crm-architect-card \{/);
+    assert.match(css, /\.crm-architect-card-contacts a \{/);
+    assert.match(css, /\.crm-architect-cau \{/);
     assert.match(css, /\.product-card/);
     assert.match(css, /\.orcamento-card/);
     assert.match(css, /\.login-container/);

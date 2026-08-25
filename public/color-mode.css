@@ -27,6 +27,11 @@ html[data-color-mode="dark"] {
     --app-text: #edf4ef;
     --app-muted: #a8b6ad;
     --app-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+    --app-field: #101a16;
+    --app-field-hover: #14211b;
+    --app-text-strong: #f4f8f5;
+    --app-text-soft: #c4d1c9;
+    --app-accent-soft: #283a31;
 }
 
 body {
@@ -281,6 +286,123 @@ html[data-color-mode="dark"] .crm-empty-operational {
 
 html[data-color-mode="dark"] .crm-budget-frame-wrap,
 html[data-color-mode="dark"] .crm-budget-frame { background: var(--app-bg); border-color: var(--app-border); }
+
+/* Diretorio e cadastro de arquitetos */
+html[data-color-mode="dark"] .crm-architect-manager {
+    background: #121c17;
+    border-color: #304038;
+    color: var(--app-text);
+}
+
+html[data-color-mode="dark"] .crm-architect-manager-header {
+    border-color: var(--app-border);
+}
+
+html[data-color-mode="dark"] .crm-architect-manager h2,
+html[data-color-mode="dark"] .crm-architect-card-heading strong {
+    color: var(--app-text-strong);
+}
+
+html[data-color-mode="dark"] .crm-architect-form {
+    background: #1a2620;
+    border-color: #3a4b42;
+    border-left-color: var(--dourado, #c5a47e);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+html[data-color-mode="dark"] .crm-architect-form label,
+html[data-color-mode="dark"] .crm-architect-search {
+    color: #c8d6cd;
+}
+
+html[data-color-mode="dark"] .crm-architect-form input,
+html[data-color-mode="dark"] .crm-architect-search input {
+    background: var(--app-field);
+    border-color: #405249;
+    color: var(--app-text-strong);
+}
+
+html[data-color-mode="dark"] .crm-architect-form input:hover,
+html[data-color-mode="dark"] .crm-architect-search input:hover {
+    background: var(--app-field-hover);
+    border-color: #566c60;
+}
+
+html[data-color-mode="dark"] .crm-architect-form input:focus,
+html[data-color-mode="dark"] .crm-architect-search input:focus {
+    background: #15221c;
+    border-color: color-mix(in srgb, var(--dourado, #c5a47e) 72%, #ffffff);
+}
+
+html[data-color-mode="dark"] .crm-architect-form-actions button:not(.crm-primary-command),
+html[data-color-mode="dark"] .crm-architect-expand,
+html[data-color-mode="dark"] .crm-architect-pagination button {
+    background: #223029;
+    border-color: #465a4f;
+    color: #edf4ef;
+}
+
+html[data-color-mode="dark"] .crm-architect-form-actions button:not(.crm-primary-command):hover,
+html[data-color-mode="dark"] .crm-architect-expand:hover,
+html[data-color-mode="dark"] .crm-architect-pagination button:not(:disabled):hover {
+    background: #2c3e34;
+    border-color: #71897b;
+}
+
+html[data-color-mode="dark"] .crm-architect-directory {
+    background: transparent;
+    box-shadow: none;
+}
+
+html[data-color-mode="dark"] .crm-architect-directory-status,
+html[data-color-mode="dark"] .crm-architect-document,
+html[data-color-mode="dark"] .crm-architect-origin,
+html[data-color-mode="dark"] .crm-architect-pagination span,
+html[data-color-mode="dark"] .crm-architect-form-actions > span {
+    color: #aabbb1;
+}
+
+html[data-color-mode="dark"] .crm-architect-card {
+    background: #1a2620;
+    border-color: #3b4d43;
+    border-left-color: color-mix(in srgb, var(--verde-medio, #2d5a27) 68%, #8fb89a);
+    color: var(--app-text);
+    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.22);
+}
+
+html[data-color-mode="dark"] .crm-architect-card:hover {
+    background: #1e2c25;
+    border-color: #61786b;
+    box-shadow: 0 11px 26px rgba(0, 0, 0, 0.3);
+}
+
+html[data-color-mode="dark"] .crm-architect-card-avatar {
+    background: #283b32;
+    border: 1px solid #40594c;
+    color: #e8f2ec;
+}
+
+html[data-color-mode="dark"] .crm-architect-cau {
+    background: #3a321f;
+    border: 1px solid #665730;
+    color: #f1d58a;
+}
+
+html[data-color-mode="dark"] .crm-architect-card-contacts a {
+    color: #d4e1d9;
+}
+
+html[data-color-mode="dark"] .crm-architect-card-contacts a svg,
+html[data-color-mode="dark"] .crm-architect-origin svg {
+    color: #8fac9b;
+}
+
+html[data-color-mode="dark"] .crm-architect-card-contacts a:hover {
+    color: #ffffff;
+}
+
+html[data-color-mode="dark"] .crm-architect-form-actions > span.is-error { color: #ff9a91; }
+html[data-color-mode="dark"] .crm-architect-form-actions > span.is-success { color: #83dda0; }
 
 /* Gerador de orcamentos */
 html[data-color-mode="dark"] header,
