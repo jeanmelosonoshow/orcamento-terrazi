@@ -271,6 +271,121 @@ html[data-color-mode="dark"] .crm-table-filter-head strong,
 html[data-color-mode="dark"] .crm-table-filter-control.is-active > button { color: #d7e7dc; }
 html[data-color-mode="dark"] .crm-table-filter-control.is-active > button { background: rgba(197, 164, 126, 0.16); }
 
+/* Auto-filtro de tabelas e tabelas dinamicas */
+html[data-color-mode="dark"] .crm-table-filter-menu {
+    background: #17211c;
+    border-color: #48594f;
+    color: var(--app-text);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(255, 255, 255, 0.025);
+}
+
+html[data-color-mode="dark"] .crm-table-filter-head {
+    padding-bottom: 2px;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-head strong {
+    color: var(--app-text-strong);
+}
+
+html[data-color-mode="dark"] .crm-table-filter-head button {
+    background: #223029;
+    border-color: #4a5b52;
+    color: #cbd8d0;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-head button:hover {
+    background: #304239;
+    border-color: #71857a;
+    color: #ffffff;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-menu input[type="search"],
+html[data-color-mode="dark"] .crm-table-filter-menu input[type="text"],
+html[data-color-mode="dark"] .crm-table-filter-menu select {
+    background: var(--app-field);
+    border-color: #46584e;
+    color: var(--app-text-strong);
+}
+
+html[data-color-mode="dark"] .crm-table-filter-menu input::placeholder {
+    color: #91a198;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-menu input:focus,
+html[data-color-mode="dark"] .crm-table-filter-menu select:focus {
+    border-color: #d0b28d;
+    box-shadow: 0 0 0 3px rgba(197, 164, 126, 0.18);
+    outline: 0;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-values {
+    background: #101915;
+    border-color: #3c4c43;
+    scrollbar-color: #66786e #101915;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-values label,
+html[data-color-mode="dark"] .crm-table-filter-values label:first-child {
+    background: #151f1a;
+    border-color: #34443b;
+    color: #dce7e0;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-values label:hover {
+    background: #26372e;
+    color: #ffffff;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-values label.is-all {
+    background: #223129;
+    color: #f3f8f5;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-values input[type="checkbox"] {
+    accent-color: #d0a765;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-conditions {
+    border-top: 1px solid #34443b;
+    padding-top: 10px;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-conditions small {
+    color: #c2d0c7;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-menu option {
+    background: #17211c;
+    color: var(--app-text);
+}
+
+html[data-color-mode="dark"] .crm-table-filter-actions {
+    border-top: 1px solid #34443b;
+    padding-top: 10px;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-actions button {
+    background: #223029;
+    border-color: #4a5b52;
+    color: #edf4ef;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-actions button:hover {
+    background: #304239;
+    border-color: #71857a;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-actions button:last-child {
+    background: #1f4f38;
+    border-color: #3b795a;
+    color: #ffffff;
+}
+
+html[data-color-mode="dark"] .crm-table-filter-actions button:last-child:hover {
+    background: #286447;
+    border-color: #55a477;
+}
+
 html[data-color-mode="dark"] .crm-modal-backdrop { background: rgba(2, 7, 5, 0.76); }
 html[data-color-mode="dark"] .crm-contact-filters,
 html[data-color-mode="dark"] .crm-contact-customer,

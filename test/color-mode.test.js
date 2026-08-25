@@ -48,6 +48,10 @@ test('tema escuro cobre as superficies principais sem alterar fundos customizado
     assert.match(css, /\.crm-architect-card \{/);
     assert.match(css, /\.crm-architect-card-contacts a \{/);
     assert.match(css, /\.crm-architect-cau \{/);
+    assert.match(css, /\.crm-table-filter-menu \{/);
+    assert.match(css, /\.crm-table-filter-menu input\[type="search"\]/);
+    assert.match(css, /\.crm-table-filter-values label:hover \{/);
+    assert.match(css, /\.crm-table-filter-actions button:last-child \{/);
     assert.match(css, /\.product-card/);
     assert.match(css, /\.orcamento-card/);
     assert.match(css, /\.login-container/);
