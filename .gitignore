@@ -1,0 +1,8 @@
+node_modules/
+.vercel/
+.env
+.env.*
+!.env.example
+scripts/windows/env.local
+scripts/windows/secrets/
+scripts/windows/logs/

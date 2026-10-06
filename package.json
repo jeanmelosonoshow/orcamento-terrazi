@@ -5,7 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "vercel dev"
+    "start": "vercel dev",
+    "check": "node --check api/login.js && node --check lib/redis-cache.js && node --check lib/firebird-login.js && node --check scripts/sync-firebird-login-cache.js && node --check scripts/windows/firebird-password.js",
+    "test": "node --test",
+    "sync:firebird-login": "node scripts/sync-firebird-login-cache.js"
   },
   "dependencies": {
     "@vercel/postgres": "^0.5.0",
