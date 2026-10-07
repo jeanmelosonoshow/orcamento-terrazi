@@ -407,6 +407,29 @@ test('falha de rede do Gateway nao abre conexao Firebird direta', async () => {
     }
 });
 
+test('credencial recusada pelo Gateway vira erro de integracao, nao login invalido', async () => {
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_invalido';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-incorreto';
+    globalThis.fetch = async () => new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+    });
+    try {
+        await assert.rejects(
+            executarConsultaFirebirdGateway('select 401 from rdb$database'),
+            error => error.code === 'BI_GATEWAY_UNAUTHORIZED'
+                && error.gatewayStatus === 401
+                && statusHttpErroConsulta(error) === 502
+        );
+    } finally {
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
+    }
+});
+
 function salvarAmbienteGateway() {
     return Object.fromEntries([
         'FIREBIRD_GATEWAY_URL',
