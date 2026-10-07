@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import {
     CacheMemoriaGateway,
@@ -311,23 +312,115 @@ test('saturacao do pool e timeout de consulta nao abrem o circuit breaker', asyn
         assert.equal(servico.status().circuito.estado, 'fechado');
     }
 });
+test('Gateway remoto assina a consulta com HMAC e preserva o formato de linhas', async () => {
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    const secret = 'segredo-de-teste';
+    let chamada;
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_teste';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = secret;
+    globalThis.fetch = async (url, options) => {
+        chamada = { url: String(url), options };
+        return new Response(JSON.stringify({
+            success: true,
+            rows: [{ OK: 1 }, { OK: 2 }],
+            row_count: 2,
+            truncated: false
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+    try {
+        const linhas = await executarConsultaFirebirdGateway('select ? from rdb$database', [1], {
+            timeoutMs: 1000,
+            limite: 1
+        });
+        assert.deepEqual(linhas, [{ OK: 1 }]);
+        assert.equal(chamada.url, 'https://gateway.test/query');
+        assert.equal(chamada.options.headers.Authorization, 'Bearer ssg_teste');
+        assert.deepEqual(JSON.parse(chamada.options.body), {
+            sql: 'select ? from rdb$database',
+            params: [1]
+        });
+        const bodyHash = crypto.createHash('sha256').update(chamada.options.body, 'utf8').digest('hex');
+        const canonical = [
+            chamada.options.headers['X-Timestamp'],
+            chamada.options.headers['X-Nonce'],
+            'POST',
+            '/query',
+            bodyHash
+        ].join('\n');
+        const expected = crypto.createHmac('sha256', secret).update(canonical, 'utf8').digest('hex');
+        assert.equal(chamada.options.headers['X-Signature'], expected);
+    } finally {
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
+    }
+});
+
+test('Gateway remoto envia somente as GTTs confirmadas no corpo assinado', async () => {
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    let corpo;
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_teste';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-de-teste';
+    globalThis.fetch = async (_url, options) => {
+        corpo = JSON.parse(options.body);
+        return new Response(JSON.stringify({ success: true, rows: [], row_count: 0, truncated: false }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    };
+    try {
+        await executarConsultaFirebirdGateway(
+            `EXECUTE BLOCK RETURNS (N INT) AS BEGIN
+                DELETE FROM GTT_CRM_CLIENTES;
+                INSERT INTO GTT_CRM_CLIENTES (DOCUMENTO) SELECT '1' FROM RDB$DATABASE;
+                N = 1;
+                SUSPEND;
+            END`,
+            [],
+            { tabelasTemporarias: ['GTT_CRM_CLIENTES'] }
+        );
+        assert.deepEqual(corpo.temporary_tables, ['GTT_CRM_CLIENTES']);
+    } finally {
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
+    }
+});
+
 test('falha de rede do Gateway nao abre conexao Firebird direta', async () => {
-    const urlAnterior = process.env.BI_GATEWAY_URL;
-    const tokenAnterior = process.env.BI_GATEWAY_TOKEN;
-    process.env.BI_GATEWAY_URL = 'http://127.0.0.1:9';
-    process.env.BI_GATEWAY_TOKEN = 'teste';
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_teste';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-de-teste';
+    globalThis.fetch = async () => { throw new Error('rede indisponivel'); };
     try {
         await assert.rejects(
             executarConsultaFirebirdGateway('select 1 from rdb$database', [], { timeoutMs: 1000 }),
             error => error.code === 'BI_GATEWAY_UNREACHABLE' && statusHttpErroConsulta(error) === 503
         );
     } finally {
-        if (urlAnterior === undefined) delete process.env.BI_GATEWAY_URL;
-        else process.env.BI_GATEWAY_URL = urlAnterior;
-        if (tokenAnterior === undefined) delete process.env.BI_GATEWAY_TOKEN;
-        else process.env.BI_GATEWAY_TOKEN = tokenAnterior;
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
     }
 });
+
+function salvarAmbienteGateway() {
+    return Object.fromEntries([
+        'FIREBIRD_GATEWAY_URL',
+        'FIREBIRD_GATEWAY_TOKEN_ID',
+        'FIREBIRD_GATEWAY_HMAC_SECRET'
+    ].map(nome => [nome, process.env[nome]]));
+}
+
+function restaurarAmbienteGateway(anterior) {
+    for (const [nome, valor] of Object.entries(anterior)) {
+        if (valor === undefined) delete process.env[nome];
+        else process.env[nome] = valor;
+    }
+}
 
 test('Gateway rejeita nomes de GTT manipulados antes de executar SQL', async () => {
     let executou = false;

@@ -130,39 +130,43 @@ nomes ou aliases retornados pelo SQL. A agregacao e executada no servidor antes 
 ## Gateway de BI para acesso concorrente
 
 Para producao com aproximadamente 250 usuarios, as funcoes da Vercel nao devem abrir conexoes
-Firebird diretamente. O projeto inclui um servico persistente em `gateway/server.js` que centraliza:
+Firebird diretamente. `lib/bi-gateway-client.js` envia as consultas assinadas ao Gateway Windows e
+mantem na camada Vercel:
 
-- pool Firebird em um unico servico;
-- fila FIFO com limite global de consultas e de espera;
+- fila com limite global de consultas e de espera;
 - cache por SQL, parametros, limite e charset;
 - single-flight, para uma consulta identica ser executada uma unica vez;
 - circuit breaker, que interrompe novas tentativas durante falhas repetidas do Firebird;
 - stale-while-revalidate e retorno do ultimo resultado valido durante falhas transitorias.
 
+O `SonoShowGateway.exe` centraliza no TS a autenticacao HMAC, a validacao SQL, a concorrencia e as
+conexoes com o Firebird.
+
 ### Implantacao
 
-1. Hospede o diretorio do projeto em uma VM ou plataforma de containers proxima ao Firebird.
-2. Copie as variaveis de `.env.gateway.example` para o cofre de segredos da plataforma.
-3. Execute `docker compose -f gateway/docker-compose.yml up -d` ou `npm run start:gateway`.
-4. Na Vercel, configure apenas:
-   - `BI_GATEWAY_URL`: URL HTTPS privada/publicada do Gateway, sem `/v1/query`;
-   - `BI_GATEWAY_TOKEN`: o mesmo segredo longo configurado no Gateway;
+1. Instale o `SonoShowGateway.exe` no Windows TS que alcanca o Firebird.
+2. Mantenha o servico `SonoShowFirebirdGateway` em execucao e o Cloudflare Tunnel apontado para
+   `http://127.0.0.1:8787`.
+3. Na Vercel, configure:
+   - `FIREBIRD_GATEWAY_URL`: `https://gateway.jgmelo.company`, sem `/query`;
+   - `FIREBIRD_GATEWAY_TOKEN_ID`: identificador `ssg_...` exclusivo do projeto;
+   - `FIREBIRD_GATEWAY_HMAC_SECRET`: segredo HMAC exclusivo do projeto;
    - `BI_DASHBOARD_CACHE_TTL_MS`: padrao `300000`;
    - `BI_DASHBOARD_CACHE_STALE_MS`: padrao `900000`;
    - `BI_DRILL_CACHE_MAX_ROWS`: maximo de linhas da base reutilizavel, padrao `3000`;
    - `BI_DRILL_CACHE_MAX_BYTES`: tamanho maximo da base em memoria, padrao `4194304` (4 MB).
-5. Remova as credenciais Firebird da Vercel depois de validar o Gateway. Elas devem existir somente
+4. Remova as credenciais Firebird da Vercel depois de validar o Gateway. Elas devem existir somente
    no servico persistente.
 
-O endpoint `GET /health` informa o modo e a capacidade da fila. O endpoint `POST /v1/query` exige
-`Authorization: Bearer <BI_GATEWAY_TOKEN>`.
+O endpoint publico `GET /health` confirma o servico. As consultas usam `POST /query`, com token,
+timestamp, nonce e assinatura HMAC gerados automaticamente por `lib/bi-gateway-client.js`.
 
 ### Redis e replicas
 
-Com uma unica replica persistente, a fila em memoria ja centraliza todas as requisicoes. Para duas ou
-mais replicas, configure `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN` (ou os aliases
-`KV_REST_API_URL` e `KV_REST_API_TOKEN` criados pela integracao Vercel KV): a fila, os leases,
-os bloqueios de single-flight e o cache passam a ser compartilhados entre todas elas.
+Configure `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN` (ou os aliases
+`KV_REST_API_URL` e `KV_REST_API_TOKEN` criados pela integracao Vercel KV). A fila, os leases,
+os bloqueios de single-flight e o cache continuam compartilhados entre as instancias da Vercel antes
+da chamada ao Gateway Windows.
 
 No primeiro drill-down de uma tabela dinamica, a API carrega e mantem temporariamente a
 consulta-base nesse cache compartilhado. Os proximos niveis reaplicam dimensoes, filtros e agregacoes
@@ -183,5 +187,5 @@ A concorrencia global limita o total de consultas entre todas as instancias. A c
 deve ser menor ou igual ao pool de cada instancia para que uma consulta nao fique aguardando uma
 conexao que a propria instancia nao possui. Ajuste esses valores somente depois de medir CPU, disco,
 conexoes ativas e duracao p95 no servidor Firebird. Se
-`BI_GATEWAY_URL` estiver configurada e o Gateway falhar, a Vercel nao abre conexao direta como
+`FIREBIRD_GATEWAY_URL` estiver configurada e o Gateway falhar, a Vercel nao abre conexao direta como
 fallback; esse comportamento evita uma avalanche de logins no banco.
