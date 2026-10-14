@@ -53,6 +53,9 @@ test('frontend usa servidor como fonte oficial e localStorage apenas na migracao
         crmScript.slice(crmScript.indexOf('function obterWidgetsDashboard'), crmScript.indexOf('function obterNomeGrafico')),
         /localStorage/,
     );
+    assert.match(crmScript, /servidorAindaPadrao/);
+    assert.match(crmScript, /migracaoConcluida/);
+    assert.match(crmScript, /dashboardAssinaturasPersistidas\.set\(/);
 });
 
 test('API exige sessao, usa versao otimista e mantem historico', () => {

@@ -354,6 +354,15 @@ function obterCenarioLocalLegado(contexto) {
     }
 }
 
+function ehCenarioPadraoNaoConfigurado(contexto, widgets, alturaCanvas) {
+    return obterAssinaturaPersistencia(contexto, widgets, alturaCanvas)
+        === obterAssinaturaPersistencia(
+            contexto,
+            criarWidgetsPadraoDashboard(contexto),
+            dashboardCanvasMinHeight,
+        );
+}
+
 function aplicarCenarioCompartilhado(cenario) {
     const contexto = String(cenario?.contexto || '');
     if (!dashboardConfigPorView[contexto]) return;
@@ -427,13 +436,34 @@ async function carregarCenariosDashboardCompartilhados() {
 
     const migracoes = [];
     Object.keys(dashboardConfigPorView).forEach(contexto => {
-        if (recebidos.has(contexto)) return;
         const local = podeEditarCenarios ? obterCenarioLocalLegado(contexto) : null;
-        const widgets = local?.widgets || criarWidgetsPadraoDashboard(contexto);
+        const config = obterConfigDashboardAtivo(contexto);
+        const migracaoConcluida = localStorage.getItem(config.storage + ':migrado-servidor') === 'concluido';
+        const recebido = recebidos.has(contexto);
+        const servidorAindaPadrao = recebido && ehCenarioPadraoNaoConfigurado(
+            contexto,
+            dashboardCenarios.get(contexto),
+            dashboardAlturas.get(contexto),
+        );
+
+        if (local && !migracaoConcluida && (!recebido || servidorAindaPadrao)) {
+            dashboardCenarios.set(contexto, local.widgets);
+            dashboardAlturas.set(contexto, local.alturaCanvas);
+            if (!recebido) dashboardVersoes.set(contexto, 0);
+            migracoes.push(contexto);
+            return;
+        }
+
+        if (recebido) return;
+
+        const widgets = criarWidgetsPadraoDashboard(contexto);
         dashboardCenarios.set(contexto, widgets);
-        dashboardAlturas.set(contexto, local?.alturaCanvas || dashboardCanvasMinHeight);
+        dashboardAlturas.set(contexto, dashboardCanvasMinHeight);
         dashboardVersoes.set(contexto, 0);
-        if (local) migracoes.push(contexto);
+        dashboardAssinaturasPersistidas.set(
+            contexto,
+            obterAssinaturaPersistencia(contexto, widgets, dashboardCanvasMinHeight),
+        );
     });
 
     let totalMigrado = 0;
