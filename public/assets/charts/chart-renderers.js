@@ -355,6 +355,100 @@
         });
     }
 
+    function renderizarPareto(contexto) {
+        var serie = contexto.dados.series[0];
+        var indices = contexto.dados.categorias.map(function (_, index) { return index; })
+            .sort(function (a, b) { return numero(serie.valores[b]) - numero(serie.valores[a]); });
+        var categorias = indices.map(function (index) { return contexto.dados.categorias[index]; });
+        var valores = indices.map(function (index) { return numero(serie.valores[index]); });
+        var total = valores.reduce(function (soma, valor) { return soma + Math.max(0, valor); }, 0);
+        var acumulado = 0;
+        var percentuais = valores.map(function (valor) {
+            acumulado += Math.max(0, valor);
+            return total ? (acumulado / total) * 100 : 0;
+        });
+        return Object.assign({}, contexto.base, {
+            tooltip: Object.assign({}, contexto.base.tooltip, { trigger: 'axis' }),
+            legend: { show: !contexto.compacto, data: [serie.nome, 'Percentual acumulado'], textStyle: { color: contexto.textoGrafico } },
+            grid: { left: 12, right: contexto.compacto ? 12 : 44, top: contexto.compacto ? 10 : 38, bottom: contexto.muitasCategorias ? 42 : 18, containLabel: true },
+            xAxis: { type: 'category', data: categorias, axisLabel: { hideOverlap: true, rotate: contexto.muitasCategorias ? 28 : 0 } },
+            yAxis: [
+                { type: 'value', axisLabel: { formatter: function (valor) { return contexto.formatar(valor, serie.formato); } }, splitLine: { lineStyle: { color: 'rgba(120,130,145,0.14)' } } },
+                { type: 'value', min: 0, max: 100, interval: 25, axisLabel: { formatter: '{value}%' }, splitLine: { show: false } }
+            ],
+            series: [
+                { name: serie.nome, type: 'bar', data: valores, barMaxWidth: contexto.compacto ? 26 : 42, itemStyle: { color: contexto.paleta[0] }, label: { show: !contexto.compacto, position: 'top', formatter: function (params) { return contexto.formatar(params.value, serie.formato); } } },
+                { name: 'Percentual acumulado', type: 'line', yAxisIndex: 1, data: percentuais, smooth: true, symbolSize: contexto.compacto ? 5 : 8, itemStyle: { color: contexto.paleta[4] || '#B8563F' }, lineStyle: { width: 3 }, label: { show: !contexto.compacto, formatter: function (params) { return params.value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%'; } } }
+            ]
+        });
+    }
+
+    function renderizarEmpilhadoPercentual(contexto) {
+        var totais = contexto.dados.categorias.map(function (_, indice) {
+            return contexto.dados.series.reduce(function (soma, serie) { return soma + Math.abs(numero(serie.valores[indice])); }, 0);
+        });
+        return Object.assign({}, contexto.base, {
+            tooltip: Object.assign({}, contexto.base.tooltip, { trigger: 'axis', valueFormatter: function (valor) { return Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%'; } }),
+            legend: { show: !contexto.compacto, type: 'scroll', textStyle: { color: contexto.textoGrafico } },
+            xAxis: { type: 'category', data: contexto.dados.categorias, axisLabel: { hideOverlap: true, rotate: contexto.muitasCategorias ? 28 : 0 } },
+            yAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%' }, splitLine: { lineStyle: { color: 'rgba(120,130,145,0.14)' } } },
+            series: contexto.dados.series.map(function (serie, serieIndex) {
+                return {
+                    name: serie.nome,
+                    type: 'bar',
+                    stack: 'percentual',
+                    data: serie.valores.map(function (valor, indice) { return totais[indice] ? (Math.abs(numero(valor)) / totais[indice]) * 100 : 0; }),
+                    itemStyle: { color: contexto.paleta[serieIndex % contexto.paleta.length] },
+                    label: { show: !contexto.compacto, position: 'inside', formatter: function (params) { return params.value >= 8 ? params.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + '%' : ''; } },
+                    emphasis: { focus: 'series' }
+                };
+            })
+        });
+    }
+
+    function renderizarLinhaEtapas(contexto) {
+        return Object.assign({}, contexto.base, {
+            tooltip: Object.assign({}, contexto.base.tooltip, { trigger: 'axis' }),
+            xAxis: { type: 'category', boundaryGap: false, data: contexto.dados.categorias, axisLabel: { hideOverlap: true, rotate: contexto.muitasCategorias ? 28 : 0 } },
+            yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(120,130,145,0.14)' } } },
+            series: contexto.dados.series.map(function (serie, indice) {
+                return {
+                    name: serie.nome,
+                    type: 'line',
+                    step: 'middle',
+                    data: serie.valores,
+                    symbolSize: contexto.compacto ? 5 : 8,
+                    lineStyle: { width: 3, color: contexto.paleta[indice % contexto.paleta.length] },
+                    itemStyle: { color: contexto.paleta[indice % contexto.paleta.length] },
+                    label: { show: !contexto.compacto, position: 'top', formatter: function (params) { return contexto.formatar(params.value, serie.formato); } },
+                    emphasis: { focus: 'series' }
+                };
+            })
+        });
+    }
+
+    function renderizarBarrasRadiais(contexto) {
+        var serie = contexto.dados.series[0];
+        var valores = serie.valores.map(numero);
+        var maximo = Math.max.apply(null, valores.concat([1])) * 1.08;
+        return Object.assign({}, contexto.base, {
+            legend: { show: false },
+            tooltip: Object.assign({}, contexto.base.tooltip, { trigger: 'item', valueFormatter: function (valor) { return contexto.formatar(valor, serie.formato); } }),
+            polar: { radius: contexto.compacto ? ['18%', '76%'] : ['16%', '82%'] },
+            angleAxis: { max: maximo, startAngle: 90, splitLine: { show: false }, axisLabel: { show: !contexto.compacto, formatter: function (valor) { return contexto.formatar(valor, serie.formato); } } },
+            radiusAxis: { type: 'category', data: contexto.dados.categorias, z: 10, axisLabel: { color: contexto.textoGrafico, hideOverlap: true } },
+            series: [{
+                name: serie.nome,
+                type: 'bar',
+                coordinateSystem: 'polar',
+                roundCap: true,
+                barWidth: contexto.compacto ? 9 : 14,
+                data: valores.map(function (valor, indice) { return { value: valor, itemStyle: { color: contexto.paleta[indice % contexto.paleta.length] } }; }),
+                label: { show: !contexto.compacto, position: 'middle', formatter: function (params) { return contexto.formatar(params.value, serie.formato); } }
+            }]
+        });
+    }
+
     window.CRM_CHART_RENDERERS = Object.freeze({
         heatmap: function (contexto) { return renderizarMatriz(contexto, false); },
         cohort: function (contexto) { return renderizarMatriz(contexto, true); },
@@ -366,6 +460,10 @@
         ranking: renderizarRanking,
         sparkline: renderizarSparkline,
         funnel: renderizarFunil,
-        calendar: renderizarCalendario
+        calendar: renderizarCalendario,
+        pareto: renderizarPareto,
+        'stacked-100': renderizarEmpilhadoPercentual,
+        'step-line': renderizarLinhaEtapas,
+        'radial-bar': renderizarBarrasRadiais
     });
 })();

@@ -1884,6 +1884,42 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     padding: 7px 9px;
 }
 
+.crm-visual-options {
+    grid-template-columns: repeat(4, minmax(130px, 1fr));
+}
+
+.crm-visual-toggle {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 11px;
+    border: 1px solid var(--linha);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.crm-visual-toggle input {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--crm-bi-blue, #3568a8);
+}
+
+@media (max-width: 1050px) {
+    .crm-visual-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .crm-visual-options {
+        grid-template-columns: 1fr;
+    }
+}
+
 .crm-palette-options {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

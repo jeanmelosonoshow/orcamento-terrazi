@@ -675,9 +675,11 @@ html[data-color-mode="dark"] body.crm-scenario-editing .crm-edit-mode-toggle {
 }
 
 html[data-color-mode="dark"] .crm-canvas-height-control,
-html[data-color-mode="dark"] .crm-table-pagination {
+html[data-color-mode="dark"] .crm-table-pagination,
+html[data-color-mode="dark"] .crm-visual-toggle {
     background: #18232d;
     border-color: #364453;
+    color: #edf1f5;
 }
 
 html[data-color-mode="dark"] .crm-dashboard-widget {

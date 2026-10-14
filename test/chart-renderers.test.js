@@ -53,7 +53,11 @@ test('cada modelo especializado gera uma estrutura visual propria', async () => 
         ranking: ['bar', 'bar'],
         sparkline: ['line', 'line'],
         funnel: ['funnel'],
-        calendar: ['heatmap']
+        calendar: ['heatmap'],
+        pareto: ['bar', 'line'],
+        'stacked-100': ['bar', 'bar'],
+        'step-line': ['line', 'line'],
+        'radial-bar': ['bar']
     };
 
     for (const [tipo, seriesEsperadas] of Object.entries(expectativas)) {
@@ -62,6 +66,45 @@ test('cada modelo especializado gera uma estrutura visual propria', async () => 
         const opcao = renderizadores[tipo](contexto);
         assert.deepEqual(Array.from(opcao.series, serie => serie.type), seriesEsperadas, tipo);
     }
+});
+
+test('novos visuais analiticos preservam suas regras de leitura', async () => {
+    const renderizadores = await carregarGlobal('../public/assets/charts/chart-renderers.js', 'CRM_CHART_RENDERERS');
+
+    const pareto = renderizadores.pareto(criarContexto('pareto'));
+    assert.deepEqual(Array.from(pareto.xAxis.data), ['4', '6', '2', '5', '3', '1']);
+    assert.equal(Math.round(pareto.series[1].data.at(-1)), 100);
+    assert.equal(pareto.series[1].yAxisIndex, 1);
+
+    const percentual = renderizadores['stacked-100'](criarContexto('stacked-100'));
+    percentual.series[0].data.forEach((valor, indice) => {
+        const total = percentual.series.reduce((soma, serie) => soma + serie.data[indice], 0);
+        assert.ok(Math.abs(total - 100) < 0.001, `categoria ${indice}`);
+    });
+
+    const etapas = renderizadores['step-line'](criarContexto('step-line'));
+    assert.ok(etapas.series.every(serie => serie.step === 'middle'));
+
+    const radial = renderizadores['radial-bar'](criarContexto('radial-bar'));
+    assert.equal(radial.series[0].coordinateSystem, 'polar');
+    assert.equal(radial.radiusAxis.type, 'category');
+});
+
+test('editor oferece configuracao visual no estilo Power BI', async () => {
+    const [html, script] = await Promise.all([
+        readFile(new URL('../public/crm.html', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm.js', import.meta.url), 'utf8')
+    ]);
+
+    for (const controle of ['legend', 'data-labels', 'grid-lines', 'series-radius', 'animation']) {
+        assert.match(html, new RegExp(`data-widget-${controle}`));
+    }
+    for (const tipo of ['pareto', 'stacked-100', 'step-line', 'radial-bar']) {
+        assert.match(script, new RegExp(`id: '${tipo}'`));
+    }
+    assert.match(script, /function aplicarEstiloVisualGrafico/);
+    assert.match(script, /rotulosDados/);
+    assert.match(script, /linhasGrade/);
 });
 
 test('matrizes reservam espaco para a escala e nao sobrepoem legenda ao grafico', async () => {

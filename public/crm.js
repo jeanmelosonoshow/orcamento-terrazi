@@ -253,6 +253,11 @@ const widgetGradientFields = Array.from(document.querySelectorAll('[data-widget-
 const widgetPaletteOptions = document.querySelector('[data-widget-palette-options]');
 const widgetIconOptions = document.querySelector('[data-widget-icon-options]');
 const widgetIconColorInput = document.querySelector('[data-widget-icon-color]');
+const widgetLegendSelect = document.querySelector('[data-widget-legend]');
+const widgetDataLabelsSelect = document.querySelector('[data-widget-data-labels]');
+const widgetGridLinesSelect = document.querySelector('[data-widget-grid-lines]');
+const widgetSeriesRadiusSelect = document.querySelector('[data-widget-series-radius]');
+const widgetAnimationInput = document.querySelector('[data-widget-animation]');
 const widgetCategoryOptions = document.querySelector('[data-widget-category-options]');
 const widgetCategoryError = document.querySelector('[data-widget-category-error]');
 const widgetDetailConfig = document.querySelector('[data-widget-detail-config]');
@@ -666,6 +671,10 @@ const catalogoGraficos = [
     { id: 'line', nome: 'Linha', roles: ['dimensao', 'valor'] },
     { id: 'area', nome: 'Area', roles: ['dimensao', 'valor'] },
     { id: 'combo', nome: 'Combinado barras e linha', roles: ['dimensao', 'valor'] },
+    { id: 'pareto', nome: 'Pareto', roles: ['dimensao', 'valor'] },
+    { id: 'stacked-100', nome: 'Barras 100% empilhadas', roles: ['dimensao', 'coluna', 'valor'] },
+    { id: 'step-line', nome: 'Linha por etapas', roles: ['dimensao', 'valor'] },
+    { id: 'radial-bar', nome: 'Barras radiais', roles: ['dimensao', 'valor'] },
     { id: 'pie', nome: 'Pizza', roles: ['dimensao', 'valor'] },
     { id: 'donut', nome: 'Rosca', roles: ['dimensao', 'valor'] },
     { id: 'gauge', nome: 'Velocimetro', roles: ['valor'] },
@@ -707,7 +716,12 @@ const aparenciaWidgetPadrao = Object.freeze({
     paleta: 'brand',
     icone: 'none',
     iconeCor: '#C5A47E',
-    alinhamento: 'left'
+    alinhamento: 'left',
+    legenda: 'auto',
+    rotulosDados: 'auto',
+    linhasGrade: 'auto',
+    raioSeries: 4,
+    animacao: true
 });
 function separarCamposDetalhe(valor) {
     const itens = Array.isArray(valor) ? valor : String(valor || '').split(',');
@@ -971,7 +985,12 @@ function obterAparenciaWidget(widget = {}) {
         paleta: paletasGraficos.some(item => item.id === atual.paleta) ? atual.paleta : aparenciaWidgetPadrao.paleta,
         icone: iconesWidgets.some(item => item.id === atual.icone) ? atual.icone : aparenciaWidgetPadrao.icone,
         iconeCor: normalizarCorHex(atual.iconeCor, aparenciaWidgetPadrao.iconeCor),
-        alinhamento: ['left', 'center', 'right'].includes(atual.alinhamento) ? atual.alinhamento : aparenciaWidgetPadrao.alinhamento
+        alinhamento: ['left', 'center', 'right'].includes(atual.alinhamento) ? atual.alinhamento : aparenciaWidgetPadrao.alinhamento,
+        legenda: ['auto', 'top', 'bottom', 'right', 'hidden'].includes(atual.legenda) ? atual.legenda : aparenciaWidgetPadrao.legenda,
+        rotulosDados: ['auto', 'show', 'hidden'].includes(atual.rotulosDados) ? atual.rotulosDados : aparenciaWidgetPadrao.rotulosDados,
+        linhasGrade: ['auto', 'show', 'hidden'].includes(atual.linhasGrade) ? atual.linhasGrade : aparenciaWidgetPadrao.linhasGrade,
+        raioSeries: [0, 4, 10, 999].includes(Number(atual.raioSeries)) ? Number(atual.raioSeries) : aparenciaWidgetPadrao.raioSeries,
+        animacao: atual.animacao !== false
     };
 }
 
@@ -1028,7 +1047,12 @@ function coletarAparenciaWidget() {
             paleta: widgetPaletteOptions?.querySelector('input:checked')?.value || 'brand',
             icone: widgetIconOptions?.querySelector('input:checked')?.value || 'none',
             iconeCor: widgetIconColorInput?.value || aparenciaWidgetPadrao.iconeCor,
-            alinhamento: widgetAlignmentSelect?.value || 'left'
+            alinhamento: widgetAlignmentSelect?.value || 'left',
+            legenda: widgetLegendSelect?.value || 'auto',
+            rotulosDados: widgetDataLabelsSelect?.value || 'auto',
+            linhasGrade: widgetGridLinesSelect?.value || 'auto',
+            raioSeries: Number(widgetSeriesRadiusSelect?.value ?? aparenciaWidgetPadrao.raioSeries),
+            animacao: widgetAnimationInput?.checked !== false
         }
     });
 }
@@ -1149,6 +1173,11 @@ function carregarAparenciaWidget(widget) {
     if (widgetGradientStartInput) widgetGradientStartInput.value = aparencia.gradienteInicio;
     if (widgetGradientEndInput) widgetGradientEndInput.value = aparencia.gradienteFim;
     if (widgetIconColorInput) widgetIconColorInput.value = aparencia.iconeCor;
+    if (widgetLegendSelect) widgetLegendSelect.value = aparencia.legenda;
+    if (widgetDataLabelsSelect) widgetDataLabelsSelect.value = aparencia.rotulosDados;
+    if (widgetGridLinesSelect) widgetGridLinesSelect.value = aparencia.linhasGrade;
+    if (widgetSeriesRadiusSelect) widgetSeriesRadiusSelect.value = String(aparencia.raioSeries);
+    if (widgetAnimationInput) widgetAnimationInput.checked = aparencia.animacao;
     renderizarOpcoesAparencia(aparencia);
     atualizarCamposAparencia();
 }
@@ -1638,6 +1667,61 @@ function obterCoresGraficos() {
     };
 }
 
+function aplicarEstiloVisualGrafico(opcao, widget) {
+    const aparencia = obterAparenciaWidget(widget);
+    const resultado = {
+        ...opcao,
+        animation: aparencia.animacao,
+        animationDuration: aparencia.animacao ? (opcao.animationDuration ?? 360) : 0,
+        animationDurationUpdate: aparencia.animacao ? (opcao.animationDurationUpdate ?? 220) : 0
+    };
+
+    if (resultado.legend && aparencia.legenda !== 'auto') {
+        const posicoes = {
+            top: { show: true, orient: 'horizontal', top: 0, bottom: 'auto', left: 'center', right: 'auto' },
+            bottom: { show: true, orient: 'horizontal', top: 'auto', bottom: 0, left: 'center', right: 'auto' },
+            right: { show: true, orient: 'vertical', top: 'middle', bottom: 'auto', left: 'auto', right: 0 },
+            hidden: { show: false }
+        };
+        resultado.legend = { ...resultado.legend, ...posicoes[aparencia.legenda] };
+        if (resultado.grid && !Array.isArray(resultado.grid) && aparencia.legenda !== 'hidden') {
+            if (aparencia.legenda === 'top') resultado.grid = { ...resultado.grid, top: Math.max(Number(resultado.grid.top) || 0, 38) };
+            if (aparencia.legenda === 'bottom') resultado.grid = { ...resultado.grid, bottom: Math.max(Number(resultado.grid.bottom) || 0, 38) };
+            if (aparencia.legenda === 'right') resultado.grid = { ...resultado.grid, right: Math.max(Number(resultado.grid.right) || 0, 110) };
+        }
+    }
+
+    const configurarEixo = eixo => {
+        if (!eixo || aparencia.linhasGrade === 'auto') return eixo;
+        return {
+            ...eixo,
+            splitLine: { ...(eixo.splitLine || {}), show: aparencia.linhasGrade === 'show' }
+        };
+    };
+    if (Array.isArray(resultado.xAxis)) resultado.xAxis = resultado.xAxis.map(configurarEixo);
+    else if (resultado.xAxis) resultado.xAxis = configurarEixo(resultado.xAxis);
+    if (Array.isArray(resultado.yAxis)) resultado.yAxis = resultado.yAxis.map(configurarEixo);
+    else if (resultado.yAxis) resultado.yAxis = configurarEixo(resultado.yAxis);
+
+    resultado.series = (resultado.series || []).map(serie => {
+        const atualizada = { ...serie };
+        if (aparencia.rotulosDados !== 'auto') {
+            atualizada.label = { ...(serie.label || {}), show: aparencia.rotulosDados === 'show' };
+            if (serie.labelLine) atualizada.labelLine = { ...serie.labelLine, show: aparencia.rotulosDados === 'show' };
+        }
+        if (serie.type === 'bar') {
+            atualizada.itemStyle = { ...(serie.itemStyle || {}), borderRadius: aparencia.raioSeries };
+        } else if (serie.type === 'pie') {
+            atualizada.itemStyle = { ...(serie.itemStyle || {}), borderRadius: Math.min(aparencia.raioSeries, 10) };
+        } else if (serie.type === 'gauge' && serie.progress) {
+            atualizada.progress = { ...serie.progress, roundCap: aparencia.raioSeries > 0 };
+        }
+        return atualizada;
+    });
+
+    return resultado;
+}
+
 function montarOpcaoECharts(widget, dados, container) {
     const cores = obterCoresGraficos();
     const paleta = obterPaletaWidget(widget);
@@ -1651,6 +1735,7 @@ function montarOpcaoECharts(widget, dados, container) {
     const compacto = largura < 390 || altura < 230;
     const muitasCategorias = dados.categorias.length > (compacto ? 6 : 12);
     const formatarTooltip = valor => formatarValorGrafico(valor, primeiraSerie?.formato);
+    const finalizar = opcao => aplicarEstiloVisualGrafico(opcao, widget);
     const base = {
         animationDuration: 360,
         animationDurationUpdate: 220,
@@ -1701,7 +1786,7 @@ function montarOpcaoECharts(widget, dados, container) {
     }));
 
     if (widget.tipo === 'horizontal-bar') {
-        return {
+        return finalizar({
             ...base,
             grid: { ...base.grid, bottom: 10 },
             yAxis: {
@@ -1718,10 +1803,10 @@ function montarOpcaoECharts(widget, dados, container) {
             },
             dataZoom: muitasCategorias ? [{ type: 'inside', yAxisIndex: 0 }, { type: 'slider', yAxisIndex: 0, width: 8, right: 2 }] : [],
             series: seriesCartesianas
-        };
+        });
     }
     if (widget.tipo === 'pie' || widget.tipo === 'donut') {
-        return {
+        return finalizar({
             ...base,
             legend: {
                 show: !compacto,
@@ -1754,10 +1839,10 @@ function montarOpcaoECharts(widget, dados, container) {
                 },
                 emphasis: { scale: true, scaleSize: 8 }
             }]
-        };
+        });
     }
     if (widget.tipo === 'treemap') {
-        return {
+        return finalizar({
             ...base,
             tooltip: { ...base.tooltip, trigger: 'item' },
             series: [{
@@ -1768,10 +1853,10 @@ function montarOpcaoECharts(widget, dados, container) {
                 upperLabel: { show: false },
                 data: dados.categorias.map((nome, index) => ({ name: nome, value: primeiraSerie.valores[index] }))
             }]
-        };
+        });
     }
     if (widget.tipo === 'gauge') {
-        return {
+        return finalizar({
             ...base,
             series: [{
                 type: 'gauge',
@@ -1784,11 +1869,11 @@ function montarOpcaoECharts(widget, dados, container) {
                 },
                 data: [{ value: primeiraSerie.valores[0], name: primeiraSerie.nome }]
             }]
-        };
+        });
     }
     const renderizadorEspecializado = window.CRM_CHART_RENDERERS?.[widget.tipo];
     if (typeof renderizadorEspecializado === 'function') {
-        return renderizadorEspecializado({
+        return finalizar(renderizadorEspecializado({
             widget,
             dados,
             container,
@@ -1799,10 +1884,10 @@ function montarOpcaoECharts(widget, dados, container) {
             muitasCategorias,
             formatar: formatarValorGrafico,
             converterNumero
-        });
+        }));
     }
 
-    return {
+    return finalizar({
         ...base,
         xAxis: {
             type: 'category',
@@ -1818,7 +1903,7 @@ function montarOpcaoECharts(widget, dados, container) {
         },
         dataZoom: muitasCategorias ? [{ type: 'inside', xAxisIndex: 0 }, { type: 'slider', xAxisIndex: 0, height: 12, bottom: 0 }] : [],
         series: seriesCartesianas
-    };
+    });
 }
 
 function normalizarQuantidadeTabela(valor, fallback, minimo, maximo) {
@@ -5797,7 +5882,12 @@ function inicializarEditorDashboard() {
         widgetBackgroundColorInput,
         widgetGradientStartInput,
         widgetGradientEndInput,
-        widgetIconColorInput
+        widgetIconColorInput,
+        widgetLegendSelect,
+        widgetDataLabelsSelect,
+        widgetGridLinesSelect,
+        widgetSeriesRadiusSelect,
+        widgetAnimationInput
     ].forEach(campo => {
         if (!campo) return;
         campo.addEventListener('input', atualizarCamposAparencia);
