@@ -5,6 +5,20 @@
 
 - [Manual do Controle de Contato](database/controle-contato-uso.md)
 
+## Cenarios compartilhados do CRM
+
+Os cards, consultas, aparencia, layout e altura dos paineis de Visao Geral, Carteira de Clientes,
+Funil, Arquitetos e Reativacao sao persistidos no PostgreSQL por `api/dashboard-scenarios.js`.
+O navegador mantem somente resultados temporarios das consultas e preferencias pessoais.
+
+Na primeira abertura por um editor depois desta atualizacao, configuracoes antigas encontradas no
+`localStorage` sao migradas automaticamente para o banco quando o respectivo painel ainda nao existe
+no servidor. As alteracoes posteriores usam versao otimista e ficam registradas em
+`crm_dashboard_cenario_historico`.
+
+As tabelas sao criadas de forma idempotente pela API. O SQL equivalente para implantacao manual esta
+em `database/dashboard-scenarios.sql`.
+
 ## Conexao Firebird
 
 Variaveis obrigatorias:

@@ -9,11 +9,13 @@ test('sessao assinada preserva as filiais permitidas ate expirar', () => {
         const token = createSessionToken({
             idfuncionario: 142,
             categoria: 'SU',
+            canEditScenarios: true,
             filiaisPermitidas: ['01', ' 02 ', '01']
         });
         const sessao = verifySessionToken(token);
         assert.deepEqual(sessao.filiaisPermitidas, ['01', '02']);
         assert.equal(sessao.categoria, 'SU');
+        assert.equal(sessao.canEditScenarios, true);
     } finally {
         if (segredoAnterior === undefined) delete process.env.CRM_SESSION_SECRET;
         else process.env.CRM_SESSION_SECRET = segredoAnterior;

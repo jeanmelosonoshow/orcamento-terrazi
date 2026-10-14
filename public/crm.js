@@ -302,6 +302,12 @@ const dashboardConfigPorView = Object.freeze({
     arquitetos: { storage: 'crmDashboardScenario:arquitetos:v1', altura: 'crmDashboardCanvasHeight:arquitetos:v1' },
     reativacao: { storage: 'crmDashboardScenario:reativacao:v1', altura: 'crmDashboardCanvasHeight:reativacao:v1' }
 });
+const dashboardCenarios = new Map();
+const dashboardVersoes = new Map();
+const dashboardAlturas = new Map();
+const dashboardAssinaturasPersistidas = new Map();
+const dashboardPersistTimers = new Map();
+const DASHBOARD_PERSIST_DEBOUNCE_MS = 700;
 
 function obterConfigDashboardAtivo(contexto = dashboardContextoAtivo) {
     return dashboardConfigPorView[contexto] || dashboardConfigPorView['visao-geral'];
@@ -310,7 +316,7 @@ function obterConfigDashboardAtivo(contexto = dashboardContextoAtivo) {
 function obterAssinaturaEstruturalCenario(conteudo) {
     try {
         const widgets = JSON.parse(conteudo);
-        if (!Array.isArray(widgets) || !widgets.length) return '';
+        if (!Array.isArray(widgets)) return '';
         return JSON.stringify(widgets.map(widget => {
             const configuracao = { ...widget };
             delete configuracao.dadosConsulta;
@@ -318,10 +324,133 @@ function obterAssinaturaEstruturalCenario(conteudo) {
             delete configuracao.dadosConsultaAgregados;
             delete configuracao.consultaAtualizadaEm;
             delete configuracao.proximidade;
+            delete configuracao.desempenhoExecucao;
+            delete configuracao.erroConsulta;
             return configuracao;
         }));
     } catch (error) {
         return '';
+    }
+}
+
+function obterAssinaturaPersistencia(contexto, widgets = dashboardCenarios.get(contexto), altura = dashboardAlturas.get(contexto)) {
+    const configuracao = obterAssinaturaEstruturalCenario(JSON.stringify(Array.isArray(widgets) ? widgets : []));
+    return JSON.stringify({ configuracao, altura: Number(altura) || dashboardCanvasMinHeight });
+}
+
+function obterCenarioLocalLegado(contexto) {
+    const config = obterConfigDashboardAtivo(contexto);
+    try {
+        const conteudo = localStorage.getItem(config.storage);
+        if (conteudo == null) return null;
+        const widgets = JSON.parse(conteudo);
+        if (!Array.isArray(widgets)) return null;
+        return {
+            widgets,
+            alturaCanvas: Number(localStorage.getItem(config.altura)) || dashboardCanvasMinHeight,
+        };
+    } catch (error) {
+        return null;
+    }
+}
+
+function aplicarCenarioCompartilhado(cenario) {
+    const contexto = String(cenario?.contexto || '');
+    if (!dashboardConfigPorView[contexto]) return;
+    dashboardCenarios.set(contexto, Array.isArray(cenario.widgets) ? cenario.widgets : []);
+    dashboardAlturas.set(contexto, Number(cenario.alturaCanvas) || dashboardCanvasMinHeight);
+    dashboardVersoes.set(contexto, Number(cenario.versao) || 0);
+    dashboardAssinaturasPersistidas.set(
+        contexto,
+        obterAssinaturaPersistencia(contexto, cenario.widgets, cenario.alturaCanvas),
+    );
+}
+
+async function persistirCenarioDashboard(contexto, { forcar = false, silencioso = false } = {}) {
+    if (!podeEditarCenarios || !dashboardConfigPorView[contexto]) return false;
+    const widgets = dashboardCenarios.get(contexto) || [];
+    const alturaCanvas = dashboardAlturas.get(contexto) || dashboardCanvasMinHeight;
+    const assinatura = obterAssinaturaPersistencia(contexto, widgets, alturaCanvas);
+    if (!forcar && assinatura === dashboardAssinaturasPersistidas.get(contexto)) return true;
+
+    try {
+        const response = await fetch('/api/dashboard-scenarios', {
+            method: 'PUT',
+            headers: cabecalhosSessao(),
+            body: JSON.stringify({
+                contexto,
+                widgets: JSON.parse(obterAssinaturaEstruturalCenario(JSON.stringify(widgets)) || '[]'),
+                alturaCanvas,
+                versao: dashboardVersoes.get(contexto) || 0,
+            }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 409) {
+            if (data.cenario) aplicarCenarioCompartilhado(data.cenario);
+            if (dashboardContextoAtivo === contexto) renderizarDashboard();
+            atualizarStatusFiltros('O painel foi atualizado por outro usuario. A versao mais recente foi carregada.', true);
+            return false;
+        }
+        if (!response.ok) throw new Error(data.error || 'Nao foi possivel salvar o cenario compartilhado.');
+        dashboardVersoes.set(contexto, Number(data.cenario?.versao) || 0);
+        dashboardAssinaturasPersistidas.set(contexto, assinatura);
+        return true;
+    } catch (error) {
+        console.error('[CRM] Falha ao persistir cenario compartilhado:', error);
+        if (!silencioso) atualizarStatusFiltros(error.message || 'Falha ao salvar o painel compartilhado.', true);
+        return false;
+    }
+}
+
+function agendarPersistenciaCenario(contexto) {
+    if (!podeEditarCenarios || !dashboardConfigPorView[contexto]) return;
+    clearTimeout(dashboardPersistTimers.get(contexto));
+    dashboardPersistTimers.set(contexto, setTimeout(() => {
+        dashboardPersistTimers.delete(contexto);
+        persistirCenarioDashboard(contexto);
+    }, DASHBOARD_PERSIST_DEBOUNCE_MS));
+}
+
+async function carregarCenariosDashboardCompartilhados() {
+    const response = await fetch('/api/dashboard-scenarios', {
+        headers: cabecalhosSessao(),
+        cache: 'no-store',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Nao foi possivel carregar os paineis compartilhados.');
+
+    const recebidos = new Set();
+    (Array.isArray(data.cenarios) ? data.cenarios : []).forEach(cenario => {
+        aplicarCenarioCompartilhado(cenario);
+        recebidos.add(cenario.contexto);
+    });
+
+    const migracoes = [];
+    Object.keys(dashboardConfigPorView).forEach(contexto => {
+        if (recebidos.has(contexto)) return;
+        const local = podeEditarCenarios ? obterCenarioLocalLegado(contexto) : null;
+        const widgets = local?.widgets || criarWidgetsPadraoDashboard(contexto);
+        dashboardCenarios.set(contexto, widgets);
+        dashboardAlturas.set(contexto, local?.alturaCanvas || dashboardCanvasMinHeight);
+        dashboardVersoes.set(contexto, 0);
+        if (local) migracoes.push(contexto);
+    });
+
+    let totalMigrado = 0;
+    for (const contexto of migracoes) {
+        const salvo = await persistirCenarioDashboard(contexto, { forcar: true, silencioso: true });
+        if (salvo) {
+            totalMigrado += 1;
+            localStorage.setItem(obterConfigDashboardAtivo(contexto).storage + ':migrado-servidor', 'concluido');
+        }
+    }
+    if (migracoes.length) {
+        atualizarStatusFiltros(
+            totalMigrado === migracoes.length
+                ? 'Configuracoes deste navegador migradas para o painel compartilhado.'
+                : `${totalMigrado} de ${migracoes.length} configuracoes foram migradas. Recarregue para tentar novamente.`,
+            totalMigrado !== migracoes.length,
+        );
     }
 }
 
@@ -764,29 +893,24 @@ function criarWidgetPadrao(tipo = 'bar') {
     };
 }
 
-function obterWidgetsDashboard(contexto = dashboardContextoAtivo) {
-    try {
-        const conteudoSalvo = localStorage.getItem(obterConfigDashboardAtivo(contexto).storage);
-        if (conteudoSalvo !== null) {
-            const salvos = JSON.parse(conteudoSalvo);
-            if (Array.isArray(salvos)) return salvos;
-        }
-    } catch (error) {
-        // Mantem o painel utilizavel caso um rascunho local esteja invalido.
-    }
-
+function criarWidgetsPadraoDashboard(contexto) {
     if (contexto !== 'visao-geral') return [];
-
     return [
         { ...criarWidgetPadrao('bar'), id: 'evolucao-comercial', titulo: 'Evolucao comercial', colunas: 8 },
         { ...criarWidgetPadrao('kpi'), id: 'ticket-medio', titulo: 'Ticket medio', colunas: 4, linhas: 1 },
         { ...criarWidgetPadrao('funnel'), id: 'funil-orcamentos', titulo: 'Funil de orcamentos', colunas: 6 },
-        { ...criarWidgetPadrao('ranking'), id: 'ranking-vendedores', titulo: 'Ranking de vendedores', colunas: 6 }
+        { ...criarWidgetPadrao('ranking'), id: 'ranking-vendedores', titulo: 'Ranking de vendedores', colunas: 6 },
     ];
 }
 
+function obterWidgetsDashboard(contexto = dashboardContextoAtivo) {
+    if (!dashboardCenarios.has(contexto)) dashboardCenarios.set(contexto, criarWidgetsPadraoDashboard(contexto));
+    return dashboardCenarios.get(contexto);
+}
+
 function salvarWidgetsDashboard(widgets, contexto = dashboardContextoAtivo) {
-    localStorage.setItem(obterConfigDashboardAtivo(contexto).storage, JSON.stringify(widgets));
+    dashboardCenarios.set(contexto, Array.isArray(widgets) ? widgets : []);
+    agendarPersistenciaCenario(contexto);
 }
 
 function obterNomeGrafico(tipo) {
@@ -3341,7 +3465,7 @@ function coletarCategoriasWidget() {
 }
 
 function obterAlturaCanvasPreferida() {
-    const alturaSalva = Number(localStorage.getItem(obterConfigDashboardAtivo().altura));
+    const alturaSalva = Number(dashboardAlturas.get(dashboardContextoAtivo));
     if (!Number.isFinite(alturaSalva)) return dashboardCanvasMinHeight;
     return Math.min(dashboardCanvasMaxHeight, Math.max(dashboardCanvasMinHeight, alturaSalva));
 }
@@ -3371,7 +3495,8 @@ function ajustarAlturaCanvas(direcao) {
         dashboardCanvasMaxHeight,
         Math.max(dashboardCanvasMinHeight, alturaAtual + (direcao * dashboardCanvasHeightStep))
     );
-    localStorage.setItem(obterConfigDashboardAtivo().altura, String(novaAltura));
+    dashboardAlturas.set(dashboardContextoAtivo, novaAltura);
+    agendarPersistenciaCenario(dashboardContextoAtivo);
     atualizarAlturaCanvas(normalizarWidgetsDashboard(obterWidgetsDashboard()));
 }
 
@@ -6360,12 +6485,23 @@ function iniciarModulo(nomeModulo, inicializador) {
     }
 }
 
-function inicializarAplicacao() {
+async function inicializarAplicacao() {
     const hashInicial = window.location.hash || '#visao-geral';
 
     if (architectBirth) architectBirth.max = formatarDataInput(new Date());
     limparFiltrosPersistidos();
-    iniciarModulo('isolamento dos menus', repararCenariosDuplicadosEntreMenus);
+    try {
+        await carregarCenariosDashboardCompartilhados();
+    } catch (error) {
+        console.error('[CRM] Falha ao carregar cenarios compartilhados:', error);
+        Object.keys(dashboardConfigPorView).forEach(contexto => {
+            const local = podeEditarCenarios ? obterCenarioLocalLegado(contexto) : null;
+            dashboardCenarios.set(contexto, local?.widgets || criarWidgetsPadraoDashboard(contexto));
+            dashboardAlturas.set(contexto, local?.alturaCanvas || dashboardCanvasMinHeight);
+            dashboardVersoes.set(contexto, 0);
+        });
+        atualizarStatusFiltros(error.message || 'Nao foi possivel carregar os paineis compartilhados.', true);
+    }
     iniciarModulo('navegacao', () => ativarView(obterViewPorHash(hashInicial)));
     iniciarModulo('orcamentos', definirPaginaOrcamento);
     iniciarModulo('periodo', inicializarPeriodo);
@@ -6421,7 +6557,7 @@ function inicializarAplicacao() {
     });
 }
 
-inicializarAplicacao();
+inicializarAplicacao().catch(error => console.error('[CRM] Falha ao inicializar aplicacao:', error));
 
 window.addEventListener('appcolormodechange', () => {
     if (instanciaPreviaAparencia) atualizarPreviaAparencia();

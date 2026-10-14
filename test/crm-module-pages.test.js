@@ -16,13 +16,16 @@ test('cada menu possui uma view e um host de BI proprio', () => {
     assert.doesNotMatch(html, /Ficha de Fechamento|#fechamento/);
 });
 
-test('os cenarios e alturas usam armazenamento independente por modulo', () => {
+test('os cenarios e alturas usam persistencia compartilhada independente por modulo', () => {
     assert.match(script, /crmDashboardScenario:clientes:v1/);
     assert.match(script, /crmDashboardScenario:funil:v1/);
     assert.match(script, /crmDashboardScenario:arquitetos:v1/);
     assert.match(script, /crmDashboardScenario:reativacao:v1/);
     assert.ok(script.includes('obterConfigDashboardAtivo(contexto).storage'));
-    assert.ok(script.includes('obterConfigDashboardAtivo().altura'));
+    assert.match(script, /const dashboardCenarios = new Map\(\)/);
+    assert.match(script, /const dashboardAlturas = new Map\(\)/);
+    assert.match(script, /\/api\/dashboard-scenarios/);
+    assert.match(script, /obterCenarioLocalLegado/);
 });
 
 test('visao geral, carteira de clientes e funil contem somente BI', () => {

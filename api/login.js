@@ -98,7 +98,8 @@ export default async function handler(req, res) {
             sub: idFuncionario,
             idfilial: result[0].ID_FILIAL
         });
-        const podeEditarCenarios = permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
+        const podeEditarCenarios = String(result[0].CATEGORIA || '').trim().toUpperCase() === 'DI'
+            || permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
         const podeAlterarArquitetoOrcamento = permissoes.architectBudgetEditorFuncionarioIds.includes(String(idFuncionario));
         const sessionUser = {
             idfuncionario: idFuncionario,
@@ -106,6 +107,7 @@ export default async function handler(req, res) {
             idfilial: result[0].ID_FILIAL,
             idvendedor: result[0].ID_VENDEDOR,
             filiaisPermitidas,
+            canEditScenarios: podeEditarCenarios,
             architectBudgetEditor: podeAlterarArquitetoOrcamento
         };
         return res.status(200).json({
