@@ -177,7 +177,11 @@ function aplicarVisibilidadeFiltrosPorCategoria() {
 
 aplicarVisibilidadeFiltrosPorCategoria();
 
-const podeEditarCenarios = Boolean(usuarioLogado.podeEditarCenarios || usuarioLogado.canEditScenarios);
+const podeEditarCenarios = Boolean(
+    usuarioLogado.podeEditarCenarios
+    || usuarioLogado.canEditScenarios
+    || String(usuarioLogado.categoria || '').trim().toUpperCase() === 'DI'
+);
 const dashboardEditor = document.querySelector('[data-dashboard-editor]');
 const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');
 const dashboardWorkspace = document.querySelector('[data-dashboard-workspace]');
@@ -437,16 +441,19 @@ async function carregarCenariosDashboardCompartilhados() {
     const migracoes = [];
     Object.keys(dashboardConfigPorView).forEach(contexto => {
         const local = podeEditarCenarios ? obterCenarioLocalLegado(contexto) : null;
-        const config = obterConfigDashboardAtivo(contexto);
-        const migracaoConcluida = localStorage.getItem(config.storage + ':migrado-servidor') === 'concluido';
         const recebido = recebidos.has(contexto);
         const servidorAindaPadrao = recebido && ehCenarioPadraoNaoConfigurado(
             contexto,
             dashboardCenarios.get(contexto),
             dashboardAlturas.get(contexto),
         );
+        const localTemConteudo = local && !ehCenarioPadraoNaoConfigurado(
+            contexto,
+            local.widgets,
+            local.alturaCanvas,
+        );
 
-        if (local && !migracaoConcluida && (!recebido || servidorAindaPadrao)) {
+        if (localTemConteudo && (!recebido || servidorAindaPadrao)) {
             dashboardCenarios.set(contexto, local.widgets);
             dashboardAlturas.set(contexto, local.alturaCanvas);
             if (!recebido) dashboardVersoes.set(contexto, 0);

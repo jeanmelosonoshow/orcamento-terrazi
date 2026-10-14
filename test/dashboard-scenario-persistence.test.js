@@ -54,7 +54,8 @@ test('frontend usa servidor como fonte oficial e localStorage apenas na migracao
         /localStorage/,
     );
     assert.match(crmScript, /servidorAindaPadrao/);
-    assert.match(crmScript, /migracaoConcluida/);
+    assert.match(crmScript, /localTemConteudo/);
+    assert.match(crmScript, /usuarioLogado\.categoria[\s\S]*=== 'DI'/);
     assert.match(crmScript, /dashboardAssinaturasPersistidas\.set\(/);
 });
 
