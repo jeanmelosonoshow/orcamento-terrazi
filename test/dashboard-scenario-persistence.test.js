@@ -57,6 +57,9 @@ test('frontend usa servidor como fonte oficial e localStorage apenas na migracao
     assert.match(crmScript, /localTemConteudo/);
     assert.match(crmScript, /usuarioLogado\.categoria[\s\S]*=== 'DI'/);
     assert.match(crmScript, /dashboardAssinaturasPersistidas\.set\(/);
+    assert.match(crmScript, /importarBackupCenariosDashboard/);
+    assert.match(crmScript, /cenarios foram restaurados e compartilhados com sucesso/);
+    assert.match(fs.readFileSync(new URL('../public/crm.html', import.meta.url), 'utf8'), /data-import-dashboard-backup/);
 });
 
 test('API exige sessao, usa versao otimista e mantem historico', () => {

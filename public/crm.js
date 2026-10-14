@@ -187,6 +187,8 @@ const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');
 const dashboardWorkspace = document.querySelector('[data-dashboard-workspace]');
 const editModeToggle = document.querySelector('[data-edit-mode-toggle]');
 const addWidgetButton = document.querySelector('[data-add-widget]');
+const importDashboardBackupButton = document.querySelector('[data-import-dashboard-backup]');
+const dashboardBackupFileInput = document.querySelector('[data-dashboard-backup-file]');
 const decreaseCanvasHeightButton = document.querySelector('[data-decrease-canvas-height]');
 const increaseCanvasHeightButton = document.querySelector('[data-increase-canvas-height]');
 const canvasHeightValue = document.querySelector('[data-canvas-height-value]');
@@ -5587,6 +5589,45 @@ function aplicarModoEdicaoCenario(ativo) {
     }
     renderizarDashboard();
 }
+
+async function importarBackupCenariosDashboard(arquivo) {
+    if (!podeEditarCenarios || !arquivo) return;
+    const textoOriginal = importDashboardBackupButton?.textContent || 'Restaurar backup';
+    if (importDashboardBackupButton) {
+        importDashboardBackupButton.disabled = true;
+        importDashboardBackupButton.textContent = 'Restaurando...';
+    }
+
+    try {
+        const backup = JSON.parse(await arquivo.text());
+        const cenarios = backup?.cenarios;
+        if (!cenarios || typeof cenarios !== 'object') throw new Error('O arquivo nao contem um backup de cenarios valido.');
+
+        const entradas = Object.entries(cenarios).filter(([contexto]) => dashboardConfigPorView[contexto]);
+        if (!entradas.length) throw new Error('Nenhum cenario reconhecido foi encontrado no backup.');
+
+        for (const [contexto, cenario] of entradas) {
+            if (!Array.isArray(cenario?.widgets)) throw new Error(`O cenario ${contexto} nao possui uma lista de cards valida.`);
+            dashboardCenarios.set(contexto, cenario.widgets);
+            dashboardAlturas.set(contexto, Number(cenario.alturaCanvas) || dashboardCanvasMinHeight);
+            const salvo = await persistirCenarioDashboard(contexto, { forcar: true });
+            if (!salvo) throw new Error(`Nao foi possivel restaurar o cenario ${contexto}.`);
+        }
+
+        renderizarDashboard();
+        atualizarStatusFiltros(`${entradas.length} cenarios foram restaurados e compartilhados com sucesso.`);
+    } catch (error) {
+        console.error('[CRM] Falha ao importar backup de cenarios:', error);
+        atualizarStatusFiltros(error.message || 'Nao foi possivel restaurar o backup.', true);
+    } finally {
+        if (dashboardBackupFileInput) dashboardBackupFileInput.value = '';
+        if (importDashboardBackupButton) {
+            importDashboardBackupButton.disabled = false;
+            importDashboardBackupButton.textContent = textoOriginal;
+        }
+    }
+}
+
 function inicializarEditorDashboard() {
     if (dashboardEditor) dashboardEditor.hidden = !podeEditarCenarios;
     aplicarModoEdicaoCenario(false);
@@ -5597,6 +5638,10 @@ function inicializarEditorDashboard() {
 
     if (editModeToggle) editModeToggle.addEventListener('click', () => aplicarModoEdicaoCenario(!modoEdicaoCenario));
     if (addWidgetButton) addWidgetButton.addEventListener('click', () => abrirModalWidget());
+    if (importDashboardBackupButton && dashboardBackupFileInput) {
+        importDashboardBackupButton.addEventListener('click', () => dashboardBackupFileInput.click());
+        dashboardBackupFileInput.addEventListener('change', () => importarBackupCenariosDashboard(dashboardBackupFileInput.files?.[0]));
+    }
     if (decreaseCanvasHeightButton) decreaseCanvasHeightButton.addEventListener('click', () => ajustarAlturaCanvas(-1));
     if (increaseCanvasHeightButton) increaseCanvasHeightButton.addEventListener('click', () => ajustarAlturaCanvas(1));
     if (testWidgetQueryButton) testWidgetQueryButton.addEventListener('click', () => testarConsultaWidget());
