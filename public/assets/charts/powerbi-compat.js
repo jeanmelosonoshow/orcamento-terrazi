@@ -88,10 +88,12 @@
 
     function aplicar(opcao, contexto) {
         var escuro = Boolean(contexto && contexto.escuro);
+        var paletaPowerBi = ['#118DFF', '#12239E', '#E66C37', '#6B007B', '#E044A7', '#744EC2', '#D9B300', '#D64550', '#197278', '#1AAB40'];
         var cores = escuro
             ? { superficie: '#19232E', tooltip: '#202C38', texto: '#F1F4F7', textoSuave: '#B9C3CE', eixo: '#596978', grade: 'rgba(185,195,206,0.16)', gradeForte: '#334250' }
             : { superficie: '#FFFFFF', tooltip: '#FFFFFF', texto: '#252423', textoSuave: '#605E5C', eixo: '#C8C6C4', grade: 'rgba(96,94,92,0.14)', gradeForte: '#E1DFDD' };
         var resultado = Object.assign({}, opcao, {
+            color: paletaPowerBi,
             aria: Object.assign({ enabled: true, show: true }, opcao.aria),
             textStyle: Object.assign({}, opcao.textStyle, {
                 color: cores.texto,

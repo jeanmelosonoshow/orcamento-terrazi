@@ -4331,11 +4331,27 @@ body {
 }
 
 .crm-dashboard-workspace {
-    padding: 10px;
-    border: 1px solid #dfe3e9;
-    border-radius: 5px;
-    background: #e9edf2;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    padding: 0 12px 12px;
+    border: 1px solid #d2d0ce;
+    border-radius: 2px;
+    background: #f3f2f1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.crm-dashboard-workspace[data-dashboard-context]::before {
+    content: "RELATÓRIO  •  " attr(data-dashboard-label);
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    margin: 0 -12px 10px;
+    padding: 0 14px;
+    border-bottom: 3px solid var(--crm-bi-accent);
+    background: #ffffff;
+    color: #323130;
+    font-family: "Segoe UI", "Inter", Arial, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.055em;
 }
 
 .crm-dashboard-editor {
@@ -4388,10 +4404,10 @@ body.crm-scenario-editing .crm-edit-mode-toggle {
 
 .crm-dashboard-canvas {
     margin-bottom: 0;
-    border: 1px solid #d8dde5;
-    border-radius: 3px;
-    background: #f5f6f8;
-    box-shadow: inset 0 1px 3px rgba(31, 45, 61, 0.04);
+    border: 0;
+    border-radius: 0;
+    background: #f3f2f1;
+    box-shadow: none;
 }
 
 body.crm-scenario-editing .crm-dashboard-canvas {
@@ -4419,16 +4435,138 @@ body.crm-scenario-editing .crm-dashboard-canvas {
 
 .crm-dashboard-widget[data-visual-engine="powerbi-v1"] {
     font-family: "Segoe UI", "Inter", Arial, sans-serif;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid #e1dfdd !important;
+    border-top: 1px solid #e1dfdd !important;
+    border-radius: 2px;
+    background: #ffffff !important;
+    color: #252423 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"]:hover {
+    border-color: #c8c6c4 !important;
+    box-shadow: 0 3px 9px rgba(0, 0, 0, 0.12);
 }
 
 .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head > strong {
-    font-size: 0.9rem;
+    color: #323130 !important;
+    font-size: 0.86rem;
     font-weight: 600;
     letter-spacing: 0;
 }
 
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head {
+    min-height: 30px;
+    padding-bottom: 6px;
+    border-bottom-color: #edebe9;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head button {
+    border-color: transparent;
+    background: transparent;
+    color: #605e5c;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head button:hover {
+    border-color: #d2d0ce;
+    background: #f3f2f1;
+    color: #201f1e;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-kpi-real strong {
+    color: #201f1e !important;
+    font-weight: 600;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-kpi-real .crm-kpi-label,
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-kpi-target-detail i {
+    color: #605e5c !important;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-kpi-target-detail {
+    border-color: #edebe9;
+    border-radius: 2px;
+    background: #faf9f8;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-kpi-target-detail > span {
+    color: #323130;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-widget-icon.is-result {
+    width: clamp(38px, 10cqi, 48px);
+    height: clamp(38px, 10cqi, 48px);
+    flex-basis: clamp(38px, 10cqi, 48px);
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-table-real {
+    border-color: #edebe9;
+    border-radius: 0;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-table-real th {
+    border-bottom-color: #d2d0ce;
+    background: #f3f2f1;
+    color: #323130;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-table-real td {
+    color: #323130;
+}
+
 .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-table-real table {
     font-family: "Segoe UI", "Inter", Arial, sans-serif;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-workspace {
+    border-color: #3b3a39;
+    background: #181818;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-workspace[data-dashboard-context]::before {
+    border-bottom-color: #f2c811;
+    background: #242424;
+    color: #f3f2f1;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-canvas {
+    background: #181818;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] {
+    border-color: #3b3a39 !important;
+    background: #242424 !important;
+    color: #f3f2f1 !important;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head {
+    border-bottom-color: #3b3a39;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head > strong,
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-kpi-real strong,
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-kpi-target-detail > span {
+    color: #f3f2f1 !important;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-kpi-real .crm-kpi-label,
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-kpi-target-detail i {
+    color: #c8c6c4 !important;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-kpi-target-detail,
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-table-real th {
+    border-color: #484644;
+    background: #2d2d2d;
+}
+
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-table-real td,
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-table-real th {
+    color: #f3f2f1;
 }
 
 body.crm-scenario-editing .crm-dashboard-widget[data-visual-engine="powerbi-v1"]::after {

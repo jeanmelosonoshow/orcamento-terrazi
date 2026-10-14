@@ -588,6 +588,9 @@ function trocarContextoDashboard(viewName) {
     }
 
     if (dashboardWorkspace.parentElement !== host) host.appendChild(dashboardWorkspace);
+    const tituloPainel = document.querySelector('.crm-page-title h1')?.textContent?.trim() || 'Painel';
+    dashboardWorkspace.dataset.dashboardContext = proximoContexto;
+    dashboardWorkspace.dataset.dashboardLabel = tituloPainel;
     const contextoArquitetos = proximoContexto === 'arquitetos';
     document.body.classList.toggle('crm-architect-filter-active', contextoArquitetos);
     if (crmArchitectFilter) crmArchitectFilter.hidden = !contextoArquitetos;
@@ -603,8 +606,7 @@ function trocarContextoDashboard(viewName) {
             : 'Relacionamento';
     }
     if (dashboardCanvas) {
-        const titulo = document.querySelector('.crm-page-title h1')?.textContent || 'Painel';
-        dashboardCanvas.setAttribute('aria-label', 'Area de inteligencia de negocio - ' + titulo);
+        dashboardCanvas.setAttribute('aria-label', 'Area de inteligencia de negocio - ' + tituloPainel);
     }
     renderizarDashboard();
     contextoViewRenderizado = proximoContexto;
@@ -1001,7 +1003,7 @@ function obterAparenciaWidget(widget = {}) {
 function obterMotorVisualWidget(widget = {}, contexto = dashboardContextoAtivo) {
     const configurado = widget.aparencia?.motorVisual;
     if (configurado === 'powerbi-v1' || configurado === 'classic') return configurado;
-    return contexto === 'visao-geral' ? 'powerbi-v1' : 'classic';
+    return crmBiViews.has(contexto) ? 'powerbi-v1' : 'classic';
 }
 
 function obterContrasteCor(corHex) {
