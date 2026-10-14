@@ -253,6 +253,7 @@ const widgetGradientFields = Array.from(document.querySelectorAll('[data-widget-
 const widgetPaletteOptions = document.querySelector('[data-widget-palette-options]');
 const widgetIconOptions = document.querySelector('[data-widget-icon-options]');
 const widgetIconColorInput = document.querySelector('[data-widget-icon-color]');
+const widgetVisualEngineSelect = document.querySelector('[data-widget-visual-engine]');
 const widgetLegendSelect = document.querySelector('[data-widget-legend]');
 const widgetDataLabelsSelect = document.querySelector('[data-widget-data-labels]');
 const widgetGridLinesSelect = document.querySelector('[data-widget-grid-lines]');
@@ -717,6 +718,7 @@ const aparenciaWidgetPadrao = Object.freeze({
     icone: 'none',
     iconeCor: '#C5A47E',
     alinhamento: 'left',
+    motorVisual: 'auto',
     legenda: 'auto',
     rotulosDados: 'auto',
     linhasGrade: 'auto',
@@ -977,6 +979,7 @@ function normalizarCorHex(cor, fallback = '#FFFFFF') {
 
 function obterAparenciaWidget(widget = {}) {
     const atual = widget.aparencia && typeof widget.aparencia === 'object' ? widget.aparencia : {};
+    const motorVisual = ['auto', 'powerbi-v1', 'classic'].includes(atual.motorVisual) ? atual.motorVisual : null;
     return {
         fundoTipo: ['light', 'solid', 'gradient'].includes(atual.fundoTipo) ? atual.fundoTipo : aparenciaWidgetPadrao.fundoTipo,
         fundoCor: normalizarCorHex(atual.fundoCor, aparenciaWidgetPadrao.fundoCor),
@@ -990,8 +993,15 @@ function obterAparenciaWidget(widget = {}) {
         rotulosDados: ['auto', 'show', 'hidden'].includes(atual.rotulosDados) ? atual.rotulosDados : aparenciaWidgetPadrao.rotulosDados,
         linhasGrade: ['auto', 'show', 'hidden'].includes(atual.linhasGrade) ? atual.linhasGrade : aparenciaWidgetPadrao.linhasGrade,
         raioSeries: [0, 4, 10, 999].includes(Number(atual.raioSeries)) ? Number(atual.raioSeries) : aparenciaWidgetPadrao.raioSeries,
-        animacao: atual.animacao !== false
+        animacao: atual.animacao !== false,
+        ...(motorVisual ? { motorVisual } : {})
     };
+}
+
+function obterMotorVisualWidget(widget = {}, contexto = dashboardContextoAtivo) {
+    const configurado = widget.aparencia?.motorVisual;
+    if (configurado === 'powerbi-v1' || configurado === 'classic') return configurado;
+    return contexto === 'visao-geral' ? 'powerbi-v1' : 'classic';
 }
 
 function obterContrasteCor(corHex) {
@@ -1048,6 +1058,7 @@ function coletarAparenciaWidget() {
             icone: widgetIconOptions?.querySelector('input:checked')?.value || 'none',
             iconeCor: widgetIconColorInput?.value || aparenciaWidgetPadrao.iconeCor,
             alinhamento: widgetAlignmentSelect?.value || 'left',
+            motorVisual: widgetVisualEngineSelect?.value || 'auto',
             legenda: widgetLegendSelect?.value || 'auto',
             rotulosDados: widgetDataLabelsSelect?.value || 'auto',
             linhasGrade: widgetGridLinesSelect?.value || 'auto',
@@ -1173,6 +1184,7 @@ function carregarAparenciaWidget(widget) {
     if (widgetGradientStartInput) widgetGradientStartInput.value = aparencia.gradienteInicio;
     if (widgetGradientEndInput) widgetGradientEndInput.value = aparencia.gradienteFim;
     if (widgetIconColorInput) widgetIconColorInput.value = aparencia.iconeCor;
+    if (widgetVisualEngineSelect) widgetVisualEngineSelect.value = aparencia.motorVisual || 'auto';
     if (widgetLegendSelect) widgetLegendSelect.value = aparencia.legenda;
     if (widgetDataLabelsSelect) widgetDataLabelsSelect.value = aparencia.rotulosDados;
     if (widgetGridLinesSelect) widgetGridLinesSelect.value = aparencia.linhasGrade;
@@ -1669,11 +1681,18 @@ function obterCoresGraficos() {
 
 function aplicarEstiloVisualGrafico(opcao, widget) {
     const aparencia = obterAparenciaWidget(widget);
+    const motorVisual = obterMotorVisualWidget(widget);
+    const opcaoBase = motorVisual === 'powerbi-v1' && window.CRM_POWERBI_COMPAT?.aplicar
+        ? window.CRM_POWERBI_COMPAT.aplicar(opcao, {
+            tipo: widget.tipo,
+            escuro: document.documentElement.dataset.colorMode === 'dark'
+        })
+        : opcao;
     const resultado = {
-        ...opcao,
+        ...opcaoBase,
         animation: aparencia.animacao,
-        animationDuration: aparencia.animacao ? (opcao.animationDuration ?? 360) : 0,
-        animationDurationUpdate: aparencia.animacao ? (opcao.animationDurationUpdate ?? 220) : 0
+        animationDuration: aparencia.animacao ? (opcaoBase.animationDuration ?? 360) : 0,
+        animationDurationUpdate: aparencia.animacao ? (opcaoBase.animationDurationUpdate ?? 220) : 0
     };
 
     if (resultado.legend && aparencia.legenda !== 'auto') {
@@ -3922,9 +3941,10 @@ function renderizarDashboard() {
     dashboardCanvas.innerHTML = widgets.map((widget, index) => {
         const layout = layoutsRenderizacao.get(widget.id) || obterLayoutWidget(widget, index);
         const aparencia = obterAparenciaWidget(widget);
+        const motorVisual = obterMotorVisualWidget(widget);
         const icone = renderizarIconeWidget(aparencia.icone, 'is-result');
         return `
-            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-type="${escapeHtml(widget.tipo)}" data-widget-align="${escapeHtml(aparencia.alinhamento)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
+            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-type="${escapeHtml(widget.tipo)}" data-widget-align="${escapeHtml(aparencia.alinhamento)}" data-visual-engine="${escapeHtml(motorVisual)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     <strong>${escapeHtml(widget.titulo)}</strong>
                     <div class="crm-dashboard-widget-actions">
@@ -5883,6 +5903,7 @@ function inicializarEditorDashboard() {
         widgetGradientStartInput,
         widgetGradientEndInput,
         widgetIconColorInput,
+        widgetVisualEngineSelect,
         widgetLegendSelect,
         widgetDataLabelsSelect,
         widgetGridLinesSelect,

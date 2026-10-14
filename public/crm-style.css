@@ -4417,6 +4417,36 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     box-shadow: 0 4px 13px rgba(31, 45, 61, 0.13);
 }
 
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] {
+    font-family: "Segoe UI", "Inter", Arial, sans-serif;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head > strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-chart-table-real table {
+    font-family: "Segoe UI", "Inter", Arial, sans-serif;
+}
+
+body.crm-scenario-editing .crm-dashboard-widget[data-visual-engine="powerbi-v1"]::after {
+    content: "Power BI";
+    position: absolute;
+    right: 9px;
+    bottom: 7px;
+    z-index: 2;
+    padding: 2px 5px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--widget-accent, #f2c811) 18%, transparent);
+    color: var(--widget-muted, var(--muted));
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+}
+
 .crm-dashboard-widget-head {
     min-height: 32px;
     padding-bottom: 8px;
