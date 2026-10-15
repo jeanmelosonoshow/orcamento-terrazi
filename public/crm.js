@@ -4460,9 +4460,13 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
     const consultas = Array.isArray(widget.consultas) && widget.consultas.length ? widget.consultas : [];
     if (consultas.length > 1) {
         const resultados = [];
+        const modoConsulta = modoExecucaoConsultaComposta(
+            opcoes.modoExecucao || 'painel',
+            widget.combinacaoConsultas?.modo
+        );
         for (const consulta of consultas) {
             if (opcoes.signal?.aborted) throw Object.assign(new Error('Atualizacao substituida por outro menu.'), { code: 'DASHBOARD_CONTEXT_CHANGED' });
-            resultados.push(await executarConsultaConfigurada(consulta, filtros, null, opcoes));
+            resultados.push(await executarConsultaConfigurada(consulta, filtros, null, { ...opcoes, modoExecucao: modoConsulta }));
         }
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
         const enriquecido = await aplicarRelacionamentoResultadoWidget(widget, combinado.dados, combinado.colunas, filtros);
@@ -5472,6 +5476,10 @@ async function executarConsultaConfigurada(consulta, filtros, visualizacao = nul
     };
 }
 function combinarConsultas(resultados, combinacao, camposCalculados) { if (!window.CRM_COMPOSITE_DATASETS) throw new Error('Combinador de consultas indisponível.'); return window.CRM_COMPOSITE_DATASETS.combinar(resultados, combinacao, camposCalculados, window.CRM_KPI_CALCULATOR?.avaliar); }
+function modoExecucaoConsultaComposta(modoSolicitado, modoCombinacao) {
+    if (modoSolicitado === 'exportacao') return 'exportacao';
+    return ['joins', 'key'].includes(String(modoCombinacao || '').toLowerCase()) ? 'relacionamento' : modoSolicitado;
+}
 function recombinarConsultasEditor() { const combinado = combinarConsultas(resultadosConsultasAtuais, coletarCombinacaoEditor(), coletarCamposCalculadosEditor()); colunasConsultaAtual = combinado.colunas; dadosConsultaAtual = combinado.dados; renderizarMapeamentoColunas(); renderizarTabelaConsulta({ colunas: combinado.colunas, amostra: combinado.dados.slice(0, 100), dados: combinado.dados, linhas: combinado.dados.length }); return combinado; }
 
 async function testarConsultaWidget() {
@@ -5483,13 +5491,14 @@ async function testarConsultaWidget() {
     try {
         resultadosConsultasAtuais = [];
         const filtrosExecucao = obterFiltrosCenario();
+        const modoConsulta = modoExecucaoConsultaComposta('edicao', queryCombinationModeSelect?.value);
         for (let indice = 0; indice < consultas.length; indice += 1) {
             renderizarResultadoConsulta('Executando consulta ' + (indice + 1) + ' de ' + consultas.length + '...', 'info');
             resultadosConsultasAtuais.push(await executarConsultaConfigurada(
                 consultas[indice],
                 filtrosExecucao,
                 null,
-                { modoExecucao: 'edicao' }
+                { modoExecucao: modoConsulta }
             ));
         }
         const combinacaoSalva = coletarCombinacaoEditor();

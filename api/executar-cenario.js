@@ -131,7 +131,8 @@ export default async function handler(req, res) {
         modoExecucao = 'painel'
     } = req.body || {};
     const modoNormalizado = normalizarModoExecucaoCenario(modoExecucao);
-    const limiteRetorno = modoNormalizado === 'exportacao' ? undefined : LIMITE_RETORNO;
+    const consultaCompleta = ['exportacao', 'relacionamento'].includes(modoNormalizado);
+    const limiteRetorno = consultaCompleta ? undefined : LIMITE_RETORNO;
     const erroModoExecucao = validarModoExecucaoCenario(modoNormalizado);
     if (erroModoExecucao) {
         return res.status(400).json({
@@ -306,7 +307,7 @@ export default async function handler(req, res) {
         res.status(200).json({
             colunas: linhas.length ? extrairColunas(linhas) : (colunasProximidade || []),
             linhas: linhas.length,
-            limite: modoNormalizado === 'exportacao' ? null : LIMITE_PREVIA,
+            limite: consultaCompleta ? null : LIMITE_PREVIA,
             amostra: linhas.slice(0, LIMITE_PREVIA),
             dados: linhas,
             resultadoAgregado,

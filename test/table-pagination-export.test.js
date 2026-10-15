@@ -86,6 +86,7 @@ test('exportacao consulta novamente sem o limite visual de mil registros', async
     assert.match(source, /carregarWidgetParaExportacao/);
     assert.match(source, /modoExecucao: 'exportacao'/);
     assert.match(source, /const tamanhoLote = 5000/);
-    assert.match(api, /modoNormalizado === 'exportacao' \? undefined : LIMITE_RETORNO/);
+    assert.match(api, /const consultaCompleta = \['exportacao', 'relacionamento'\]\.includes\(modoNormalizado\)/);
+    assert.match(api, /const limiteRetorno = consultaCompleta \? undefined : LIMITE_RETORNO/);
     assert.match(access, /'exportacao'/);
 });
