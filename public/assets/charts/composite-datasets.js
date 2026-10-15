@@ -6,6 +6,21 @@
     function prefixarLinha(linha, alias) { return Object.fromEntries(Object.entries(linha || {}).map(function (entrada) { return [alias + '.' + entrada[0], entrada[1]]; })); }
     function prefixarColunasVazias(colunas, alias) { return Object.fromEntries((colunas || []).map(function (coluna) { return [alias + '.' + coluna, null]; })); }
     function chaveRelacao(valor) { if (valor === null || valor === undefined || valor === '') return null; return String(valor).trim(); }
+    function camposRelacionamento(configuracao) {
+        var campos = Array.isArray(configuracao && configuracao.campos) ? configuracao.campos.map(function (campo) { return { chavePrincipal: String(campo && campo.chavePrincipal || '').trim(), chaveSecundaria: String(campo && campo.chaveSecundaria || '').trim() }; }) : [];
+        if (!campos.length && configuracao) campos.push({ chavePrincipal: String(configuracao.chavePrincipal || '').trim(), chaveSecundaria: String(configuracao.chaveSecundaria || '').trim() });
+        return campos;
+    }
+    function chaveComposta(linha, campos, lado, aliasPrincipal) {
+        var valores = [];
+        for (var indice = 0; indice < campos.length; indice += 1) {
+            var nomeCampo = lado === 'principal' ? aliasPrincipal + '.' + campos[indice].chavePrincipal : campos[indice].chaveSecundaria;
+            var valor = chaveRelacao(obterValor(linha, nomeCampo));
+            if (valor === null) return null;
+            valores.push(valor);
+        }
+        return JSON.stringify(valores);
+    }
     function aplicarFormulas(linhas, campos, avaliar) {
         return linhas.map(function (linha) {
             var calculada = Object.assign({}, linha); var nomes = new Set();
@@ -50,20 +65,18 @@
         fontes.slice(1).forEach(function (secundaria) {
             var configuracao = secundaria.join || {};
             var tipo = String(configuracao.tipo || 'left').toLowerCase();
-            var chavePrincipal = String(configuracao.chavePrincipal || '').trim();
-            var chaveSecundaria = String(configuracao.chaveSecundaria || '').trim();
+            var campos = camposRelacionamento(configuracao);
             if (tipo !== 'inner' && tipo !== 'left') throw erro('Selecione INNER JOIN ou LEFT JOIN para a consulta "' + secundaria.alias + '".');
-            if (!chavePrincipal || !chaveSecundaria) throw erro('Selecione os campos de relacionamento da consulta "' + secundaria.alias + '".');
+            if (!campos.length || campos.some(function (campo) { return !campo.chavePrincipal || !campo.chaveSecundaria; })) throw erro('Preencha todos os campos de relacionamento da consulta "' + secundaria.alias + '".');
             var indiceSecundario = new Map();
             secundaria.dados.forEach(function (linha) {
-                var chave = chaveRelacao(obterValor(linha, chaveSecundaria));
+                var chave = chaveComposta(linha, campos, 'secundaria', principal.alias);
                 if (chave === null) return;
-                if (indiceSecundario.has(chave)) throw erro('A chave da consulta "' + secundaria.alias + '" possui valores duplicados. Agregue-a antes do relacionamento.');
+                if (indiceSecundario.has(chave)) throw erro('A combinação de campos da consulta "' + secundaria.alias + '" ainda possui valores duplicados. Adicione outro campo para completar a cardinalidade ou agregue a consulta.');
                 indiceSecundario.set(chave, linha);
             });
-            var chavePrincipalPrefixada = principal.alias + '.' + chavePrincipal;
             linhas = linhas.reduce(function (resultado, linha) {
-                var chave = chaveRelacao(obterValor(linha, chavePrincipalPrefixada));
+                var chave = chaveComposta(linha, campos, 'principal', principal.alias);
                 var relacionada = chave === null ? null : indiceSecundario.get(chave);
                 if (relacionada) resultado.push(Object.assign({}, linha, prefixarLinha(relacionada, secundaria.alias)));
                 else if (tipo === 'left') resultado.push(Object.assign({}, linha, prefixarColunasVazias(secundaria.colunas, secundaria.alias)));

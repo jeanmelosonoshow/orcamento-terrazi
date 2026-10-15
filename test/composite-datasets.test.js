@@ -45,6 +45,22 @@ test('aplica inner e left join na ordem das consultas cadastradas', async () => 
     assert.equal(r.dados[1]['entrega.STATUS'], 'Enviado');
 });
 
+test('relaciona por chave composta quando o numero se repete entre filiais', async () => {
+    const m = await carregarModulos();
+    const campos = [
+        { chavePrincipal: 'IDFILIAL', chaveSecundaria: 'idfilial' },
+        { chavePrincipal: 'NUMEROSAIDA', chaveSecundaria: 'numerosaida' }
+    ];
+    const r = m.CRM_COMPOSITE_DATASETS.combinar([
+        { alias: 'firebird', colunas: ['IDFILIAL', 'NUMEROSAIDA'], dados: [{ IDFILIAL: 26, NUMEROSAIDA: 100 }, { IDFILIAL: 27, NUMEROSAIDA: 100 }] },
+        { alias: 'postgres', colunas: ['idfilial', 'numerosaida', 'orcamento_id'], dados: [{ idfilial: 26, numerosaida: 100, orcamento_id: 501 }, { idfilial: 27, numerosaida: 100, orcamento_id: 777 }], join: { tipo: 'inner', campos } }
+    ], { modo: 'joins' }, [], m.CRM_KPI_CALCULATOR.avaliar);
+
+    assert.equal(r.dados.length, 2);
+    assert.equal(r.dados[0]['postgres.orcamento_id'], 501);
+    assert.equal(r.dados[1]['postgres.orcamento_id'], 777);
+});
+
 test('editor expoe consultas compostas e campos calculados', async () => { const html = await readFile(new URL('../public/crm.html', import.meta.url), 'utf8'); const script = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8'); assert.match(html, /data-add-secondary-query/); assert.match(html, /data-query-combination-mode/); assert.match(html, /data-add-calculated-field/); assert.match(html, /composite-datasets.js/); assert.match(script, /consultas: consultasEditor/); assert.match(script, /camposCalculados: calculado/); });
 test('une linhas de varias consultas com as mesmas colunas para graficos', async () => {
     const m = await carregarModulos();
@@ -73,6 +89,8 @@ test('editor permite varias consultas secundarias e oferece uniao de linhas', as
     assert.match(script, /data-secondary-join-type/);
     assert.match(script, /data-secondary-primary-key/);
     assert.match(script, /data-secondary-join-key/);
+    assert.match(script, /data-add-secondary-join-field/);
+    assert.match(script, /data-remove-secondary-join-field/);
     assert.match(script, /preencherCamposJoinsSequenciais/);
     assert.match(script, /renderizarConsultasSecundarias\(consultasWidget\.slice\(1\)\)/);
     assert.doesNotMatch(script, /Promise\.all\(consultas\.map/);
