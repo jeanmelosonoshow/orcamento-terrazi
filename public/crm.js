@@ -5419,6 +5419,13 @@ function preencherCamposJoinsSequenciais(resultados = resultadosConsultasAtuais)
         const campoSecundario = row.querySelector('[data-secondary-join-key]');
         preencherSelectCampos(campoPrincipal, resultados[0]?.colunas || [], campoPrincipal?.value || '');
         preencherSelectCampos(campoSecundario, resultados[indice + 1]?.colunas || [], campoSecundario?.value || '');
+        if (!campoPrincipal?.value && !campoSecundario?.value) {
+            const comum = (resultados[0]?.colunas || []).find(coluna => (resultados[indice + 1]?.colunas || []).some(item => String(item).toLowerCase() === String(coluna).toLowerCase()));
+            if (comum) {
+                campoPrincipal.value = comum;
+                campoSecundario.value = (resultados[indice + 1]?.colunas || []).find(item => String(item).toLowerCase() === String(comum).toLowerCase()) || '';
+            }
+        }
     });
 }
 function atualizarControlesCombinacao() { const ativa = consultaSecundariaAtiva(); if (queryCombinationBox) queryCombinationBox.hidden = !ativa; const porChave = ativa && queryCombinationModeSelect?.value === 'key'; const joins = ativa && queryCombinationModeSelect?.value === 'joins'; if (primaryKeyField) primaryKeyField.hidden = !porChave; if (secondaryKeyField) secondaryKeyField.hidden = !porChave; obterLinhasConsultasSecundarias().forEach(row => { const painel = row.querySelector('[data-secondary-query-join]'); if (painel) painel.hidden = !joins; }); if (calculatedFieldsBox) calculatedFieldsBox.hidden = !ativa; }

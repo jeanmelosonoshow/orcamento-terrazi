@@ -73,6 +73,7 @@ test('editor permite varias consultas secundarias e oferece uniao de linhas', as
     assert.match(script, /data-secondary-join-type/);
     assert.match(script, /data-secondary-primary-key/);
     assert.match(script, /data-secondary-join-key/);
+    assert.match(script, /preencherCamposJoinsSequenciais/);
     assert.match(script, /renderizarConsultasSecundarias\(consultasWidget\.slice\(1\)\)/);
     assert.doesNotMatch(script, /Promise\.all\(consultas\.map/);
 });
