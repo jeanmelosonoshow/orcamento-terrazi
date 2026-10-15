@@ -20,6 +20,8 @@ const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
 const filialId = String(usuarioLogado.idfilial || usuarioLogado.id_filial || '').trim().toUpperCase();
 const idFuncionarioLogado = usuarioLogado.idfuncionario || usuarioLogado.id_funcionario || usuarioLogado.IDFUNCIONARIO || '';
 const idVendedorLogado = usuarioLogado.idvendedor || usuarioLogado.id_vendedor || usuarioLogado.IDVENDEDOR || '';
+const podeGerenciarComissaoArquiteto = usuarioLogado.architectCommissionManager === true
+    || usuarioLogado.podeGerenciarComissaoArquiteto === true;
 const categoriasTraduzidas = {
     VD: 'VENDEDOR',
     GR: 'GERENTE',
@@ -154,6 +156,8 @@ const architectCau = document.querySelector('[data-architect-cau]');
 const architectPhone = document.querySelector('[data-architect-phone]');
 const architectPhoneAlt = document.querySelector('[data-architect-phone-alt]');
 const architectEmail = document.querySelector('[data-architect-email]');
+const architectCommissionField = document.querySelector('[data-architect-commission-field]');
+const architectCommission = document.querySelector('[data-architect-commission]');
 const architectSearch = document.querySelector('[data-architect-search]');
 const architectList = document.querySelector('[data-architect-list]');
 const architectDirectoryStatus = document.querySelector('[data-architect-directory-status]');
@@ -169,6 +173,10 @@ let architectDirectoryPage = 1;
 let architectDirectoryTotalPages = 1;
 let architectDirectoryColumns = 1;
 let architectDirectoryResizeTimer = null;
+let architectEditingId = null;
+const arquitetosDiretorioPorId = new Map();
+
+if (architectCommissionField) architectCommissionField.hidden = !podeGerenciarComissaoArquiteto;
 
 function aplicarVisibilidadeFiltrosPorCategoria() {
     if (crmFilialFilter) crmFilialFilter.hidden = categoriaSemFiltrosFilialVendedor;
@@ -5043,6 +5051,8 @@ function alternarFormularioArquiteto(aberto) {
     if (aberto) setTimeout(() => architectName?.focus(), 0);
     else {
         architectForm.reset();
+        architectEditingId = null;
+        if (architectSaveButton) architectSaveButton.textContent = 'Salvar cadastro';
         if (architectFormMessage) {
             architectFormMessage.textContent = '';
             architectFormMessage.className = '';
@@ -5105,6 +5115,8 @@ function renderizarDiretorioArquitetos(arquitetos, paginacao = {}) {
         atualizarControlesDiretorioArquitetos(paginacao, 0);
         return;
     }
+    arquitetosDiretorioPorId.clear();
+    arquitetos.forEach(arquiteto => arquitetosDiretorioPorId.set(Number(arquiteto.id), arquiteto));
     architectList.innerHTML = arquitetos.map(arquiteto => `
         <article class="crm-architect-card">
             <div class="crm-architect-card-avatar">${escapeHtml(obterIniciaisArquiteto(arquiteto.nome))}</div>
@@ -5119,10 +5131,39 @@ function renderizarDiretorioArquitetos(arquitetos, paginacao = {}) {
                     <a href="mailto:${escapeHtml(arquiteto.email)}">${renderizarIconeDiretorioArquiteto('email')}<span>${escapeHtml(arquiteto.email)}</span></a>
                 </div>
                 <span class="crm-architect-origin">${renderizarIconeDiretorioArquiteto('branch')} Origem do cadastro: filial ${escapeHtml(arquiteto.idfilialCadastro || 'não informada')}</span>
+                ${podeGerenciarComissaoArquiteto && arquiteto.percentualComissao !== null && arquiteto.percentualComissao !== undefined
+                    ? `<span class="crm-architect-commission">Comissão: ${escapeHtml(Number(arquiteto.percentualComissao).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 4 }))}%</span>`
+                    : ''}
+                <button type="button" class="crm-architect-edit" data-architect-edit="${Number(arquiteto.id)}">Editar cadastro</button>
             </div>
         </article>
     `).join('');
     atualizarControlesDiretorioArquitetos(paginacao, arquitetos.length);
+}
+
+function editarCadastroArquiteto(id) {
+    const arquiteto = arquitetosDiretorioPorId.get(Number(id));
+    if (!arquiteto || !architectForm) return;
+    architectEditingId = Number(arquiteto.id);
+    architectName.value = arquiteto.nome || '';
+    architectCpf.value = formatarCpfArquiteto(arquiteto.cpf);
+    architectBirth.value = String(arquiteto.nascimento || '').slice(0, 10);
+    architectCau.value = arquiteto.registroCau || '';
+    architectPhone.value = formatarTelefoneArquiteto(arquiteto.telefone);
+    architectPhoneAlt.value = formatarTelefoneArquiteto(arquiteto.telefoneAlternativo);
+    architectEmail.value = arquiteto.email || '';
+    if (architectCommission && podeGerenciarComissaoArquiteto) {
+        architectCommission.value = arquiteto.percentualComissao ?? '';
+    }
+    if (architectSaveButton) architectSaveButton.textContent = 'Salvar alterações';
+    if (architectFormMessage) {
+        architectFormMessage.textContent = 'Editando cadastro existente.';
+        architectFormMessage.className = '';
+    }
+    architectForm.hidden = false;
+    architectFormToggle?.setAttribute('aria-expanded', 'true');
+    architectForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => architectName?.focus(), 0);
 }
 
 async function carregarArquitetosCrm(forcar = false) {
@@ -5166,24 +5207,30 @@ async function salvarCadastroArquiteto(event) {
         architectFormMessage.className = '';
     }
     try {
+        const payload = {
+            id: architectEditingId,
+            nome: architectName?.value,
+            cpf: architectCpf?.value,
+            nascimento: architectBirth?.value,
+            registroCau: architectCau?.value,
+            telefone: architectPhone?.value,
+            telefoneAlternativo: architectPhoneAlt?.value,
+            email: architectEmail?.value
+        };
+        if (podeGerenciarComissaoArquiteto) payload.percentualComissao = architectCommission?.value;
+        const editando = Number.isSafeInteger(architectEditingId) && architectEditingId > 0;
         const response = await fetch('/api/arquitetos', {
-            method: 'POST',
+            method: editando ? 'PUT' : 'POST',
             headers: cabecalhosSessao(),
-            body: JSON.stringify({
-                nome: architectName?.value,
-                cpf: architectCpf?.value,
-                nascimento: architectBirth?.value,
-                registroCau: architectCau?.value,
-                telefone: architectPhone?.value,
-                telefoneAlternativo: architectPhoneAlt?.value,
-                email: architectEmail?.value
-            })
+            body: JSON.stringify(payload)
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Nao foi possivel salvar o arquiteto.');
         architectForm.reset();
+        architectEditingId = null;
+        if (architectSaveButton) architectSaveButton.textContent = 'Salvar cadastro';
         if (architectFormMessage) {
-            architectFormMessage.textContent = 'Arquiteto cadastrado com sucesso.';
+            architectFormMessage.textContent = editando ? 'Cadastro atualizado com sucesso.' : 'Arquiteto cadastrado com sucesso.';
             architectFormMessage.className = 'is-success';
         }
         arquitetosCrmCarregados = false;
@@ -6213,6 +6260,10 @@ function inicializarEditorDashboard() {
         if (!botao || botao.disabled) return;
         architectDirectoryPage = Math.max(1, Math.min(architectDirectoryTotalPages, architectDirectoryPage + Number(botao.dataset.architectPage || 0)));
         carregarArquitetosCrm(true);
+    });
+    if (architectList) architectList.addEventListener('click', event => {
+        const botao = event.target.closest('[data-architect-edit]');
+        if (botao) editarCadastroArquiteto(botao.dataset.architectEdit);
     });
     if (window.ResizeObserver && architectManager) {
         let larguraDiretorioArquitetos = Math.round(architectManager.clientWidth || 0);

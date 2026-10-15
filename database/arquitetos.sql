@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS arquiteto (
     data_cadastro TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     idfilial_cadastro VARCHAR(2) NOT NULL,
     idfuncionario_cadastro INTEGER NOT NULL,
+    idfuncionario_ultima_atualizacao INTEGER,
+    percentual_comissao NUMERIC(7,4),
     data_ultima_atualizacao TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT ck_arquiteto_cpf CHECK (cpf ~ '^[0-9]{11}$'),
@@ -19,6 +21,12 @@ CREATE TABLE IF NOT EXISTS arquiteto (
 );
 
 ALTER TABLE arquiteto ADD COLUMN IF NOT EXISTS nascimento DATE;
+ALTER TABLE arquiteto ADD COLUMN IF NOT EXISTS idfuncionario_ultima_atualizacao INTEGER;
+ALTER TABLE arquiteto ADD COLUMN IF NOT EXISTS percentual_comissao NUMERIC(7,4);
+
+ALTER TABLE arquiteto DROP CONSTRAINT IF EXISTS ck_arquiteto_percentual_comissao;
+ALTER TABLE arquiteto ADD CONSTRAINT ck_arquiteto_percentual_comissao
+    CHECK (percentual_comissao IS NULL OR percentual_comissao BETWEEN 0 AND 100);
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_arquiteto_cpf ON arquiteto (cpf);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_arquiteto_cau ON arquiteto (UPPER(registro_cau));

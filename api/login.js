@@ -20,7 +20,8 @@ function carregarPermissoes() {
     const fallback = {
         allowedLoginCategories: ['GR', 'SU', 'VD', 'DI', 'CX'],
         scenarioEditorFuncionarioIds: [],
-        architectBudgetEditorFuncionarioIds: []
+        architectBudgetEditorFuncionarioIds: [],
+        architectCommissionManagerFuncionarioIds: []
     };
 
     try {
@@ -29,6 +30,7 @@ function carregarPermissoes() {
         const categoriasLogin = config.allowedLoginCategories || config.categorias?.loginPermitido;
         const editoresCenarios = config.scenarioEditorFuncionarioIds || config.cenarios?.editoresIdFuncionario;
         const editoresArquitetos = config.architectBudgetEditorFuncionarioIds || config.arquitetos?.editoresVinculoOrcamentoIdFuncionario;
+        const gestoresComissao = config.architectCommissionManagerFuncionarioIds || config.arquitetos?.gestoresComissaoIdFuncionario;
         const allowedLoginCategories = Array.isArray(categoriasLogin)
             ? categoriasLogin.map(categoria => String(categoria).trim().toUpperCase()).filter(Boolean)
             : fallback.allowedLoginCategories;
@@ -38,11 +40,15 @@ function carregarPermissoes() {
         const architectBudgetEditorFuncionarioIds = Array.isArray(editoresArquitetos)
             ? editoresArquitetos.map(id => String(id).trim()).filter(Boolean)
             : fallback.architectBudgetEditorFuncionarioIds;
+        const architectCommissionManagerFuncionarioIds = Array.isArray(gestoresComissao)
+            ? gestoresComissao.map(id => String(id).trim()).filter(Boolean)
+            : fallback.architectCommissionManagerFuncionarioIds;
 
         return {
             allowedLoginCategories: allowedLoginCategories.length ? allowedLoginCategories : fallback.allowedLoginCategories,
             scenarioEditorFuncionarioIds,
-            architectBudgetEditorFuncionarioIds
+            architectBudgetEditorFuncionarioIds,
+            architectCommissionManagerFuncionarioIds
         };
     } catch (error) {
         return fallback;
@@ -101,6 +107,7 @@ export default async function handler(req, res) {
         const podeEditarCenarios = String(result[0].CATEGORIA || '').trim().toUpperCase() === 'DI'
             || permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
         const podeAlterarArquitetoOrcamento = permissoes.architectBudgetEditorFuncionarioIds.includes(String(idFuncionario));
+        const podeGerenciarComissaoArquiteto = permissoes.architectCommissionManagerFuncionarioIds.includes(String(idFuncionario));
         const sessionUser = {
             idfuncionario: idFuncionario,
             categoria: result[0].CATEGORIA,
@@ -108,7 +115,8 @@ export default async function handler(req, res) {
             idvendedor: result[0].ID_VENDEDOR,
             filiaisPermitidas,
             canEditScenarios: podeEditarCenarios,
-            architectBudgetEditor: podeAlterarArquitetoOrcamento
+            architectBudgetEditor: podeAlterarArquitetoOrcamento,
+            architectCommissionManager: podeGerenciarComissaoArquiteto
         };
         return res.status(200).json({
             autorizado: true,
@@ -117,6 +125,8 @@ export default async function handler(req, res) {
             podeEditarCenarios,
             canEditScenarios: podeEditarCenarios,
             podeAlterarArquitetoOrcamento,
+            podeGerenciarComissaoArquiteto,
+            architectCommissionManager: podeGerenciarComissaoArquiteto,
             sessionToken: createSessionToken(sessionUser)
         });
     } catch (error) {

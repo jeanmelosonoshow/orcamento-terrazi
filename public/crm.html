@@ -233,6 +233,7 @@
                     <label>Telefone<input type="tel" maxlength="16" inputmode="numeric" autocomplete="tel" required data-architect-phone></label>
                     <label>Telefone alternativo<input type="tel" maxlength="16" inputmode="numeric" data-architect-phone-alt></label>
                     <label>E-mail<input type="email" maxlength="254" autocomplete="email" required data-architect-email></label>
+                    <label data-architect-commission-field hidden>Percentual de comissão (%)<input type="number" min="0" max="100" step="0.0001" inputmode="decimal" data-architect-commission></label>
                     <div class="crm-architect-form-actions">
                         <span data-architect-form-message aria-live="polite"></span>
                         <button type="button" data-architect-form-cancel>Cancelar</button>
@@ -646,6 +647,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=20260824-color-mode-1"></script>
     <script src="assets/budget-negotiation.js?v=20260820-2"></script>
-    <script src="crm.js?v=crm-20261015-relacionamento-1"></script>
+    <script src="crm.js?v=crm-20261015-comissao-arquiteto-1"></script>
 </body>
 </html>

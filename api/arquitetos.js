@@ -1,6 +1,11 @@
 import { db } from '@vercel/postgres';
 import { requireRequestSession } from '../lib/session-token.js';
-import { normalizarArquiteto, normalizarArquitetoEntrada } from '../lib/architects.js';
+import {
+    normalizarArquiteto,
+    normalizarArquitetoEntrada,
+    normalizarPercentualComissao,
+    podeGerenciarComissaoArquiteto
+} from '../lib/architects.js';
 
 function responderErro(res, error) {
     if (error?.code === '23505') {
@@ -14,12 +19,13 @@ function responderErro(res, error) {
 
 export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') return res.status(200).end();
-    if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Metodo nao permitido.' });
+    if (!['GET', 'POST', 'PUT'].includes(req.method)) return res.status(405).json({ error: 'Metodo nao permitido.' });
     const session = requireRequestSession(req, res);
     if (!session) return;
+    const gerenciaComissao = podeGerenciarComissaoArquiteto(session);
 
     try {
         if (req.method === 'GET') {
@@ -62,28 +68,68 @@ export default async function handler(req, res) {
             ]);
             const total = Number(contagem.rows[0]?.total || 0);
             return res.status(200).json({
-                arquitetos: resultado.rows.map(normalizarArquiteto),
+                arquitetos: resultado.rows.map(linha => normalizarArquiteto(linha, { incluirPercentualComissao: gerenciaComissao })),
                 paginacao: { pagina, limite, total, totalPaginas: Math.max(1, Math.ceil(total / limite)) }
             });
         }
 
         const arquiteto = normalizarArquitetoEntrada(req.body);
+        const percentualInformado = Object.prototype.hasOwnProperty.call(req.body || {}, 'percentualComissao');
+        if (percentualInformado && !gerenciaComissao) {
+            return res.status(403).json({ error: 'Usuario sem permissao para definir o percentual de comissao.' });
+        }
+        const percentualComissao = gerenciaComissao
+            ? normalizarPercentualComissao(req.body?.percentualComissao)
+            : null;
         const idfuncionario = Number(session.sub);
         const idfilial = String(session.idfilial || '').trim().slice(0, 2);
         if (!Number.isSafeInteger(idfuncionario) || idfuncionario <= 0 || !idfilial) {
             return res.status(403).json({ error: 'Funcionario ou filial da sessao nao identificados.' });
         }
+        if (req.method === 'PUT') {
+            const id = Number.parseInt(req.body?.id, 10);
+            if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: 'Arquiteto nao informado.' });
+            const valores = [
+                arquiteto.nome, arquiteto.cpf, arquiteto.nascimento, arquiteto.registroCau,
+                arquiteto.telefone, arquiteto.telefoneAlternativo, arquiteto.email, idfuncionario, id
+            ];
+            const percentualSql = gerenciaComissao ? ', percentual_comissao = $10' : '';
+            if (gerenciaComissao) valores.push(percentualComissao);
+            const resultado = await db.query(`
+                UPDATE arquiteto
+                   SET nome = $1,
+                       cpf = $2,
+                       nascimento = $3,
+                       registro_cau = $4,
+                       telefone = $5,
+                       telefone_alternativo = NULLIF($6, ''),
+                       email = $7,
+                       idfuncionario_ultima_atualizacao = $8,
+                       data_ultima_atualizacao = CURRENT_TIMESTAMP
+                       ${percentualSql}
+                 WHERE id = $9
+                 RETURNING *
+            `, valores);
+            if (!resultado.rows.length) return res.status(404).json({ error: 'Arquiteto nao encontrado.' });
+            return res.status(200).json({
+                arquiteto: normalizarArquiteto(resultado.rows[0], { incluirPercentualComissao: gerenciaComissao })
+            });
+        }
+
         const resultado = await db.query(`
             INSERT INTO arquiteto (
                 nome, cpf, nascimento, registro_cau, telefone, telefone_alternativo, email,
-                idfilial_cadastro, idfuncionario_cadastro
-            ) VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9)
+                idfilial_cadastro, idfuncionario_cadastro, idfuncionario_ultima_atualizacao,
+                percentual_comissao
+            ) VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9, $9, $10)
             RETURNING *
         `, [
             arquiteto.nome, arquiteto.cpf, arquiteto.nascimento, arquiteto.registroCau, arquiteto.telefone,
-            arquiteto.telefoneAlternativo, arquiteto.email, idfilial, idfuncionario
+            arquiteto.telefoneAlternativo, arquiteto.email, idfilial, idfuncionario, percentualComissao
         ]);
-        return res.status(201).json({ arquiteto: normalizarArquiteto(resultado.rows[0]) });
+        return res.status(201).json({
+            arquiteto: normalizarArquiteto(resultado.rows[0], { incluirPercentualComissao: gerenciaComissao })
+        });
     } catch (error) {
         return responderErro(res, error);
     }

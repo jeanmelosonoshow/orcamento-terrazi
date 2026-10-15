@@ -4,7 +4,9 @@ import { readFile } from 'node:fs/promises';
 import {
     cpfValido,
     normalizarArquitetoEntrada,
+    normalizarPercentualComissao,
     podeAlterarArquitetoOrcamento,
+    podeGerenciarComissaoArquiteto,
     sincronizarArquitetoOrcamento
 } from '../lib/architects.js';
 
@@ -37,6 +39,14 @@ test('cadastro de arquiteto valida CPF, CAU, telefones e email', () => {
         telefone: '21999991234',
         email: 'ana@exemplo.com'
     }), /futuro/i);
+});
+
+test('percentual de comissao e validado e depende da permissao assinada', () => {
+    assert.equal(normalizarPercentualComissao('2,75'), 2.75);
+    assert.equal(normalizarPercentualComissao(''), null);
+    assert.throws(() => normalizarPercentualComissao(100.01), /entre 0 e 100/i);
+    assert.equal(podeGerenciarComissaoArquiteto({ architectCommissionManager: true }), true);
+    assert.equal(podeGerenciarComissaoArquiteto({ architectCommissionManager: false, podeGerenciarComissaoArquiteto: true }), false);
 });
 
 test('permissao de troca do arquiteto vem exclusivamente da sessao assinada', () => {
@@ -73,6 +83,8 @@ test('migracao cria cadastros, vinculo unico, fotografia historica e bloqueio de
     assert.match(sql, /CREATE TABLE IF NOT EXISTS arquiteto_orcamento\s*\(/i);
     assert.match(sql, /nascimento DATE/i);
     assert.match(sql, /ADD COLUMN IF NOT EXISTS nascimento DATE/i);
+    assert.match(sql, /percentual_comissao NUMERIC\(7,4\)/i);
+    assert.match(sql, /ck_arquiteto_percentual_comissao/i);
     assert.match(sql, /UNIQUE \(orcamento_id\)/i);
     assert.match(sql, /nome_arquiteto VARCHAR\(180\)/i);
     assert.match(sql, /registro_cau_arquiteto VARCHAR\(30\)/i);
@@ -90,7 +102,10 @@ test('menu possui cadastro real e o orcamento pergunta antes de PDF ou WhatsApp'
     assert.match(html, /data-architect-form/);
     assert.match(html, /data-architect-cau/);
     assert.match(html, /data-architect-birth/);
+    assert.match(html, /data-architect-commission/);
     assert.match(crm, /fetch\('\/api\/arquitetos/);
+    assert.match(crm, /data-architect-edit/);
+    assert.match(crm, /method: editando \? 'PUT' : 'POST'/);
     const indiceArquiteto = budget.indexOf('await definirArquitetoAntesDeGerarOrcamento()');
     const indiceAcaoPdf = budget.indexOf('await abrirDialogoAcaoPdf()', indiceArquiteto);
     assert.ok(indiceArquiteto >= 0 && indiceAcaoPdf > indiceArquiteto);
@@ -98,6 +113,24 @@ test('menu possui cadastro real e o orcamento pergunta antes de PDF ou WhatsApp'
     assert.match(budget, /arquiteto_id: currentArchitect\?\.id/);
     assert.match(saveApi, /sincronizarArquitetoOrcamento/);
     assert.match(detailApi, /obterVinculoArquitetoOrcamento/);
+});
+
+test('estrutura financeira preserva venda, auditoria, lote e idempotencia', async () => {
+    const sql = await readFile(new URL('../database/comissao-arquiteto.sql', import.meta.url), 'utf8');
+    const api = await readFile(new URL('../api/arquitetos.js', import.meta.url), 'utf8');
+    const login = await readFile(new URL('../api/login.js', import.meta.url), 'utf8');
+
+    assert.match(sql, /CREATE TABLE IF NOT EXISTS pagamento_orcamento_arquiteto/i);
+    assert.match(sql, /UNIQUE \(idfilial_saida, numero_saida\)/i);
+    assert.match(sql, /CREATE TABLE IF NOT EXISTS lote_pagamento_arquiteto/i);
+    assert.match(sql, /CREATE TABLE IF NOT EXISTS historico_pagamento_arquiteto/i);
+    assert.match(sql, /CREATE TABLE IF NOT EXISTS fila_sincronizacao_pagamento_arquiteto/i);
+    assert.match(sql, /PENDENTE[\s\S]*AUTORIZADO[\s\S]*PAGAMENTO_GERADO[\s\S]*PAGAMENTO_EFETUADO/i);
+    assert.match(sql, /fn_validar_transicao_pagamento_arquiteto/i);
+    assert.match(sql, /fn_registrar_historico_pagamento_arquiteto/i);
+    assert.match(api, /incluirPercentualComissao: gerenciaComissao/);
+    assert.match(api, /Usuario sem permissao para definir o percentual/i);
+    assert.match(login, /architectCommissionManagerFuncionarioIds/);
 });
 
 test('diretorio fica antes do BI, mostra ate tres linhas e pagina os demais sem filtrar filial', async () => {

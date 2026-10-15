@@ -3724,6 +3724,29 @@ html[data-color-mode="dark"] .crm-palette-group-title {
     color: var(--muted);
     font-size: .66rem;
 }
+.crm-architect-commission {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 8px;
+    padding: 4px 7px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--dourado) 16%, #fff);
+    color: var(--verde-escuro);
+    font-size: .68rem;
+    font-weight: 800;
+}
+.crm-architect-edit {
+    min-height: 32px;
+    margin-top: 9px;
+    padding: 0 10px;
+    border: 1px solid var(--linha);
+    border-radius: 5px;
+    background: #fff;
+    color: var(--verde-escuro);
+    font-size: .7rem;
+    font-weight: 800;
+    cursor: pointer;
+}
 .crm-architect-list .crm-empty-operational { grid-column: 1 / -1; }
 .crm-architect-directory-footer {
     grid-column: 1 / -1;
