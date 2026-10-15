@@ -28,7 +28,7 @@
         bullet: 'kpi',
         ranking: 'clustered-bar-chart',
         sparkline: 'line-chart',
-        histogram: 'column-chart',
+        histogram: 'histogram-custom-visual',
         heatmap: 'matrix-custom-visual',
         cohort: 'matrix-custom-visual',
         calendar: 'calendar-custom-visual',
@@ -88,7 +88,9 @@
 
     function aplicar(opcao, contexto) {
         var escuro = Boolean(contexto && contexto.escuro);
-        var paletaPowerBi = ['#118DFF', '#12239E', '#E66C37', '#6B007B', '#E044A7', '#744EC2', '#D9B300', '#D64550', '#197278', '#1AAB40'];
+        var paletaPowerBi = contexto && Array.isArray(contexto.paleta) && contexto.paleta.length
+            ? contexto.paleta.slice()
+            : ['#118DFF', '#12239E', '#E66C37', '#6B007B', '#E044A7', '#744EC2', '#D9B300', '#D64550', '#197278', '#1AAB40'];
         var cores = escuro
             ? { superficie: '#19232E', tooltip: '#202C38', texto: '#F1F4F7', textoSuave: '#B9C3CE', eixo: '#596978', grade: 'rgba(185,195,206,0.16)', gradeForte: '#334250' }
             : { superficie: '#FFFFFF', tooltip: '#FFFFFF', texto: '#252423', textoSuave: '#605E5C', eixo: '#C8C6C4', grade: 'rgba(96,94,92,0.14)', gradeForte: '#E1DFDD' };
@@ -133,6 +135,7 @@
         versao: 'powerbi-v1',
         equivalencias: equivalencias,
         obterEquivalente: function (tipo) { return equivalencias[tipo] || 'custom-visual'; },
+        ehPersonalizado: function (tipo) { return (equivalencias[tipo] || 'custom-visual').indexOf('custom-visual') >= 0; },
         aplicar: aplicar
     });
 })();

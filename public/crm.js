@@ -698,13 +698,16 @@ const catalogoGraficos = [
 ];
 
 const paletasGraficos = [
-    { id: 'brand', nome: 'Marca', cores: [] },
-    { id: 'ocean', nome: 'Oceano', cores: ['#123865', '#1E65A7', '#43A6C6', '#8BD3DD', '#F2C14E', '#E07A5F'] },
-    { id: 'forest', nome: 'Floresta', cores: ['#173F35', '#2F6B4F', '#6B8F71', '#A7C4A0', '#D6A756', '#8C5A3C'] },
-    { id: 'sunset', nome: 'Por do sol', cores: ['#8C2F39', '#D85C41', '#F29E4C', '#F7C967', '#5C4D7D', '#2D6A8B'] },
-    { id: 'graphite', nome: 'Grafite', cores: ['#1F2933', '#52606D', '#7B8794', '#9FB3C8', '#CBD2D9', '#D9A441'] },
-    { id: 'jewel', nome: 'Joias', cores: ['#0B6E69', '#9B1D5A', '#3D348B', '#E38B29', '#1F7A8C', '#7A9E3A'] },
-    { id: 'soft', nome: 'Suave', cores: ['#729EA1', '#B5BD89', '#DFBE99', '#EC9192', '#DBAFC1', '#9A8C98'] }
+    { id: 'powerbi', nome: 'Power BI classico', grupo: 'Power BI', cores: ['#118DFF', '#12239E', '#E66C37', '#6B007B', '#E044A7', '#744EC2', '#D9B300', '#D64550', '#197278', '#1AAB40'] },
+    { id: 'powerbi-executive', nome: 'Power BI executivo', grupo: 'Power BI', cores: ['#0F6CBD', '#004E8C', '#2D7D9A', '#00B7C3', '#498205', '#8E562E', '#8764B8', '#C239B3'] },
+    { id: 'powerbi-warm', nome: 'Power BI quente', grupo: 'Power BI', cores: ['#E66C37', '#D83B01', '#CA5010', '#FFB900', '#D9B300', '#E044A7', '#744EC2', '#6B007B'] },
+    { id: 'brand', nome: 'Marca Terrazi', grupo: 'Alternativas', cores: [] },
+    { id: 'ocean', nome: 'Oceano', grupo: 'Alternativas', cores: ['#123865', '#1E65A7', '#43A6C6', '#8BD3DD', '#F2C14E', '#E07A5F'] },
+    { id: 'forest', nome: 'Floresta', grupo: 'Alternativas', cores: ['#173F35', '#2F6B4F', '#6B8F71', '#A7C4A0', '#D6A756', '#8C5A3C'] },
+    { id: 'sunset', nome: 'Por do sol', grupo: 'Alternativas', cores: ['#8C2F39', '#D85C41', '#F29E4C', '#F7C967', '#5C4D7D', '#2D6A8B'] },
+    { id: 'graphite', nome: 'Grafite', grupo: 'Alternativas', cores: ['#1F2933', '#52606D', '#7B8794', '#9FB3C8', '#CBD2D9', '#D9A441'] },
+    { id: 'jewel', nome: 'Joias', grupo: 'Alternativas', cores: ['#0B6E69', '#9B1D5A', '#3D348B', '#E38B29', '#1F7A8C', '#7A9E3A'] },
+    { id: 'soft', nome: 'Suave', grupo: 'Alternativas', cores: ['#729EA1', '#B5BD89', '#DFBE99', '#EC9192', '#DBAFC1', '#9A8C98'] }
 ];
 
 const iconesWidgets = Array.isArray(window.CRM_WIDGET_ICONS) && window.CRM_WIDGET_ICONS.length
@@ -1082,9 +1085,14 @@ function atualizarCamposAparencia() {
 
 function renderizarOpcoesAparencia(aparencia) {
     if (widgetPaletteOptions) {
+        let grupoAtual = '';
         widgetPaletteOptions.innerHTML = paletasGraficos.map(paleta => {
             const cores = paleta.cores.length ? paleta.cores : obterPaletaWidget({ aparencia: { ...aparencia, paleta: 'brand' } });
-            return `<label class="crm-palette-option"><input type="radio" name="widget-palette" value="${escapeHtml(paleta.id)}"${paleta.id === aparencia.paleta ? ' checked' : ''}><span>${escapeHtml(paleta.nome)}</span><i>${cores.slice(0, 5).map(cor => `<b style="background:${normalizarCorHex(cor, '#123865')}"></b>`).join('')}</i></label>`;
+            const cabecalhoGrupo = paleta.grupo !== grupoAtual
+                ? `<strong class="crm-palette-group-title">${escapeHtml(paleta.grupo || 'Paletas')}</strong>`
+                : '';
+            grupoAtual = paleta.grupo;
+            return `${cabecalhoGrupo}<label class="crm-palette-option" data-palette-group="${escapeHtml(paleta.grupo || 'Paletas')}"><input type="radio" name="widget-palette" value="${escapeHtml(paleta.id)}"${paleta.id === aparencia.paleta ? ' checked' : ''}><span>${escapeHtml(paleta.nome)}</span><i>${cores.slice(0, 5).map(cor => `<b style="background:${normalizarCorHex(cor, '#123865')}"></b>`).join('')}</i></label>`;
         }).join('');
     }
     if (widgetIconOptions) {
@@ -1687,7 +1695,8 @@ function aplicarEstiloVisualGrafico(opcao, widget) {
     const opcaoBase = motorVisual === 'powerbi-v1' && window.CRM_POWERBI_COMPAT?.aplicar
         ? window.CRM_POWERBI_COMPAT.aplicar(opcao, {
             tipo: widget.tipo,
-            escuro: document.documentElement.dataset.colorMode === 'dark'
+            escuro: document.documentElement.dataset.colorMode === 'dark',
+            paleta: obterPaletaWidget(widget)
         })
         : opcao;
     const resultado = {
@@ -3944,9 +3953,11 @@ function renderizarDashboard() {
         const layout = layoutsRenderizacao.get(widget.id) || obterLayoutWidget(widget, index);
         const aparencia = obterAparenciaWidget(widget);
         const motorVisual = obterMotorVisualWidget(widget);
+        const equivalenteVisual = window.CRM_POWERBI_COMPAT?.obterEquivalente?.(widget.tipo) || 'custom-visual';
+        const naturezaVisual = window.CRM_POWERBI_COMPAT?.ehPersonalizado?.(widget.tipo) ? 'custom' : 'native';
         const icone = renderizarIconeWidget(aparencia.icone, 'is-result');
         return `
-            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-type="${escapeHtml(widget.tipo)}" data-widget-align="${escapeHtml(aparencia.alinhamento)}" data-visual-engine="${escapeHtml(motorVisual)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
+            <article class="crm-dashboard-widget" data-widget-id="${escapeHtml(widget.id)}" data-widget-type="${escapeHtml(widget.tipo)}" data-widget-align="${escapeHtml(aparencia.alinhamento)}" data-visual-engine="${escapeHtml(motorVisual)}" data-visual-kind="${escapeHtml(naturezaVisual)}" data-visual-equivalent="${escapeHtml(equivalenteVisual)}" style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.w}px; height: ${layout.h}px; ${obterEstiloAparenciaWidget(widget)}">
                 <div class="crm-dashboard-widget-head" data-widget-drag-handle>
                     <strong>${escapeHtml(widget.titulo)}</strong>
                     <div class="crm-dashboard-widget-actions">

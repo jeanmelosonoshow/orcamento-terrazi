@@ -1926,6 +1926,26 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     gap: 8px;
 }
 
+.crm-palette-group-title {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    color: var(--crm-bi-navy, #243447);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.crm-palette-group-title:not(:first-child) {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--linha);
+}
+
+html[data-color-mode="dark"] .crm-palette-group-title {
+    color: #f3f2f1;
+}
+
 .crm-icon-options {
     display: grid;
     gap: 14px;
@@ -4450,6 +4470,27 @@ body.crm-scenario-editing .crm-dashboard-canvas {
     box-shadow: 0 3px 9px rgba(0, 0, 0, 0.12);
 }
 
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"][data-visual-kind="custom"] {
+    border-left: 3px solid var(--widget-accent, #118dff) !important;
+    background: linear-gradient(115deg, color-mix(in srgb, var(--widget-accent, #118dff) 4%, #ffffff) 0, #ffffff 34%) !important;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"][data-visual-kind="custom"] .crm-dashboard-widget-head > strong {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.crm-dashboard-widget[data-visual-engine="powerbi-v1"][data-visual-kind="custom"] .crm-dashboard-widget-head > strong::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+    background: var(--widget-accent, #118dff);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--widget-accent, #118dff) 15%, transparent);
+}
+
 .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head > strong {
     color: #323130 !important;
     font-size: 0.86rem;
@@ -4543,6 +4584,10 @@ html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v
     color: #f3f2f1 !important;
 }
 
+html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"][data-visual-kind="custom"] {
+    background: linear-gradient(115deg, color-mix(in srgb, var(--widget-accent, #118dff) 10%, #242424) 0, #242424 38%) !important;
+}
+
 html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v1"] .crm-dashboard-widget-head {
     border-bottom-color: #3b3a39;
 }
@@ -4570,7 +4615,6 @@ html[data-color-mode="dark"] .crm-dashboard-widget[data-visual-engine="powerbi-v
 }
 
 body.crm-scenario-editing .crm-dashboard-widget[data-visual-engine="powerbi-v1"]::after {
-    content: "Power BI";
     position: absolute;
     right: 9px;
     bottom: 7px;
@@ -4583,6 +4627,14 @@ body.crm-scenario-editing .crm-dashboard-widget[data-visual-engine="powerbi-v1"]
     font-weight: 700;
     letter-spacing: 0.04em;
     pointer-events: none;
+}
+
+body.crm-scenario-editing .crm-dashboard-widget[data-visual-engine="powerbi-v1"][data-visual-kind="native"]::after {
+    content: "Power BI nativo";
+}
+
+body.crm-scenario-editing .crm-dashboard-widget[data-visual-engine="powerbi-v1"][data-visual-kind="custom"]::after {
+    content: "Inspirado no Power BI";
 }
 
 .crm-dashboard-widget-head {
