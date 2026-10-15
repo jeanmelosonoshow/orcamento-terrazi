@@ -1,5 +1,6 @@
 (function (global) {
     'use strict';
+    var LIMITE_LINHAS_RELACIONADAS = 250000;
     function erro(mensagem) { var falha = new Error(mensagem); falha.name = 'CompositeDatasetError'; return falha; }
     function aliasValido(valor, fallback) { var alias = String(valor || fallback || '').trim().replace(/[^a-zA-Z0-9_]+/g, '_'); if (!alias) throw erro('Informe um apelido para cada consulta.'); return alias; }
     function obterValor(linha, coluna) { if (!linha || !coluna) return undefined; if (Object.prototype.hasOwnProperty.call(linha, coluna)) return linha[coluna]; var chave = Object.keys(linha).find(function (item) { return item.toLowerCase() === String(coluna).toLowerCase(); }); return chave ? linha[chave] : undefined; }
@@ -72,14 +73,20 @@
             secundaria.dados.forEach(function (linha) {
                 var chave = chaveComposta(linha, campos, 'secundaria', principal.alias);
                 if (chave === null) return;
-                if (indiceSecundario.has(chave)) throw erro('A combinação de campos da consulta "' + secundaria.alias + '" ainda possui valores duplicados. Adicione outro campo para completar a cardinalidade ou agregue a consulta.');
-                indiceSecundario.set(chave, linha);
+                if (!indiceSecundario.has(chave)) indiceSecundario.set(chave, []);
+                indiceSecundario.get(chave).push(linha);
             });
             linhas = linhas.reduce(function (resultado, linha) {
                 var chave = chaveComposta(linha, campos, 'principal', principal.alias);
-                var relacionada = chave === null ? null : indiceSecundario.get(chave);
-                if (relacionada) resultado.push(Object.assign({}, linha, prefixarLinha(relacionada, secundaria.alias)));
-                else if (tipo === 'left') resultado.push(Object.assign({}, linha, prefixarColunasVazias(secundaria.colunas, secundaria.alias)));
+                var relacionadas = chave === null ? null : indiceSecundario.get(chave);
+                if (relacionadas && relacionadas.length) {
+                    relacionadas.forEach(function (relacionada) {
+                        resultado.push(Object.assign({}, linha, prefixarLinha(relacionada, secundaria.alias)));
+                        if (resultado.length > LIMITE_LINHAS_RELACIONADAS) throw erro('O relacionamento ultrapassou ' + LIMITE_LINHAS_RELACIONADAS.toLocaleString('pt-BR') + ' linhas. Restrinja os filtros ou agregue uma das consultas antes de relacionar.');
+                    });
+                } else if (tipo === 'left') {
+                    resultado.push(Object.assign({}, linha, prefixarColunasVazias(secundaria.colunas, secundaria.alias)));
+                }
                 return resultado;
             }, []);
             colunas = colunas.concat(secundaria.colunas.map(function (coluna) { return secundaria.alias + '.' + coluna; }));

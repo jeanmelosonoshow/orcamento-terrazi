@@ -61,6 +61,79 @@ test('relaciona por chave composta quando o numero se repete entre filiais', asy
     assert.equal(r.dados[1]['postgres.orcamento_id'], 777);
 });
 
+test('preserva cardinalidade um para muitos como um inner join SQL', async () => {
+    const m = await carregarModulos();
+    const campos = [
+        { chavePrincipal: 'idfilial', chaveSecundaria: 'IDFILIAL' },
+        { chavePrincipal: 'numerosaida', chaveSecundaria: 'NUMEROSAIDA' }
+    ];
+    const r = m.CRM_COMPOSITE_DATASETS.combinar([
+        {
+            alias: 'orcamento',
+            colunas: ['idfilial', 'numerosaida', 'orcamento_id'],
+            dados: [{ idfilial: 26, numerosaida: 100, orcamento_id: 501 }]
+        },
+        {
+            alias: 'venda',
+            colunas: ['IDFILIAL', 'NUMEROSAIDA', 'SITUACAO_ENTREGA'],
+            dados: [
+                { IDFILIAL: 26, NUMEROSAIDA: 100, SITUACAO_ENTREGA: 'EM TRANSITO' },
+                { IDFILIAL: 26, NUMEROSAIDA: 100, SITUACAO_ENTREGA: 'ENTREGA REALIZADA' }
+            ],
+            join: { tipo: 'inner', campos }
+        }
+    ], { modo: 'joins' }, [], m.CRM_KPI_CALCULATOR.avaliar);
+
+    assert.equal(r.dados.length, 2);
+    assert.deepEqual(
+        Array.from(r.dados, linha => linha['venda.SITUACAO_ENTREGA']),
+        ['EM TRANSITO', 'ENTREGA REALIZADA']
+    );
+    assert.ok(r.dados.every(linha => linha['orcamento.orcamento_id'] === 501));
+});
+
+test('inner join mantem o mesmo conjunto ao inverter os lados de uma relacao um para muitos', async () => {
+    const m = await carregarModulos();
+    const orcamentos = [{ IDFILIAL: 26, NUMEROSAIDA: 100, ORCAMENTO_ID: 501 }];
+    const vendas = [
+        { IDFILIAL: 26, NUMEROSAIDA: 100, STATUS: 'PENDENTE' },
+        { IDFILIAL: 26, NUMEROSAIDA: 100, STATUS: 'ENTREGUE' }
+    ];
+    const campos = [
+        { chavePrincipal: 'IDFILIAL', chaveSecundaria: 'IDFILIAL' },
+        { chavePrincipal: 'NUMEROSAIDA', chaveSecundaria: 'NUMEROSAIDA' }
+    ];
+    const direto = m.CRM_COMPOSITE_DATASETS.combinar([
+        { alias: 'orcamento', colunas: ['IDFILIAL', 'NUMEROSAIDA', 'ORCAMENTO_ID'], dados: orcamentos },
+        { alias: 'venda', colunas: ['IDFILIAL', 'NUMEROSAIDA', 'STATUS'], dados: vendas, join: { tipo: 'inner', campos } }
+    ], { modo: 'joins' }, [], m.CRM_KPI_CALCULATOR.avaliar);
+    const inverso = m.CRM_COMPOSITE_DATASETS.combinar([
+        { alias: 'venda', colunas: ['IDFILIAL', 'NUMEROSAIDA', 'STATUS'], dados: vendas },
+        { alias: 'orcamento', colunas: ['IDFILIAL', 'NUMEROSAIDA', 'ORCAMENTO_ID'], dados: orcamentos, join: { tipo: 'inner', campos } }
+    ], { modo: 'joins' }, [], m.CRM_KPI_CALCULATOR.avaliar);
+
+    assert.equal(direto.dados.length, 2);
+    assert.equal(inverso.dados.length, 2);
+    assert.deepEqual(
+        Array.from(direto.dados, linha => linha['venda.STATUS']).sort(),
+        Array.from(inverso.dados, linha => linha['venda.STATUS']).sort()
+    );
+});
+
+test('multiplica correspondencias de ambos os lados como um join SQL muitos para muitos', async () => {
+    const m = await carregarModulos();
+    const r = m.CRM_COMPOSITE_DATASETS.combinar([
+        { alias: 'a', colunas: ['ID', 'A'], dados: [{ ID: 1, A: 'A1' }, { ID: 1, A: 'A2' }] },
+        { alias: 'b', colunas: ['ID', 'B'], dados: [{ ID: 1, B: 'B1' }, { ID: 1, B: 'B2' }], join: { tipo: 'inner', campos: [{ chavePrincipal: 'ID', chaveSecundaria: 'ID' }] } }
+    ], { modo: 'joins' }, [], m.CRM_KPI_CALCULATOR.avaliar);
+
+    assert.equal(r.dados.length, 4);
+    assert.deepEqual(
+        Array.from(r.dados, linha => linha['a.A'] + '/' + linha['b.B']),
+        ['A1/B1', 'A1/B2', 'A2/B1', 'A2/B2']
+    );
+});
+
 test('editor expoe consultas compostas e campos calculados', async () => { const html = await readFile(new URL('../public/crm.html', import.meta.url), 'utf8'); const script = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8'); assert.match(html, /data-add-secondary-query/); assert.match(html, /data-query-combination-mode/); assert.match(html, /data-add-calculated-field/); assert.match(html, /composite-datasets.js/); assert.match(script, /consultas: consultasEditor/); assert.match(script, /camposCalculados: calculado/); });
 test('une linhas de varias consultas com as mesmas colunas para graficos', async () => {
     const m = await carregarModulos();
