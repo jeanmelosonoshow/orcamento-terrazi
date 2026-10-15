@@ -5331,16 +5331,24 @@ function abrirGestaoNegociacao(elemento, origem = 'dashboard') {
 }
 function renderizarConsultasSecundarias(consultas = []) {
     if (!secondaryQueriesBox) return;
-    secondaryQueriesBox.innerHTML = consultas.map((consulta, indice) => `
+    secondaryQueriesBox.innerHTML = consultas.map((consulta, indice) => {
+        const join = consulta.join && typeof consulta.join === 'object' ? consulta.join : {};
+        const opcaoCampo = campo => campo ? `<option value="${escapeHtml(campo)}" selected>${escapeHtml(campo)}</option>` : '';
+        return `
         <section class="crm-secondary-query" data-secondary-query-row>
             <div class="crm-query-source-head">
                 <label>Apelido da consulta<input type="text" value="${escapeHtml(consulta.alias || ('consulta' + (indice + 2)))}" data-secondary-query-alias></label>
                 <label>Fonte de dados<select data-secondary-query-source><option value="firebird"${(consulta.fonte || 'firebird') === 'firebird' ? ' selected' : ''}>Firebird</option><option value="postgres"${consulta.fonte === 'postgres' ? ' selected' : ''}>Postgres</option></select></label>
                 <button type="button" data-remove-secondary-query aria-label="Remover consulta ${indice + 2}" title="Remover consulta">×</button>
             </div>
+            <div class="crm-secondary-query-join" data-secondary-query-join hidden>
+                <label>Tipo de relacionamento<select data-secondary-join-type><option value="inner"${join.tipo === 'inner' ? ' selected' : ''}>Somente correspondentes (INNER JOIN)</option><option value="left"${join.tipo !== 'inner' ? ' selected' : ''}>Todos da principal (LEFT JOIN)</option></select></label>
+                <label>Campo da consulta principal<select data-secondary-primary-key><option value="">Selecione...</option>${opcaoCampo(join.chavePrincipal)}</select></label>
+                <label>Campo desta consulta<select data-secondary-join-key><option value="">Selecione...</option>${opcaoCampo(join.chaveSecundaria)}</select></label>
+            </div>
             <label class="crm-sql-field">Console SQL ${indice + 2}<textarea data-secondary-query-sql spellcheck="false" placeholder="Consulta adicional com colunas equivalentes.">${escapeHtml(consulta.sql || '')}</textarea></label>
         </section>
-    `).join('');
+    `; }).join('');
 }
 function aguardarRetentativaFila(ms, signal) {
     return new Promise((resolve, reject) => {
@@ -5392,7 +5400,12 @@ function coletarConsultasEditor() {
     obterLinhasConsultasSecundarias().forEach((row, indice) => consultas.push({
         alias: row.querySelector('[data-secondary-query-alias]')?.value.trim() || ('consulta' + (indice + 2)),
         fonte: row.querySelector('[data-secondary-query-source]')?.value || 'firebird',
-        sql: row.querySelector('[data-secondary-query-sql]')?.value.trim() || ''
+        sql: row.querySelector('[data-secondary-query-sql]')?.value.trim() || '',
+        join: {
+            tipo: row.querySelector('[data-secondary-join-type]')?.value || 'left',
+            chavePrincipal: row.querySelector('[data-secondary-primary-key]')?.value || '',
+            chaveSecundaria: row.querySelector('[data-secondary-join-key]')?.value || ''
+        }
     }));
     return consultas;
 }
@@ -5400,7 +5413,15 @@ function coletarCombinacaoEditor() { return { modo: queryCombinationModeSelect?.
 function coletarCamposCalculadosEditor() { return calculatedFieldList ? Array.from(calculatedFieldList.querySelectorAll('[data-calculated-field-row]')).map(row => ({ nome: row.querySelector('[data-calculated-name]')?.value.trim() || '', formula: row.querySelector('[data-calculated-formula]')?.value.trim() || '' })) : []; }
 function assinaturaConsultasEditor() { return JSON.stringify({ consultas: coletarConsultasEditor(), combinacao: coletarCombinacaoEditor(), camposCalculados: coletarCamposCalculadosEditor() }); }
 function preencherSelectCampos(select, colunas, selecionado) { if (!select) return; const lista = [...(colunas || [])]; if (selecionado && !lista.some(coluna => String(coluna) === String(selecionado))) lista.unshift(selecionado); select.innerHTML = '<option value="">Selecione...</option>' + lista.map(coluna => `<option value="${escapeHtml(coluna)}"${String(coluna) === String(selecionado) ? ' selected' : ''}>${escapeHtml(coluna)}</option>`).join(''); }
-function atualizarControlesCombinacao() { const ativa = consultaSecundariaAtiva(); if (queryCombinationBox) queryCombinationBox.hidden = !ativa; const porChave = ativa && queryCombinationModeSelect?.value === 'key'; if (primaryKeyField) primaryKeyField.hidden = !porChave; if (secondaryKeyField) secondaryKeyField.hidden = !porChave; if (calculatedFieldsBox) calculatedFieldsBox.hidden = !ativa; }
+function preencherCamposJoinsSequenciais(resultados = resultadosConsultasAtuais) {
+    obterLinhasConsultasSecundarias().forEach((row, indice) => {
+        const campoPrincipal = row.querySelector('[data-secondary-primary-key]');
+        const campoSecundario = row.querySelector('[data-secondary-join-key]');
+        preencherSelectCampos(campoPrincipal, resultados[0]?.colunas || [], campoPrincipal?.value || '');
+        preencherSelectCampos(campoSecundario, resultados[indice + 1]?.colunas || [], campoSecundario?.value || '');
+    });
+}
+function atualizarControlesCombinacao() { const ativa = consultaSecundariaAtiva(); if (queryCombinationBox) queryCombinationBox.hidden = !ativa; const porChave = ativa && queryCombinationModeSelect?.value === 'key'; const joins = ativa && queryCombinationModeSelect?.value === 'joins'; if (primaryKeyField) primaryKeyField.hidden = !porChave; if (secondaryKeyField) secondaryKeyField.hidden = !porChave; obterLinhasConsultasSecundarias().forEach(row => { const painel = row.querySelector('[data-secondary-query-join]'); if (painel) painel.hidden = !joins; }); if (calculatedFieldsBox) calculatedFieldsBox.hidden = !ativa; }
 function renderizarCamposCalculados(campos = []) { if (!calculatedFieldList) return; calculatedFieldList.innerHTML = campos.map(campo => `<div class="crm-calculated-field-row" data-calculated-field-row><label>Nome do campo<input type="text" value="${escapeHtml(campo.nome || '')}" data-calculated-name placeholder="ATINGIMENTO"></label><label>Fórmula<input type="text" value="${escapeHtml(campo.formula || '')}" data-calculated-formula placeholder="[principal.TOTAL] / [secundaria.META] * 100"></label><button type="button" data-remove-calculated-field aria-label="Remover campo" title="Remover campo">×</button></div>`).join(''); }
 async function executarConsultaConfigurada(consulta, filtros, visualizacao = null, opcoes = {}) {
     const data = await executarCenarioComRetentativa({
@@ -5445,6 +5466,7 @@ async function testarConsultaWidget() {
         const combinacaoSalva = coletarCombinacaoEditor();
         preencherSelectCampos(primaryKeySelect, resultadosConsultasAtuais[0]?.colunas, combinacaoSalva.chavePrincipal);
         preencherSelectCampos(secondaryKeySelect, resultadosConsultasAtuais[1]?.colunas, combinacaoSalva.chaveSecundaria);
+        preencherCamposJoinsSequenciais(resultadosConsultasAtuais);
         if (resultadosConsultasAtuais.length > 1 && resultadosConsultasAtuais.some(item => item.dados.length > 1) && queryCombinationModeSelect?.value === 'single') {
             const assinaturaColunas = item => item.colunas.map(coluna => String(coluna).toLowerCase()).sort().join('|');
             const estruturasEquivalentes = resultadosConsultasAtuais.every(item => assinaturaColunas(item) === assinaturaColunas(resultadosConsultasAtuais[0]));
@@ -5780,6 +5802,7 @@ function inicializarEditorDashboard() {
     });
     const recombinarAposConfiguracao = () => { atualizarControlesCombinacao(); if (!resultadosConsultasAtuais.length) return; try { recombinarConsultasEditor(); assinaturaConsultaAtual = assinaturaConsultasEditor(); renderizarResultadoConsulta('Resultados combinados novamente.', 'success'); } catch (error) { assinaturaConsultaAtual = ''; renderizarResultadoConsulta(error.message, 'error'); } };
     [queryCombinationModeSelect, primaryKeySelect, secondaryKeySelect].forEach(campo => campo?.addEventListener('change', recombinarAposConfiguracao));
+    secondaryQueriesBox?.addEventListener('change', event => { if (event.target.closest('[data-secondary-query-join]')) recombinarAposConfiguracao(); });
     if (addCalculatedFieldButton) addCalculatedFieldButton.addEventListener('click', () => { renderizarCamposCalculados([...coletarCamposCalculadosEditor(), { nome: '', formula: '' }]); });
     if (calculatedFieldList) {
         calculatedFieldList.addEventListener('click', event => { const botao = event.target.closest('[data-remove-calculated-field]'); if (!botao) return; botao.closest('[data-calculated-field-row]')?.remove(); recombinarAposConfiguracao(); });

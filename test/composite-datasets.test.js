@@ -20,6 +20,31 @@ test('mantem colunas vazias quando cliente ainda nao existe no Postgres', async 
     assert.equal(r.dados[0]['contato.STATUS_CONTATO'], null);
 });
 
+test('inner join sequencial retorna apenas registros com correspondencia', async () => {
+    const m = await carregarModulos();
+    const r = m.CRM_COMPOSITE_DATASETS.combinar([
+        { alias: 'orcamento', colunas: ['ID', 'CLIENTE'], dados: [{ ID: 1, CLIENTE: 'Ana' }, { ID: 2, CLIENTE: 'Bia' }] },
+        { alias: 'venda', colunas: ['ORCAMENTO_ID', 'VALOR'], dados: [{ ORCAMENTO_ID: '2', VALOR: 900 }], join: { tipo: 'inner', chavePrincipal: 'ID', chaveSecundaria: 'ORCAMENTO_ID' } }
+    ], { modo: 'joins' }, [], m.CRM_KPI_CALCULATOR.avaliar);
+
+    assert.equal(r.dados.length, 1);
+    assert.equal(r.dados[0]['orcamento.CLIENTE'], 'Bia');
+    assert.equal(r.dados[0]['venda.VALOR'], 900);
+});
+
+test('aplica inner e left join na ordem das consultas cadastradas', async () => {
+    const m = await carregarModulos();
+    const r = m.CRM_COMPOSITE_DATASETS.combinar([
+        { alias: 'orcamento', colunas: ['ID'], dados: [{ ID: 1 }, { ID: 2 }, { ID: 3 }] },
+        { alias: 'venda', colunas: ['ORCAMENTO_ID', 'VALOR'], dados: [{ ORCAMENTO_ID: 1, VALOR: 100 }, { ORCAMENTO_ID: 2, VALOR: 200 }], join: { tipo: 'inner', chavePrincipal: 'ID', chaveSecundaria: 'ORCAMENTO_ID' } },
+        { alias: 'entrega', colunas: ['PEDIDO_ID', 'STATUS'], dados: [{ PEDIDO_ID: 2, STATUS: 'Enviado' }], join: { tipo: 'left', chavePrincipal: 'ID', chaveSecundaria: 'PEDIDO_ID' } }
+    ], { modo: 'joins' }, [], m.CRM_KPI_CALCULATOR.avaliar);
+
+    assert.equal(r.dados.length, 2);
+    assert.equal(r.dados[0]['entrega.STATUS'], null);
+    assert.equal(r.dados[1]['entrega.STATUS'], 'Enviado');
+});
+
 test('editor expoe consultas compostas e campos calculados', async () => { const html = await readFile(new URL('../public/crm.html', import.meta.url), 'utf8'); const script = await readFile(new URL('../public/crm.js', import.meta.url), 'utf8'); assert.match(html, /data-add-secondary-query/); assert.match(html, /data-query-combination-mode/); assert.match(html, /data-add-calculated-field/); assert.match(html, /composite-datasets.js/); assert.match(script, /consultas: consultasEditor/); assert.match(script, /camposCalculados: calculado/); });
 test('une linhas de varias consultas com as mesmas colunas para graficos', async () => {
     const m = await carregarModulos();
@@ -43,7 +68,11 @@ test('editor permite varias consultas secundarias e oferece uniao de linhas', as
 
     assert.match(html, /data-secondary-queries/);
     assert.match(html, /value="union">Unir linhas das consultas/);
+    assert.match(html, /value="joins">Relacionar consultas em sequência/);
     assert.match(script, /querySelectorAll\('\[data-secondary-query-row\]'\)/);
+    assert.match(script, /data-secondary-join-type/);
+    assert.match(script, /data-secondary-primary-key/);
+    assert.match(script, /data-secondary-join-key/);
     assert.match(script, /renderizarConsultasSecundarias\(consultasWidget\.slice\(1\)\)/);
     assert.doesNotMatch(script, /Promise\.all\(consultas\.map/);
 });

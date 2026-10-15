@@ -43,8 +43,38 @@
         });
         return { colunas: colunas, dados: dados };
     }
+    function relacionarConsultasEmSequencia(fontes) {
+        var principal = fontes[0];
+        var colunas = principal.colunas.map(function (coluna) { return principal.alias + '.' + coluna; });
+        var linhas = principal.dados.map(function (linha) { return prefixarLinha(linha, principal.alias); });
+        fontes.slice(1).forEach(function (secundaria) {
+            var configuracao = secundaria.join || {};
+            var tipo = String(configuracao.tipo || 'left').toLowerCase();
+            var chavePrincipal = String(configuracao.chavePrincipal || '').trim();
+            var chaveSecundaria = String(configuracao.chaveSecundaria || '').trim();
+            if (tipo !== 'inner' && tipo !== 'left') throw erro('Selecione INNER JOIN ou LEFT JOIN para a consulta "' + secundaria.alias + '".');
+            if (!chavePrincipal || !chaveSecundaria) throw erro('Selecione os campos de relacionamento da consulta "' + secundaria.alias + '".');
+            var indiceSecundario = new Map();
+            secundaria.dados.forEach(function (linha) {
+                var chave = chaveRelacao(obterValor(linha, chaveSecundaria));
+                if (chave === null) return;
+                if (indiceSecundario.has(chave)) throw erro('A chave da consulta "' + secundaria.alias + '" possui valores duplicados. Agregue-a antes do relacionamento.');
+                indiceSecundario.set(chave, linha);
+            });
+            var chavePrincipalPrefixada = principal.alias + '.' + chavePrincipal;
+            linhas = linhas.reduce(function (resultado, linha) {
+                var chave = chaveRelacao(obterValor(linha, chavePrincipalPrefixada));
+                var relacionada = chave === null ? null : indiceSecundario.get(chave);
+                if (relacionada) resultado.push(Object.assign({}, linha, prefixarLinha(relacionada, secundaria.alias)));
+                else if (tipo === 'left') resultado.push(Object.assign({}, linha, prefixarColunasVazias(secundaria.colunas, secundaria.alias)));
+                return resultado;
+            }, []);
+            colunas = colunas.concat(secundaria.colunas.map(function (coluna) { return secundaria.alias + '.' + coluna; }));
+        });
+        return { colunas: colunas, dados: linhas };
+    }
     function combinar(consultas, combinacao, camposCalculados, avaliar) {
-        var fontes = (consultas || []).filter(Boolean).map(function (consulta, indice) { return { alias: aliasValido(consulta.alias, 'consulta' + (indice + 1)), colunas: Array.isArray(consulta.colunas) ? consulta.colunas : [], dados: Array.isArray(consulta.dados) ? consulta.dados : [] }; });
+        var fontes = (consultas || []).filter(Boolean).map(function (consulta, indice) { return { alias: aliasValido(consulta.alias, 'consulta' + (indice + 1)), colunas: Array.isArray(consulta.colunas) ? consulta.colunas : [], dados: Array.isArray(consulta.dados) ? consulta.dados : [], join: consulta.join && typeof consulta.join === 'object' ? consulta.join : null }; });
         if (!fontes.length) return { colunas: [], dados: [] };
         if (typeof avaliar !== 'function' && camposCalculados && camposCalculados.length) throw erro('Avaliador de formulas indisponivel.');
         var linhas; var colunas;
@@ -57,6 +87,10 @@
                 var uniao = unirLinhas(fontes);
                 linhas = uniao.dados;
                 colunas = uniao.colunas;
+            } else if (modo === 'joins') {
+                var relacionamento = relacionarConsultasEmSequencia(fontes);
+                linhas = relacionamento.dados;
+                colunas = relacionamento.colunas;
             } else if (modo === 'single') {
                 if (fontes.some(function (fonte) { return fonte.dados.length > 1; })) throw erro('Resultado unico exige no maximo uma linha em cada consulta.');
                 linhas = [fontes.reduce(function (resultado, fonte) { return Object.assign(resultado, prefixarLinha(fonte.dados[0] || {}, fonte.alias)); }, {})];
