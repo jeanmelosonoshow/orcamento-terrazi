@@ -12,6 +12,10 @@ import {
 } from '../lib/scenario-execution-access.js';
 import { montarContextoConsulta, prepararSqlCenario } from '../lib/scenario-sql-parameters.js';
 import {
+    aplicarFiltroRelacionarPreparado,
+    prepararDiretivasRelacionar
+} from '../lib/scenario-interquery-relationship.js';
+import {
     resolverFiliaisPermitidasOrcamento,
     sqlUsaFiliaisPermitidas
 } from '../lib/budget-access-scope.js';
@@ -128,7 +132,8 @@ export default async function handler(req, res) {
         sql,
         filtros = {},
         visualizacao = null,
-        modoExecucao = 'painel'
+        modoExecucao = 'painel',
+        relacionamentoConsulta = null
     } = req.body || {};
     const modoNormalizado = normalizarModoExecucaoCenario(modoExecucao);
     const consultaCompleta = ['exportacao', 'relacionamento'].includes(modoNormalizado);
@@ -206,7 +211,18 @@ export default async function handler(req, res) {
                 duracaoMs: Date.now() - inicioRelacionamento
             };
         }
-        const preparadoBase = prepararSqlCenario(sql, fonteNormalizada, contextoConsulta);
+        const diretivasRelacionar = prepararDiretivasRelacionar(sql, relacionamentoConsulta);
+        contextoConsulta.relacionarParametros = diretivasRelacionar.parametros;
+        const preparadoSemRelacionamento = prepararSqlCenario(
+            diretivasRelacionar.sql,
+            fonteNormalizada,
+            contextoConsulta
+        );
+        const preparadoBase = aplicarFiltroRelacionarPreparado(
+            preparadoSemRelacionamento,
+            fonteNormalizada,
+            relacionamentoConsulta
+        );
         const preparado = prepararConsultaVisual(preparadoBase, fonteNormalizada, visualizacao);
         let linhas = [];
         let visualizacaoAplicadaEmMemoria = false;
@@ -315,7 +331,14 @@ export default async function handler(req, res) {
             proximidade: metadataProximidade,
             metricas: {
                 duracaoMs: Date.now() - inicioRequisicao,
-                relacionamento: metadataRelacionamento
+                relacionamento: metadataRelacionamento,
+                relacionamentoConsultas: preparadoBase.relacionamentoAplicado
+                    ? {
+                        aplicado: true,
+                        chaves: preparadoBase.relacionamentoChaves || 0,
+                        apelido: diretivasRelacionar.apelido || null
+                    }
+                    : null
             }
         });
     } catch (error) {

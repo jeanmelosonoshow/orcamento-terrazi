@@ -4617,9 +4617,23 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
             opcoes.modoExecucao || 'painel',
             widget.combinacaoConsultas?.modo
         );
-        for (const consulta of consultas) {
+        for (let indiceConsulta = 0; indiceConsulta < consultas.length; indiceConsulta += 1) {
+            const consulta = consultas[indiceConsulta];
             if (opcoes.signal?.aborted) throw Object.assign(new Error('Atualizacao substituida por outro menu.'), { code: 'DASHBOARD_CONTEXT_CHANGED' });
-            resultados.push(await executarConsultaConfigurada(consulta, filtros, null, { ...opcoes, modoExecucao: modoConsulta }));
+            const camposRelacionamento = obterCamposRelacionamentoExecucao(
+                consulta,
+                widget.combinacaoConsultas || { modo: 'single' },
+                indiceConsulta
+            );
+            resultados.push(indiceConsulta > 0 && camposRelacionamento.length
+                ? await executarConsultaConfiguradaRelacionada(
+                    consulta,
+                    filtros,
+                    resultados[0],
+                    camposRelacionamento,
+                    { ...opcoes, modoExecucao: modoConsulta }
+                )
+                : await executarConsultaConfigurada(consulta, filtros, null, { ...opcoes, modoExecucao: modoConsulta }));
         }
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
         const enriquecido = await aplicarRelacionamentoResultadoWidget(widget, combinado.dados, combinado.colunas, filtros);
@@ -5814,7 +5828,8 @@ async function executarConsultaConfigurada(consulta, filtros, visualizacao = nul
             sql: consulta.sql,
             filtros,
             visualizacao,
-            modoExecucao: opcoes.modoExecucao || 'painel'
+            modoExecucao: opcoes.modoExecucao || 'painel',
+            relacionamentoConsulta: opcoes.relacionamentoConsulta || null
         }, {
             signal: opcoes.signal,
             mensagemErro: `Erro na consulta ${consulta.alias}.`
@@ -5825,6 +5840,48 @@ async function executarConsultaConfigurada(consulta, filtros, visualizacao = nul
         dados: Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []),
         proximidade: data.proximidade || null,
         metricas: data.metricas || null
+    };
+}
+function obterCamposRelacionamentoExecucao(consulta, combinacao, indiceConsulta) {
+    if (indiceConsulta <= 0) return [];
+    const modo = String(combinacao?.modo || '').toLowerCase();
+    if (modo === 'joins') return normalizarCamposJoinEditor(consulta?.join);
+    if (modo === 'key' && indiceConsulta === 1) {
+        return [{
+            chavePrincipal: String(combinacao?.chavePrincipal || '').trim(),
+            chaveSecundaria: String(combinacao?.chaveSecundaria || '').trim()
+        }].filter(campo => campo.chavePrincipal && campo.chaveSecundaria);
+    }
+    return [];
+}
+async function executarConsultaConfiguradaRelacionada(consulta, filtros, principal, camposRelacionamento, opcoes = {}) {
+    if (!window.CRM_RELATIONSHIP_QUERY) throw new Error('Motor de relacionamento antecipado indisponivel.');
+    const plano = window.CRM_RELATIONSHIP_QUERY.planejar(
+        consulta,
+        principal,
+        camposRelacionamento
+    );
+    if (!plano) return executarConsultaConfigurada(consulta, filtros, null, opcoes);
+    if (!plano.lotes.length) {
+        return { ...consulta, colunas: [], dados: [], proximidade: null, metricas: { relacionamentoConsultas: { aplicado: true, chaves: 0 } } };
+    }
+    const resultados = [];
+    for (const lote of plano.lotes) {
+        if (opcoes.signal?.aborted) throw Object.assign(new Error('Atualizacao substituida por outro menu.'), { code: 'DASHBOARD_CONTEXT_CHANGED' });
+        resultados.push(await executarConsultaConfigurada(
+            consulta,
+            filtros,
+            null,
+            { ...opcoes, relacionamentoConsulta: lote }
+        ));
+    }
+    const colunas = Array.from(new Set(resultados.flatMap(resultado => resultado.colunas || [])));
+    return {
+        ...consulta,
+        colunas,
+        dados: resultados.flatMap(resultado => resultado.dados || []),
+        proximidade: resultados.find(resultado => resultado.proximidade)?.proximidade || null,
+        metricas: resultados.map(resultado => resultado.metricas).filter(Boolean)
     };
 }
 function combinarConsultas(resultados, combinacao, camposCalculados) { if (!window.CRM_COMPOSITE_DATASETS) throw new Error('Combinador de consultas indisponível.'); return window.CRM_COMPOSITE_DATASETS.combinar(resultados, combinacao, camposCalculados, window.CRM_KPI_CALCULATOR?.avaliar); }
@@ -5844,14 +5901,28 @@ async function testarConsultaWidget() {
         resultadosConsultasAtuais = [];
         const filtrosExecucao = obterFiltrosCenario();
         const modoConsulta = modoExecucaoConsultaComposta('edicao', queryCombinationModeSelect?.value);
+        const combinacaoExecucao = coletarCombinacaoEditor();
         for (let indice = 0; indice < consultas.length; indice += 1) {
             renderizarResultadoConsulta('Executando consulta ' + (indice + 1) + ' de ' + consultas.length + '...', 'info');
-            resultadosConsultasAtuais.push(await executarConsultaConfigurada(
+            const camposRelacionamento = obterCamposRelacionamentoExecucao(
                 consultas[indice],
-                filtrosExecucao,
-                null,
-                { modoExecucao: modoConsulta }
-            ));
+                combinacaoExecucao,
+                indice
+            );
+            resultadosConsultasAtuais.push(indice > 0 && camposRelacionamento.length
+                ? await executarConsultaConfiguradaRelacionada(
+                    consultas[indice],
+                    filtrosExecucao,
+                    resultadosConsultasAtuais[0],
+                    camposRelacionamento,
+                    { modoExecucao: modoConsulta }
+                )
+                : await executarConsultaConfigurada(
+                    consultas[indice],
+                    filtrosExecucao,
+                    null,
+                    { modoExecucao: modoConsulta }
+                ));
         }
         const combinacaoSalva = coletarCombinacaoEditor();
         preencherSelectCampos(primaryKeySelect, resultadosConsultasAtuais[0]?.colunas, combinacaoSalva.chavePrincipal);

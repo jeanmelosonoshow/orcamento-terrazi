@@ -97,6 +97,45 @@ selecao parcial, ela se transforma em `AND campo IN (...)` ou `OR campo IN (...)
 Quando `operador` for omitido, o padrao sera `AND`. A condicao por categoria
 deve permanecer na consulta para garantir o escopo de acesso.
 
+## Relacionamento eficiente entre consultas
+
+No modo **Relacionar consultas em sequencia**, a primeira consulta e executada antes das demais.
+As chaves configuradas no `INNER JOIN` ou `LEFT JOIN` sao enviadas em lotes para cada consulta
+seguinte. O filtro e aplicado no banco antes do limite de retorno, sempre como uma chave composta.
+Por exemplo, `IDFILIAL + NUMEROSAIDA` preserva os pares de cada linha e nao cria combinacoes
+incorretas entre filiais e vendas.
+
+Nao e preciso alterar o SQL para ativar esse filtro antecipado: basta preencher todos os campos do
+relacionamento no editor. Para usar um valor retornado pela primeira consulta como campo virtual no
+SQL seguinte, declare um apelido:
+
+```sql
+/* RELACIONAR | apelido: rel_orcamento | consulta: "DADOS ORCAMENTO" */
+
+SELECT
+    S.IDFILIAL,
+    S.NUMEROSAIDA,
+    CASE
+        WHEN /* rel_orcamento.IDFILIAL */ IN ('02') THEN 'verdadeiro'
+        ELSE 'falso'
+    END AS TESTE
+FROM SAIDA S
+```
+
+O nome em `consulta` deve ser o apelido exato da primeira consulta. O campo depois do ponto deve ser
+um alias retornado por ela. Tambem e possivel declarar um campo padrao e usar somente o apelido:
+
+```sql
+/* RELACIONAR | apelido: filial_origem | consulta: principal | campo: IDFILIAL */
+SELECT CASE WHEN /* filial_origem */ = '02' THEN 1 ELSE 0 END AS TESTE
+FROM RDB$DATABASE
+```
+
+O motor agrupa registros com o mesmo valor virtual, parametriza os valores e divide chaves grandes
+em lotes. Se a mesma chave composta possuir valores virtuais conflitantes, a consulta e recusada e
+orienta completar a cardinalidade. Campos virtuais nao sao concatenados ao SQL e, por seguranca,
+nao sao aceitos dentro de `EXECUTE BLOCK`.
+
 ## EXECUTE BLOCK com tabelas temporarias
 
 O executor aceita `DELETE FROM` e `INSERT INTO ... SELECT` dentro de `EXECUTE BLOCK` somente quando
