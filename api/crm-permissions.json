@@ -12,5 +12,5 @@
   "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
   "scenarioEditorFuncionarioIds": ["752"],
   "architectBudgetEditorFuncionarioIds": ["752"],
-  "architectCommissionManagerFuncionarioIds": ["752","142"]
+  "architectCommissionManagerFuncionarioIds": ["752"]
 }
