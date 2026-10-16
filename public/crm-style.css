@@ -3571,6 +3571,7 @@ html[data-color-mode="dark"] .crm-palette-group-title {
     background: rgba(255,255,255,.72);
 }
 .crm-architect-form[hidden] { display: none; }
+.crm-architect-form [hidden] { display: none !important; }
 .crm-architect-form label,
 .crm-architect-search {
     display: grid;

@@ -49,6 +49,18 @@ test('percentual de comissao e validado e depende da permissao assinada', () => 
     assert.equal(podeGerenciarComissaoArquiteto({ architectCommissionManager: false, podeGerenciarComissaoArquiteto: true }), false);
 });
 
+test('campo de comissao fica oculto e usa uma unica fonte de permissoes', async () => {
+    const html = await readFile(new URL('../public/crm.html', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8');
+    const login = await readFile(new URL('../api/login.js', import.meta.url), 'utf8');
+
+    assert.match(html, /data-architect-commission-field hidden/);
+    assert.match(html, /crm-style\.css\?v=crm-20261016-permissions-1/);
+    assert.match(css, /\.crm-architect-form \[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/i);
+    assert.match(login, /path\.join\(__dirname, 'crm-permissions\.json'\)/);
+    assert.doesNotMatch(login, /config['"],\s*'crm-permissions\.json'/);
+});
+
 test('permissao de troca do arquiteto vem exclusivamente da sessao assinada', () => {
     assert.equal(podeAlterarArquitetoOrcamento({ architectBudgetEditor: true }), true);
     assert.equal(podeAlterarArquitetoOrcamento({ architectBudgetEditor: false }), false);

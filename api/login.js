@@ -10,10 +10,7 @@ const crypto = require('crypto');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const permissionsPaths = [
-    path.join(__dirname, 'crm-permissions.json'),
-    path.join(__dirname, '..', 'config', 'crm-permissions.json')
-];
+const permissionsPath = path.join(__dirname, 'crm-permissions.json');
 const FIREBIRD_TIMEOUT_MS = 12000;
 
 function carregarPermissoes() {
@@ -25,7 +22,7 @@ function carregarPermissoes() {
     };
 
     try {
-        const permissionsPath = permissionsPaths.find(caminho => fs.existsSync(caminho));
+        if (!fs.existsSync(permissionsPath)) return fallback;
         const config = JSON.parse(fs.readFileSync(permissionsPath, 'utf8'));
         const categoriasLogin = config.allowedLoginCategories || config.categorias?.loginPermitido;
         const editoresCenarios = config.scenarioEditorFuncionarioIds || config.cenarios?.editoresIdFuncionario;
