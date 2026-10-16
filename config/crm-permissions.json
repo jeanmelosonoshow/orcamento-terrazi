@@ -3,12 +3,12 @@
     "loginPermitido": ["VD", "GR", "SU", "DI", "CX"]
   },
   "cenarios": {
-    "editoresIdFuncionario": []
+    "editoresIdFuncionario": ["752"]
   },
   "arquitetos": {
-    "editoresVinculoOrcamentoIdFuncionario": []
+    "editoresVinculoOrcamentoIdFuncionario": ["752"]
   },
   "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
-  "scenarioEditorFuncionarioIds": [],
-  "architectBudgetEditorFuncionarioIds": []
+  "scenarioEditorFuncionarioIds": ["752"],
+  "architectBudgetEditorFuncionarioIds": ["752"]
 }
