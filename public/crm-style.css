@@ -3761,6 +3761,73 @@ html[data-color-mode="dark"] .crm-palette-group-title {
 .crm-architect-directory-footer[hidden],
 .crm-architect-pagination[hidden],
 .crm-architect-expand[hidden] { display: none; }
+.crm-commission-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 9px;
+    padding: 9px 11px;
+    border: 1px solid #d7e1ec;
+    border-left: 3px solid var(--dourado);
+    border-radius: 5px;
+    background: #f7f9fc;
+    color: #314a61;
+    font-size: .74rem;
+}
+.crm-commission-toolbar button,
+.crm-commission-action,
+.crm-commission-reprint {
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid #123865;
+    border-radius: 5px;
+    background: #123865;
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+.crm-commission-toolbar button:disabled { cursor: not-allowed; opacity: .5; }
+.crm-commission-control { display: inline-flex; align-items: center; gap: 7px; margin-left: 8px; white-space: nowrap; }
+.crm-commission-select { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.crm-commission-select input { width: 15px; height: 15px; accent-color: #123865; }
+.crm-commission-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 25px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: #edf2f7;
+    color: #40566e;
+    font-size: .64rem;
+    font-weight: 900;
+    letter-spacing: .03em;
+}
+.crm-commission-status.is-pending { background: #fff4ce; color: #805b00; }
+.crm-commission-status.is-authorized { background: #dff3e5; color: #24663a; }
+.crm-commission-status.is-queued { background: #e5edfb; color: #194d91; }
+.crm-commission-status.is-paid { background: #d8f5ed; color: #08684f; }
+.crm-commission-action { border-color: #9b6b00; background: #b98500; }
+.crm-commission-reprint { border-color: #6c7d90; background: #fff; color: #314a61; }
+.crm-commission-modal-card { width: min(880px, 100%); }
+.crm-commission-modal-card form { display: grid; gap: 14px; }
+.crm-commission-modal-card form > div:first-child { display: grid; gap: 12px; }
+.crm-commission-modal-card label { display: grid; gap: 6px; color: #344c67; font-size: .75rem; font-weight: 800; }
+.crm-commission-modal-card input[type="date"] { min-height: 42px; padding: 8px 11px; border: 1px solid #c9d5e5; border-radius: 6px; }
+.crm-commission-guidance { margin: 0; color: #52667a; font-size: .8rem; line-height: 1.5; }
+.crm-commission-selection-summary { padding: 10px; border-radius: 5px; background: #f2f5f8; color: #314a61; font-size: .78rem; }
+.crm-commission-bordero { max-height: 52vh; overflow: auto; border: 1px solid #d7e1ec; border-radius: 6px; }
+.crm-commission-bordero[hidden] { display: none; }
+.crm-commission-bordero header { display: flex; justify-content: space-between; gap: 18px; padding: 14px; background: #f5f8fc; }
+.crm-commission-bordero header span, .crm-commission-bordero header strong { display: block; }
+.crm-commission-bordero table { width: 100%; border-collapse: collapse; font-size: .74rem; }
+.crm-commission-bordero th, .crm-commission-bordero td { padding: 8px 10px; border-top: 1px solid #e2e8f0; text-align: left; }
+.crm-commission-bordero th:last-child, .crm-commission-bordero td:last-child { text-align: right; }
+@media (max-width: 700px) {
+    .crm-commission-toolbar { align-items: stretch; flex-direction: column; }
+    .crm-commission-control { display: flex; margin: 6px 0 0; white-space: normal; }
+}
 .crm-architect-expand {
     min-height: 34px;
     padding: 0 12px;

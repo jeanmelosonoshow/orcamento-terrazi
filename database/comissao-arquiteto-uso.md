@@ -27,6 +27,23 @@ em inclusoes ou alteracoes. Para os demais usuarios, o percentual nao e enviado 
 - `PAGAMENTO_GERADO` somente pode ser gravado depois que o titulo existir no Firebird.
 - A fila usa chave de idempotencia para impedir titulo duplicado.
 
+## Fluxo operacional disponivel antes do Firebird
+
+- No relatorio `ORCAMENTO COM VENDA GERADA`, uma venda entregue sem registro financeiro aparece
+  virtualmente como `PENDENTE`; nenhuma linha desnecessaria e criada nessa consulta.
+- Ao confirmar `Autorizar`, o pagamento e criado diretamente como `AUTORIZADO`, com percentual,
+  valor da venda e dados do arquiteto congelados para auditoria.
+- Pagamentos autorizados podem ser selecionados em lote. Uma unica data prevista e solicitada para
+  todos os itens e passa a ser o vencimento previsto do lote.
+- A preparacao cria o bordero reimprimivel e registros `CRIAR_PAGAR` na fila, mas conserva o pagamento
+  como `AUTORIZADO`. Na interface ele aparece como `AGUARDANDO GERACAO`.
+- A etapa somente muda para `PAGAMENTO_GERADO` quando a futura integracao confirmar que cada titulo
+  foi realmente inserido no Firebird.
+
+Os controles usam o renderizador de celulas ja existente no painel. Assim, botoes e formularios
+configurados pelo usuario, filtros, tabela simples, tabela dinamica, paginacao e exportacoes continuam
+usando as mesmas regras; a camada de comissao e aplicada somente ao relatorio alvo.
+
 ## Integracao Firebird pendente
 
 O Gateway atual aceita apenas consultas de leitura. A criacao na tabela `PAGAR` exigira uma rota

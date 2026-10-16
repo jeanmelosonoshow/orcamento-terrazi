@@ -165,6 +165,15 @@ const architectDirectoryFooter = document.querySelector('[data-architect-directo
 const architectExpandButton = document.querySelector('[data-architect-expand]');
 const architectPagination = document.querySelector('[data-architect-pagination]');
 const architectPageStatus = document.querySelector('[data-architect-page-status]');
+const commissionModal = document.querySelector('[data-commission-modal]');
+const commissionBatchForm = document.querySelector('[data-commission-batch-form]');
+const commissionDateStep = document.querySelector('[data-commission-date-step]');
+const commissionPaymentDate = document.querySelector('[data-commission-payment-date]');
+const commissionSelectionSummary = document.querySelector('[data-commission-selection-summary]');
+const commissionBordero = document.querySelector('[data-commission-bordero]');
+const commissionMessage = document.querySelector('[data-commission-message]');
+const commissionPrepareButton = document.querySelector('[data-prepare-commission-batch]');
+const commissionPrintButton = document.querySelector('[data-print-commission-bordero]');
 let architectSearchTimer = null;
 let architectRequestController = null;
 let arquitetosCrmCarregados = false;
@@ -175,6 +184,9 @@ let architectDirectoryColumns = 1;
 let architectDirectoryResizeTimer = null;
 let architectEditingId = null;
 const arquitetosDiretorioPorId = new Map();
+const vendasComissaoPorChave = new Map();
+const pagamentosComissaoSelecionados = new Set();
+let borderoComissaoAtual = null;
 
 if (architectCommissionField) architectCommissionField.hidden = !podeGerenciarComissaoArquiteto;
 
@@ -2563,6 +2575,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
         );
         container.insertAdjacentHTML('afterbegin', resumoProximidade);
         container.insertAdjacentHTML('afterbegin', resumoAutoFiltros);
+        container.insertAdjacentHTML('afterbegin', renderizarBarraComissoes(widget));
         container.insertAdjacentHTML('beforeend', renderizarControlePaginacaoTabela(widget, paginacao));
         return;
     }
@@ -2725,6 +2738,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
         : '';
     container.innerHTML = `
         ${renderizarBreadcrumbDrill(widget, estadoDrill)}
+        ${renderizarBarraComissoes(widget)}
         ${resumoProximidade}
         ${resumoAutoFiltros}
         <div class="crm-chart-table-real">
@@ -3073,6 +3087,128 @@ function iconeCelula(nome, opcoes = {}) {
     return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[identificador] || paths.contact}</svg>`;
 }
 
+function normalizarIdentificadorComissao(valor) {
+    return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function widgetEhRelatorioComissao(widget = {}) {
+    return normalizarIdentificadorComissao(widget.titulo || '') === 'ORCAMENTOCOMVENDAGERADA';
+}
+
+function campoEhNumeroSaidaComissao(campo) {
+    return [campo?.coluna || campo, campo?.apelido || '']
+        .some(nomeCampo => normalizarIdentificadorComissao(nomeCampo) === 'NUMEROSAIDA');
+}
+
+function extrairVendaComissaoRegistro(registro = {}) {
+    const idfilialSaida = String(obterValorContato(registro, ['IDFILIAL', 'ID_FILIAL', 'IDFILIALSAIDA', 'IDFILIAL_SAIDA'], '')).trim();
+    const numeroSaida = Number.parseInt(obterValorContato(registro, ['NUMEROSAIDA', 'NUMERO_SAIDA'], ''), 10);
+    const orcamentoId = Number.parseInt(obterValorContato(registro, ['ID_ORCAMENTO', 'IDORCAMENTO', 'ORCAMENTO_ID'], ''), 10);
+    const valorVenda = converterNumero(obterValorContato(registro, ['VALOR_VENDA', 'VALORVENDA', 'VALTOTNOTA'], 0));
+    const situacaoEntrega = String(obterValorContato(registro, ['SITUACAO_ENTREGA', 'SITUACAOENTREGA'], '')).trim();
+    const chave = idfilialSaida && Number.isSafeInteger(numeroSaida) && numeroSaida > 0
+        ? `${idfilialSaida.toUpperCase().slice(0, 2)}:${numeroSaida}`
+        : '';
+    return { chave, idfilialSaida, numeroSaida, orcamentoId, valorVenda, situacaoEntrega };
+}
+
+async function requisitarComissoes(corpo) {
+    const response = await fetch('/api/comissoes-arquiteto', {
+        method: 'POST',
+        headers: cabecalhosSessao(),
+        body: JSON.stringify(corpo)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) window.fazerLogout();
+    if (!response.ok) throw new Error(data.error || 'Nao foi possivel processar a comissao.');
+    return data;
+}
+
+async function enriquecerWidgetComissoes(widget) {
+    if (!podeGerenciarComissaoArquiteto || !widgetEhRelatorioComissao(widget)) return widget;
+    const registros = Array.isArray(widget.dadosConsulta) ? widget.dadosConsulta : [];
+    const vendas = registros.map(extrairVendaComissaoRegistro).filter(item => item.chave);
+    if (!vendas.length) return widget;
+    let data;
+    try {
+        data = await requisitarComissoes({ acao: 'consultar', vendas });
+    } catch (error) {
+        return { ...widget, comissaoErro: error.message };
+    }
+    const porChave = new Map((data.pagamentos || []).map(item => [String(item.chave), item]));
+    const dadosConsulta = registros.map(registro => {
+        const venda = extrairVendaComissaoRegistro(registro);
+        if (!venda.chave) return registro;
+        const pagamento = porChave.get(venda.chave) || null;
+        const status = pagamento?.status || 'PENDENTE';
+        if (status !== 'AUTORIZADO' || pagamento?.lotePagamentoId) pagamentosComissaoSelecionados.delete(venda.chave);
+        vendasComissaoPorChave.set(venda.chave, { ...venda, pagamento });
+        return {
+            ...registro,
+            __comissaoChave: venda.chave,
+            __comissaoStatus: status,
+            __comissaoPagamentoId: pagamento?.id || null,
+            __comissaoPercentual: pagamento?.percentualComissao ?? null,
+            __comissaoValor: pagamento?.valorComissao ?? null,
+            __comissaoLoteId: pagamento?.lotePagamentoId || null,
+            __comissaoNumeroLote: pagamento?.numeroLote || null
+        };
+    });
+    return { ...widget, dadosConsulta, comissaoErro: '' };
+}
+
+function classeStatusComissao(status) {
+    if (status === 'PENDENTE') return 'is-pending';
+    if (status === 'AUTORIZADO') return 'is-authorized';
+    if (status === 'AGUARDANDO_GERACAO' || status === 'PAGAMENTO_GERADO') return 'is-queued';
+    if (status === 'PAGAMENTO_EFETUADO') return 'is-paid';
+    return '';
+}
+
+function rotuloStatusComissao(status) {
+    const rotulos = {
+        PENDENTE: 'PENDENTE',
+        AUTORIZADO: 'AUTORIZADO',
+        AGUARDANDO_GERACAO: 'AGUARDANDO GERAÇÃO',
+        PAGAMENTO_GERADO: 'PAGAMENTO GERADO',
+        PAGAMENTO_EFETUADO: 'PAGAMENTO EFETUADO'
+    };
+    return rotulos[status] || status;
+}
+
+function renderizarControleComissaoRegistro(registro) {
+    const venda = extrairVendaComissaoRegistro(registro);
+    if (!venda.chave) return '';
+    vendasComissaoPorChave.set(venda.chave, { ...venda, pagamento: vendasComissaoPorChave.get(venda.chave)?.pagamento || null });
+    const entregaRealizada = normalizarIdentificadorComissao(venda.situacaoEntrega) === 'ENTREGAREALIZADA';
+    const status = registro.__comissaoStatus || 'PENDENTE';
+    if (!entregaRealizada && status === 'PENDENTE') {
+        return '<span class="crm-commission-control"><span class="crm-commission-status">AGUARDANDO ENTREGA</span></span>';
+    }
+    const badge = `<span class="crm-commission-status ${classeStatusComissao(status)}">${escapeHtml(rotuloStatusComissao(status))}</span>`;
+    if (status === 'PENDENTE') {
+        return `<span class="crm-commission-control">${badge}<button type="button" class="crm-commission-action" data-commission-authorize="${escapeHtml(venda.chave)}">Autorizar</button></span>`;
+    }
+    if (status === 'AUTORIZADO' && registro.__comissaoPagamentoId) {
+        const marcado = pagamentosComissaoSelecionados.has(venda.chave) ? ' checked' : '';
+        const valor = registro.__comissaoValor === null || registro.__comissaoValor === undefined
+            ? ''
+            : ` R$ ${Number(registro.__comissaoValor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return `<span class="crm-commission-control"><label class="crm-commission-select"><input type="checkbox" data-commission-select="${escapeHtml(venda.chave)}" value="${Number(registro.__comissaoPagamentoId)}"${marcado}>${badge}<small>${escapeHtml(valor)}</small></label></span>`;
+    }
+    if (registro.__comissaoLoteId) {
+        return `<span class="crm-commission-control">${badge}<button type="button" class="crm-commission-reprint" data-commission-bordero="${Number(registro.__comissaoLoteId)}">Borderô ${escapeHtml(registro.__comissaoNumeroLote || '')}</button></span>`;
+    }
+    return `<span class="crm-commission-control">${badge}</span>`;
+}
+
+function renderizarBarraComissoes(widget) {
+    if (!podeGerenciarComissaoArquiteto || !widgetEhRelatorioComissao(widget)) return '';
+    if (widget.comissaoErro) return `<div class="crm-commission-toolbar"><span><strong>Comissões indisponíveis:</strong> ${escapeHtml(widget.comissaoErro)}</span></div>`;
+    const quantidade = pagamentosComissaoSelecionados.size;
+    return `<div class="crm-commission-toolbar"><span><strong>Comissões:</strong> autorize cada venda entregue e selecione os autorizados para o lote.</span><button type="button" data-commission-prepare${quantidade ? '' : ' disabled'}>Preparar borderô e geração (${quantidade})</button></div>`;
+}
+
 function renderizarConteudoCelula(widget, campo, registro, texto, opcoesRenderizacao = {}) {
     const nomesCampo = new Set([
         normalizarNomeCampoContato(campo?.coluna || campo),
@@ -3117,6 +3253,9 @@ function renderizarConteudoCelula(widget, campo, registro, texto, opcoesRenderiz
         const botao = `<button type="button" class="crm-contact-action" data-budget-negotiation-action data-budget-id="${escapeHtml(orcamentoId)}" style="${escapeHtml(estiloCompleto)}">${iconeCelula(item.icon || item.icone || 'fa-comments', item)}<span>${escapeHtml(rotulo)}</span></button>`;
         conteudo = String(item.position || item.posicao).toLowerCase() === 'before' ? botao + conteudo : conteudo + botao;
     });
+    if (!opcoesRenderizacao.somenteIcones && podeGerenciarComissaoArquiteto && !widget.comissaoErro && widgetEhRelatorioComissao(widget) && campoEhNumeroSaidaComissao(campo)) {
+        conteudo += renderizarControleComissaoRegistro(registro);
+    }
     return conteudo;
 }
 
@@ -3791,7 +3930,7 @@ function criarElementoExportacao(widget) {
         }
     }
 
-    elemento.querySelectorAll('button, .crm-drill-control, .crm-table-pagination, .crm-table-filter-control').forEach(item => item.remove());
+    elemento.querySelectorAll('button, .crm-drill-control, .crm-table-pagination, .crm-table-filter-control, .crm-commission-control, .crm-commission-toolbar').forEach(item => item.remove());
     document.body.appendChild(elemento);
     return elemento;
 }
@@ -4479,7 +4618,7 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
         const combinado = combinarConsultas(resultados, widget.combinacaoConsultas || { modo: 'single' }, widget.camposCalculados || []);
         const enriquecido = await aplicarRelacionamentoResultadoWidget(widget, combinado.dados, combinado.colunas, filtros);
         const proximidade = resultados.find(resultado => resultado.proximidade)?.proximidade || null;
-        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: enriquecido.registros, dadosConsultaAgregados: false, proximidade, metricasServidor: resultados.map(resultado => resultado.metricas).filter(Boolean), consultaAtualizadaEm: new Date().toISOString() };
+        return enriquecerWidgetComissoes({ ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: enriquecido.registros, dadosConsultaAgregados: false, proximidade, metricasServidor: resultados.map(resultado => resultado.metricas).filter(Boolean), consultaAtualizadaEm: new Date().toISOString() });
     }
     const visualizacao = widgetMapeiaContato(widget) ? null : montarVisualizacaoWidget(widget);
     const controller = new AbortController();
@@ -4501,7 +4640,7 @@ async function executarWidgetComFiltros(widget, filtros, opcoes = {}) {
             : colunasRetornadas;
         const dadosRetornados = Array.isArray(data.dados) ? data.dados : (Array.isArray(data.amostra) ? data.amostra : []);
         const enriquecido = await aplicarRelacionamentoResultadoWidget(widget, dadosRetornados, colunasConsulta, filtros);
-        return { ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: enriquecido.registros, dadosConsultaAgregados: data.resultadoAgregado === true, proximidade: data.proximidade || null, metricasServidor: data.metricas || null, consultaAtualizadaEm: new Date().toISOString() };
+        return enriquecerWidgetComissoes({ ...widget, colunasConsulta: enriquecido.colunas, dadosConsulta: enriquecido.registros, dadosConsultaAgregados: data.resultadoAgregado === true, proximidade: data.proximidade || null, metricasServidor: data.metricas || null, consultaAtualizadaEm: new Date().toISOString() });
     } finally { clearTimeout(timeout); }
 }
 
@@ -5029,6 +5168,121 @@ function fecharFormularioContato() {
 
 function cabecalhosSessao() {
     return { 'Content-Type': 'application/json', ...(usuarioLogado.sessionToken ? { Authorization: 'Bearer ' + usuarioLogado.sessionToken } : {}) };
+}
+
+function dataLocalIsoHoje() {
+    const agora = new Date();
+    return [agora.getFullYear(), String(agora.getMonth() + 1).padStart(2, '0'), String(agora.getDate()).padStart(2, '0')].join('-');
+}
+
+function fecharModalComissao() {
+    if (commissionModal) commissionModal.hidden = true;
+    if (commissionMessage) commissionMessage.textContent = '';
+}
+
+function abrirPreparacaoLoteComissao() {
+    if (!commissionModal || !pagamentosComissaoSelecionados.size) return;
+    borderoComissaoAtual = null;
+    commissionModal.hidden = false;
+    if (commissionDateStep) commissionDateStep.hidden = false;
+    if (commissionBordero) {
+        commissionBordero.hidden = true;
+        commissionBordero.innerHTML = '';
+    }
+    if (commissionPrintButton) commissionPrintButton.hidden = true;
+    if (commissionPrepareButton) commissionPrepareButton.hidden = false;
+    if (commissionMessage) commissionMessage.textContent = '';
+    if (commissionPaymentDate) {
+        commissionPaymentDate.min = dataLocalIsoHoje();
+        commissionPaymentDate.value = commissionPaymentDate.value >= commissionPaymentDate.min ? commissionPaymentDate.value : commissionPaymentDate.min;
+    }
+    if (commissionSelectionSummary) {
+        commissionSelectionSummary.textContent = `${pagamentosComissaoSelecionados.size} pagamento(s) autorizado(s) selecionado(s). Todos receberao a mesma data prevista.`;
+    }
+    setTimeout(() => commissionPaymentDate?.focus(), 0);
+}
+
+function formatarDataBordero(valor) {
+    const texto = String(valor || '').slice(0, 10);
+    const partes = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : texto;
+}
+
+function htmlBorderoComissao(bordero) {
+    const itens = Array.isArray(bordero?.itens) ? bordero.itens : [];
+    const linhas = itens.map(item => `<tr><td>${escapeHtml(item.nomeArquiteto || '')}</td><td>${escapeHtml(item.idfilialSaida || '')}</td><td>${escapeHtml(item.numeroSaida || '')}</td><td>${escapeHtml(item.orcamentoId || '')}</td><td>R$ ${escapeHtml(Number(item.valorVenda || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</td><td>${escapeHtml(Number(item.percentualComissao || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 }))}%</td><td>R$ ${escapeHtml(Number(item.valorComissao || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</td></tr>`).join('');
+    return `<header><div><strong>Borderô ${escapeHtml(bordero?.numero || '')}</strong><span>Previsão: ${escapeHtml(formatarDataBordero(bordero?.dataPrevistaPagamento))}</span></div><div><strong>R$ ${escapeHtml(Number(bordero?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</strong><span>${Number(bordero?.quantidadeItens || itens.length)} título(s) aguardando geração</span></div></header><table><thead><tr><th>Arquiteto</th><th>Filial</th><th>Venda</th><th>Orçamento</th><th>Valor venda</th><th>%</th><th>Comissão</th></tr></thead><tbody>${linhas}</tbody></table>`;
+}
+
+function exibirBorderoComissao(bordero) {
+    borderoComissaoAtual = bordero;
+    if (commissionModal) commissionModal.hidden = false;
+    if (commissionDateStep) commissionDateStep.hidden = true;
+    if (commissionBordero) {
+        commissionBordero.innerHTML = htmlBorderoComissao(bordero);
+        commissionBordero.hidden = false;
+    }
+    if (commissionPrepareButton) commissionPrepareButton.hidden = true;
+    if (commissionPrintButton) commissionPrintButton.hidden = false;
+    if (commissionMessage) commissionMessage.textContent = 'Bordero preparado. Os itens estao na fila e ainda nao foram lancados no Firebird.';
+}
+
+function imprimirBorderoComissao() {
+    if (!borderoComissaoAtual) return;
+    const janela = window.open('', '_blank');
+    if (!janela) return window.alert('Permita a abertura de janelas para imprimir o bordero.');
+    janela.opener = null;
+    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Bordero ${escapeHtml(borderoComissaoAtual.numero || '')}</title><style>body{font:12px Arial;color:#15263a;margin:18mm}header{display:flex;justify-content:space-between;border-bottom:2px solid #123865;padding-bottom:12px;margin-bottom:12px}header span,header strong{display:block}table{width:100%;border-collapse:collapse}th,td{padding:7px;border-bottom:1px solid #d8e0e8;text-align:left}th:last-child,td:last-child{text-align:right}@page{margin:12mm}</style></head><body>${htmlBorderoComissao(borderoComissaoAtual)}<script>window.onload=()=>window.print()<\/script></body></html>`);
+    janela.document.close();
+}
+
+async function atualizarComissoesNoDashboard() {
+    const widgets = obterWidgetsDashboard('arquitetos');
+    for (let indice = 0; indice < widgets.length; indice += 1) {
+        if (widgetEhRelatorioComissao(widgets[indice])) widgets[indice] = await enriquecerWidgetComissoes(widgets[indice]);
+    }
+    if (dashboardContextoAtivo === 'arquitetos') renderizarDashboard();
+}
+
+async function autorizarComissaoVenda(chave) {
+    const venda = vendasComissaoPorChave.get(String(chave));
+    if (!venda) return window.alert('Venda nao encontrada no resultado atual.');
+    if (!window.confirm(`Autorizar a comissao da venda ${venda.numeroSaida}, filial ${venda.idfilialSaida}?`)) return;
+    try {
+        await requisitarComissoes({ acao: 'autorizar', venda });
+        await atualizarComissoesNoDashboard();
+    } catch (error) {
+        window.alert(error.message);
+    }
+}
+
+async function abrirBorderoComissao(loteId) {
+    try {
+        const data = await requisitarComissoes({ acao: 'bordero', loteId: Number(loteId) });
+        exibirBorderoComissao(data.bordero);
+    } catch (error) {
+        window.alert(error.message);
+    }
+}
+
+async function prepararLoteComissao(event) {
+    event.preventDefault();
+    const dataPrevistaPagamento = commissionPaymentDate?.value || '';
+    const selecionados = Array.from(pagamentosComissaoSelecionados).map(chave => vendasComissaoPorChave.get(chave)?.pagamento?.id).filter(Boolean);
+    if (!selecionados.length) return;
+    if (!dataPrevistaPagamento) return window.alert('Informe a data prevista para pagamento.');
+    if (!window.confirm(`Preparar o bordero com ${selecionados.length} pagamento(s) para ${formatarDataBordero(dataPrevistaPagamento)}? Isso criara o gatilho da fila, mas nao lancara no Firebird.`)) return;
+    if (commissionPrepareButton) commissionPrepareButton.disabled = true;
+    try {
+        const data = await requisitarComissoes({ acao: 'preparar-lote', pagamentoIds: selecionados, dataPrevistaPagamento });
+        pagamentosComissaoSelecionados.clear();
+        exibirBorderoComissao(data.bordero);
+        await atualizarComissoesNoDashboard();
+    } catch (error) {
+        if (commissionMessage) commissionMessage.textContent = error.message;
+    } finally {
+        if (commissionPrepareButton) commissionPrepareButton.disabled = false;
+    }
 }
 
 function formatarCpfArquiteto(valor) {
@@ -6078,6 +6332,29 @@ function inicializarEditorDashboard() {
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', async event => {
             if (tratarCliqueAutoFiltroTabela(event)) return;
+            const commissionAuthorize = event.target.closest('[data-commission-authorize]');
+            if (commissionAuthorize) {
+                await autorizarComissaoVenda(commissionAuthorize.dataset.commissionAuthorize);
+                return;
+            }
+            const commissionSelection = event.target.closest('[data-commission-select]');
+            if (commissionSelection) {
+                const chave = commissionSelection.dataset.commissionSelect;
+                if (commissionSelection.checked) pagamentosComissaoSelecionados.add(chave);
+                else pagamentosComissaoSelecionados.delete(chave);
+                renderizarDashboard();
+                return;
+            }
+            const commissionPrepare = event.target.closest('[data-commission-prepare]');
+            if (commissionPrepare && !commissionPrepare.disabled) {
+                abrirPreparacaoLoteComissao();
+                return;
+            }
+            const commissionBorderoButton = event.target.closest('[data-commission-bordero]');
+            if (commissionBorderoButton) {
+                await abrirBorderoComissao(commissionBorderoButton.dataset.commissionBordero);
+                return;
+            }
             const budgetAction = event.target.closest('[data-budget-negotiation-action]');
             if (budgetAction) {
                 abrirGestaoNegociacao(budgetAction);
@@ -6239,6 +6516,9 @@ function inicializarEditorDashboard() {
     closeSqlViewerButtons.forEach(button => button.addEventListener('click', fecharVisualizadorSql));
     closeWidgetDetailButtons.forEach(button => button.addEventListener('click', fecharRelatorioDetalhe));
     closeContactModalButtons.forEach(button => button.addEventListener('click', fecharFormularioContato));
+    document.querySelectorAll('[data-close-commission-modal]').forEach(button => button.addEventListener('click', fecharModalComissao));
+    if (commissionBatchForm) commissionBatchForm.addEventListener('submit', prepararLoteComissao);
+    if (commissionPrintButton) commissionPrintButton.addEventListener('click', imprimirBorderoComissao);
     if (contactForm) contactForm.addEventListener('submit', salvarFormularioContato);
     if (architectFormToggle) architectFormToggle.addEventListener('click', () => alternarFormularioArquiteto(architectForm?.hidden !== false));
     if (architectFormCancel) architectFormCancel.addEventListener('click', () => alternarFormularioArquiteto(false));

@@ -22,7 +22,7 @@
     <title>Gestão</title>
     <script src="color-mode.js?v=20260824-1"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.0/css/all.min.css">
-    <link rel="stylesheet" href="crm-style.css?v=crm-20261016-permissions-1">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20261016-comissoes-1">
     <link rel="stylesheet" href="assets/budget-negotiation.css?v=20260820-2">
     <link rel="stylesheet" href="color-mode.css?v=20261014-powerbi-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
@@ -636,6 +636,34 @@
             </form>
         </section>
     </div>
+    <div class="crm-modal" data-commission-modal hidden>
+        <div class="crm-modal-backdrop" data-close-commission-modal></div>
+        <section class="crm-modal-card crm-commission-modal-card" role="dialog" aria-modal="true" aria-labelledby="crmCommissionModalTitle">
+            <div class="crm-modal-head">
+                <div>
+                    <span class="crm-eyebrow">Comissão de arquitetos</span>
+                    <h2 id="crmCommissionModalTitle" data-commission-modal-title>Preparar borderô</h2>
+                </div>
+                <button type="button" class="crm-icon-button" aria-label="Fechar" title="Fechar" data-close-commission-modal>×</button>
+            </div>
+            <form data-commission-batch-form>
+                <div data-commission-date-step>
+                    <p class="crm-commission-guidance">Os pagamentos continuarão autorizados. Esta etapa cria o borderô e a fila para a futura geração no Firebird.</p>
+                    <label>Data prevista para pagamento
+                        <input type="date" required data-commission-payment-date>
+                    </label>
+                    <div class="crm-commission-selection-summary" data-commission-selection-summary></div>
+                </div>
+                <div class="crm-commission-bordero" data-commission-bordero hidden></div>
+                <div class="crm-contact-form-status" data-commission-message aria-live="polite"></div>
+                <div class="crm-modal-actions">
+                    <button type="button" class="crm-secondary-button" data-close-commission-modal>Fechar</button>
+                    <button type="button" class="crm-secondary-button" data-print-commission-bordero hidden>Imprimir borderô</button>
+                    <button type="submit" data-prepare-commission-batch>Preparar geração</button>
+                </div>
+            </form>
+        </section>
+    </div>
     <script id="crmEchartsScript" async src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
     <script src="assets/icons/widget-icons.js?v=crm-20260728-1"></script>
     <script src="assets/charts/chart-renderers.js?v=crm-20261014-powerbi-1"></script>
@@ -647,6 +675,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=20260824-color-mode-1"></script>
     <script src="assets/budget-negotiation.js?v=20260820-2"></script>
-    <script src="crm.js?v=crm-20261015-comissao-arquiteto-1"></script>
+    <script src="crm.js?v=crm-20261016-comissoes-1"></script>
 </body>
 </html>
