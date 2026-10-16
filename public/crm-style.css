@@ -3775,6 +3775,27 @@ html[data-color-mode="dark"] .crm-palette-group-title {
     color: #314a61;
     font-size: .74rem;
 }
+.crm-commission-toolbar-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+}
+.crm-commission-select-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 30px;
+    padding: 4px 9px;
+    border: 1px solid #c8d5e4;
+    border-radius: 5px;
+    background: #fff;
+    color: #24445f;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.crm-commission-select-all input { width: 15px; height: 15px; margin: 0; accent-color: #123865; }
 .crm-commission-toolbar button,
 .crm-commission-action,
 .crm-commission-reprint {
@@ -3857,6 +3878,11 @@ html[data-color-mode="dark"] .crm-commission-bordero header {
     border-color: var(--app-border);
     color: var(--app-text);
 }
+html[data-color-mode="dark"] .crm-commission-select-all {
+    border-color: var(--app-border);
+    background: var(--app-surface-elevated);
+    color: var(--app-text);
+}
 html[data-color-mode="dark"] .crm-commission-confirm-body small,
 html[data-color-mode="dark"] .crm-commission-guidance { color: var(--app-text-muted); }
 html[data-color-mode="dark"] .crm-commission-batch-confirm {
@@ -3871,6 +3897,7 @@ html[data-color-mode="dark"] .crm-commission-modal-card input[type="date"] {
 }
 @media (max-width: 700px) {
     .crm-commission-toolbar { align-items: stretch; flex-direction: column; }
+    .crm-commission-select-all { align-self: flex-start; white-space: normal; }
     .crm-commission-control { display: flex; margin: 6px 0 0; white-space: normal; }
 }
 .crm-architect-expand {

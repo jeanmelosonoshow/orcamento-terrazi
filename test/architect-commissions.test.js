@@ -52,6 +52,9 @@ test('API prepara bordero e fila sem marcar pagamento como gerado', async () => 
     assert.match(html, /data-print-commission-bordero/);
     assert.match(html, /data-commission-confirm-modal/);
     assert.match(crm, /abrirConfirmacaoAutorizacaoComissao/);
+    assert.match(crm, /data-commission-select-all/);
+    assert.match(crm, /obterChavesComissaoAutorizadas/);
+    assert.match(crm, /Selecionar todos os autorizados/);
     assert.doesNotMatch(crm, /window\.confirm\(`Autorizar a comissao/);
     assert.doesNotMatch(crm, /window\.confirm\(`Preparar o bordero/);
 });

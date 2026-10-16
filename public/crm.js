@@ -2581,7 +2581,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
         );
         container.insertAdjacentHTML('afterbegin', resumoProximidade);
         container.insertAdjacentHTML('afterbegin', resumoAutoFiltros);
-        container.insertAdjacentHTML('afterbegin', renderizarBarraComissoes(widget));
+        container.insertAdjacentHTML('afterbegin', renderizarBarraComissoes(widget, registrosOrdenados));
         container.insertAdjacentHTML('beforeend', renderizarControlePaginacaoTabela(widget, paginacao));
         return;
     }
@@ -2744,7 +2744,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
         : '';
     container.innerHTML = `
         ${renderizarBreadcrumbDrill(widget, estadoDrill)}
-        ${renderizarBarraComissoes(widget)}
+        ${renderizarBarraComissoes(widget, registrosOrdenados)}
         ${resumoProximidade}
         ${resumoAutoFiltros}
         <div class="crm-chart-table-real">
@@ -3208,11 +3208,39 @@ function renderizarControleComissaoRegistro(registro) {
     return `<span class="crm-commission-control">${badge}</span>`;
 }
 
-function renderizarBarraComissoes(widget) {
+function obterChavesComissaoAutorizadas(registros = []) {
+    return Array.from(new Set((Array.isArray(registros) ? registros : [])
+        .filter(registro => registro?.__comissaoStatus === 'AUTORIZADO'
+            && registro?.__comissaoPagamentoId
+            && !registro?.__comissaoLoteId)
+        .map(registro => extrairVendaComissaoRegistro(registro).chave)
+        .filter(Boolean)));
+}
+
+function obterRegistrosComissaoVisiveis(widget) {
+    const registros = Array.isArray(widget?.dadosConsulta) ? widget.dadosConsulta : [];
+    return aplicarAutoFiltrosTabela(widget?.id, registros);
+}
+
+function sincronizarSeletoresTodosComissao() {
+    dashboardCanvas?.querySelectorAll('[data-commission-select-all][data-indeterminate="true"]').forEach(input => {
+        input.indeterminate = true;
+    });
+}
+
+function renderizarBarraComissoes(widget, registrosDisponiveis = null) {
     if (!podeGerenciarComissaoArquiteto || !widgetEhRelatorioComissao(widget)) return '';
     if (widget.comissaoErro) return `<div class="crm-commission-toolbar"><span><strong>Comissões indisponíveis:</strong> ${escapeHtml(widget.comissaoErro)}</span></div>`;
     const quantidade = pagamentosComissaoSelecionados.size;
-    return `<div class="crm-commission-toolbar"><span><strong>Comissões:</strong> autorize cada venda entregue e selecione os autorizados para o lote.</span><button type="button" data-commission-prepare${quantidade ? '' : ' disabled'}>Preparar borderô e geração (${quantidade})</button></div>`;
+    const registros = Array.isArray(registrosDisponiveis) ? registrosDisponiveis : obterRegistrosComissaoVisiveis(widget);
+    const autorizadas = obterChavesComissaoAutorizadas(registros);
+    const quantidadeMarcada = autorizadas.filter(chave => pagamentosComissaoSelecionados.has(chave)).length;
+    const todasMarcadas = autorizadas.length > 0 && quantidadeMarcada === autorizadas.length;
+    const parcialmenteMarcadas = quantidadeMarcada > 0 && !todasMarcadas;
+    const seletorTodos = autorizadas.length
+        ? `<label class="crm-commission-select-all"><input type="checkbox" data-commission-select-all${todasMarcadas ? ' checked' : ''}${parcialmenteMarcadas ? ' data-indeterminate="true"' : ''}><span>Selecionar todos os autorizados (${autorizadas.length})</span></label>`
+        : '';
+    return `<div class="crm-commission-toolbar"><div class="crm-commission-toolbar-info"><span><strong>Comissões:</strong> autorize cada venda entregue e selecione os autorizados para o lote.</span>${seletorTodos}</div><button type="button" data-commission-prepare${quantidade ? '' : ' disabled'}>Preparar borderô e geração (${quantidade})</button></div>`;
 }
 
 function renderizarConteudoCelula(widget, campo, registro, texto, opcoesRenderizacao = {}) {
@@ -4131,6 +4159,7 @@ function renderizarDashboard() {
         `;
     }).join('');
     renderizarGraficosDashboard(widgets, todosWidgets);
+    sincronizarSeletoresTodosComissao();
 }
 
 function atualizarStatusVisualizadorSql(mensagem, erro = false) {
@@ -6454,6 +6483,18 @@ function inicializarEditorDashboard() {
     if (dashboardCanvas) {
         dashboardCanvas.addEventListener('click', async event => {
             if (tratarCliqueAutoFiltroTabela(event)) return;
+            const commissionSelectAll = event.target.closest('[data-commission-select-all]');
+            if (commissionSelectAll) {
+                const card = commissionSelectAll.closest('[data-widget-id]');
+                const widget = obterWidgetsDashboard().find(item => String(item.id) === String(card?.dataset.widgetId));
+                const autorizadas = obterChavesComissaoAutorizadas(obterRegistrosComissaoVisiveis(widget));
+                autorizadas.forEach(chave => {
+                    if (commissionSelectAll.checked) pagamentosComissaoSelecionados.add(chave);
+                    else pagamentosComissaoSelecionados.delete(chave);
+                });
+                renderizarDashboard();
+                return;
+            }
             const commissionAuthorize = event.target.closest('[data-commission-authorize]');
             if (commissionAuthorize) {
                 abrirConfirmacaoAutorizacaoComissao(commissionAuthorize.dataset.commissionAuthorize);
