@@ -50,6 +50,10 @@ test('API prepara bordero e fila sem marcar pagamento como gerado', async () => 
     assert.match(crm, /renderizarConteudoCelula[\s\S]*renderizarControleComissaoRegistro/);
     assert.match(html, /data-commission-batch-form/);
     assert.match(html, /data-print-commission-bordero/);
+    assert.match(html, /data-commission-confirm-modal/);
+    assert.match(crm, /abrirConfirmacaoAutorizacaoComissao/);
+    assert.doesNotMatch(crm, /window\.confirm\(`Autorizar a comissao/);
+    assert.doesNotMatch(crm, /window\.confirm\(`Preparar o bordero/);
 });
 
 test('relatorio alvo aceita acentos, espacos e hifen sem afetar outras tabelas', async () => {

@@ -166,8 +166,13 @@ const architectExpandButton = document.querySelector('[data-architect-expand]');
 const architectPagination = document.querySelector('[data-architect-pagination]');
 const architectPageStatus = document.querySelector('[data-architect-page-status]');
 const commissionModal = document.querySelector('[data-commission-modal]');
+const commissionConfirmModal = document.querySelector('[data-commission-confirm-modal]');
+const commissionConfirmText = document.querySelector('[data-commission-confirm-text]');
+const commissionConfirmMessage = document.querySelector('[data-commission-confirm-message]');
+const commissionConfirmButton = document.querySelector('[data-confirm-commission-authorization]');
 const commissionBatchForm = document.querySelector('[data-commission-batch-form]');
 const commissionDateStep = document.querySelector('[data-commission-date-step]');
+const commissionBatchConfirm = document.querySelector('[data-commission-batch-confirm]');
 const commissionPaymentDate = document.querySelector('[data-commission-payment-date]');
 const commissionSelectionSummary = document.querySelector('[data-commission-selection-summary]');
 const commissionBordero = document.querySelector('[data-commission-bordero]');
@@ -187,6 +192,7 @@ const arquitetosDiretorioPorId = new Map();
 const vendasComissaoPorChave = new Map();
 const pagamentosComissaoSelecionados = new Set();
 let borderoComissaoAtual = null;
+let chaveComissaoAguardandoConfirmacao = '';
 
 if (architectCommissionField) architectCommissionField.hidden = !podeGerenciarComissaoArquiteto;
 
@@ -5180,17 +5186,31 @@ function fecharModalComissao() {
     if (commissionMessage) commissionMessage.textContent = '';
 }
 
+function fecharConfirmacaoComissao() {
+    if (commissionConfirmModal) commissionConfirmModal.hidden = true;
+    if (commissionConfirmMessage) commissionConfirmMessage.textContent = '';
+    chaveComissaoAguardandoConfirmacao = '';
+}
+
 function abrirPreparacaoLoteComissao() {
     if (!commissionModal || !pagamentosComissaoSelecionados.size) return;
     borderoComissaoAtual = null;
     commissionModal.hidden = false;
     if (commissionDateStep) commissionDateStep.hidden = false;
+    if (commissionBatchConfirm) {
+        commissionBatchConfirm.hidden = true;
+        commissionBatchConfirm.textContent = '';
+    }
     if (commissionBordero) {
         commissionBordero.hidden = true;
         commissionBordero.innerHTML = '';
     }
     if (commissionPrintButton) commissionPrintButton.hidden = true;
-    if (commissionPrepareButton) commissionPrepareButton.hidden = false;
+    if (commissionPrepareButton) {
+        commissionPrepareButton.hidden = false;
+        commissionPrepareButton.textContent = 'Preparar geração';
+    }
+    if (commissionBatchForm) delete commissionBatchForm.dataset.confirming;
     if (commissionMessage) commissionMessage.textContent = '';
     if (commissionPaymentDate) {
         commissionPaymentDate.min = dataLocalIsoHoje();
@@ -5223,6 +5243,8 @@ function exibirBorderoComissao(bordero) {
         commissionBordero.hidden = false;
     }
     if (commissionPrepareButton) commissionPrepareButton.hidden = true;
+    if (commissionBatchConfirm) commissionBatchConfirm.hidden = true;
+    if (commissionBatchForm) delete commissionBatchForm.dataset.confirming;
     if (commissionPrintButton) commissionPrintButton.hidden = false;
     if (commissionMessage) commissionMessage.textContent = 'Bordero preparado. Os itens estao na fila e ainda nao foram lancados no Firebird.';
 }
@@ -5244,15 +5266,31 @@ async function atualizarComissoesNoDashboard() {
     if (dashboardContextoAtivo === 'arquitetos') renderizarDashboard();
 }
 
-async function autorizarComissaoVenda(chave) {
+function abrirConfirmacaoAutorizacaoComissao(chave) {
     const venda = vendasComissaoPorChave.get(String(chave));
     if (!venda) return window.alert('Venda nao encontrada no resultado atual.');
-    if (!window.confirm(`Autorizar a comissao da venda ${venda.numeroSaida}, filial ${venda.idfilialSaida}?`)) return;
+    chaveComissaoAguardandoConfirmacao = String(chave);
+    if (commissionConfirmText) {
+        commissionConfirmText.textContent = `Deseja autorizar o pagamento da comissão da venda ${venda.numeroSaida}, filial ${venda.idfilialSaida}?`;
+    }
+    if (commissionConfirmMessage) commissionConfirmMessage.textContent = '';
+    if (commissionConfirmButton) commissionConfirmButton.disabled = false;
+    if (commissionConfirmModal) commissionConfirmModal.hidden = false;
+    setTimeout(() => commissionConfirmButton?.focus(), 0);
+}
+
+async function confirmarAutorizacaoComissao() {
+    const venda = vendasComissaoPorChave.get(chaveComissaoAguardandoConfirmacao);
+    if (!venda) return fecharConfirmacaoComissao();
+    if (commissionConfirmButton) commissionConfirmButton.disabled = true;
     try {
         await requisitarComissoes({ acao: 'autorizar', venda });
+        fecharConfirmacaoComissao();
         await atualizarComissoesNoDashboard();
     } catch (error) {
-        window.alert(error.message);
+        if (commissionConfirmMessage) commissionConfirmMessage.textContent = error.message;
+    } finally {
+        if (commissionConfirmButton) commissionConfirmButton.disabled = false;
     }
 }
 
@@ -5270,8 +5308,21 @@ async function prepararLoteComissao(event) {
     const dataPrevistaPagamento = commissionPaymentDate?.value || '';
     const selecionados = Array.from(pagamentosComissaoSelecionados).map(chave => vendasComissaoPorChave.get(chave)?.pagamento?.id).filter(Boolean);
     if (!selecionados.length) return;
-    if (!dataPrevistaPagamento) return window.alert('Informe a data prevista para pagamento.');
-    if (!window.confirm(`Preparar o bordero com ${selecionados.length} pagamento(s) para ${formatarDataBordero(dataPrevistaPagamento)}? Isso criara o gatilho da fila, mas nao lancara no Firebird.`)) return;
+    if (!dataPrevistaPagamento) {
+        if (commissionMessage) commissionMessage.textContent = 'Informe a data prevista para pagamento.';
+        commissionPaymentDate?.focus();
+        return;
+    }
+    if (commissionBatchForm?.dataset.confirming !== 'true') {
+        if (commissionDateStep) commissionDateStep.hidden = true;
+        if (commissionBatchConfirm) {
+            commissionBatchConfirm.innerHTML = `<strong>Confirme a preparação do lote</strong><br>${selecionados.length} pagamento(s), com data prevista em ${escapeHtml(formatarDataBordero(dataPrevistaPagamento))}. O borderô e a fila serão criados, mas nenhum lançamento será feito no Firebird nesta etapa.`;
+            commissionBatchConfirm.hidden = false;
+        }
+        if (commissionPrepareButton) commissionPrepareButton.textContent = 'Sim, confirmar preparação';
+        if (commissionBatchForm) commissionBatchForm.dataset.confirming = 'true';
+        return;
+    }
     if (commissionPrepareButton) commissionPrepareButton.disabled = true;
     try {
         const data = await requisitarComissoes({ acao: 'preparar-lote', pagamentoIds: selecionados, dataPrevistaPagamento });
@@ -6334,7 +6385,7 @@ function inicializarEditorDashboard() {
             if (tratarCliqueAutoFiltroTabela(event)) return;
             const commissionAuthorize = event.target.closest('[data-commission-authorize]');
             if (commissionAuthorize) {
-                await autorizarComissaoVenda(commissionAuthorize.dataset.commissionAuthorize);
+                abrirConfirmacaoAutorizacaoComissao(commissionAuthorize.dataset.commissionAuthorize);
                 return;
             }
             const commissionSelection = event.target.closest('[data-commission-select]');
@@ -6517,6 +6568,8 @@ function inicializarEditorDashboard() {
     closeWidgetDetailButtons.forEach(button => button.addEventListener('click', fecharRelatorioDetalhe));
     closeContactModalButtons.forEach(button => button.addEventListener('click', fecharFormularioContato));
     document.querySelectorAll('[data-close-commission-modal]').forEach(button => button.addEventListener('click', fecharModalComissao));
+    document.querySelectorAll('[data-close-commission-confirm-modal]').forEach(button => button.addEventListener('click', fecharConfirmacaoComissao));
+    if (commissionConfirmButton) commissionConfirmButton.addEventListener('click', confirmarAutorizacaoComissao);
     if (commissionBatchForm) commissionBatchForm.addEventListener('submit', prepararLoteComissao);
     if (commissionPrintButton) commissionPrintButton.addEventListener('click', imprimirBorderoComissao);
     if (contactForm) contactForm.addEventListener('submit', salvarFormularioContato);
