@@ -43,6 +43,10 @@ test('migracao e API mantem versoes publicadas e auditoria do funcionario', asyn
     assert.match(api, /FINANCE_CATALOG_SYNC_SECRET/);
     assert.match(api, /architectCommissionManager/);
     assert.match(api, /idfuncionario_publicacao/);
+    assert.match(api, /FINANCE_CATALOG_PRIVATE_KEY_MISSING/);
+    assert.match(api, /FINANCE_CATALOG_PRIVATE_KEY_INVALID/);
+    assert.match(api, /FINANCE_CATALOG_SCHEMA_MISSING/);
+    assert.match(api, /FINANCE_CATALOG_SCHEMA_OUTDATED/);
     assert.match(client, /\/finance\/commands/);
     assert.doesNotMatch(client, /\/finance\/suppliers\/ensure/);
 });

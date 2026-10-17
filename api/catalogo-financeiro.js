@@ -44,6 +44,25 @@ export default async function handler(req, res) {
         exigirGestor(session);
         const acao = String(req.body?.acao || '').trim().toLowerCase();
         const idfuncionario = Number(session.sub);
+        let chavePrivada = null;
+        if (acao === 'publicar') {
+            const valorConfigurado = String(process.env.FINANCE_CATALOG_PRIVATE_KEY || '').replace(/\\n/g, '\n').trim();
+            if (!valorConfigurado) {
+                throw Object.assign(new Error('Chave privada de publicacao nao configurada.'), {
+                    statusCode: 503,
+                    publicCode: 'FINANCE_CATALOG_PRIVATE_KEY_MISSING'
+                });
+            }
+            try {
+                chavePrivada = crypto.createPrivateKey(valorConfigurado);
+                if (chavePrivada.asymmetricKeyType !== 'ed25519') throw new Error('Tipo de chave invalido.');
+            } catch {
+                throw Object.assign(new Error('Chave privada Ed25519 invalida.'), {
+                    statusCode: 503,
+                    publicCode: 'FINANCE_CATALOG_PRIVATE_KEY_INVALID'
+                });
+            }
+        }
         client = await db.connect();
         await client.query('BEGIN');
         if (acao === 'salvar') {
@@ -65,8 +84,6 @@ export default async function handler(req, res) {
             return res.status(200).json({ ok: true, operacao });
         }
         if (acao !== 'publicar') throw Object.assign(new Error('Acao invalida.'), { statusCode: 400 });
-        const chavePrivada = String(process.env.FINANCE_CATALOG_PRIVATE_KEY || '').replace(/\\n/g, '\n').trim();
-        if (!chavePrivada) throw Object.assign(new Error('Chave privada de publicacao nao configurada.'), { statusCode: 503 });
         await client.query("SELECT pg_advisory_xact_lock(hashtext('finance-catalog-publish'))");
         const operacoes = await client.query(`
             SELECT operacao, definicao, versao
@@ -93,8 +110,15 @@ export default async function handler(req, res) {
     } catch (error) {
         if (client) await client.query('ROLLBACK').catch(() => {});
         const status = Number(error?.statusCode) || (['42P01', '42703'].includes(error?.code) ? 503 : 500);
+        const publicCode = error?.publicCode
+            || (error?.code === '42P01' ? 'FINANCE_CATALOG_SCHEMA_MISSING' : null)
+            || (error?.code === '42703' ? 'FINANCE_CATALOG_SCHEMA_OUTDATED' : null)
+            || (status >= 500 ? 'FINANCE_CATALOG_INTERNAL_ERROR' : 'FINANCE_CATALOG_REQUEST_REJECTED');
         if (status >= 500) console.error('[catalogo-financeiro] falha', { code: error?.code || null, message: error?.message });
-        return res.status(status).json({ error: status >= 500 ? 'Nao foi possivel processar o catalogo financeiro.' : error.message });
+        return res.status(status).json({
+            error: status >= 500 ? 'Nao foi possivel processar o catalogo financeiro.' : error.message,
+            code: publicCode
+        });
     } finally {
         client?.release();
     }
