@@ -7,6 +7,7 @@ import {
     normalizarVendaComissao,
     statusOperacionalComissao
 } from '../lib/architect-commissions.js';
+import { agendarSincronizacaoFornecedor } from '../lib/architect-supplier-sync.js';
 
 function erro(mensagem, statusCode = 400, code = 'COMMISSION_ERROR') {
     return Object.assign(new Error(mensagem), { statusCode, code });
@@ -268,15 +269,41 @@ async function prepararLote(client, ids, dataPrevistaPagamento, idfuncionario) {
           FROM pagamento_orcamento_arquiteto
          WHERE id = ANY($4::bigint[])
     `, [idfuncionario, loteId, data, pagamentosIds]);
-    await client.query(`
-        INSERT INTO fila_sincronizacao_pagamento_arquiteto (
-            pagamento_id, lote_pagamento_id, operacao, status_fila
-        )
-        SELECT id, $1, 'CRIAR_PAGAR', 'PENDENTE'
-          FROM pagamento_orcamento_arquiteto
-         WHERE id = ANY($2::bigint[])
-        ON CONFLICT (pagamento_id, operacao) DO NOTHING
-    `, [loteId, pagamentosIds]);
+    const estruturaFornecedor = await client.query(
+        "SELECT to_regclass('public.fila_sincronizacao_fornecedor_arquiteto') IS NOT NULL AS instalada"
+    );
+    if (estruturaFornecedor.rows[0]?.instalada) {
+        for (const pagamento of pagamentos.rows) {
+            await agendarSincronizacaoFornecedor(client, {
+                id: pagamento.arquiteto_id,
+                nome: pagamento.nome_arquiteto,
+                telefone: pagamento.telefone_arquiteto,
+                cpf: pagamento.cpf_arquiteto
+            });
+        }
+        await client.query(`
+            UPDATE pagamento_orcamento_arquiteto p
+               SET firebird_idfornecedor = a.firebird_idfornecedor,
+                   versao = p.versao + 1,
+                   data_ultima_atualizacao = CURRENT_TIMESTAMP
+              FROM arquiteto a
+             WHERE p.id = ANY($1::bigint[])
+               AND a.id = p.arquiteto_id
+               AND a.cpf = p.cpf_arquiteto
+               AND a.fornecedor_sync_status = 'SINCRONIZADO'
+               AND a.firebird_idfornecedor IS NOT NULL
+        `, [pagamentosIds]);
+        await client.query(`
+            INSERT INTO fila_sincronizacao_pagamento_arquiteto (
+                pagamento_id, lote_pagamento_id, operacao, status_fila
+            )
+            SELECT id, $1, 'CRIAR_PAGAR', 'PENDENTE'
+              FROM pagamento_orcamento_arquiteto
+             WHERE id = ANY($2::bigint[])
+               AND firebird_idfornecedor IS NOT NULL
+            ON CONFLICT (pagamento_id, operacao) DO NOTHING
+        `, [loteId, pagamentosIds]);
+    }
     return carregarBordero(client, loteId);
 }
 

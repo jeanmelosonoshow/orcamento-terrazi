@@ -1,5 +1,6 @@
 import { db } from '@vercel/postgres';
 import { requireRequestSession } from '../lib/session-token.js';
+import { agendarSincronizacaoFornecedor } from '../lib/architect-supplier-sync.js';
 import {
     normalizarArquiteto,
     normalizarArquitetoEntrada,
@@ -15,6 +16,13 @@ function responderErro(res, error) {
     const status = Number(error?.statusCode) || 500;
     if (status >= 500) console.error('[arquitetos] falha', { code: error?.code || null, message: error?.message });
     return res.status(status).json({ error: status >= 500 ? 'Nao foi possivel acessar o cadastro de arquitetos.' : error.message });
+}
+
+async function agendarFornecedorSeDisponivel(client, arquiteto) {
+    const estrutura = await client.query(
+        "SELECT to_regclass('public.fila_sincronizacao_fornecedor_arquiteto') IS NOT NULL AS instalada"
+    );
+    if (estrutura.rows[0]?.instalada) await agendarSincronizacaoFornecedor(client, arquiteto);
 }
 
 export default async function handler(req, res) {
@@ -95,41 +103,66 @@ export default async function handler(req, res) {
             ];
             const percentualSql = gerenciaComissao ? ', percentual_comissao = $10' : '';
             if (gerenciaComissao) valores.push(percentualComissao);
-            const resultado = await db.query(`
-                UPDATE arquiteto
-                   SET nome = $1,
-                       cpf = $2,
-                       nascimento = $3,
-                       registro_cau = $4,
-                       telefone = $5,
-                       telefone_alternativo = NULLIF($6, ''),
-                       email = $7,
-                       idfuncionario_ultima_atualizacao = $8,
-                       data_ultima_atualizacao = CURRENT_TIMESTAMP
-                       ${percentualSql}
-                 WHERE id = $9
-                 RETURNING *
-            `, valores);
-            if (!resultado.rows.length) return res.status(404).json({ error: 'Arquiteto nao encontrado.' });
-            return res.status(200).json({
-                arquiteto: normalizarArquiteto(resultado.rows[0], { incluirPercentualComissao: gerenciaComissao })
-            });
+            const client = await db.connect();
+            try {
+                await client.query('BEGIN');
+                const resultado = await client.query(`
+                    UPDATE arquiteto
+                       SET nome = $1,
+                           cpf = $2,
+                           nascimento = $3,
+                           registro_cau = $4,
+                           telefone = $5,
+                           telefone_alternativo = NULLIF($6, ''),
+                           email = $7,
+                           idfuncionario_ultima_atualizacao = $8,
+                           data_ultima_atualizacao = CURRENT_TIMESTAMP
+                           ${percentualSql}
+                     WHERE id = $9
+                     RETURNING *
+                `, valores);
+                if (!resultado.rows.length) {
+                    await client.query('ROLLBACK');
+                    return res.status(404).json({ error: 'Arquiteto nao encontrado.' });
+                }
+                await agendarFornecedorSeDisponivel(client, resultado.rows[0]);
+                await client.query('COMMIT');
+                return res.status(200).json({
+                    arquiteto: normalizarArquiteto(resultado.rows[0], { incluirPercentualComissao: gerenciaComissao })
+                });
+            } catch (error) {
+                await client.query('ROLLBACK').catch(() => {});
+                throw error;
+            } finally {
+                client.release();
+            }
         }
 
-        const resultado = await db.query(`
-            INSERT INTO arquiteto (
-                nome, cpf, nascimento, registro_cau, telefone, telefone_alternativo, email,
-                idfilial_cadastro, idfuncionario_cadastro, idfuncionario_ultima_atualizacao,
-                percentual_comissao
-            ) VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9, $9, $10)
-            RETURNING *
-        `, [
-            arquiteto.nome, arquiteto.cpf, arquiteto.nascimento, arquiteto.registroCau, arquiteto.telefone,
-            arquiteto.telefoneAlternativo, arquiteto.email, idfilial, idfuncionario, percentualComissao
-        ]);
-        return res.status(201).json({
-            arquiteto: normalizarArquiteto(resultado.rows[0], { incluirPercentualComissao: gerenciaComissao })
-        });
+        const client = await db.connect();
+        try {
+            await client.query('BEGIN');
+            const resultado = await client.query(`
+                INSERT INTO arquiteto (
+                    nome, cpf, nascimento, registro_cau, telefone, telefone_alternativo, email,
+                    idfilial_cadastro, idfuncionario_cadastro, idfuncionario_ultima_atualizacao,
+                    percentual_comissao
+                ) VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7, $8, $9, $9, $10)
+                RETURNING *
+            `, [
+                arquiteto.nome, arquiteto.cpf, arquiteto.nascimento, arquiteto.registroCau, arquiteto.telefone,
+                arquiteto.telefoneAlternativo, arquiteto.email, idfilial, idfuncionario, percentualComissao
+            ]);
+            await agendarFornecedorSeDisponivel(client, resultado.rows[0]);
+            await client.query('COMMIT');
+            return res.status(201).json({
+                arquiteto: normalizarArquiteto(resultado.rows[0], { incluirPercentualComissao: gerenciaComissao })
+            });
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw error;
+        } finally {
+            client.release();
+        }
     } catch (error) {
         return responderErro(res, error);
     }
