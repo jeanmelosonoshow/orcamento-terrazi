@@ -39,11 +39,12 @@ test('sincronizador rejeita resposta atrasada para CPF alterado', async () => {
     assert.match(api, /tentativas < 10/i);
 });
 
-test('cliente financeiro assina somente a rota fixa de fornecedor', async () => {
+test('cliente financeiro assina somente o comando autorizado de fornecedor', async () => {
     const client = await readFile(new URL('../lib/firebird-finance-gateway-client.js', import.meta.url), 'utf8');
 
-    assert.match(client, /const path = '\/finance\/suppliers\/ensure'/);
+    assert.match(client, /const path = '\/finance\/commands'/);
+    assert.match(client, /operation: 'ENSURE_ARCHITECT_SUPPLIER'/);
+    assert.match(client, /idempotencyKey: `FORNECEDOR:CPF:/);
     assert.match(client, /createHmac\('sha256'/);
-    assert.match(client, /JSON\.stringify\(\{ name: nome, phone: telefone \|\| '', cpf \}\)/);
     assert.doesNotMatch(client, /\bsql\b/i);
 });

@@ -6,7 +6,9 @@
 2. Execute `database/comissao-arquiteto.sql` para criar pagamentos, lotes, historico e fila de sincronizacao.
 3. Execute `database/fornecedor-arquiteto.sql` para criar a fila de fornecedores e incluir nela os
    arquitetos ativos ja cadastrados.
-4. Confirme as tabelas com `to_regclass` antes de publicar a interface operacional.
+4. Execute `database/catalogo-financeiro.sql` e publique a primeira versao conforme
+   `database/catalogo-financeiro-uso.md`.
+5. Confirme as tabelas com `to_regclass` antes de publicar a interface operacional.
 
 ## Permissao
 
