@@ -140,6 +140,66 @@ async function autorizarVenda(client, venda, idfuncionario) {
     return normalizarPagamento(inserido.rows[0]);
 }
 
+async function reprocessarVenda(client, venda, idfuncionario) {
+    const normalizada = normalizarVendaComissao(venda);
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [normalizada.chave]);
+    const existente = await client.query(`
+        SELECT * FROM pagamento_orcamento_arquiteto
+         WHERE idfilial_saida = $1 AND numero_saida = $2
+         FOR UPDATE
+    `, [normalizada.idfilialSaida, normalizada.numeroSaida]);
+    const atual = existente.rows[0];
+    if (!atual) throw erro('A comissao autorizada nao foi encontrada.', 404, 'COMMISSION_NOT_FOUND');
+    if (atual.status_pagamento !== 'AUTORIZADO' || atual.lote_pagamento_id) {
+        throw erro('Somente uma comissao autorizada e ainda sem bordero pode ser reprocessada.', 409, 'COMMISSION_REPROCESS_NOT_ALLOWED');
+    }
+    if (Number(atual.orcamento_id) !== normalizada.orcamentoId) {
+        throw erro('A venda atual nao corresponde ao orcamento originalmente autorizado.', 409, 'COMMISSION_BUDGET_MISMATCH');
+    }
+    const fila = await client.query(`
+        SELECT 1
+          FROM fila_sincronizacao_pagamento_arquiteto
+         WHERE pagamento_id = $1
+         LIMIT 1
+    `, [atual.id]);
+    if (fila.rows.length) {
+        throw erro('Esta comissao ja possui uma fila de geracao e nao pode ser reprocessada.', 409, 'COMMISSION_QUEUE_EXISTS');
+    }
+
+    const valorVendaAnterior = Number(atual.valor_venda);
+    const valorComissaoAnterior = Number(atual.valor_comissao);
+    const percentualComissao = Number(atual.percentual_comissao);
+    const valorComissao = calcularValorComissao(normalizada.valorVenda, percentualComissao);
+    const atualizado = await client.query(`
+        UPDATE pagamento_orcamento_arquiteto
+           SET valor_venda = $2,
+               valor_comissao = $3,
+               versao = versao + 1,
+               data_ultima_atualizacao = CURRENT_TIMESTAMP
+         WHERE id = $1
+         RETURNING *
+    `, [atual.id, normalizada.valorVenda, valorComissao]);
+    await client.query(`
+        INSERT INTO historico_pagamento_arquiteto (
+            pagamento_id, status_anterior, status_novo, idfuncionario, observacao, dados_evento
+        ) VALUES (
+            $1, 'AUTORIZADO', 'AUTORIZADO', $2, 'COMISSAO_REPROCESSADA',
+            jsonb_build_object(
+                'valorVendaAnterior', $3::numeric,
+                'valorVendaNovo', $4::numeric,
+                'percentualComissao', $5::numeric,
+                'valorComissaoAnterior', $6::numeric,
+                'valorComissaoNovo', $7::numeric,
+                'versao', $8::integer
+            )
+        )
+    `, [
+        atual.id, idfuncionario, valorVendaAnterior, normalizada.valorVenda,
+        percentualComissao, valorComissaoAnterior, valorComissao, atualizado.rows[0].versao
+    ]);
+    return normalizarPagamento(atualizado.rows[0]);
+}
+
 async function carregarBordero(client, loteId) {
     const lote = await client.query(`
         SELECT * FROM lote_pagamento_arquiteto WHERE id = $1 LIMIT 1
@@ -247,6 +307,8 @@ export default async function handler(req, res) {
             if (!vendas.length || vendas.length > 100) throw erro('Informe entre 1 e 100 vendas para autorizar.');
             resposta = { pagamentos: [] };
             for (const venda of vendas) resposta.pagamentos.push(await autorizarVenda(client, venda, idfuncionario));
+        } else if (acao === 'reprocessar') {
+            resposta = { pagamento: await reprocessarVenda(client, req.body?.venda, idfuncionario) };
         } else if (acao === 'preparar-lote') {
             resposta = { bordero: await prepararLote(client, req.body?.pagamentoIds, req.body?.dataPrevistaPagamento, idfuncionario) };
         } else if (acao === 'bordero') {

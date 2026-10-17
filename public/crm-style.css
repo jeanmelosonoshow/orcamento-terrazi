@@ -3798,6 +3798,7 @@ html[data-color-mode="dark"] .crm-palette-group-title {
 .crm-commission-select-all input { width: 15px; height: 15px; margin: 0; accent-color: #123865; }
 .crm-commission-toolbar button,
 .crm-commission-action,
+.crm-commission-reprocess,
 .crm-commission-reprint {
     min-height: 30px;
     padding: 5px 10px;
@@ -3830,6 +3831,7 @@ html[data-color-mode="dark"] .crm-palette-group-title {
 .crm-commission-status.is-queued { background: #e5edfb; color: #194d91; }
 .crm-commission-status.is-paid { background: #d8f5ed; color: #08684f; }
 .crm-commission-action { border-color: #9b6b00; background: #b98500; }
+.crm-commission-reprocess { border-color: #58708a; background: #fff; color: #314a61; }
 .crm-commission-reprint { border-color: #6c7d90; background: #fff; color: #314a61; }
 .crm-commission-modal-card { width: min(880px, 100%); }
 .crm-commission-confirm-card { width: min(540px, 100%); }
@@ -3879,6 +3881,12 @@ html[data-color-mode="dark"] .crm-commission-bordero header {
     color: var(--app-text);
 }
 html[data-color-mode="dark"] .crm-commission-select-all {
+    border-color: var(--app-border);
+    background: var(--app-surface-elevated);
+    color: var(--app-text);
+}
+html[data-color-mode="dark"] .crm-commission-reprocess,
+html[data-color-mode="dark"] .crm-commission-reprint {
     border-color: var(--app-border);
     background: var(--app-surface-elevated);
     color: var(--app-text);

@@ -55,6 +55,13 @@ test('API prepara bordero e fila sem marcar pagamento como gerado', async () => 
     assert.match(crm, /data-commission-select-all/);
     assert.match(crm, /obterChavesComissaoAutorizadas/);
     assert.match(crm, /Selecionar todos os autorizados/);
+    assert.match(api, /acao === 'reprocessar'/);
+    assert.match(api, /COMISSAO_REPROCESSADA/);
+    assert.match(api, /status_pagamento !== 'AUTORIZADO' \|\| atual\.lote_pagamento_id/);
+    assert.match(api, /FROM fila_sincronizacao_pagamento_arquiteto[\s\S]*WHERE pagamento_id = \$1/);
+    assert.match(crm, /data-commission-reprocess/);
+    assert.match(crm, /abrirConfirmacaoReprocessamentoComissao/);
+    assert.match(html, /data-confirm-commission-action/);
     assert.doesNotMatch(crm, /window\.confirm\(`Autorizar a comissao/);
     assert.doesNotMatch(crm, /window\.confirm\(`Preparar o bordero/);
 });

@@ -167,9 +167,12 @@ const architectPagination = document.querySelector('[data-architect-pagination]'
 const architectPageStatus = document.querySelector('[data-architect-page-status]');
 const commissionModal = document.querySelector('[data-commission-modal]');
 const commissionConfirmModal = document.querySelector('[data-commission-confirm-modal]');
+const commissionConfirmTitle = document.querySelector('[data-commission-confirm-title]');
+const commissionConfirmLead = document.querySelector('[data-commission-confirm-lead]');
 const commissionConfirmText = document.querySelector('[data-commission-confirm-text]');
+const commissionConfirmHint = document.querySelector('[data-commission-confirm-hint]');
 const commissionConfirmMessage = document.querySelector('[data-commission-confirm-message]');
-const commissionConfirmButton = document.querySelector('[data-confirm-commission-authorization]');
+const commissionConfirmButton = document.querySelector('[data-confirm-commission-action]');
 const commissionBatchForm = document.querySelector('[data-commission-batch-form]');
 const commissionDateStep = document.querySelector('[data-commission-date-step]');
 const commissionBatchConfirm = document.querySelector('[data-commission-batch-confirm]');
@@ -193,6 +196,7 @@ const vendasComissaoPorChave = new Map();
 const pagamentosComissaoSelecionados = new Set();
 let borderoComissaoAtual = null;
 let chaveComissaoAguardandoConfirmacao = '';
+let acaoComissaoAguardandoConfirmacao = '';
 
 if (architectCommissionField) architectCommissionField.hidden = !podeGerenciarComissaoArquiteto;
 
@@ -3200,7 +3204,7 @@ function renderizarControleComissaoRegistro(registro) {
         const valor = registro.__comissaoValor === null || registro.__comissaoValor === undefined
             ? ''
             : ` R$ ${Number(registro.__comissaoValor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        return `<span class="crm-commission-control"><label class="crm-commission-select"><input type="checkbox" data-commission-select="${escapeHtml(venda.chave)}" value="${Number(registro.__comissaoPagamentoId)}"${marcado}>${badge}<small>${escapeHtml(valor)}</small></label></span>`;
+        return `<span class="crm-commission-control"><label class="crm-commission-select"><input type="checkbox" data-commission-select="${escapeHtml(venda.chave)}" value="${Number(registro.__comissaoPagamentoId)}"${marcado}>${badge}<small>${escapeHtml(valor)}</small></label><button type="button" class="crm-commission-reprocess" data-commission-reprocess="${escapeHtml(venda.chave)}" title="Atualizar pelo valor atual do relatório">Reprocessar</button></span>`;
     }
     if (registro.__comissaoLoteId) {
         return `<span class="crm-commission-control">${badge}<button type="button" class="crm-commission-reprint" data-commission-bordero="${Number(registro.__comissaoLoteId)}">Borderô ${escapeHtml(registro.__comissaoNumeroLote || '')}</button></span>`;
@@ -5233,6 +5237,7 @@ function fecharConfirmacaoComissao() {
     if (commissionConfirmModal) commissionConfirmModal.hidden = true;
     if (commissionConfirmMessage) commissionConfirmMessage.textContent = '';
     chaveComissaoAguardandoConfirmacao = '';
+    acaoComissaoAguardandoConfirmacao = '';
 }
 
 function abrirPreparacaoLoteComissao() {
@@ -5313,11 +5318,44 @@ function abrirConfirmacaoAutorizacaoComissao(chave) {
     const venda = vendasComissaoPorChave.get(String(chave));
     if (!venda) return window.alert('Venda nao encontrada no resultado atual.');
     chaveComissaoAguardandoConfirmacao = String(chave);
+    acaoComissaoAguardandoConfirmacao = 'autorizar';
+    if (commissionConfirmTitle) commissionConfirmTitle.textContent = 'Autorizar comissão';
+    if (commissionConfirmLead) commissionConfirmLead.textContent = 'Confirme a mudança de etapa';
     if (commissionConfirmText) {
         commissionConfirmText.textContent = `Deseja autorizar o pagamento da comissão da venda ${venda.numeroSaida}, filial ${venda.idfilialSaida}?`;
     }
+    if (commissionConfirmHint) commissionConfirmHint.textContent = 'O percentual e o valor da comissão serão congelados para auditoria.';
+    if (commissionConfirmButton) commissionConfirmButton.textContent = 'Sim, autorizar pagamento';
     if (commissionConfirmMessage) commissionConfirmMessage.textContent = '';
     if (commissionConfirmButton) commissionConfirmButton.disabled = false;
+    if (commissionConfirmModal) commissionConfirmModal.hidden = false;
+    setTimeout(() => commissionConfirmButton?.focus(), 0);
+}
+
+function formatarMoedaComissao(valor) {
+    return `R$ ${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function abrirConfirmacaoReprocessamentoComissao(chave) {
+    const venda = vendasComissaoPorChave.get(String(chave));
+    if (!venda?.pagamento || venda.pagamento.status !== 'AUTORIZADO' || venda.pagamento.lotePagamentoId) {
+        return window.alert('Somente uma comissão autorizada e ainda sem borderô pode ser reprocessada.');
+    }
+    chaveComissaoAguardandoConfirmacao = String(chave);
+    acaoComissaoAguardandoConfirmacao = 'reprocessar';
+    const percentual = Number(venda.pagamento.percentualComissao || 0);
+    const novaComissao = Math.round((((Number(venda.valorVenda || 0) * percentual) / 100) + Number.EPSILON) * 100) / 100;
+    if (commissionConfirmTitle) commissionConfirmTitle.textContent = 'Reprocessar comissão';
+    if (commissionConfirmLead) commissionConfirmLead.textContent = 'Confirme a correção dos valores';
+    if (commissionConfirmText) {
+        commissionConfirmText.textContent = `Venda ${venda.numeroSaida}, filial ${venda.idfilialSaida}: valor da venda ${formatarMoedaComissao(venda.pagamento.valorVenda)} → ${formatarMoedaComissao(venda.valorVenda)}; comissão ${formatarMoedaComissao(venda.pagamento.valorComissao)} → ${formatarMoedaComissao(novaComissao)}.`;
+    }
+    if (commissionConfirmHint) commissionConfirmHint.textContent = 'O percentual autorizado será mantido e a correção ficará registrada no histórico.';
+    if (commissionConfirmMessage) commissionConfirmMessage.textContent = '';
+    if (commissionConfirmButton) {
+        commissionConfirmButton.disabled = false;
+        commissionConfirmButton.textContent = 'Sim, reprocessar comissão';
+    }
     if (commissionConfirmModal) commissionConfirmModal.hidden = false;
     setTimeout(() => commissionConfirmButton?.focus(), 0);
 }
@@ -5327,7 +5365,7 @@ async function confirmarAutorizacaoComissao() {
     if (!venda) return fecharConfirmacaoComissao();
     if (commissionConfirmButton) commissionConfirmButton.disabled = true;
     try {
-        await requisitarComissoes({ acao: 'autorizar', venda });
+        await requisitarComissoes({ acao: acaoComissaoAguardandoConfirmacao || 'autorizar', venda });
         fecharConfirmacaoComissao();
         await atualizarComissoesNoDashboard();
     } catch (error) {
@@ -6498,6 +6536,11 @@ function inicializarEditorDashboard() {
             const commissionAuthorize = event.target.closest('[data-commission-authorize]');
             if (commissionAuthorize) {
                 abrirConfirmacaoAutorizacaoComissao(commissionAuthorize.dataset.commissionAuthorize);
+                return;
+            }
+            const commissionReprocess = event.target.closest('[data-commission-reprocess]');
+            if (commissionReprocess) {
+                abrirConfirmacaoReprocessamentoComissao(commissionReprocess.dataset.commissionReprocess);
                 return;
             }
             const commissionSelection = event.target.closest('[data-commission-select]');

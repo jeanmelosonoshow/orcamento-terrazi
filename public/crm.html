@@ -22,7 +22,7 @@
     <title>Gestão</title>
     <script src="color-mode.js?v=20260824-1"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.0/css/all.min.css">
-    <link rel="stylesheet" href="crm-style.css?v=crm-20261016-comissoes-2">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20261017-comissao-reprocessar-1">
     <link rel="stylesheet" href="assets/budget-negotiation.css?v=20260820-2">
     <link rel="stylesheet" href="color-mode.css?v=20261014-powerbi-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
@@ -642,22 +642,22 @@
             <div class="crm-modal-head">
                 <div>
                     <span class="crm-eyebrow">Comissão de arquitetos</span>
-                    <h2 id="crmCommissionConfirmTitle">Autorizar comissão</h2>
+                    <h2 id="crmCommissionConfirmTitle" data-commission-confirm-title>Autorizar comissão</h2>
                 </div>
                 <button type="button" class="crm-icon-button" aria-label="Fechar" title="Fechar" data-close-commission-confirm-modal>×</button>
             </div>
             <div class="crm-commission-confirm-body">
                 <span class="crm-commission-confirm-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
                 <div>
-                    <strong>Confirme a mudança de etapa</strong>
+                    <strong data-commission-confirm-lead>Confirme a mudança de etapa</strong>
                     <p data-commission-confirm-text></p>
-                    <small>O percentual e o valor da comissão serão congelados para auditoria.</small>
+                    <small data-commission-confirm-hint>O percentual e o valor da comissão serão congelados para auditoria.</small>
                 </div>
             </div>
             <div class="crm-contact-form-status" data-commission-confirm-message aria-live="polite"></div>
             <div class="crm-modal-actions">
                 <button type="button" class="crm-secondary-button" data-close-commission-confirm-modal>Cancelar</button>
-                <button type="button" data-confirm-commission-authorization>Sim, autorizar pagamento</button>
+                <button type="button" data-confirm-commission-action>Sim, autorizar pagamento</button>
             </div>
         </section>
     </div>
@@ -702,6 +702,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=20260824-color-mode-1"></script>
     <script src="assets/budget-negotiation.js?v=20260820-2"></script>
-    <script src="crm.js?v=crm-20261016-comissao-selecionar-todos-1"></script>
+    <script src="crm.js?v=crm-20261016-comissao-reprocessar-1"></script>
 </body>
 </html>
