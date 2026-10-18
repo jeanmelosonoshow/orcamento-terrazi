@@ -53,6 +53,45 @@ $json$::jsonb, TRUE),
   "result": {"idColumn": "ORDEM"}
 }
 $json$::jsonb, TRUE)
+,
+('LOOKUP_ARCHITECT_PAYABLE_STATUS', $json$
+{
+  "kind": "lookup",
+  "table": "PAGAR",
+  "idempotency": {"template": "PAGAR:STATUS:{numeroDuplicata}"},
+  "match": [
+    {"column": "IDFILIAL", "constant": "CD", "type": "text", "maxLength": 2},
+    {"column": "NUMERODUPLICATA", "source": "numeroDuplicata", "type": "text", "maxLength": 15}
+  ],
+  "result": {"idColumn": "STATUS"}
+}
+$json$::jsonb, TRUE)
+,('UPDATE_ARCHITECT_PAYABLE', $json$
+{
+  "kind": "update",
+  "table": "PAGAR",
+  "idempotency": {"template": "PAGAR:ARQUITETO:REGENERAR:{numeroDuplicata}"},
+  "match": [
+    {"column": "IDFILIAL", "constant": "CD", "type": "text", "maxLength": 2},
+    {"column": "NUMERODUPLICATA", "source": "numeroDuplicata", "type": "text", "maxLength": 15}
+  ],
+  "fields": [
+    {"column": "DATAEMISSAO", "source": "dataInsercao", "type": "text", "maxLength": 19},
+    {"column": "IDPORTADOR", "constant": 20, "type": "integer"},
+    {"column": "IDFORNECEDOR", "source": "fornecedorId", "type": "integer"},
+    {"column": "VALORDUPLICATA", "source": "valorComissao", "type": "decimal"},
+    {"column": "DATEENTRADA", "source": "dataInsercao", "type": "text", "maxLength": 19},
+    {"column": "VENCIMENTO", "source": "dataVencimento", "type": "date"},
+    {"column": "NUMERONOTA", "source": "numeroSaida", "type": "integer"},
+    {"column": "STATUS", "constant": "0", "type": "text", "maxLength": 1},
+    {"column": "OBSERVACAO", "source": "observacao", "type": "text", "maxLength": 500},
+    {"column": "IDCENTROCUSTO", "source": "centroCustoId", "type": "integer"},
+    {"column": "IDFUNCIONARIO", "source": "idfuncionario", "type": "integer"},
+    {"column": "INTBAN_STATUS", "constant": "N", "type": "text", "maxLength": 1}
+  ],
+  "result": {"idColumn": "ORDEM"}
+}
+$json$::jsonb, TRUE)
 ON CONFLICT (operacao) DO UPDATE SET
     definicao = EXCLUDED.definicao,
     ativo = EXCLUDED.ativo,
