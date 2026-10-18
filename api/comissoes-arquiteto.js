@@ -361,7 +361,7 @@ async function prepararLote(client, ids, dataPrevistaPagamento, idfuncionario) {
             INSERT INTO fila_sincronizacao_pagamento_arquiteto (
                 pagamento_id, lote_pagamento_id, operacao, status_fila
             )
-            SELECT id, $1, 'CRIAR_PAGAR', 'PENDENTE'
+            SELECT id, $1::bigint, 'CRIAR_PAGAR', 'PENDENTE'
               FROM pagamento_orcamento_arquiteto
              WHERE id = ANY($2::bigint[])
                AND firebird_idfornecedor IS NOT NULL
