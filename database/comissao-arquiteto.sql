@@ -43,7 +43,10 @@ CREATE TABLE IF NOT EXISTS pagamento_orcamento_arquiteto (
     data_geracao TIMESTAMPTZ,
     data_pagamento_efetuado TIMESTAMPTZ,
     firebird_idfilial VARCHAR(2),
-    firebird_numero_pagar BIGINT,
+    firebird_numero_pagar VARCHAR(15),
+    firebird_ordem INTEGER,
+    firebird_idcentrocusto INTEGER,
+    firebird_status CHAR(1),
     chave_idempotencia UUID NOT NULL DEFAULT gen_random_uuid(),
     versao INTEGER NOT NULL DEFAULT 1 CHECK (versao > 0),
     data_ultima_atualizacao TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -71,7 +74,14 @@ CREATE INDEX IF NOT EXISTS ix_pagamento_arquiteto_lote
 ALTER TABLE pagamento_orcamento_arquiteto
     ADD COLUMN IF NOT EXISTS idfuncionario_negacao BIGINT,
     ADD COLUMN IF NOT EXISTS data_negacao TIMESTAMPTZ,
-    ADD COLUMN IF NOT EXISTS motivo_negacao VARCHAR(500);
+    ADD COLUMN IF NOT EXISTS motivo_negacao VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS firebird_ordem INTEGER,
+    ADD COLUMN IF NOT EXISTS firebird_idcentrocusto INTEGER,
+    ADD COLUMN IF NOT EXISTS firebird_status CHAR(1);
+
+ALTER TABLE pagamento_orcamento_arquiteto
+    ALTER COLUMN firebird_numero_pagar TYPE VARCHAR(15)
+    USING CASE WHEN firebird_numero_pagar IS NULL THEN NULL ELSE firebird_numero_pagar::text END;
 
 ALTER TABLE pagamento_orcamento_arquiteto
     DROP CONSTRAINT IF EXISTS ck_pagamento_arquiteto_status,
