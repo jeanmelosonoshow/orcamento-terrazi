@@ -3172,6 +3172,7 @@ function classeStatusComissao(status) {
     if (status === 'AUTORIZADO') return 'is-authorized';
     if (status === 'AGUARDANDO_GERACAO' || status === 'PAGAMENTO_GERADO') return 'is-queued';
     if (status === 'PAGAMENTO_EFETUADO') return 'is-paid';
+    if (status === 'NEGADO') return 'is-denied';
     return '';
 }
 
@@ -3181,7 +3182,8 @@ function rotuloStatusComissao(status) {
         AUTORIZADO: 'AUTORIZADO',
         AGUARDANDO_GERACAO: 'AGUARDANDO GERAÇÃO',
         PAGAMENTO_GERADO: 'PAGAMENTO GERADO',
-        PAGAMENTO_EFETUADO: 'PAGAMENTO EFETUADO'
+        PAGAMENTO_EFETUADO: 'PAGAMENTO EFETUADO',
+        NEGADO: 'NEGADO'
     };
     return rotulos[status] || status;
 }
@@ -3197,7 +3199,7 @@ function renderizarControleComissaoRegistro(registro) {
     }
     const badge = `<span class="crm-commission-status ${classeStatusComissao(status)}">${escapeHtml(rotuloStatusComissao(status))}</span>`;
     if (status === 'PENDENTE') {
-        return `<span class="crm-commission-control">${badge}<button type="button" class="crm-commission-action" data-commission-authorize="${escapeHtml(venda.chave)}">Autorizar</button></span>`;
+        return `<span class="crm-commission-control">${badge}<button type="button" class="crm-commission-action" data-commission-authorize="${escapeHtml(venda.chave)}">Autorizar</button><button type="button" class="crm-commission-deny" data-commission-deny="${escapeHtml(venda.chave)}">Negar</button></span>`;
     }
     if (status === 'AUTORIZADO' && registro.__comissaoPagamentoId) {
         const marcado = pagamentosComissaoSelecionados.has(venda.chave) ? ' checked' : '';
@@ -5332,6 +5334,22 @@ function abrirConfirmacaoAutorizacaoComissao(chave) {
     setTimeout(() => commissionConfirmButton?.focus(), 0);
 }
 
+function abrirConfirmacaoNegacaoComissao(chave) {
+    const venda = vendasComissaoPorChave.get(String(chave));
+    if (!venda) return window.alert('Venda nao encontrada no resultado atual.');
+    chaveComissaoAguardandoConfirmacao = String(chave);
+    acaoComissaoAguardandoConfirmacao = 'negar';
+    if (commissionConfirmTitle) commissionConfirmTitle.textContent = 'Negar comissão';
+    if (commissionConfirmLead) commissionConfirmLead.textContent = 'Confirme a negativa da autorização';
+    if (commissionConfirmText) commissionConfirmText.textContent = `Deseja negar a comissão da venda ${venda.numeroSaida}, filial ${venda.idfilialSaida}?`;
+    if (commissionConfirmHint) commissionConfirmHint.textContent = 'A venda ficará encerrada no fluxo e não poderá gerar lote ou título no Firebird.';
+    if (commissionConfirmButton) commissionConfirmButton.textContent = 'Sim, negar autorização';
+    if (commissionConfirmMessage) commissionConfirmMessage.textContent = '';
+    if (commissionConfirmButton) commissionConfirmButton.disabled = false;
+    if (commissionConfirmModal) commissionConfirmModal.hidden = false;
+    setTimeout(() => commissionConfirmButton?.focus(), 0);
+}
+
 function formatarMoedaComissao(valor) {
     return `R$ ${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -6536,6 +6554,11 @@ function inicializarEditorDashboard() {
             const commissionAuthorize = event.target.closest('[data-commission-authorize]');
             if (commissionAuthorize) {
                 abrirConfirmacaoAutorizacaoComissao(commissionAuthorize.dataset.commissionAuthorize);
+                return;
+            }
+            const commissionDeny = event.target.closest('[data-commission-deny]');
+            if (commissionDeny) {
+                abrirConfirmacaoNegacaoComissao(commissionDeny.dataset.commissionDeny);
                 return;
             }
             const commissionReprocess = event.target.closest('[data-commission-reprocess]');

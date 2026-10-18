@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS pagamento_orcamento_arquiteto (
     data_criacao TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     idfuncionario_autorizacao BIGINT,
     data_autorizacao TIMESTAMPTZ,
+    idfuncionario_negacao BIGINT,
+    data_negacao TIMESTAMPTZ,
+    motivo_negacao VARCHAR(500),
     idfuncionario_geracao BIGINT,
     data_geracao TIMESTAMPTZ,
     data_pagamento_efetuado TIMESTAMPTZ,
@@ -47,11 +50,12 @@ CREATE TABLE IF NOT EXISTS pagamento_orcamento_arquiteto (
     CONSTRAINT uq_pagamento_arquiteto_saida UNIQUE (idfilial_saida, numero_saida),
     CONSTRAINT uq_pagamento_arquiteto_idempotencia UNIQUE (chave_idempotencia),
     CONSTRAINT ck_pagamento_arquiteto_status CHECK (
-        status_pagamento IN ('PENDENTE', 'AUTORIZADO', 'PAGAMENTO_GERADO', 'PAGAMENTO_EFETUADO')
+        status_pagamento IN ('PENDENTE', 'AUTORIZADO', 'NEGADO', 'PAGAMENTO_GERADO', 'PAGAMENTO_EFETUADO')
     ),
     CONSTRAINT ck_pagamento_arquiteto_etapas CHECK (
         (status_pagamento = 'PENDENTE')
         OR (status_pagamento = 'AUTORIZADO' AND data_autorizacao IS NOT NULL AND idfuncionario_autorizacao IS NOT NULL)
+        OR (status_pagamento = 'NEGADO' AND data_negacao IS NOT NULL AND idfuncionario_negacao IS NOT NULL)
         OR (status_pagamento = 'PAGAMENTO_GERADO' AND data_geracao IS NOT NULL AND idfuncionario_geracao IS NOT NULL AND data_prevista_pagamento IS NOT NULL AND lote_pagamento_id IS NOT NULL AND firebird_numero_pagar IS NOT NULL)
         OR (status_pagamento = 'PAGAMENTO_EFETUADO' AND data_pagamento_efetuado IS NOT NULL AND firebird_numero_pagar IS NOT NULL)
     )
@@ -63,6 +67,25 @@ CREATE INDEX IF NOT EXISTS ix_pagamento_arquiteto_arquiteto
     ON pagamento_orcamento_arquiteto (arquiteto_id, status_pagamento);
 CREATE INDEX IF NOT EXISTS ix_pagamento_arquiteto_lote
     ON pagamento_orcamento_arquiteto (lote_pagamento_id);
+
+ALTER TABLE pagamento_orcamento_arquiteto
+    ADD COLUMN IF NOT EXISTS idfuncionario_negacao BIGINT,
+    ADD COLUMN IF NOT EXISTS data_negacao TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS motivo_negacao VARCHAR(500);
+
+ALTER TABLE pagamento_orcamento_arquiteto
+    DROP CONSTRAINT IF EXISTS ck_pagamento_arquiteto_status,
+    ADD CONSTRAINT ck_pagamento_arquiteto_status CHECK (
+        status_pagamento IN ('PENDENTE', 'AUTORIZADO', 'NEGADO', 'PAGAMENTO_GERADO', 'PAGAMENTO_EFETUADO')
+    ),
+    DROP CONSTRAINT IF EXISTS ck_pagamento_arquiteto_etapas,
+    ADD CONSTRAINT ck_pagamento_arquiteto_etapas CHECK (
+        (status_pagamento = 'PENDENTE')
+        OR (status_pagamento = 'AUTORIZADO' AND data_autorizacao IS NOT NULL AND idfuncionario_autorizacao IS NOT NULL)
+        OR (status_pagamento = 'NEGADO' AND data_negacao IS NOT NULL AND idfuncionario_negacao IS NOT NULL)
+        OR (status_pagamento = 'PAGAMENTO_GERADO' AND data_geracao IS NOT NULL AND idfuncionario_geracao IS NOT NULL AND data_prevista_pagamento IS NOT NULL AND lote_pagamento_id IS NOT NULL AND firebird_numero_pagar IS NOT NULL)
+        OR (status_pagamento = 'PAGAMENTO_EFETUADO' AND data_pagamento_efetuado IS NOT NULL AND firebird_numero_pagar IS NOT NULL)
+    );
 
 CREATE TABLE IF NOT EXISTS historico_pagamento_arquiteto (
     id BIGSERIAL PRIMARY KEY,
@@ -109,6 +132,7 @@ BEGIN
     END IF;
     IF NOT (
         (OLD.status_pagamento = 'PENDENTE' AND NEW.status_pagamento = 'AUTORIZADO')
+        OR (OLD.status_pagamento = 'PENDENTE' AND NEW.status_pagamento = 'NEGADO')
         OR (OLD.status_pagamento = 'AUTORIZADO' AND NEW.status_pagamento = 'PAGAMENTO_GERADO')
         OR (OLD.status_pagamento = 'PAGAMENTO_GERADO' AND NEW.status_pagamento = 'PAGAMENTO_EFETUADO')
     ) THEN
@@ -138,6 +162,7 @@ BEGIN
     v_funcionario := CASE NEW.status_pagamento
         WHEN 'PENDENTE' THEN NEW.idfuncionario_criacao
         WHEN 'AUTORIZADO' THEN NEW.idfuncionario_autorizacao
+        WHEN 'NEGADO' THEN NEW.idfuncionario_negacao
         WHEN 'PAGAMENTO_GERADO' THEN NEW.idfuncionario_geracao
         ELSE NULL
     END;

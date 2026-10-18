@@ -51,6 +51,8 @@ function normalizarPagamento(linha) {
         status: statusOperacionalComissao(linha),
         statusPersistido: linha.status_pagamento,
         dataAutorizacao: linha.data_autorizacao,
+        dataNegacao: linha.data_negacao,
+        motivoNegacao: linha.motivo_negacao || null,
         dataPrevistaPagamento: linha.data_prevista_pagamento,
         lotePagamentoId: linha.lote_pagamento_id ? Number(linha.lote_pagamento_id) : null,
         numeroLote: linha.numero_lote || null,
@@ -201,6 +203,68 @@ async function reprocessarVenda(client, venda, idfuncionario) {
     return normalizarPagamento(atualizado.rows[0]);
 }
 
+async function negarVenda(client, venda, idfuncionario, motivoNegacao) {
+    const normalizada = normalizarVendaComissao(venda);
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [normalizada.chave]);
+    const existente = await client.query(`
+        SELECT * FROM pagamento_orcamento_arquiteto
+         WHERE idfilial_saida = $1 AND numero_saida = $2
+         FOR UPDATE
+    `, [normalizada.idfilialSaida, normalizada.numeroSaida]);
+    const motivo = String(motivoNegacao || '').trim().slice(0, 500) || null;
+    if (existente.rows.length) {
+        const atual = existente.rows[0];
+        if (atual.status_pagamento !== 'PENDENTE') return normalizarPagamento(atual);
+        const atualizado = await client.query(`
+            UPDATE pagamento_orcamento_arquiteto
+               SET status_pagamento = 'NEGADO',
+                   idfuncionario_negacao = $2,
+                   data_negacao = CURRENT_TIMESTAMP,
+                   motivo_negacao = $3
+             WHERE id = $1
+             RETURNING *
+        `, [atual.id, idfuncionario, motivo]);
+        return normalizarPagamento(atualizado.rows[0]);
+    }
+    const vinculo = await client.query(`
+        SELECT ao.arquiteto_id, ao.nome_arquiteto, ao.cpf_arquiteto, ao.registro_cau_arquiteto,
+               ao.telefone_arquiteto, ao.email_arquiteto, a.percentual_comissao
+          FROM arquiteto_orcamento ao
+          JOIN arquiteto a ON a.id = ao.arquiteto_id AND a.ativo = TRUE
+          JOIN orcamento_saida os
+            ON os.orcamento_id = ao.orcamento_id
+           AND os.idfilialsaida = $2
+           AND os.numerosaida = $3
+         WHERE ao.orcamento_id = $1
+         LIMIT 1
+         FOR UPDATE OF ao
+    `, [normalizada.orcamentoId, normalizada.idfilialSaida, normalizada.numeroSaida]);
+    const arquiteto = vinculo.rows[0];
+    if (!arquiteto) throw erro('A venda nao esta vinculada ao orcamento e ao arquiteto informados.', 409, 'SALE_LINK_NOT_FOUND');
+    if (arquiteto.percentual_comissao === null || arquiteto.percentual_comissao === undefined) {
+        throw erro('Cadastre o percentual de comissao do arquiteto antes de negar.', 409, 'COMMISSION_RATE_MISSING');
+    }
+    const valorComissao = calcularValorComissao(normalizada.valorVenda, arquiteto.percentual_comissao);
+    const inserido = await client.query(`
+        INSERT INTO pagamento_orcamento_arquiteto (
+            orcamento_id, arquiteto_id, nome_arquiteto, cpf_arquiteto, registro_cau_arquiteto,
+            telefone_arquiteto, email_arquiteto, idfilial_saida, numero_saida, valor_venda,
+            percentual_comissao, valor_comissao, status_pagamento, idfuncionario_criacao,
+            idfuncionario_negacao, data_negacao, motivo_negacao
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, 'NEGADO', $13, $13, CURRENT_TIMESTAMP, $14
+        )
+        RETURNING *
+    `, [
+        normalizada.orcamentoId, arquiteto.arquiteto_id, arquiteto.nome_arquiteto,
+        arquiteto.cpf_arquiteto, arquiteto.registro_cau_arquiteto, arquiteto.telefone_arquiteto,
+        arquiteto.email_arquiteto, normalizada.idfilialSaida, normalizada.numeroSaida,
+        normalizada.valorVenda, Number(arquiteto.percentual_comissao), valorComissao, idfuncionario, motivo
+    ]);
+    return normalizarPagamento(inserido.rows[0]);
+}
+
 async function carregarBordero(client, loteId) {
     const lote = await client.query(`
         SELECT * FROM lote_pagamento_arquiteto WHERE id = $1 LIMIT 1
@@ -334,6 +398,11 @@ export default async function handler(req, res) {
             if (!vendas.length || vendas.length > 100) throw erro('Informe entre 1 e 100 vendas para autorizar.');
             resposta = { pagamentos: [] };
             for (const venda of vendas) resposta.pagamentos.push(await autorizarVenda(client, venda, idfuncionario));
+        } else if (acao === 'negar') {
+            const vendas = Array.isArray(req.body?.vendas) ? req.body.vendas : [req.body?.venda];
+            if (!vendas.length || vendas.length > 100) throw erro('Informe entre 1 e 100 vendas para negar.');
+            resposta = { pagamentos: [] };
+            for (const venda of vendas) resposta.pagamentos.push(await negarVenda(client, venda, idfuncionario, req.body?.motivo));
         } else if (acao === 'reprocessar') {
             resposta = { pagamento: await reprocessarVenda(client, req.body?.venda, idfuncionario) };
         } else if (acao === 'preparar-lote') {

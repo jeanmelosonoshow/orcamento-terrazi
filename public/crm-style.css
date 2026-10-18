@@ -3828,9 +3828,11 @@ html[data-color-mode="dark"] .crm-palette-group-title {
 }
 .crm-commission-status.is-pending { background: #fff4ce; color: #805b00; }
 .crm-commission-status.is-authorized { background: #dff3e5; color: #24663a; }
+.crm-commission-status.is-denied { background: #f8e0e0; color: #9a2f2f; }
 .crm-commission-status.is-queued { background: #e5edfb; color: #194d91; }
 .crm-commission-status.is-paid { background: #d8f5ed; color: #08684f; }
 .crm-commission-action { border-color: #9b6b00; background: #b98500; }
+.crm-commission-deny { border-color: #9a2f2f; background: #b84747; color: #fff; }
 .crm-commission-reprocess { border-color: #58708a; background: #fff; color: #314a61; }
 .crm-commission-reprint { border-color: #6c7d90; background: #fff; color: #314a61; }
 .crm-commission-modal-card { width: min(880px, 100%); }
