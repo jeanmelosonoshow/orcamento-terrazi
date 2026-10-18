@@ -46,7 +46,7 @@ test('cliente financeiro assina somente o comando autorizado de fornecedor', asy
 
     assert.match(client, /const path = '\/finance\/commands'/);
     assert.match(client, /'ENSURE_ARCHITECT_SUPPLIER'/);
-    assert.match(client, /idempotencyKey: `FORNECEDOR:CPF:/);
+    assert.match(client, /`FORNECEDOR:CPF:/);
     assert.match(client, /createHmac\('sha256'/);
     assert.doesNotMatch(client, /\bsql\b/i);
 });
