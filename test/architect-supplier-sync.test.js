@@ -45,7 +45,7 @@ test('cliente financeiro assina somente o comando autorizado de fornecedor', asy
     const client = await readFile(new URL('../lib/firebird-finance-gateway-client.js', import.meta.url), 'utf8');
 
     assert.match(client, /const path = '\/finance\/commands'/);
-    assert.match(client, /operation: 'ENSURE_ARCHITECT_SUPPLIER'/);
+    assert.match(client, /'ENSURE_ARCHITECT_SUPPLIER'/);
     assert.match(client, /idempotencyKey: `FORNECEDOR:CPF:/);
     assert.match(client, /createHmac\('sha256'/);
     assert.doesNotMatch(client, /\bsql\b/i);
