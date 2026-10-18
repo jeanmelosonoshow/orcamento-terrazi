@@ -60,7 +60,7 @@ fixa e autenticada, com credencial de escrita separada e protegida pelo DPAPI da
 
 Na homologacao, o proprio Gateway chama periodicamente a rota protegida
 `/api/sincronizar-fornecedores-arquiteto`. Isso e necessario porque o Cron da Vercel executa somente
-em deployments de producao. A URL da homologacao e o `CRON_SECRET` ficam na configuracao do Gateway;
+em deployments de producao. A URL da homologacao e o `SUPPLIER_SYNC_SECRET` ficam na configuracao do Gateway;
 o segredo e armazenado no mesmo cofre DPAPI das demais credenciais.
 
 Para a proxima etapa, documente os campos obrigatorios da `PAGAR`, o gerador do numero, as chaves do

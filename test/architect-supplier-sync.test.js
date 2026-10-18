@@ -33,6 +33,8 @@ test('bordero so prepara PAGAR depois de confirmar o fornecedor', async () => {
 test('sincronizador rejeita resposta atrasada para CPF alterado', async () => {
     const api = await readFile(new URL('../api/sincronizar-fornecedores-arquiteto.js', import.meta.url), 'utf8');
 
+    assert.match(api, /SUPPLIER_SYNC_SECRET/);
+    assert.doesNotMatch(api, /process\.env\.CRON_SECRET/);
     assert.match(api, /cpf_fornecedor = \$4[\s\S]*status_fila = 'PROCESSANDO'/i);
     assert.match(api, /WHERE id = \$1[\s\S]*cpf = \$3/i);
     assert.match(api, /FOR UPDATE SKIP LOCKED/i);

@@ -7,7 +7,7 @@ const LIMITE_LOTE = 8;
 export const config = { maxDuration: 60 };
 
 function autorizado(req) {
-    const esperado = String(process.env.CRON_SECRET || '');
+    const esperado = String(process.env.SUPPLIER_SYNC_SECRET || '');
     const recebido = String(req.headers?.authorization || '').replace(/^Bearer\s+/i, '');
     if (!esperado || esperado.length !== recebido.length) return false;
     return crypto.timingSafeEqual(Buffer.from(esperado, 'utf8'), Buffer.from(recebido, 'utf8'));
