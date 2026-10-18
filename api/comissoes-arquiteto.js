@@ -329,7 +329,7 @@ async function prepararLote(client, ids, dataPrevistaPagamento, idfuncionario) {
             pagamento_id, status_anterior, status_novo, idfuncionario, observacao, dados_evento
         )
         SELECT id, 'AUTORIZADO', 'AUTORIZADO', $1, 'BORDERO_PREPARADO',
-               jsonb_build_object('lotePagamentoId', $2, 'dataPrevistaPagamento', $3::date)
+               jsonb_build_object('lotePagamentoId', $2::bigint, 'dataPrevistaPagamento', $3::date)
           FROM pagamento_orcamento_arquiteto
          WHERE id = ANY($4::bigint[])
     `, [idfuncionario, loteId, data, pagamentosIds]);
