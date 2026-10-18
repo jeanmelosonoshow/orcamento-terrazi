@@ -1,6 +1,7 @@
 import { db } from '@vercel/postgres';
 import crypto from 'node:crypto';
 import { garantirFornecedorArquiteto } from '../lib/firebird-finance-gateway-client.js';
+import { sincronizarPagamentosArquiteto } from '../lib/architect-payment-sync.js';
 
 const LIMITE_LOTE = 8;
 
@@ -167,7 +168,8 @@ export default async function handler(req, res) {
                 });
             }
         }));
-        return res.status(200).json({ ok: true, ...resultado });
+        const pagamentos = await sincronizarPagamentosArquiteto();
+        return res.status(200).json({ ok: true, ...resultado, pagamentos });
     } catch (error) {
         const estruturaAusente = error?.code === '42P01' || error?.code === '42703';
         console.error('[sync-fornecedor-arquiteto] falha geral', { code: error?.code || null, message: error?.message });

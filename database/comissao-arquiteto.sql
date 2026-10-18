@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS pagamento_orcamento_arquiteto (
     data_geracao TIMESTAMPTZ,
     data_pagamento_efetuado TIMESTAMPTZ,
     firebird_idfilial VARCHAR(2),
+    firebird_idfornecedor BIGINT,
     firebird_numero_pagar VARCHAR(15),
     firebird_ordem INTEGER,
     firebird_idcentrocusto INTEGER,
@@ -75,6 +76,7 @@ ALTER TABLE pagamento_orcamento_arquiteto
     ADD COLUMN IF NOT EXISTS idfuncionario_negacao BIGINT,
     ADD COLUMN IF NOT EXISTS data_negacao TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS motivo_negacao VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS firebird_idfornecedor BIGINT,
     ADD COLUMN IF NOT EXISTS firebird_ordem INTEGER,
     ADD COLUMN IF NOT EXISTS firebird_idcentrocusto INTEGER,
     ADD COLUMN IF NOT EXISTS firebird_status CHAR(1);
