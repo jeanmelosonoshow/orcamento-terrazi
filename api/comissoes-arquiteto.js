@@ -365,7 +365,14 @@ async function prepararLote(client, ids, dataPrevistaPagamento, idfuncionario) {
               FROM pagamento_orcamento_arquiteto
              WHERE id = ANY($2::bigint[])
                AND firebird_idfornecedor IS NOT NULL
-            ON CONFLICT (pagamento_id, operacao) DO NOTHING
+            ON CONFLICT (pagamento_id, operacao) DO UPDATE
+                SET lote_pagamento_id = EXCLUDED.lote_pagamento_id,
+                    status_fila = 'PENDENTE',
+                    tentativas = 0,
+                    proxima_tentativa_em = CURRENT_TIMESTAMP,
+                    bloqueado_ate = NULL,
+                    erro_ultima_tentativa = NULL,
+                    data_conclusao = NULL
         `, [loteId, pagamentosIds]);
     }
     return carregarBordero(client, loteId);

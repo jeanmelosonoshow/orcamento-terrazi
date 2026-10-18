@@ -102,7 +102,14 @@ async function concluir(item, fornecedor) {
                AND p.status_pagamento = 'AUTORIZADO'
                AND p.lote_pagamento_id IS NOT NULL
                AND p.firebird_idfornecedor IS NOT NULL
-            ON CONFLICT (pagamento_id, operacao) DO NOTHING
+            ON CONFLICT (pagamento_id, operacao) DO UPDATE
+                SET lote_pagamento_id = EXCLUDED.lote_pagamento_id,
+                    status_fila = 'PENDENTE',
+                    tentativas = 0,
+                    proxima_tentativa_em = CURRENT_TIMESTAMP,
+                    bloqueado_ate = NULL,
+                    erro_ultima_tentativa = NULL,
+                    data_conclusao = NULL
         `, [item.arquiteto_id, item.cpf_fornecedor]);
         await client.query('COMMIT');
         return true;
