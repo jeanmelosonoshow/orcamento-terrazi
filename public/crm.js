@@ -50,7 +50,7 @@ const categoriasTraduzidas = {
 };
 const categoriasPorNome = Object.fromEntries(Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => [nomeCategoria, codigo]));
 const categoriasDashboard = window.CRM_DASHBOARD_LAYOUT?.categorias || Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => ({ codigo, nome: nomeCategoria }));
-const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'orcamentos']);
+const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'orcamentos', 'duvidas']);
 const crmBiViews = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos']);
 if (!moduloArquitetosAtivo) crmViewsDisponiveis.delete('arquitetos');
 function aplicarVisibilidadeModuloArquitetos(ativo) {
@@ -115,7 +115,9 @@ function atualizarTituloView(viewName) {
 function ativarView(viewName) {
     const viewValida = crmViewsDisponiveis.has(viewName) ? viewName : 'visao-geral';
     const orcamentosAtivo = viewValida === 'orcamentos';
+    const duvidasAtivo = viewValida === 'duvidas';
     document.body.classList.toggle('crm-budget-mode', orcamentosAtivo);
+    document.body.classList.toggle('crm-help-mode', duvidasAtivo);
     document.querySelectorAll('[data-crm-view]').forEach(view => {
         view.hidden = view.dataset.crmView !== viewValida;
     });

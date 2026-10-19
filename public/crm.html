@@ -22,7 +22,7 @@
     <title>Gestão</title>
     <script src="color-mode.js?v=20260824-1"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.0/css/all.min.css">
-    <link rel="stylesheet" href="crm-style.css?v=crm-20261017-comissao-reprocessar-1">
+    <link rel="stylesheet" href="crm-style.css?v=crm-20261019-duvidas-1">
     <link rel="stylesheet" href="assets/budget-negotiation.css?v=20260820-2">
     <link rel="stylesheet" href="color-mode.css?v=20261014-powerbi-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
@@ -54,6 +54,10 @@
             <a href="#arquitetos" data-crm-view-link="arquitetos" hidden>
                 <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 21v-8h6v8"></path><path d="M9 9h.01"></path><path d="M15 9h.01"></path></svg></span>
                 <span>Arquitetos &amp; RT</span>
+            </a>
+            <a href="#duvidas" data-crm-view-link="duvidas">
+                <span class="crm-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M9.7 9a2.4 2.4 0 1 1 3.9 1.85c-1.1.82-1.6 1.25-1.6 2.4"></path><path d="M12 16.7h.01"></path></svg></span>
+                <span>Dúvidas</span>
             </a>
         </nav>
     </aside>
@@ -273,6 +277,37 @@
                     </section>
                 </div>
             </section>
+        </section>
+
+        <section class="crm-view crm-help-view" data-crm-view="duvidas" hidden>
+            <div class="crm-help-hero">
+                <div class="crm-help-hero-icon"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z"></path><path d="M4 5.5v15"></path><path d="M9 8h7M9 12h7"></path></svg></div>
+                <div><span class="crm-eyebrow">Guia rápido do CRM</span><h2>Como usar cada área</h2><p>Uma trilha prática para encontrar informações, registrar atendimentos e acompanhar o relacionamento com clientes.</p></div>
+                <div class="crm-help-hero-badge"><strong>5</strong><span>módulos explicados</span></div>
+            </div>
+            <div class="crm-help-grid">
+                <article class="crm-help-card crm-help-card-wide">
+                    <div class="crm-help-card-art art-overview"><span class="art-bar"></span><span class="art-bar short"></span><span class="art-line"></span><span class="art-line"></span><span class="art-line short"></span></div>
+                    <div class="crm-help-card-content"><span class="crm-eyebrow">01 · Acompanhar</span><h3>Visão Geral</h3><p>Reúne os principais indicadores de vendas apurados no período selecionado. Use as datas e os filtros de filial e vendedor para mudar o recorte da análise.</p><ul><li>Veja metas, faturamento, quantidade de vendas e ticket médio.</li><li>Clique no ícone de detalhe de um card para abrir os registros que formam aquele número.</li><li>Use <strong>Aplicar</strong> para atualizar todos os indicadores.</li></ul></div>
+                </article>
+                <article class="crm-help-card">
+                    <div class="crm-help-card-art art-clients"><span class="art-avatar"></span><span class="art-row"></span><span class="art-row short"></span><span class="art-row"></span><span class="art-row short"></span></div>
+                    <div class="crm-help-card-content"><span class="crm-eyebrow">02 · Relacionar</span><h3>Carteira de Clientes</h3><p>Mostra os clientes atendidos de forma segmentada. Cada indicador representa um recorte da carteira:</p><dl><dt>Clientes atendidos</dt><dd>Quantidade de clientes com atendimento no período.</dd><dt>Novos clientes</dt><dd>Primeiros atendimentos ou cadastros no recorte escolhido.</dd><dt>Clientes VIP</dt><dd>Clientes classificados como estratégicos.</dd><dt>Taxa de retorno</dt><dd>Proporção de clientes que voltaram a comprar.</dd></dl><p class="crm-help-tip">O relatório de detalhe de cada card mostra os registros que compõem o indicador, permite filtros automáticos por coluna e registra contatos realizados.</p></div>
+                </article>
+                <article class="crm-help-card">
+                    <div class="crm-help-card-art art-budget"><span class="art-paper"></span><span class="art-check"></span><span class="art-check second"></span><span class="art-sign"></span></div>
+                    <div class="crm-help-card-content"><span class="crm-eyebrow">03 · Construir</span><h3>Orçamentos</h3><p>Crie uma proposta completa para o cliente e gere o PDF de apresentação.</p><ul><li>Preencha nome, telefone, e-mail e validade do orçamento.</li><li>O CPF/CNPJ é opcional.</li><li>Use <strong>Produto Personalizado</strong> quando o item não estiver no catálogo; informe descrição, características, dimensão e imagem.</li><li>No histórico, pesquise orçamentos, reabra, atualize, crie outro baseado no selecionado, registre contato e acompanhe a negociação.</li></ul></div>
+                </article>
+                <article class="crm-help-card">
+                    <div class="crm-help-card-art art-funnel"><span class="art-funnel-shape"></span><span class="art-dot one"></span><span class="art-dot two"></span><span class="art-dot three"></span></div>
+                    <div class="crm-help-card-content"><span class="crm-eyebrow">04 · Acompanhar</span><h3>Funil de Orçamentos</h3><p>Gerencie o caminho de cada orçamento desde a criação até a venda.</p><ul><li>Registre as etapas da negociação e o resultado do contato.</li><li>Consulte o histórico de interações e os próximos retornos.</li><li>Use os filtros para localizar oportunidades por período, vendedor, filial e situação.</li></ul><p class="crm-help-tip">Manter a etapa e o contato atualizados ajuda a equipe a saber exatamente qual é o próximo passo.</p></div>
+                </article>
+                <article class="crm-help-card crm-help-card-wide">
+                    <div class="crm-help-card-art art-architect"><span class="art-house"></span><span class="art-coins"></span><span class="art-arrow"></span></div>
+                    <div class="crm-help-card-content"><span class="crm-eyebrow">05 · Comissões</span><h3>Arquitetos &amp; RT</h3><p>Acompanhe os orçamentos relacionados a cada arquiteto e conduza o fluxo de pagamento da comissão.</p><ol><li>Autorize os pagamentos elegíveis.</li><li>Selecione os autorizados e prepare o borderô com a data prevista.</li><li>Confira os títulos gerados e imprima o borderô.</li><li>O gateway lança os títulos no Contas a Pagar e consulta a baixa até o pagamento.</li></ol><p class="crm-help-tip">O percentual de comissão não é exibido neste guia. O importante é acompanhar a autorização, o borderô, o título e a situação do pagamento.</p></div>
+                </article>
+            </div>
+            <div class="crm-help-footer"><strong>Dica de rotina</strong><span>Comece pela Visão Geral, aprofunde pelo relatório de detalhe e registre cada contato no momento em que ele acontecer.</span></div>
         </section>
 
         <section class="crm-view crm-budget-view" data-crm-view="orcamentos" hidden>
@@ -698,6 +733,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="theme-loader.js?v=20260824-color-mode-1"></script>
     <script src="assets/budget-negotiation.js?v=20260820-2"></script>
-    <script src="crm.js?v=crm-20261019-bordero-status-1"></script>
+    <script src="crm.js?v=crm-20261019-duvidas-1"></script>
 </body>
 </html>
