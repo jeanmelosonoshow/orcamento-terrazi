@@ -74,6 +74,7 @@ let dashboardContextoAtivo = 'visao-geral';
 let contextoViewRenderizado = null;
 let filtrosDashboardProntos = false;
 let recarregandoCenariosPorConflito = false;
+let dashboardDadosCarregando = false;
 // O menu começa oculto e só é liberado após a configuração da filial ser carregada.
 aplicarVisibilidadeModuloArquitetos(false);
 window.crmThemeReady?.then(() => {
@@ -3719,7 +3720,7 @@ function renderizarGraficosDashboard(widgets, widgetsCalculo = widgets) {
         }
         const dados = prepararDadosGrafico(widget);
         if (!dados) {
-            container.innerHTML = '<div class="crm-chart-empty">Execute e salve uma consulta para visualizar os dados.</div>';
+            container.innerHTML = `<div class="crm-chart-empty">${dashboardDadosCarregando ? 'Carregando dados...' : 'Execute e salve uma consulta para visualizar os dados.'}</div>`;
             return;
         }
         if (widget.tipo === 'kpi' || widget.tipo === 'kpi-target') {
@@ -4839,6 +4840,8 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
         applyFiltersButton.textContent = 'Aplicando...';
     }
     if (resetFiltersButton) resetFiltersButton.disabled = true;
+    dashboardDadosCarregando = true;
+    if (dashboardContextoAtivo === contextoExecucao) renderizarDashboard();
     atualizarInterface('Preparando ' + indices.length + ' consulta' + (indices.length === 1 ? '' : 's') + '...');
     const filtrosConsulta = obterFiltrosCenario();
     let atualizados = 0;
@@ -4889,6 +4892,7 @@ async function aplicarFiltrosDashboard(opcoes = {}) {
             }
         }
     );
+    dashboardDadosCarregando = false;
     if (controladorMenu && controladoresAtualizacaoMenus.get(contextoExecucao) === controladorMenu) {
         controladoresAtualizacaoMenus.delete(contextoExecucao);
     }
