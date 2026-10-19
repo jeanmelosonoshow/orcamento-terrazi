@@ -69,6 +69,9 @@ body {
     align-items: center;
     gap: 10px;
 }
+.crm-menu a[hidden] {
+    display: none !important;
+}
 
 .crm-menu-icon {
     width: 20px;
