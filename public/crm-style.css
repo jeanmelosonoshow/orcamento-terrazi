@@ -104,6 +104,9 @@ body {
 .crm-help-hero-badge { display:grid; justify-items:center; min-width:110px; padding:12px; border-radius:12px; background:rgba(255,255,255,.72); color:var(--verde-escuro); }
 .crm-help-hero-badge strong { font-size:1.7rem; }
 .crm-help-hero-badge span { font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; text-align:center; }
+.crm-help-screenshot { margin:20px 0 0; padding:12px; border:1px solid var(--linha); border-radius:8px; background:var(--painel); box-shadow:0 7px 18px rgba(20,40,30,.05); }
+.crm-help-screenshot img { display:block; width:100%; max-height:430px; object-fit:contain; border-radius:5px; background:#f5f7fb; }
+.crm-help-screenshot figcaption { padding:10px 4px 2px; color:var(--muted); font-size:.78rem; }
 .crm-help-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:20px; }
 .crm-help-card { display:grid; grid-template-columns:150px 1fr; gap:18px; min-height:255px; padding:18px; border:1px solid var(--linha); border-radius:8px; background:var(--painel); box-shadow:0 7px 18px rgba(20,40,30,.05); }
 .crm-help-card-wide { grid-column:span 2; }
