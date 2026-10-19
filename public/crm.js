@@ -38,6 +38,11 @@ if (!moduloArquitetosAtivo) crmViewsDisponiveis.delete('arquitetos');
 function aplicarVisibilidadeModuloArquitetos(ativo) {
     const link = document.querySelector('[data-crm-view-link="arquitetos"]');
     if (link) link.toggleAttribute('hidden', !ativo);
+    if (ativo) {
+        crmViewsDisponiveis.add('arquitetos');
+        crmBiViews.add('arquitetos');
+        return;
+    }
     if (!ativo) {
         crmViewsDisponiveis.delete('arquitetos');
         crmBiViews.delete('arquitetos');
@@ -50,7 +55,8 @@ function aplicarVisibilidadeModuloArquitetos(ativo) {
 let dashboardContextoAtivo = 'visao-geral';
 let contextoViewRenderizado = null;
 let filtrosDashboardProntos = false;
-aplicarVisibilidadeModuloArquitetos(moduloArquitetosAtivo);
+// O menu começa oculto e só é liberado após a configuração da filial ser carregada.
+aplicarVisibilidadeModuloArquitetos(false);
 window.crmThemeReady?.then(() => {
     const ativoNaFilial = window.crmFeatureFlags?.architectsMenuEnabled === true;
     aplicarVisibilidadeModuloArquitetos(ativoNaFilial && moduloArquitetosAtivo);
