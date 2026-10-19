@@ -14,6 +14,35 @@ try {
 } catch {}
 const ORCAMENTO_CONFIG = window.ORCAMENTO_CONFIG || {};
 
+function mostrarMensagem(mensagem) {
+    let dialog = document.getElementById('crmMessageDialog');
+    if (!dialog) {
+        dialog = document.createElement('div');
+        dialog.id = 'crmMessageDialog';
+        dialog.className = 'pdf-action-dialog';
+        dialog.innerHTML = `<div class="pdf-action-card" role="dialog" aria-modal="true" aria-labelledby="crmMessageTitle">
+            <h2 id="crmMessageTitle">Atenção</h2><p data-crm-message-text></p>
+            <div class="pdf-action-buttons"><button type="button" class="pdf-action-primary" data-crm-message-ok>OK</button></div>
+        </div>`;
+        document.body.appendChild(dialog);
+    }
+    dialog.querySelector('[data-crm-message-text]').textContent = String(mensagem || 'Não foi possível concluir a operação.');
+    dialog.hidden = false;
+    dialog.classList.add('is-open');
+    document.body.classList.add('modal-open');
+    return new Promise(resolve => {
+        const fechar = () => {
+            dialog.classList.remove('is-open');
+            document.body.classList.remove('modal-open');
+            dialog.hidden = true;
+            dialog.querySelector('[data-crm-message-ok]').removeEventListener('click', fechar);
+            resolve();
+        };
+        dialog.querySelector('[data-crm-message-ok]').addEventListener('click', fechar, { once: true });
+    });
+}
+window.alert = mostrarMensagem;
+
 function estaDentroDoCrm() {
     try {
         return window.self !== window.top;
@@ -719,7 +748,6 @@ function validarDadosObrigatorios() {
 
     const camposObrigatorios = [
         { el: custName, msg: 'Preencha o nome do cliente.' },
-        { el: custDoc, msg: 'Preencha o CPF ou CNPJ do cliente.' },
         { el: custPhone, msg: 'Preencha o telefone do cliente.' },
         { el: custEmail, msg: 'Preencha o e-mail do cliente.' },
         { el: quoteValid, msg: 'Preencha a data de validade do orçamento.' }
@@ -733,8 +761,8 @@ function validarDadosObrigatorios() {
     }
 
     const digitosDocumento = obterApenasDigitos(custDoc.value);
-    if (![11, 14].includes(digitosDocumento.length)) {
-        alert('Informe um CPF com 11 dígitos ou CNPJ com 14 dígitos.');
+    if (digitosDocumento && ![11, 14].includes(digitosDocumento.length)) {
+        alert('Informe um CPF com 11 dígitos ou CNPJ com 14 dígitos, ou deixe o campo vazio.');
         custDoc.focus();
         return false;
     }

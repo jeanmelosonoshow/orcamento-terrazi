@@ -20,6 +20,24 @@ const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
 const filialId = String(usuarioLogado.idfilial || usuarioLogado.id_filial || '').trim().toUpperCase();
 const idFuncionarioLogado = usuarioLogado.idfuncionario || usuarioLogado.id_funcionario || usuarioLogado.IDFUNCIONARIO || '';
 const idVendedorLogado = usuarioLogado.idvendedor || usuarioLogado.id_vendedor || usuarioLogado.IDVENDEDOR || '';
+function mostrarMensagemCrm(mensagem) {
+    let modal = document.querySelector('[data-crm-message-modal]');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.className = 'crm-modal';
+        modal.dataset.crmMessageModal = '';
+        modal.hidden = true;
+        modal.innerHTML = `<div class="crm-modal-backdrop"></div><section class="crm-modal-card" role="dialog" aria-modal="true" aria-labelledby="crmMessageTitle"><div class="crm-modal-head"><div><span class="crm-eyebrow">Gestão</span><h2 id="crmMessageTitle">Atenção</h2></div></div><p data-crm-message-text></p><div class="crm-modal-actions"><button type="button" class="crm-primary-command" data-crm-message-ok>OK</button></div></section>`;
+        document.body.appendChild(modal);
+    }
+    modal.querySelector('[data-crm-message-text]').textContent = String(mensagem || 'Não foi possível concluir a operação.');
+    modal.hidden = false;
+    return new Promise(resolve => {
+        const fechar = () => { modal.hidden = true; resolve(); };
+        modal.querySelector('[data-crm-message-ok]').addEventListener('click', fechar, { once: true });
+    });
+}
+window.alert = mostrarMensagemCrm;
 let moduloArquitetosAtivo = usuarioLogado.architectModuleEnabled === true;
 let podeGerenciarComissaoArquiteto = moduloArquitetosAtivo && (usuarioLogado.architectCommissionManager === true
     || usuarioLogado.podeGerenciarComissaoArquiteto === true);
