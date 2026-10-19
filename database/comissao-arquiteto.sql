@@ -148,6 +148,7 @@ BEGIN
         OR (OLD.status_pagamento = 'AUTORIZADO' AND NEW.status_pagamento = 'PAGAMENTO_GERADO')
         OR (OLD.status_pagamento = 'PAGAMENTO_GERADO' AND NEW.status_pagamento = 'AUTORIZADO')
         OR (OLD.status_pagamento = 'PAGAMENTO_GERADO' AND NEW.status_pagamento = 'PAGAMENTO_EFETUADO')
+        OR (OLD.status_pagamento = 'PAGAMENTO_EFETUADO' AND NEW.status_pagamento = 'PAGAMENTO_GERADO')
     ) THEN
         RAISE EXCEPTION 'Transicao de pagamento invalida: % -> %', OLD.status_pagamento, NEW.status_pagamento;
     END IF;
