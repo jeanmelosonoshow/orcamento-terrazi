@@ -171,6 +171,66 @@ body {
 @media (max-width: 900px) { .crm-help-card { grid-template-columns:minmax(210px, 35%) minmax(0, 1fr); gap:18px; } .crm-help-card-intro { grid-template-columns:minmax(210px, 35%) minmax(0, 1fr); gap:18px; } }
 @media (max-width: 620px) { .crm-help-card { grid-template-columns:1fr; padding:16px; } .crm-help-card:nth-child(even) .crm-help-image-slot, .crm-help-card:nth-child(even) .crm-help-card-content { order:initial; } .crm-help-card-intro { grid-template-columns:1fr; } .crm-help-indicator-grid, .crm-help-combined-grid { grid-template-columns:1fr; } .crm-help-image-slot { min-height:150px; } }
 
+/* Composição própria da documentação: mantém o CRM intacto e aproxima Dúvidas do guia de referência. */
+.crm-help-mode .crm-topbar { display: none !important; }
+.crm-help-mode .crm-main { padding: 0; background: #f6f8fb; }
+.crm-help-view {
+    display: grid;
+    grid-template-columns: 238px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    column-gap: 30px;
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 0 30px 52px;
+}
+.crm-help-doc-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 76px;
+    margin: 0 -30px 30px;
+    padding: 10px 30px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+}
+.crm-help-doc-brand { display:flex; align-items:center; gap:12px; }
+.crm-help-doc-mark { display:grid; place-items:center; width:40px; height:40px; border-radius:12px; background:#16a34a; color:#fff; font-size:0; box-shadow:0 5px 12px rgba(22,163,74,.22); }
+.crm-help-doc-mark::before { content:'▰'; font-size:20px; transform:rotate(90deg); }
+.crm-help-doc-brand div { display:grid; gap:2px; }
+.crm-help-doc-brand span { color:#16a34a; font-size:.72rem; font-weight:800; letter-spacing:.1em; }
+.crm-help-doc-brand strong { color:#0f172a; font-size:1.05rem; }
+.crm-help-doc-search { width:min(430px, 42vw); padding:10px 16px; border-radius:14px; background:#f1f5f9; color:#94a3b8; font-size:.84rem; }
+.crm-help-doc-mode { display:grid; place-items:center; width:38px; height:38px; border:1px solid #dbe4ec; border-radius:12px; color:#475569; font-size:1.25rem; }
+.crm-help-doc-nav { grid-column:1; grid-row:2 / span 10; align-self:start; position:sticky; top:24px; display:flex; flex-direction:column; gap:6px; padding:12px 0; }
+.crm-help-doc-nav-title { margin:0 0 10px; color:#94a3b8; font-size:.7rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+.crm-help-doc-nav a { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px; color:#334155; text-decoration:none; font-size:.88rem; }
+.crm-help-doc-nav a:hover { background:#e8f4ee; color:#14532d; }
+.crm-help-doc-nav a b { display:grid; place-items:center; width:24px; height:24px; border-radius:7px; background:#dbeafe; color:#2563eb; font-size:.68rem; }
+.crm-help-doc-nav a:nth-of-type(2) b { background:#dcfce7; color:#16a34a; }
+.crm-help-doc-nav a:nth-of-type(3) b { background:#fef3c7; color:#d97706; }
+.crm-help-doc-nav a:nth-of-type(4) b { background:#ffe4e6; color:#e11d48; }
+.crm-help-doc-tip { display:grid; gap:7px; margin-top:22px; padding:18px 14px; border-radius:13px; background:#0f2420; color:#fff; box-shadow:0 10px 22px rgba(15,36,32,.16); }
+.crm-help-doc-tip strong { color:#facc15; font-size:.86rem; }
+.crm-help-doc-tip span { color:#dbeafe; font-size:.76rem; line-height:1.45; }
+.crm-help-view > .crm-help-hero,
+.crm-help-view > .crm-help-grid,
+.crm-help-view > .crm-help-footer { grid-column:2; }
+.crm-help-hero { margin:0; border-radius:22px; padding:38px 40px; background:linear-gradient(135deg,#0f172a,#122331); border:0; box-shadow:0 12px 24px rgba(15,23,42,.14); }
+.crm-help-hero h2 { font-size:2rem; }
+.crm-help-grid { margin-top:28px; gap:26px; }
+.crm-help-card { padding:30px 32px; border-radius:16px; box-shadow:0 4px 12px rgba(15,23,42,.05); }
+.crm-help-card-content h3 { font-size:1.55rem; }
+.crm-help-footer { margin-top:26px; }
+@media (max-width: 900px) {
+    .crm-help-view { display:block; padding:0 16px 36px; }
+    .crm-help-doc-header { margin:0 -16px 20px; padding:10px 16px; }
+    .crm-help-doc-nav { position:static; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); margin-bottom:20px; }
+    .crm-help-doc-nav-title, .crm-help-doc-tip { grid-column:1 / -1; }
+    .crm-help-doc-search { display:none; }
+    .crm-help-hero { margin-bottom:24px; }
+}
+
 .crm-menu-icon {
     width: 20px;
     height: 20px;
