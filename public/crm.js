@@ -73,6 +73,7 @@ function aplicarVisibilidadeModuloArquitetos(ativo) {
 let dashboardContextoAtivo = 'visao-geral';
 let contextoViewRenderizado = null;
 let filtrosDashboardProntos = false;
+let recarregandoCenariosPorConflito = false;
 // O menu começa oculto e só é liberado após a configuração da filial ser carregada.
 aplicarVisibilidadeModuloArquitetos(false);
 window.crmThemeReady?.then(() => {
@@ -485,6 +486,16 @@ async function persistirCenarioDashboard(contexto, { forcar = false, silencioso 
         const data = await response.json().catch(() => ({}));
         if (response.status === 409) {
             if (data.cenario) aplicarCenarioCompartilhado(data.cenario);
+            if (!recarregandoCenariosPorConflito) {
+                recarregandoCenariosPorConflito = true;
+                try {
+                    await carregarCenariosDashboardCompartilhados();
+                } catch (erroRecarga) {
+                    console.warn('[CRM] Falha ao recarregar cenarios apos conflito:', erroRecarga);
+                } finally {
+                    recarregandoCenariosPorConflito = false;
+                }
+            }
             if (dashboardContextoAtivo === contexto) renderizarDashboard();
             atualizarStatusFiltros('O painel foi atualizado por outro usuario. A versao mais recente foi carregada.', true);
             return false;
