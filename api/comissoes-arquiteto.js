@@ -8,13 +8,14 @@ import {
     statusOperacionalComissao
 } from '../lib/architect-commissions.js';
 import { agendarSincronizacaoFornecedor } from '../lib/architect-supplier-sync.js';
+import { moduloArquitetosAtivo } from '../lib/filial-features.js';
 
 function erro(mensagem, statusCode = 400, code = 'COMMISSION_ERROR') {
     return Object.assign(new Error(mensagem), { statusCode, code });
 }
 
 function exigirGestor(session) {
-    if (session?.architectModuleEnabled !== true) {
+    if (session?.architectModuleEnabled !== true && !moduloArquitetosAtivo(session?.idfilial)) {
         throw erro('O modulo de arquitetos nao esta habilitado para esta filial.', 403, 'ARCHITECT_MODULE_DISABLED');
     }
     if (session?.architectCommissionManager !== true) {

@@ -20,8 +20,8 @@ const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
 const filialId = String(usuarioLogado.idfilial || usuarioLogado.id_filial || '').trim().toUpperCase();
 const idFuncionarioLogado = usuarioLogado.idfuncionario || usuarioLogado.id_funcionario || usuarioLogado.IDFUNCIONARIO || '';
 const idVendedorLogado = usuarioLogado.idvendedor || usuarioLogado.id_vendedor || usuarioLogado.IDVENDEDOR || '';
-const moduloArquitetosAtivo = usuarioLogado.architectModuleEnabled === true;
-const podeGerenciarComissaoArquiteto = moduloArquitetosAtivo && (usuarioLogado.architectCommissionManager === true
+let moduloArquitetosAtivo = usuarioLogado.architectModuleEnabled === true;
+let podeGerenciarComissaoArquiteto = moduloArquitetosAtivo && (usuarioLogado.architectCommissionManager === true
     || usuarioLogado.podeGerenciarComissaoArquiteto === true);
 const categoriasTraduzidas = {
     VD: 'VENDEDOR',
@@ -59,7 +59,11 @@ let filtrosDashboardProntos = false;
 aplicarVisibilidadeModuloArquitetos(false);
 window.crmThemeReady?.then(() => {
     const ativoNaFilial = window.crmFeatureFlags?.architectsMenuEnabled === true;
-    aplicarVisibilidadeModuloArquitetos(ativoNaFilial && moduloArquitetosAtivo);
+    moduloArquitetosAtivo = ativoNaFilial;
+    podeGerenciarComissaoArquiteto = ativoNaFilial && (usuarioLogado.architectCommissionManager === true
+        || usuarioLogado.podeGerenciarComissaoArquiteto === true);
+    if (architectCommissionField) architectCommissionField.hidden = !podeGerenciarComissaoArquiteto;
+    aplicarVisibilidadeModuloArquitetos(ativoNaFilial);
 }).catch(() => {});
 let processandoAtualizacaoMenus = false;
 let contextoAtualizacaoEmAndamento = null;

@@ -5,7 +5,13 @@ if (!usuarioLogadoRaw) {
     throw new Error('Sessao nao autenticada.');
 }
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
-const moduloArquitetosAtivo = usuarioLogado.architectModuleEnabled === true;
+let moduloArquitetosAtivo = usuarioLogado.architectModuleEnabled === true;
+try {
+    const temaSalvo = JSON.parse(sessionStorage.getItem('crmTemaFilial') || 'null');
+    if (temaSalvo?.theme?.features) {
+        moduloArquitetosAtivo = temaSalvo.theme.features.architectsMenuEnabled === true;
+    }
+} catch {}
 const ORCAMENTO_CONFIG = window.ORCAMENTO_CONFIG || {};
 
 function estaDentroDoCrm() {
