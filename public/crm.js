@@ -5382,7 +5382,15 @@ function exibirBorderoComissao(bordero) {
     if (commissionBatchConfirm) commissionBatchConfirm.hidden = true;
     if (commissionBatchForm) delete commissionBatchForm.dataset.confirming;
     if (commissionPrintButton) commissionPrintButton.hidden = false;
-    if (commissionMessage) commissionMessage.textContent = 'Bordero preparado. Os itens estao na fila e ainda nao foram lancados no Firebird.';
+    if (commissionMessage) {
+        const itens = Array.isArray(bordero?.itens) ? bordero.itens : [];
+        const gerados = itens.filter(item => item.numeroPagar).length;
+        commissionMessage.textContent = gerados === itens.length && itens.length
+            ? 'Titulos incluidos no Contas a Pagar e aguardam o pagamento.'
+            : gerados > 0
+                ? `${gerados} titulo(s) incluido(s) no Contas a Pagar; os demais aguardam geracao.`
+                : 'Bordero preparado. Os itens estao na fila para inclusao no Contas a Pagar.';
+    }
 }
 
 function imprimirBorderoComissao() {
