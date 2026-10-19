@@ -116,6 +116,14 @@ body {
 .crm-help-image-slot.has-image { padding:0; border:0; background:transparent; }
 .crm-help-image-slot img { display:block; width:100%; height:auto; max-height:none; object-fit:contain; border-radius:5px; background:#fff; }
 .crm-help-card-clients { display:block; }
+.crm-help-combined-card { display:block; }
+.crm-help-combined-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin-top:22px; }
+.crm-help-subcard { padding:18px; border:1px solid #dbe4ec; border-radius:14px; background:#f8fafc; }
+.crm-help-subcard-image { margin-bottom:16px; overflow:hidden; border-radius:9px; background:#fff; }
+.crm-help-subcard-image img { display:block; width:100%; height:auto; }
+.crm-help-subcard h4 { margin:0 0 9px; color:#0f172a; font-size:1rem; }
+.crm-help-subcard ul { margin:0; padding-left:20px; color:#475569; line-height:1.55; font-size:.83rem; }
+.crm-help-subcard li { margin-bottom:4px; }
 .crm-help-card-intro { display:grid; grid-template-columns:minmax(280px, 42%) minmax(0, 1fr); gap:30px; align-items:center; }
 .crm-help-section-heading { display:flex; align-items:baseline; gap:12px; margin-top:24px; padding-top:18px; border-top:1px solid var(--linha); }
 .crm-help-section-heading p { margin:0; color:var(--muted); font-size:.84rem; }
@@ -161,7 +169,7 @@ body {
 .crm-help-footer span { opacity:.9; }
 @media (max-width: 1100px) { .crm-help-indicator-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width: 900px) { .crm-help-card { grid-template-columns:minmax(210px, 35%) minmax(0, 1fr); gap:18px; } .crm-help-card-intro { grid-template-columns:minmax(210px, 35%) minmax(0, 1fr); gap:18px; } }
-@media (max-width: 620px) { .crm-help-card { grid-template-columns:1fr; padding:16px; } .crm-help-card:nth-child(even) .crm-help-image-slot, .crm-help-card:nth-child(even) .crm-help-card-content { order:initial; } .crm-help-card-intro { grid-template-columns:1fr; } .crm-help-indicator-grid { grid-template-columns:1fr; } .crm-help-image-slot { min-height:150px; } }
+@media (max-width: 620px) { .crm-help-card { grid-template-columns:1fr; padding:16px; } .crm-help-card:nth-child(even) .crm-help-image-slot, .crm-help-card:nth-child(even) .crm-help-card-content { order:initial; } .crm-help-card-intro { grid-template-columns:1fr; } .crm-help-indicator-grid, .crm-help-combined-grid { grid-template-columns:1fr; } .crm-help-image-slot { min-height:150px; } }
 
 .crm-menu-icon {
     width: 20px;
