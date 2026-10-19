@@ -487,6 +487,7 @@ async function persistirCenarioDashboard(contexto, { forcar = false, silencioso 
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 409) {
+            let conflitoRecuperado = false;
             if (data.cenario) aplicarCenarioCompartilhado(data.cenario);
             if (!recarregandoCenariosPorConflito) {
                 recarregandoCenariosPorConflito = true;
@@ -502,6 +503,7 @@ async function persistirCenarioDashboard(contexto, { forcar = false, silencioso 
                 recarregandoDadosPorConflito = true;
                 try {
                     await aplicarFiltrosDashboard({ contexto, origem: 'acao' });
+                    conflitoRecuperado = true;
                 } catch (erroDados) {
                     console.warn('[CRM] Falha ao recarregar dados apos conflito:', erroDados);
                 } finally {
@@ -509,7 +511,11 @@ async function persistirCenarioDashboard(contexto, { forcar = false, silencioso 
                 }
             }
             if (dashboardContextoAtivo === contexto) renderizarDashboard();
-            atualizarStatusFiltros('O painel foi atualizado por outro usuario. A versao mais recente foi carregada.', true);
+            if (!conflitoRecuperado) {
+                atualizarStatusFiltros('O painel foi atualizado por outro usuario. A versao mais recente foi carregada.', true);
+            } else if (dashboardContextoAtivo === contexto) {
+                atualizarStatusFiltros('');
+            }
             return false;
         }
         if (!response.ok) throw new Error(data.error || 'Nao foi possivel salvar o cenario compartilhado.');
