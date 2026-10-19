@@ -90,16 +90,17 @@ body {
     grid-template-columns: auto 1fr;
     gap: 18px;
     align-items: center;
-    padding: 24px 26px;
-    border: 1px solid var(--linha);
-    border-left: 5px solid var(--accent, #B66A42);
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--painel), var(--verde-claro));
-    box-shadow: 0 10px 24px rgba(20, 40, 30, 0.08);
+    padding: 30px 32px;
+    border: 1px solid #193f2b;
+    border-left: 5px solid var(--dourado);
+    border-radius: 18px;
+    background: linear-gradient(135deg, #10291d, #1f4d35);
+    box-shadow: 0 14px 28px rgba(20, 40, 30, 0.14);
 }
-.crm-help-hero h2 { margin: 5px 0 7px; color: var(--verde-escuro); font-size: 1.55rem; }
-.crm-help-hero p { margin: 0; max-width: 690px; color: var(--muted); line-height: 1.55; }
-.crm-help-hero-icon { display:grid; place-items:center; width:62px; height:62px; border-radius:16px; background:var(--verde-escuro); color:#fff; }
+.crm-help-hero h2 { margin: 5px 0 7px; color: #fff; font-size: 1.7rem; }
+.crm-help-hero p { margin: 0; max-width: 690px; color: rgba(255,255,255,.78); line-height: 1.55; }
+.crm-help-hero .crm-eyebrow { color: #d8c56c; }
+.crm-help-hero-icon { display:grid; place-items:center; width:62px; height:62px; border-radius:16px; background:rgba(255,255,255,.12); color:#fff; }
 .crm-help-hero-icon svg { width:34px; height:34px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
 .crm-help-hero-badge { display:grid; justify-items:center; min-width:110px; padding:12px; border-radius:12px; background:rgba(255,255,255,.72); color:var(--verde-escuro); }
 .crm-help-hero-badge strong { font-size:1.7rem; }
@@ -116,6 +117,8 @@ body {
 .crm-help-image-slot img { display:block; width:100%; height:auto; max-height:none; object-fit:contain; border-radius:5px; background:#fff; }
 .crm-help-card-clients { display:block; }
 .crm-help-card-intro { display:grid; grid-template-columns:minmax(280px, 42%) minmax(0, 1fr); gap:26px; align-items:start; }
+.crm-help-section-heading { display:flex; align-items:baseline; gap:12px; margin-top:24px; padding-top:18px; border-top:1px solid var(--linha); }
+.crm-help-section-heading p { margin:0; color:var(--muted); font-size:.84rem; }
 .crm-help-indicator-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:22px; padding-top:22px; border-top:1px solid var(--linha); }
 .crm-help-indicator { display:block; padding:13px; border:1px solid var(--linha); border-radius:8px; background:#fff; }
 .crm-help-indicator-image { min-height:0; display:block; padding:0; border:0; border-radius:6px; background:transparent; color:var(--verde-escuro); text-align:center; overflow:hidden; }
