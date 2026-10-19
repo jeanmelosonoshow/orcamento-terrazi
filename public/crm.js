@@ -3161,7 +3161,8 @@ async function enriquecerWidgetComissoes(widget) {
             __comissaoPercentual: pagamento?.percentualComissao ?? null,
             __comissaoValor: pagamento?.valorComissao ?? null,
             __comissaoLoteId: pagamento?.lotePagamentoId || null,
-            __comissaoNumeroLote: pagamento?.numeroLote || null
+            __comissaoNumeroLote: pagamento?.numeroLote || null,
+            __comissaoNumeroPagar: pagamento?.numeroPagar || null
         };
     });
     return { ...widget, dadosConsulta, comissaoErro: '' };
@@ -5247,6 +5248,7 @@ function abrirPreparacaoLoteComissao() {
     borderoComissaoAtual = null;
     commissionModal.hidden = false;
     if (commissionDateStep) commissionDateStep.hidden = false;
+    if (commissionDateStep) commissionDateStep.style.display = '';
     if (commissionBatchConfirm) {
         commissionBatchConfirm.hidden = true;
         commissionBatchConfirm.textContent = '';
@@ -5258,6 +5260,7 @@ function abrirPreparacaoLoteComissao() {
     if (commissionPrintButton) commissionPrintButton.hidden = true;
     if (commissionPrepareButton) {
         commissionPrepareButton.hidden = false;
+        commissionPrepareButton.style.display = '';
         commissionPrepareButton.textContent = 'Preparar geração';
     }
     if (commissionBatchForm) delete commissionBatchForm.dataset.confirming;
@@ -5280,19 +5283,23 @@ function formatarDataBordero(valor) {
 
 function htmlBorderoComissao(bordero) {
     const itens = Array.isArray(bordero?.itens) ? bordero.itens : [];
-    const linhas = itens.map(item => `<tr><td>${escapeHtml(item.nomeArquiteto || '')}</td><td>${escapeHtml(item.idfilialSaida || '')}</td><td>${escapeHtml(item.numeroSaida || '')}</td><td>${escapeHtml(item.orcamentoId || '')}</td><td>R$ ${escapeHtml(Number(item.valorVenda || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</td><td>${escapeHtml(Number(item.percentualComissao || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 }))}%</td><td>R$ ${escapeHtml(Number(item.valorComissao || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</td></tr>`).join('');
-    return `<header><div><strong>Borderô ${escapeHtml(bordero?.numero || '')}</strong><span>Previsão: ${escapeHtml(formatarDataBordero(bordero?.dataPrevistaPagamento))}</span></div><div><strong>R$ ${escapeHtml(Number(bordero?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</strong><span>${Number(bordero?.quantidadeItens || itens.length)} título(s) aguardando geração</span></div></header><table><thead><tr><th>Arquiteto</th><th>Filial</th><th>Venda</th><th>Orçamento</th><th>Valor venda</th><th>%</th><th>Comissão</th></tr></thead><tbody>${linhas}</tbody></table>`;
+    const gerados = itens.filter(item => item.numeroPagar).length;
+    const rotulo = gerados === itens.length && itens.length ? 'título(s) gerado(s)' : `${itens.length - gerados} aguardando geração`;
+    const linhas = itens.map(item => `<tr><td>${escapeHtml(item.nomeArquiteto || '')}</td><td>${escapeHtml(item.idfilialSaida || '')}</td><td>${escapeHtml(item.numeroSaida || '')}</td><td>${escapeHtml(item.orcamentoId || '')}</td><td>${escapeHtml(item.numeroPagar || '—')}</td><td>R$ ${escapeHtml(Number(item.valorVenda || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</td><td>${escapeHtml(Number(item.percentualComissao || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 }))}%</td><td>R$ ${escapeHtml(Number(item.valorComissao || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</td></tr>`).join('');
+    return `<header><div><strong>Borderô ${escapeHtml(bordero?.numero || '')}</strong><span>Previsão: ${escapeHtml(formatarDataBordero(bordero?.dataPrevistaPagamento))}</span></div><div><strong>R$ ${escapeHtml(Number(bordero?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }))}</strong><span>${gerados} de ${Number(bordero?.quantidadeItens || itens.length)} ${rotulo}</span></div></header><table><thead><tr><th>Arquiteto</th><th>Filial</th><th>Venda</th><th>Orçamento</th><th>Título PAGAR</th><th>Valor venda</th><th>%</th><th>Comissão</th></tr></thead><tbody>${linhas}</tbody></table>`;
 }
 
 function exibirBorderoComissao(bordero) {
     borderoComissaoAtual = bordero;
     if (commissionModal) commissionModal.hidden = false;
     if (commissionDateStep) commissionDateStep.hidden = true;
+    if (commissionDateStep) commissionDateStep.style.display = 'none';
     if (commissionBordero) {
         commissionBordero.innerHTML = htmlBorderoComissao(bordero);
         commissionBordero.hidden = false;
     }
     if (commissionPrepareButton) commissionPrepareButton.hidden = true;
+    if (commissionPrepareButton) commissionPrepareButton.style.display = 'none';
     if (commissionBatchConfirm) commissionBatchConfirm.hidden = true;
     if (commissionBatchForm) delete commissionBatchForm.dataset.confirming;
     if (commissionPrintButton) commissionPrintButton.hidden = false;

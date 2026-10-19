@@ -57,6 +57,8 @@ function normalizarPagamento(linha) {
         lotePagamentoId: linha.lote_pagamento_id ? Number(linha.lote_pagamento_id) : null,
         numeroLote: linha.numero_lote || null,
         statusLote: linha.status_lote || null,
+        numeroPagar: linha.firebird_numero_pagar || null,
+        statusFirebird: linha.firebird_status || null,
         versao: Number(linha.versao || 1)
     };
 }
