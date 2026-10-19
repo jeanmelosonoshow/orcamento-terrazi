@@ -5,6 +5,7 @@ if (!usuarioLogadoRaw) {
     throw new Error('Sessao nao autenticada.');
 }
 const usuarioLogado = JSON.parse(usuarioLogadoRaw);
+const moduloArquitetosAtivo = usuarioLogado.architectModuleEnabled === true;
 const ORCAMENTO_CONFIG = window.ORCAMENTO_CONFIG || {};
 
 function estaDentroDoCrm() {
@@ -1059,6 +1060,7 @@ function abrirSeletorArquiteto(preSelecionado = null) {
 }
 
 async function definirArquitetoAntesDeGerarOrcamento() {
+    if (!moduloArquitetosAtivo) return true;
     const vinculoExistente = Boolean(currentOrcamentoId && currentArchitect?.vinculado);
     if (vinculoExistente) {
         if (!usuarioLogado.podeAlterarArquitetoOrcamento) return true;

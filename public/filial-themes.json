@@ -38,6 +38,9 @@
   "themes": {
     "casaterrazi": {
       "label": "Casa Terrazi",
+      "features": {
+        "architectsMenuEnabled": true
+      },
       "logoUrl": "https://acdn-us.mitiendanube.com/stores/005/667/009/themes/common/logo-1922118012-1769009009-757fb821fbae032664390fbbb9a301c71769009009-480-0.webp",
       "colors": {
         "verdeEscuro": "#1A3017",
@@ -57,6 +60,9 @@
     },
     "sonoshow": {
       "label": "Sono Show Móveis",
+      "features": {
+        "architectsMenuEnabled": false
+      },
       "colors": {
         "verdeEscuro": "#123C7C",
         "verdeMedio": "#1D5EA8",

@@ -14,6 +14,9 @@ function erro(mensagem, statusCode = 400, code = 'COMMISSION_ERROR') {
 }
 
 function exigirGestor(session) {
+    if (session?.architectModuleEnabled !== true) {
+        throw erro('O modulo de arquitetos nao esta habilitado para esta filial.', 403, 'ARCHITECT_MODULE_DISABLED');
+    }
     if (session?.architectCommissionManager !== true) {
         throw erro('Usuario sem permissao para controlar comissoes de arquitetos.', 403, 'COMMISSION_FORBIDDEN');
     }

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { createSessionToken } from '../lib/session-token.js';
 import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 import { resolverFiliaisPermitidasOrcamento } from '../lib/budget-access-scope.js';
+import { moduloArquitetosAtivo } from '../lib/filial-features.js';
 const require = createRequire(import.meta.url);
 const crypto = require('crypto');
 
@@ -103,8 +104,11 @@ export default async function handler(req, res) {
         });
         const podeEditarCenarios = String(result[0].CATEGORIA || '').trim().toUpperCase() === 'DI'
             || permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
-        const podeAlterarArquitetoOrcamento = permissoes.architectBudgetEditorFuncionarioIds.includes(String(idFuncionario));
-        const podeGerenciarComissaoArquiteto = permissoes.architectCommissionManagerFuncionarioIds.includes(String(idFuncionario));
+        const architectModuleEnabled = moduloArquitetosAtivo(result[0].ID_FILIAL);
+        const podeAlterarArquitetoOrcamento = architectModuleEnabled
+            && permissoes.architectBudgetEditorFuncionarioIds.includes(String(idFuncionario));
+        const podeGerenciarComissaoArquiteto = architectModuleEnabled
+            && permissoes.architectCommissionManagerFuncionarioIds.includes(String(idFuncionario));
         const sessionUser = {
             idfuncionario: idFuncionario,
             categoria: result[0].CATEGORIA,
@@ -112,6 +116,7 @@ export default async function handler(req, res) {
             idvendedor: result[0].ID_VENDEDOR,
             filiaisPermitidas,
             canEditScenarios: podeEditarCenarios,
+            architectModuleEnabled,
             architectBudgetEditor: podeAlterarArquitetoOrcamento,
             architectCommissionManager: podeGerenciarComissaoArquiteto
         };
@@ -124,6 +129,7 @@ export default async function handler(req, res) {
             podeAlterarArquitetoOrcamento,
             podeGerenciarComissaoArquiteto,
             architectCommissionManager: podeGerenciarComissaoArquiteto,
+            architectModuleEnabled,
             sessionToken: createSessionToken(sessionUser)
         });
     } catch (error) {

@@ -33,6 +33,9 @@ export default async function handler(req, res) {
     if (!['GET', 'POST', 'PUT'].includes(req.method)) return res.status(405).json({ error: 'Metodo nao permitido.' });
     const session = requireRequestSession(req, res);
     if (!session) return;
+    if (session.architectModuleEnabled !== true) {
+        return res.status(403).json({ error: 'O modulo de arquitetos nao esta habilitado para esta filial.', code: 'ARCHITECT_MODULE_DISABLED' });
+    }
     const gerenciaComissao = podeGerenciarComissaoArquiteto(session);
 
     try {

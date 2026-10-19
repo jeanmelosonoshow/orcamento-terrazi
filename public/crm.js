@@ -20,8 +20,9 @@ const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
 const filialId = String(usuarioLogado.idfilial || usuarioLogado.id_filial || '').trim().toUpperCase();
 const idFuncionarioLogado = usuarioLogado.idfuncionario || usuarioLogado.id_funcionario || usuarioLogado.IDFUNCIONARIO || '';
 const idVendedorLogado = usuarioLogado.idvendedor || usuarioLogado.id_vendedor || usuarioLogado.IDVENDEDOR || '';
-const podeGerenciarComissaoArquiteto = usuarioLogado.architectCommissionManager === true
-    || usuarioLogado.podeGerenciarComissaoArquiteto === true;
+const moduloArquitetosAtivo = usuarioLogado.architectModuleEnabled === true;
+const podeGerenciarComissaoArquiteto = moduloArquitetosAtivo && (usuarioLogado.architectCommissionManager === true
+    || usuarioLogado.podeGerenciarComissaoArquiteto === true);
 const categoriasTraduzidas = {
     VD: 'VENDEDOR',
     GR: 'GERENTE',
@@ -31,8 +32,12 @@ const categoriasTraduzidas = {
 };
 const categoriasPorNome = Object.fromEntries(Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => [nomeCategoria, codigo]));
 const categoriasDashboard = window.CRM_DASHBOARD_LAYOUT?.categorias || Object.entries(categoriasTraduzidas).map(([codigo, nomeCategoria]) => ({ codigo, nome: nomeCategoria }));
-const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao', 'orcamentos']);
-const crmBiViews = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'reativacao']);
+const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'orcamentos']);
+const crmBiViews = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos']);
+if (!moduloArquitetosAtivo) crmViewsDisponiveis.delete('arquitetos');
+if (!moduloArquitetosAtivo) {
+    document.querySelector('[data-crm-view-link="arquitetos"]')?.setAttribute('hidden', '');
+}
 let dashboardContextoAtivo = 'visao-geral';
 let contextoViewRenderizado = null;
 let filtrosDashboardProntos = false;

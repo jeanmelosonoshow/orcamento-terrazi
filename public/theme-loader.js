@@ -35,6 +35,7 @@
         if (!theme) return;
         document.body.dataset.theme = themeName;
         window.crmCurrentThemeName = themeName;
+        window.crmFeatureFlags = theme.features || {};
         document.body.dataset.brandName = theme.label || themeName;
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ themeName, theme }));
 
