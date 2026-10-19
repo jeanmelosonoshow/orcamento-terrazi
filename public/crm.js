@@ -74,6 +74,7 @@ let dashboardContextoAtivo = 'visao-geral';
 let contextoViewRenderizado = null;
 let filtrosDashboardProntos = false;
 let recarregandoCenariosPorConflito = false;
+let recarregandoDadosPorConflito = false;
 let dashboardDadosCarregando = false;
 // O menu começa oculto e só é liberado após a configuração da filial ser carregada.
 aplicarVisibilidadeModuloArquitetos(false);
@@ -495,6 +496,16 @@ async function persistirCenarioDashboard(contexto, { forcar = false, silencioso 
                     console.warn('[CRM] Falha ao recarregar cenarios apos conflito:', erroRecarga);
                 } finally {
                     recarregandoCenariosPorConflito = false;
+                }
+            }
+            if (dashboardContextoAtivo === contexto && !recarregandoDadosPorConflito) {
+                recarregandoDadosPorConflito = true;
+                try {
+                    await aplicarFiltrosDashboard({ contexto, origem: 'acao' });
+                } catch (erroDados) {
+                    console.warn('[CRM] Falha ao recarregar dados apos conflito:', erroDados);
+                } finally {
+                    recarregandoDadosPorConflito = false;
                 }
             }
             if (dashboardContextoAtivo === contexto) renderizarDashboard();
