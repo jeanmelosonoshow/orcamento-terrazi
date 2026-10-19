@@ -104,12 +104,15 @@ body {
 .crm-help-hero-badge { display:grid; justify-items:center; min-width:110px; padding:12px; border-radius:12px; background:rgba(255,255,255,.72); color:var(--verde-escuro); }
 .crm-help-hero-badge strong { font-size:1.7rem; }
 .crm-help-hero-badge span { font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; text-align:center; }
-.crm-help-screenshot { margin:20px 0 0; padding:12px; border:1px solid var(--linha); border-radius:8px; background:var(--painel); box-shadow:0 7px 18px rgba(20,40,30,.05); }
-.crm-help-screenshot img { display:block; width:100%; max-height:430px; object-fit:contain; border-radius:5px; background:#f5f7fb; }
-.crm-help-screenshot figcaption { padding:10px 4px 2px; color:var(--muted); font-size:.78rem; }
-.crm-help-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:20px; }
-.crm-help-card { display:grid; grid-template-columns:150px 1fr; gap:18px; min-height:255px; padding:18px; border:1px solid var(--linha); border-radius:8px; background:var(--painel); box-shadow:0 7px 18px rgba(20,40,30,.05); }
-.crm-help-card-wide { grid-column:span 2; }
+.crm-help-grid { display:flex; flex-direction:column; gap:22px; margin-top:20px; }
+.crm-help-card { display:grid; grid-template-columns:minmax(250px, 38%) minmax(0, 1fr); gap:26px; align-items:start; padding:22px; border:1px solid var(--linha); border-radius:10px; background:var(--painel); box-shadow:0 7px 18px rgba(20,40,30,.05); }
+.crm-help-card:nth-child(even) .crm-help-image-slot { order:2; }
+.crm-help-card:nth-child(even) .crm-help-card-content { order:1; }
+.crm-help-card-wide { grid-column:auto; }
+.crm-help-image-slot { min-height:250px; display:grid; place-items:center; align-content:center; gap:10px; padding:22px; border:1px dashed #9ab8a2; border-radius:9px; background:linear-gradient(145deg,#f7faf8,#edf3f6); color:var(--verde-escuro); text-align:center; overflow:hidden; }
+.crm-help-image-slot span { font-size:.72rem; font-weight:800; letter-spacing:.1em; }
+.crm-help-image-slot small { max-width:280px; color:var(--muted); font-size:.78rem; line-height:1.45; }
+.crm-help-image-slot img { display:block; width:100%; max-height:360px; object-fit:contain; border-radius:5px; background:#fff; }
 .crm-help-card-content h3 { margin:4px 0 8px; color:var(--verde-escuro); font-size:1.2rem; }
 .crm-help-card-content p { margin:0 0 10px; color:var(--texto); line-height:1.5; }
 .crm-help-card-content ul,.crm-help-card-content ol { margin:9px 0 0; padding-left:20px; color:var(--muted); line-height:1.6; }
@@ -141,8 +144,8 @@ body {
 .crm-help-footer { display:flex; gap:10px; align-items:center; margin-top:20px; padding:15px 18px; border-radius:7px; background:var(--verde-escuro); color:#fff; }
 .crm-help-footer strong { color:var(--dourado); }
 .crm-help-footer span { opacity:.9; }
-@media (max-width: 900px) { .crm-help-grid { grid-template-columns:1fr; } .crm-help-card-wide { grid-column:auto; } .crm-help-hero { grid-template-columns:auto 1fr; } .crm-help-hero-badge { display:none; } }
-@media (max-width: 620px) { .crm-help-card { grid-template-columns:1fr; } .crm-help-card-art { min-height:130px; } }
+@media (max-width: 900px) { .crm-help-card { grid-template-columns:minmax(210px, 35%) minmax(0, 1fr); gap:18px; } .crm-help-hero { grid-template-columns:auto 1fr; } .crm-help-hero-badge { display:none; } }
+@media (max-width: 620px) { .crm-help-card { grid-template-columns:1fr; padding:16px; } .crm-help-card:nth-child(even) .crm-help-image-slot, .crm-help-card:nth-child(even) .crm-help-card-content { order:initial; } .crm-help-image-slot { min-height:150px; } }
 
 .crm-menu-icon {
     width: 20px;
