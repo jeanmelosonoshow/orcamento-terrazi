@@ -35,12 +35,26 @@ const categoriasDashboard = window.CRM_DASHBOARD_LAYOUT?.categorias || Object.en
 const crmViewsDisponiveis = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos', 'orcamentos']);
 const crmBiViews = new Set(['visao-geral', 'clientes', 'funil', 'arquitetos']);
 if (!moduloArquitetosAtivo) crmViewsDisponiveis.delete('arquitetos');
-if (!moduloArquitetosAtivo) {
-    document.querySelector('[data-crm-view-link="arquitetos"]')?.setAttribute('hidden', '');
+function aplicarVisibilidadeModuloArquitetos(ativo) {
+    const link = document.querySelector('[data-crm-view-link="arquitetos"]');
+    if (link) link.toggleAttribute('hidden', !ativo);
+    if (!ativo) {
+        crmViewsDisponiveis.delete('arquitetos');
+        crmBiViews.delete('arquitetos');
+        if (dashboardContextoAtivo === 'arquitetos') {
+            history.replaceState(null, '', '#visao-geral');
+            ativarView('visao-geral');
+        }
+    }
 }
 let dashboardContextoAtivo = 'visao-geral';
 let contextoViewRenderizado = null;
 let filtrosDashboardProntos = false;
+aplicarVisibilidadeModuloArquitetos(moduloArquitetosAtivo);
+window.crmThemeReady?.then(() => {
+    const ativoNaFilial = window.crmFeatureFlags?.architectsMenuEnabled === true;
+    aplicarVisibilidadeModuloArquitetos(ativoNaFilial && moduloArquitetosAtivo);
+}).catch(() => {});
 let processandoAtualizacaoMenus = false;
 let contextoAtualizacaoEmAndamento = null;
 const filaAtualizacaoMenus = [];
