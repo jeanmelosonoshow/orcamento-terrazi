@@ -1294,7 +1294,7 @@ function montarDocumentoPdf(orcamentoID) {
         </div>
         <div class="info-box">
             <div><strong>CLIENTE:</strong><br>${custName.value || '---'}<br>DOC: ${custDoc.value || '---'}<br>TEL: ${custPhone.value || '---'}<br>E-MAIL: ${custEmail.value || '---'}</div>
-            <div><strong>VENDEDOR:</strong><br>${sellerName.value}<br>CONTATO: ${sellerPhone.value || '---'}</div>
+            <div><strong>VENDEDOR:</strong><br>${sellerName.value}<br>CONTATO: ${sellerPhone.value || '---'}${currentArchitect?.nome ? `<br><br><strong>ARQUITETO:</strong><br>${escaparHtml(currentArchitect.nome)}` : ''}</div>
         </div>`;
 
     quoteCart.forEach(item => {
