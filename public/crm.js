@@ -136,6 +136,14 @@ function ativarView(viewName) {
 }
 
 document.addEventListener('click', event => {
+    const helpAnchor = event.target.closest('.crm-help-doc-nav a');
+    if (helpAnchor) {
+        event.preventDefault();
+        const targetId = (helpAnchor.getAttribute('href') || '').slice(1);
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    }
     const link = event.target.closest('[data-crm-view-link]');
     if (!link) return;
     const hash = link.getAttribute('href') || '#visao-geral';
