@@ -7,10 +7,10 @@
   },
   "arquitetos": {
     "editoresVinculoOrcamentoIdFuncionario": ["752"],
-    "gestoresComissaoIdFuncionario": ["752"]
+    "gestoresComissaoIdFuncionario": ["752","151","147"]
   },
   "allowedLoginCategories": ["VD", "GR", "SU", "DI", "CX"],
   "scenarioEditorFuncionarioIds": ["752"],
-  "architectBudgetEditorFuncionarioIds": ["752"],
-  "architectCommissionManagerFuncionarioIds": ["752"]
+  "architectBudgetEditorFuncionarioIds": ["752","151","147"],
+  "architectCommissionManagerFuncionarioIds": ["752","151"]
 }
