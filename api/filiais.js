@@ -26,7 +26,8 @@ export default async function handler(req, res) {
     let sql = `
         SELECT IDFILIAL, NOMEFILIAL
         FROM FILIAL
-        WHERE IDSUPERVISOR IS NOT NULL
+        WHERE (IDSUPERVISOR IS NOT NULL
+        or IDFILIAL = '16' )
     `;
     const params = [];
 
