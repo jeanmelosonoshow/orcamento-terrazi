@@ -60,8 +60,13 @@ export default async function handler(req, res) {
         `;
 
         if (categoria === 'SU') {
-            sql += ' AND FIL.IDSUPERVISOR = ?';
-            params.push(idfuncionario);
+            if (idfuncionario === 151) {
+                sql += ' AND V.IDFILIAL IN (?, ?, ?, ?)';
+                params.push('16', '20', '26', '29');
+            } else {
+                sql += ' AND FIL.IDSUPERVISOR = ?';
+                params.push(idfuncionario);
+            }
         } else if (categoria === 'GR') {
             sql += ' AND V.IDFILIAL = ?';
             params.push(idfilial);
