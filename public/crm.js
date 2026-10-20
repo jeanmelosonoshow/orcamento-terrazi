@@ -270,7 +270,6 @@ aplicarVisibilidadeFiltrosPorCategoria();
 const podeEditarCenarios = Boolean(
     usuarioLogado.podeEditarCenarios
     || usuarioLogado.canEditScenarios
-    || String(usuarioLogado.categoria || '').trim().toUpperCase() === 'DI'
 );
 const dashboardEditor = document.querySelector('[data-dashboard-editor]');
 const dashboardCanvas = document.querySelector('[data-dashboard-canvas]');

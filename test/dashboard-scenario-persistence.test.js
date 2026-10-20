@@ -5,6 +5,7 @@ import {
     limparConfiguracaoWidgets,
     normalizarAlturaCanvas,
     normalizarContextoDashboard,
+    obterEditoresCenariosDashboard,
     podeEditarCenariosDashboard,
 } from '../lib/dashboard-scenarios.js';
 
@@ -39,9 +40,10 @@ test('contexto, altura e permissao sao validados no servidor', () => {
     assert.equal(normalizarContextoDashboard('invalido'), '');
     assert.equal(normalizarAlturaCanvas(100), 620);
     assert.equal(normalizarAlturaCanvas(9999), 4000);
-    assert.equal(podeEditarCenariosDashboard({ categoria: 'DI' }), true);
-    assert.equal(podeEditarCenariosDashboard({ categoria: 'VD' }), false);
-    assert.equal(podeEditarCenariosDashboard({ categoria: 'VD', canEditScenarios: true }), true);
+    assert.equal(podeEditarCenariosDashboard({ categoria: 'DI' }, ['752']), false);
+    assert.equal(podeEditarCenariosDashboard({ sub: '751', canEditScenarios: true }, ['752']), false);
+    assert.equal(podeEditarCenariosDashboard({ sub: '752' }, obterEditoresCenariosDashboard()), true);
+    assert.equal(podeEditarCenariosDashboard({ sub: '753' }, obterEditoresCenariosDashboard()), false);
 });
 
 test('frontend usa servidor como fonte oficial e localStorage apenas na migracao', () => {
@@ -55,7 +57,7 @@ test('frontend usa servidor como fonte oficial e localStorage apenas na migracao
     );
     assert.match(crmScript, /servidorAindaPadrao/);
     assert.match(crmScript, /localTemConteudo/);
-    assert.match(crmScript, /usuarioLogado\.categoria[\s\S]*=== 'DI'/);
+    assert.match(crmScript, /const podeEditarCenarios = Boolean\([\s\S]*usuarioLogado\.canEditScenarios/);
     assert.match(crmScript, /dashboardAssinaturasPersistidas\.set\(/);
     assert.match(crmScript, /importarBackupCenariosDashboard/);
     assert.match(crmScript, /cenarios foram restaurados e compartilhados com sucesso/);

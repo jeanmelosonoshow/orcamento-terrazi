@@ -102,8 +102,7 @@ export default async function handler(req, res) {
             sub: idFuncionario,
             idfilial: result[0].ID_FILIAL
         });
-        const podeEditarCenarios = String(result[0].CATEGORIA || '').trim().toUpperCase() === 'DI'
-            || permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
+        const podeEditarCenarios = permissoes.scenarioEditorFuncionarioIds.includes(String(idFuncionario));
         const architectModuleEnabled = moduloArquitetosAtivo(result[0].ID_FILIAL);
         const podeAlterarArquitetoOrcamento = architectModuleEnabled
             && permissoes.architectBudgetEditorFuncionarioIds.includes(String(idFuncionario));

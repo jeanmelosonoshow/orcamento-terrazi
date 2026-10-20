@@ -6,6 +6,7 @@ import {
     normalizarAlturaCanvas,
     normalizarContextoDashboard,
     normalizarLinhaCenario,
+    obterEditoresCenariosDashboard,
     podeEditarCenariosDashboard,
 } from '../lib/dashboard-scenarios.js';
 
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
             return res.status(200).json({ cenarios: resultado.rows.map(normalizarLinhaCenario) });
         }
 
-        if (!podeEditarCenariosDashboard(session)) {
+        if (!podeEditarCenariosDashboard(session, obterEditoresCenariosDashboard())) {
             return res.status(403).json({ error: 'Seu usuario nao pode alterar os cenarios compartilhados.' });
         }
 
