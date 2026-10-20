@@ -2,3 +2,7 @@
 node_modules/
 
 .env.gateway
+
+# Dumps locais de estrutura; não versionar detalhes do banco.
+homologacao-schema.sql
+producao-schema.sql
