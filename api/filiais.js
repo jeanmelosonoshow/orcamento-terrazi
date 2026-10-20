@@ -32,12 +32,17 @@ export default async function handler(req, res) {
     const params = [];
 
     if (categoria === 'SU') {
-        sql += ' AND IDSUPERVISOR = ? ';
-        params.push(idfuncionario);
-    } else if (categoria !== 'DI') {
-        sql += ' AND IDFILIAL = ?';
-        params.push(idfilial);
-    }
+    if (idfuncionario === 151) {
+        sql += ' AND IDFILIAL IN (?, ?, ?, ?)';
+        params.push('16', '20', '26', '29');
+        } else {
+            sql += ' AND IDSUPERVISOR = ?';
+            params.push(idfuncionario);
+        }
+        } else if (categoria !== 'DI') {
+            sql += ' AND IDFILIAL = ?';
+            params.push(idfilial);
+        }
 
     sql += ' ORDER BY NOMEFILIAL';
 
