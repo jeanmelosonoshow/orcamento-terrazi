@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     const params = [];
 
     if (categoria === 'SU') {
-        sql += ' AND IDSUPERVISOR = ? OR (IDFUNCIONARIO = 151 AND IDFILIAL IN ('16','20','26','29') )';
+        sql += ' AND IDSUPERVISOR = ? ';
         params.push(idfuncionario);
     } else if (categoria !== 'DI') {
         sql += ' AND IDFILIAL = ?';
