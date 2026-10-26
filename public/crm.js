@@ -2305,6 +2305,14 @@ function normalizarTextoAutoFiltro(valor) {
         .trim();
 }
 
+function resolverSelecionadosAutoFiltro(opcoes, termoPesquisa = '') {
+    const lista = Array.isArray(opcoes) ? opcoes : [];
+    const pesquisaAtiva = Boolean(normalizarTextoAutoFiltro(termoPesquisa));
+    const consideradas = pesquisaAtiva ? lista.filter(opcao => !opcao.oculto) : lista;
+    const marcadas = consideradas.filter(opcao => opcao.marcado).map(opcao => opcao.valor);
+    return !pesquisaAtiva && marcadas.length === lista.length ? null : marcadas;
+}
+
 function chaveEstadoAutoFiltroTabela(widgetId) {
     return `${dashboardContextoAtivo}:${String(widgetId || '')}`;
 }
@@ -2547,13 +2555,18 @@ function tratarCliqueAutoFiltroTabela(event) {
     }
     if (event.target.closest('[data-table-filter-apply]')) {
         const opcoes = Array.from(menu.querySelectorAll('[data-table-filter-value]'));
-        const marcadas = opcoes.filter(input => input.checked).map(input => input.value);
+        const termoPesquisa = menu.querySelector('[data-table-filter-search]')?.value || '';
+        const selecionados = resolverSelecionadosAutoFiltro(opcoes.map(input => ({
+            valor: input.value,
+            marcado: input.checked,
+            oculto: Boolean(input.closest('[data-filter-option]')?.hidden)
+        })), termoPesquisa);
         const condicoes = [0, 1].map(indice => ({
             operador: menu.querySelector(`[data-table-filter-operator="${indice}"]`)?.value || 'none',
             valor: menu.querySelector(`[data-table-filter-condition-value="${indice}"]`)?.value || ''
         }));
         const filtro = {
-            selecionados: marcadas.length === opcoes.length ? null : marcadas,
+            selecionados,
             combinacao: menu.querySelector('[data-table-filter-combination]')?.value || 'and',
             condicoes
         };

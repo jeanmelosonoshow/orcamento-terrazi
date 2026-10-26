@@ -18,9 +18,21 @@ async function carregarMotorAutoFiltro() {
         };
     `;
     return Function(`${dependencias}${source.slice(inicio, fim)}; return {
-        filtrosColunaTabelaDashboard, chaveValorAutoFiltro, aplicarAutoFiltrosTabela
+        filtrosColunaTabelaDashboard, chaveValorAutoFiltro, aplicarAutoFiltrosTabela, resolverSelecionadosAutoFiltro
     };`)();
 }
+
+test('pesquisa ativa aplica somente os valores correspondentes visiveis', async () => {
+    const motor = await carregarMotorAutoFiltro();
+    const opcoes = [
+        { valor: 'ana', marcado: true, oculto: false },
+        { valor: 'andrea', marcado: true, oculto: false },
+        { valor: 'beatriz', marcado: true, oculto: true }
+    ];
+
+    assert.deepEqual(motor.resolverSelecionadosAutoFiltro(opcoes, 'an'), ['ana', 'andrea']);
+    assert.equal(motor.resolverSelecionadosAutoFiltro(opcoes, ''), null);
+});
 
 test('auto-filtro combina multiplos valores e filtros de colunas diferentes', async () => {
     const motor = await carregarMotorAutoFiltro();
