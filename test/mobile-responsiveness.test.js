@@ -43,3 +43,12 @@ test('menu mobile continua acessivel ao entrar em orcamentos', async () => {
     assert.doesNotMatch(css, /body\.crm-budget-mode \.crm-sidebar\s*\{[^}]*display:\s*none/s);
     assert.match(css, /body\.crm-budget-mode \.crm-budget-frame-wrap\s*\{[^}]*height:\s*calc\(100dvh - 62px\)/s);
 });
+
+test('cards do dashboard formam uma coluna rolavel no mobile', async () => {
+    const css = await readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8');
+
+    assert.match(css, /body:not\(\.crm-scenario-editing\) \.crm-dashboard-canvas\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*min-height:\s*0\s*!important/s);
+    assert.match(css, /body:not\(\.crm-scenario-editing\) \.crm-dashboard-widget\s*\{[^}]*position:\s*relative\s*!important[^}]*inset:\s*auto\s*!important[^}]*width:\s*100%\s*!important/s);
+    assert.match(css, /\.crm-chart-real canvas[^}]*touch-action:\s*pan-y pinch-zoom\s*!important/s);
+    assert.match(css, /\.crm-chart-table-real \*[^}]*touch-action:\s*pan-x pan-y pinch-zoom\s*!important/s);
+});

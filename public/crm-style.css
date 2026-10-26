@@ -5526,3 +5526,53 @@ body.crm-widget-detail-open {
         font-size: 0;
     }
 }
+
+/* No mobile, o painel vira uma lista vertical; coordenadas livres ficam no desktop/editor. */
+@media (max-width: 759px) {
+    body:not(.crm-scenario-editing) .crm-dashboard-canvas {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0 !important;
+        height: auto !important;
+        padding: 0;
+        overflow: visible;
+        touch-action: pan-y pinch-zoom;
+    }
+
+    body:not(.crm-scenario-editing) .crm-dashboard-widget {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        max-width: none;
+        height: 320px !important;
+        flex: 0 0 auto;
+        touch-action: pan-y pinch-zoom !important;
+    }
+
+    body:not(.crm-scenario-editing) .crm-dashboard-widget[data-widget-type="kpi"],
+    body:not(.crm-scenario-editing) .crm-dashboard-widget[data-widget-type="kpi-target"],
+    body:not(.crm-scenario-editing) .crm-dashboard-widget[data-widget-type="kpi-calculated"] {
+        height: 190px !important;
+    }
+
+    body:not(.crm-scenario-editing) .crm-dashboard-widget[data-widget-type="table"],
+    body:not(.crm-scenario-editing) .crm-dashboard-widget[data-widget-type="pivot"],
+    body:not(.crm-scenario-editing) .crm-dashboard-widget[data-widget-type="ranking"],
+    body:not(.crm-scenario-editing) .crm-dashboard-widget[data-widget-type="cohort"] {
+        height: min(440px, 68dvh) !important;
+        min-height: 360px;
+    }
+
+    body:not(.crm-scenario-editing) .crm-dashboard-widget-result,
+    body:not(.crm-scenario-editing) .crm-chart-real,
+    body:not(.crm-scenario-editing) .crm-chart-real canvas,
+    body:not(.crm-scenario-editing) .crm-chart-real svg {
+        touch-action: pan-y pinch-zoom !important;
+    }
+
+    body:not(.crm-scenario-editing) .crm-chart-table-real,
+    body:not(.crm-scenario-editing) .crm-chart-table-real * {
+        touch-action: pan-x pan-y pinch-zoom !important;
+    }
+}
