@@ -2297,6 +2297,14 @@ function rotuloValorAutoFiltro(valor) {
     return String(valor);
 }
 
+function normalizarTextoAutoFiltro(valor) {
+    return String(valor ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase('pt-BR')
+        .trim();
+}
+
 function chaveEstadoAutoFiltroTabela(widgetId) {
     return `${dashboardContextoAtivo}:${String(widgetId || '')}`;
 }
@@ -2399,7 +2407,8 @@ function renderizarMenuAutoFiltroTabela(widget, campo, registrosBase) {
                 <input type="search" placeholder="Pesquisar valores..." data-table-filter-search>
                 <span class="crm-table-filter-values" data-table-filter-values>
                     <label class="is-all"><input type="checkbox" data-table-filter-all${todosMarcados ? ' checked' : ''}${quantidadeMarcada > 0 && !todosMarcados ? ' data-indeterminate="true"' : ''}><span>Selecionar todos</span></label>
-                    ${valores.map(item => `<label data-filter-option data-filter-search-text="${escapeHtml(item.rotulo.toLocaleLowerCase('pt-BR'))}"><input type="checkbox" value="${escapeHtml(item.chave)}" data-table-filter-value${selecionados === null || selecionados.has(item.chave) ? ' checked' : ''}><span>${escapeHtml(item.rotulo)}</span></label>`).join('')}
+                    ${valores.map(item => `<label data-filter-option data-filter-search-text="${escapeHtml(normalizarTextoAutoFiltro(item.rotulo))}"><input type="checkbox" value="${escapeHtml(item.chave)}" data-table-filter-value${selecionados === null || selecionados.has(item.chave) ? ' checked' : ''}><span>${escapeHtml(item.rotulo)}</span></label>`).join('')}
+                    <span class="crm-table-filter-empty" data-table-filter-empty hidden>Nenhum valor encontrado</span>
                 </span>
                 <span class="crm-table-filter-conditions">
                     <small>Condicoes personalizadas</small>
@@ -2435,12 +2444,31 @@ function fecharMenusAutoFiltroTabela(exceto = null) {
 function posicionarMenuAutoFiltroTabela(menu, botao) {
     if (!menu || !botao) return;
     const retangulo = botao.getBoundingClientRect();
-    const largura = Math.min(360, Math.max(280, window.innerWidth - 24));
-    const esquerda = Math.min(window.innerWidth - largura - 12, Math.max(12, retangulo.right - largura));
+    const viewport = window.visualViewport;
+    const larguraViewport = Math.round(viewport?.width || window.innerWidth);
+    const alturaViewport = Math.round(viewport?.height || window.innerHeight);
+    const deslocamentoTopo = Math.round(viewport?.offsetTop || 0);
+    const deslocamentoEsquerda = Math.round(viewport?.offsetLeft || 0);
+    const compacto = larguraViewport <= 600;
+    const largura = compacto
+        ? Math.max(280, larguraViewport - 16)
+        : Math.min(360, Math.max(280, larguraViewport - 24));
+    const esquerda = compacto
+        ? deslocamentoEsquerda + 8
+        : Math.min(deslocamentoEsquerda + larguraViewport - largura - 12, Math.max(deslocamentoEsquerda + 12, retangulo.right - largura));
     const topoPreferido = retangulo.bottom + 6;
     menu.style.width = largura + 'px';
     menu.style.left = esquerda + 'px';
-    menu.style.top = Math.min(topoPreferido, Math.max(12, window.innerHeight - 520)) + 'px';
+    menu.style.top = (compacto
+        ? deslocamentoTopo + 8
+        : Math.min(topoPreferido, Math.max(deslocamentoTopo + 12, deslocamentoTopo + alturaViewport - 520))) + 'px';
+    menu.style.maxHeight = Math.max(280, alturaViewport - 16) + 'px';
+}
+
+function reposicionarMenuAutoFiltroAberto() {
+    const menu = document.querySelector('[data-table-filter-menu]:not([hidden])');
+    const botao = menu?.closest('.crm-table-filter-control')?.querySelector('[data-table-filter-toggle]');
+    if (menu && botao) posicionarMenuAutoFiltroTabela(menu, botao);
 }
 
 function atualizarSelecaoMenuAutoFiltro(menu) {
@@ -2543,11 +2571,17 @@ function tratarCliqueAutoFiltroTabela(event) {
 function tratarPesquisaAutoFiltroTabela(event) {
     if (!event.target.matches('[data-table-filter-search]')) return;
     const menu = event.target.closest('[data-table-filter-menu]');
-    const termo = String(event.target.value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+    const termo = normalizarTextoAutoFiltro(event.target.value);
+    let quantidadeVisivel = 0;
     menu?.querySelectorAll('[data-filter-option]').forEach(opcao => {
-        const texto = String(opcao.dataset.filterSearchText || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        opcao.hidden = Boolean(termo) && !texto.includes(termo);
+        const texto = normalizarTextoAutoFiltro(opcao.dataset.filterSearchText);
+        const visivel = !termo || texto.includes(termo);
+        opcao.hidden = !visivel;
+        opcao.setAttribute('aria-hidden', String(!visivel));
+        if (visivel) quantidadeVisivel += 1;
     });
+    const vazio = menu?.querySelector('[data-table-filter-empty]');
+    if (vazio) vazio.hidden = quantidadeVisivel > 0;
     atualizarSelecaoMenuAutoFiltro(menu);
 }
 
@@ -3496,6 +3530,7 @@ function montarVisualizacaoRelatorioDetalhe(detalhe) {
 
 function fecharRelatorioDetalhe() {
     if (widgetDetailModal) widgetDetailModal.hidden = true;
+    document.body.classList.remove('crm-widget-detail-open');
     if (widgetDetalheModalAtual?.id) paginasTabelaDashboard.delete(widgetDetalheModalAtual.id);
     widgetDetalheModalAtual = null;
     contextoRelatorioDetalheAtual = null;
@@ -3545,6 +3580,7 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
     if (widgetDetalheModalAtual?.id) paginasTabelaDashboard.delete(widgetDetalheModalAtual.id);
     widgetDetalheModalAtual = null;
     widgetDetailModal.hidden = false;
+    document.body.classList.add('crm-widget-detail-open');
     atualizarExportacaoRelatorioDetalhe(false);
     if (widgetDetailModalTitle) widgetDetailModalTitle.textContent = detalhe.titulo || ('Detalhe de ' + (widget.titulo || 'indicador'));
     if (widgetDetailContext) widgetDetailContext.textContent = contexto;
@@ -7384,6 +7420,9 @@ document.addEventListener('click', event => {
 
 document.addEventListener('input', tratarPesquisaAutoFiltroTabela);
 document.addEventListener('change', tratarSelecaoAutoFiltroTabela);
+window.addEventListener('resize', reposicionarMenuAutoFiltroAberto, { passive: true });
+window.visualViewport?.addEventListener('resize', reposicionarMenuAutoFiltroAberto, { passive: true });
+window.visualViewport?.addEventListener('scroll', reposicionarMenuAutoFiltroAberto, { passive: true });
 document.addEventListener('click', event => {
     if (!event.target.closest('.crm-table-filter-control, [data-table-filter-menu]')) fecharMenusAutoFiltroTabela();
 }, true);

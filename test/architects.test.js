@@ -55,7 +55,7 @@ test('campo de comissao fica oculto e usa uma unica fonte de permissoes', async 
     const login = await readFile(new URL('../api/login.js', import.meta.url), 'utf8');
 
     assert.match(html, /data-architect-commission-field hidden/);
-    assert.match(html, /crm-style\.css\?v=crm-20261017-comissao-reprocessar-1/);
+    assert.match(html, /crm-style\.css\?v=crm-20261026-mobile-filters-1/);
     assert.match(css, /\.crm-architect-form \[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/i);
     assert.match(login, /path\.join\(__dirname, 'crm-permissions\.json'\)/);
     assert.doesNotMatch(login, /config['"],\s*'crm-permissions\.json'/);
