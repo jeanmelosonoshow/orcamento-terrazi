@@ -5473,16 +5473,20 @@ body.crm-widget-detail-open {
     }
 
     body.crm-budget-mode .crm-main {
-        min-height: 100dvh;
+        min-height: calc(100dvh - 62px);
         padding: 0;
     }
 
     body.crm-budget-mode .crm-sidebar {
-        display: none;
+        display: flex;
+    }
+
+    body.crm-budget-mode .crm-budget-view {
+        min-height: 0;
     }
 
     body.crm-budget-mode .crm-budget-frame-wrap {
-        height: 100dvh;
+        height: calc(100dvh - 62px);
         border: 0;
         border-radius: 0;
     }

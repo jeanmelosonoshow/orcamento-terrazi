@@ -35,3 +35,11 @@ test('relatorio detalhe usa tela inteira e viewport dinamica no mobile', async (
     assert.match(css, /\.crm-modal-card\.crm-widget-detail-card\s*\{[^}]*height:\s*100dvh/s);
     assert.match(css, /\.crm-widget-detail-content\s*\{[^}]*flex:\s*1 1 auto/s);
 });
+
+test('menu mobile continua acessivel ao entrar em orcamentos', async () => {
+    const css = await readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8');
+
+    assert.match(css, /body\.crm-budget-mode \.crm-sidebar\s*\{[^}]*display:\s*flex/s);
+    assert.doesNotMatch(css, /body\.crm-budget-mode \.crm-sidebar\s*\{[^}]*display:\s*none/s);
+    assert.match(css, /body\.crm-budget-mode \.crm-budget-frame-wrap\s*\{[^}]*height:\s*calc\(100dvh - 62px\)/s);
+});
