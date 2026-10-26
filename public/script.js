@@ -86,6 +86,25 @@ const sellerName = document.getElementById('sellerName');
 const sellerPhone = document.getElementById('sellerPhone');
 const generalObs = document.getElementById('generalObs');
 const displayTotalGeral = document.getElementById('displayTotalGeral');
+const ORCAMENTO_VALIDADE_DIAS = 5;
+
+function calcularDataValidadeOrcamento(dataBase = new Date()) {
+    const dataValidade = new Date(dataBase);
+    dataValidade.setHours(12, 0, 0, 0);
+    dataValidade.setDate(dataValidade.getDate() + ORCAMENTO_VALIDADE_DIAS);
+    const ano = dataValidade.getFullYear();
+    const mes = String(dataValidade.getMonth() + 1).padStart(2, '0');
+    const dia = String(dataValidade.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
+
+function atualizarDataValidadeOrcamento(dataBase = new Date()) {
+    if (!quoteValid) return '';
+    quoteValid.value = calcularDataValidadeOrcamento(dataBase);
+    quoteValid.disabled = true;
+    quoteValid.setAttribute('aria-disabled', 'true');
+    return quoteValid.value;
+}
 
 let quoteCart = [];
 let currentOrcamentoId = null;
@@ -446,6 +465,7 @@ function configurarMascarasFormulario() {
 document.addEventListener('DOMContentLoaded', () => {
     configurarMascarasFormulario();
     exibirUsuarioLogado();
+    atualizarDataValidadeOrcamento();
     if (sellerName) {
         sellerName.value = usuarioLogado.nomefuncionario;
         sellerName.readOnly = true;
@@ -470,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (custEmail) custEmail.value = normalizarEmailCliente(data.email_cliente || '');
         sellerPhone.value = formatarTelefone(data.vendedor_contato || '');
         generalObs.value = data.obs_geral || '';
-        if (data.data_validade) quoteValid.value = data.data_validade.split('T')[0];
+        atualizarDataValidadeOrcamento();
         currentOrcamentoId = data.id || null;
         currentCustomerKey = currentOrcamentoId ? obterChaveCliente() : '';
         currentArchitect = data.arquiteto ? { ...data.arquiteto, vinculado: true } : null;
@@ -681,6 +701,7 @@ function obterInformacoesAdicionaisPdf() {
 }
 
 generatePdfBtn.addEventListener('click', async () => {
+    atualizarDataValidadeOrcamento();
     if (!validarDadosObrigatorios()) return;
 
     const decisaoOrcamento = await avaliarOrcamentoExistente();
@@ -810,6 +831,7 @@ function prepararNovoOrcamentoAPartirDoAtual() {
         currentCustomerKey,
         currentArchitect,
         changeCurrentArchitect,
+        dataValidade: quoteValid.value,
         itemIds: quoteCart.map(item => item.item_orcamento_id || null)
     };
 
@@ -818,6 +840,7 @@ function prepararNovoOrcamentoAPartirDoAtual() {
     currentArchitect = null;
     changeCurrentArchitect = false;
     quoteCart.forEach(item => { item.item_orcamento_id = null; });
+    atualizarDataValidadeOrcamento();
     generatePdfBtn.innerText = 'GERAR ORÇAMENTO PDF';
     return estadoAnterior;
 }
@@ -827,6 +850,7 @@ function restaurarOrcamentoAnterior(estadoAnterior) {
     currentCustomerKey = estadoAnterior.currentCustomerKey;
     currentArchitect = estadoAnterior.currentArchitect;
     changeCurrentArchitect = estadoAnterior.changeCurrentArchitect;
+    quoteValid.value = estadoAnterior.dataValidade;
     quoteCart.forEach((item, index) => {
         item.item_orcamento_id = estadoAnterior.itemIds[index] || null;
     });
@@ -939,7 +963,7 @@ function limparFormularioOrcamento() {
     custPhone.value = '';
     custEmail.value = '';
     ultimaChaveBuscaCliente = '';
-    quoteValid.value = '';
+    atualizarDataValidadeOrcamento();
     sellerPhone.value = '';
     generalObs.value = '';
     if (sellerName) sellerName.value = usuarioLogado.nomefuncionario;
@@ -1226,6 +1250,7 @@ async function salvarOrcamento() {
         }
 
         atualizarIdsItensSalvos(saveResult.items || []);
+        if (saveResult.dataValidade) quoteValid.value = saveResult.dataValidade;
         currentArchitect = saveResult.arquiteto ? { ...saveResult.arquiteto, vinculado: true } : null;
         changeCurrentArchitect = false;
 
@@ -1289,7 +1314,8 @@ function montarDocumentoPdf(orcamentoID) {
             <div class="header-meta">
                 <div class="order-id">ORÇAMENTO #${orcamentoID}</div>
                 <strong style="color: ${corPrimaria};">FILIAL: ${usuarioLogado.idfilial}</strong><br>
-                Emissão: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}
+                Emissão: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}<br>
+                ou enquanto vigorar a tabela de preços.
             </div>
         </div>
         <div class="info-box">

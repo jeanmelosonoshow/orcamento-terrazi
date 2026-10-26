@@ -3,6 +3,7 @@ import { emailClienteValido, normalizarEmailCliente } from '../lib/customer-iden
 import { requireRequestSession } from '../lib/session-token.js';
 import { definirContextoAuditoria } from '../lib/budget-negotiation.js';
 import { sincronizarArquitetoOrcamento } from '../lib/architects.js';
+import { calcularDataValidadeOrcamento } from '../lib/budget-validity.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -41,8 +42,8 @@ export default async function handler(req, res) {
   });
 
   try {
-    if (!orcamento.cust_name || !orcamento.cust_phone || !orcamento.cust_email || !orcamento.valid_until) {
-      return res.status(400).json({ error: 'Nome, telefone, e-mail do cliente e validade são obrigatórios.' });
+    if (!orcamento.cust_name || !orcamento.cust_phone || !orcamento.cust_email) {
+      return res.status(400).json({ error: 'Nome, telefone e e-mail do cliente são obrigatórios.' });
     }
     if (!emailClienteValido(orcamento.cust_email)) {
       return res.status(400).json({ error: 'Informe um e-mail válido para o cliente.' });
@@ -56,8 +57,9 @@ export default async function handler(req, res) {
     await client.query('BEGIN');
     await definirContextoAuditoria(client, session, orcamento.orcamento_id ? 'EDICAO ORCAMENTO' : 'CRIACAO ORCAMENTO');
 
+    const dataValidade = calcularDataValidadeOrcamento();
     const dadosCabecalho = [
-      orcamento.valid_until && orcamento.valid_until !== "" ? orcamento.valid_until : null,
+      dataValidade,
       limitarTexto(orcamento.cust_name || 'Consumidor', 255),
       limitarTexto(apenasDigitos(orcamento.cust_doc), 20),
       limitarTexto(apenasDigitos(orcamento.cust_phone), 15),
@@ -230,7 +232,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Orçamento não confirmado no banco após salvamento.' });
     }
 
-    res.status(200).json({ success: true, orcamentoId, items: itensSalvos, arquiteto: arquitetoVinculado });
+    res.status(200).json({ success: true, orcamentoId, dataValidade, items: itensSalvos, arquiteto: arquitetoVinculado });
 
   } catch (error) {
     await client.query('ROLLBACK');
