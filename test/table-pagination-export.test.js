@@ -15,9 +15,15 @@ async function carregarPaginacao() {
     assert.ok(inicioPaginacao >= 0 && fimPaginacao > inicioPaginacao);
     return Function(`
         const paginasTabelaDashboard = new Map();
+        const registrosPorPaginaAdaptativos = new Map();
         ${source.slice(inicioConfig, fimConfig)}
         ${source.slice(inicioPaginacao, fimPaginacao)}
-        return { prepararPaginacaoTabela, paginasTabelaDashboard };
+        return {
+            prepararPaginacaoTabela,
+            calcularRegistrosPorPaginaAdaptativos,
+            paginasTabelaDashboard,
+            registrosPorPaginaAdaptativos
+        };
     `)();
 }
 
@@ -59,6 +65,56 @@ test('exportacao ignora pagina e limite visual', async () => {
     assert.equal(exportacao.totalRegistros, 80);
 });
 
+test('paginacao acompanha a quantidade adaptativa calculada para a altura do card', async () => {
+    const {
+        prepararPaginacaoTabela,
+        registrosPorPaginaAdaptativos
+    } = await carregarPaginacao();
+    const registros = Array.from({ length: 80 }, (_, indice) => ({ id: indice + 1 }));
+    const widget = {
+        id: 'tabela-adaptativa',
+        tabela: { paginacao: true, registrosPorPagina: 14 }
+    };
+
+    registrosPorPaginaAdaptativos.set(widget.id, 24);
+    const pagina = prepararPaginacaoTabela(widget, registros);
+
+    assert.equal(pagina.registros.length, 24);
+    assert.equal(pagina.porPagina, 24);
+    assert.equal(pagina.totalPaginas, 4);
+});
+
+test('calculo adaptativo preenche a folga e nunca reduz abaixo da configuracao', async () => {
+    const { calcularRegistrosPorPaginaAdaptativos } = await carregarPaginacao();
+
+    assert.equal(calcularRegistrosPorPaginaAdaptativos({
+        configurado: 14,
+        atual: 14,
+        alturaDisponivel: 800,
+        alturaConteudo: 600,
+        alturaLinha: 32,
+        totalRegistros: 100
+    }), 20);
+
+    assert.equal(calcularRegistrosPorPaginaAdaptativos({
+        configurado: 14,
+        atual: 24,
+        alturaDisponivel: 500,
+        alturaConteudo: 700,
+        alturaLinha: 32,
+        totalRegistros: 100
+    }), 18);
+
+    assert.equal(calcularRegistrosPorPaginaAdaptativos({
+        configurado: 14,
+        atual: 14,
+        alturaDisponivel: 400,
+        alturaConteudo: 700,
+        alturaLinha: 32,
+        totalRegistros: 100
+    }), 14);
+});
+
 test('editor e cards oferecem paginacao, PDF, Excel e impressao', async () => {
     const [source, html] = await Promise.all([
         readFile(dashboardPath, 'utf8'),
@@ -74,6 +130,9 @@ test('editor e cards oferecem paginacao, PDF, Excel e impressao', async () => {
     assert.match(source, /data-widget-export="excel"/);
     assert.match(source, /data-widget-export="print"/);
     assert.match(source, /renderizarTabelaGrafico\(conteudo, widget, \{ exportarTudo: true \}\)/);
+    assert.match(source, /observarPaginacaoAdaptativaTabela/);
+    assert.match(source, /data-dashboard-record-row/);
+    assert.match(source, /new ResizeObserver\(agendar\)/);
 });
 
 test('exportacao consulta novamente sem o limite visual de mil registros', async () => {

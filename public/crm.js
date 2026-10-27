@@ -660,6 +660,7 @@ const observadoresGraficosDashboard = new Map();
 const estadosDrillDashboard = new Map();
 const contextosDrillDashboard = new Map();
 const paginasTabelaDashboard = new Map();
+const registrosPorPaginaAdaptativos = new Map();
 const filtrosColunaTabelaDashboard = new Map();
 let instanciaPreviaAparencia = null;
 let sequenciaContextoDrill = 0;
@@ -2230,7 +2231,15 @@ function prepararPaginacaoTabela(widget, registros, exportarTudo = false) {
         };
     }
 
-    const porPagina = configuracao.registrosPorPagina;
+    const quantidadeAdaptativa = typeof registrosPorPaginaAdaptativos !== 'undefined'
+        ? Number(registrosPorPaginaAdaptativos.get(widget.id))
+        : 0;
+    const porPagina = normalizarQuantidadeTabela(
+        Math.max(configuracao.registrosPorPagina, quantidadeAdaptativa || 0),
+        configuracao.registrosPorPagina,
+        configuracao.registrosPorPagina,
+        500
+    );
     const totalPaginas = Math.max(1, Math.ceil(totalExibicao / porPagina));
     const paginaSalva = normalizarQuantidadeTabela(paginasTabelaDashboard.get(widget.id), 1, 1, totalPaginas);
     paginasTabelaDashboard.set(widget.id, paginaSalva);
@@ -2244,8 +2253,29 @@ function prepararPaginacaoTabela(widget, registros, exportarTudo = false) {
         totalPaginas,
         inicio: registrosPagina.length ? indiceInicial + 1 : 0,
         fim: indiceInicial + registrosPagina.length,
-        mostrarControle: true
+        mostrarControle: true,
+        porPagina
     };
+}
+
+function calcularRegistrosPorPaginaAdaptativos({
+    configurado,
+    atual,
+    alturaDisponivel,
+    alturaConteudo,
+    alturaLinha,
+    totalRegistros
+} = {}) {
+    const minimo = normalizarQuantidadeTabela(configurado, 1, 1, 500);
+    const corrente = normalizarQuantidadeTabela(atual, minimo, minimo, 500);
+    const total = normalizarQuantidadeTabela(totalRegistros, corrente, 1, 1000);
+    const linha = Math.max(18, Number(alturaLinha) || 32);
+    const folga = Number(alturaDisponivel) - Number(alturaConteudo);
+    if (!Number.isFinite(folga) || Math.abs(folga) < linha * 0.8) return Math.min(corrente, Math.max(minimo, total));
+
+    const variacao = folga > 0 ? Math.floor(folga / linha) : Math.ceil(folga / linha);
+    const calculado = Math.max(minimo, Math.min(500, corrente + variacao));
+    return Math.min(calculado, Math.max(minimo, total));
 }
 
 function renderizarControlePaginacaoTabela(widget, paginacao) {
@@ -2254,7 +2284,7 @@ function renderizarControlePaginacaoTabela(widget, paginacao) {
         ? ' Limite visual: ' + paginacao.totalExibicao + ' de ' + paginacao.totalRegistros + '.'
         : '';
     return `
-        <div class="crm-table-pagination" data-table-pagination-widget="${escapeHtml(widget.id)}">
+        <div class="crm-table-pagination" data-table-pagination-widget="${escapeHtml(widget.id)}" data-table-page-size="${paginacao.porPagina || paginacao.fim || 1}" data-table-total-records="${paginacao.totalExibicao}">
             <span>Exibindo ${paginacao.inicio}-${paginacao.fim} de ${paginacao.totalExibicao}.${limitado}</span>
             <div>
                 <button type="button" data-table-page="-1" aria-label="Página anterior" title="Página anterior"${paginacao.pagina <= 1 ? ' disabled' : ''}>‹</button>
@@ -2629,7 +2659,7 @@ function renderizarTabelaSimples(container, widget, registros, registrosTotaliza
                 : '';
             return `<td class="is-dimension"${atributoAlinhamentoCampo(campo)}><span class="crm-dimension-cell"><span class="crm-cell-content">${renderizarConteudoCelula(widget, campo, registro, rotulo)}</span>${controle}</span></td>`;
         }).join('');
-        return `<tr>${celulas}</tr>`;
+        return `<tr data-dashboard-record-row>${celulas}</tr>`;
     }).join('');
     let rotuloTotalInserido = false;
     const total = configuracao.totalLinhas ? `<tr class="crm-pivot-grand-total">${camposExibidos.map(campo => {
@@ -2791,7 +2821,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
             return `<td class="is-dimension"${atributoAlinhamentoCampo(item.campo)}><span class="crm-dimension-cell"><span class="crm-cell-content">${conteudo}</span>${controle}</span></td>`;
         }).join('');
         estadoRotulos.anteriores = caminho.map(item => item.rotulo);
-        return `<tr>${celulasLinha}${renderizarCelulasValor(registrosGrupo)}</tr>`;
+        return `<tr data-dashboard-record-row>${celulasLinha}${renderizarCelulasValor(registrosGrupo)}</tr>`;
     };
     const renderizarNivel = (registrosNivel, nivel = 0, caminho = []) => {
         const campo = camposLinha[nivel];
@@ -2822,7 +2852,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
 
     const renderizarLinhaDetalheAgrupada = (caminhoGrupo, caminhoDetalhe, registrosGrupo) => {
         if (!caminhoDetalhe.length) {
-            return `<tr class="crm-pivot-group-summary"><td class="is-dimension">Resultado</td>${renderizarCelulasValor(registrosGrupo)}</tr>`;
+            return `<tr class="crm-pivot-group-summary" data-dashboard-record-row><td class="is-dimension">Resultado</td>${renderizarCelulasValor(registrosGrupo)}</tr>`;
         }
         const primeiroAlterado = caminhoDetalhe.findIndex((item, index) => estadoRotulos.anteriores[index] !== item.rotulo);
         const celulas = caminhoDetalhe.map((item, index) => {
@@ -2836,7 +2866,7 @@ function renderizarTabelaGrafico(container, widget, opcoes = {}) {
             return `<td class="is-dimension"${atributoAlinhamentoCampo(item.campo)}><span class="crm-dimension-cell"><span class="crm-cell-content">${conteudo}</span>${controle}</span></td>`;
         }).join('');
         estadoRotulos.anteriores = caminhoDetalhe.map(item => item.rotulo);
-        return `<tr>${celulas}${renderizarCelulasValor(registrosGrupo)}</tr>`;
+        return `<tr data-dashboard-record-row>${celulas}${renderizarCelulasValor(registrosGrupo)}</tr>`;
     };
 
     const renderizarDetalhesAgrupados = (registrosGrupo, caminhoGrupo, nivel = 0, caminhoDetalhe = []) => {
@@ -3700,10 +3730,66 @@ async function abrirRelatorioDetalhe(widget, selecao = {}) {
 }
 function limparGraficosDashboard() {
     contextosDrillDashboard.clear();
+    registrosPorPaginaAdaptativos.clear();
     observadoresGraficosDashboard.forEach(observador => observador.disconnect());
     observadoresGraficosDashboard.clear();
     instanciasGraficosDashboard.forEach(instancia => instancia.dispose());
     instanciasGraficosDashboard.clear();
+}
+
+function obterAlturaMedianaLinhasTabela(container) {
+    const alturas = Array.from(container.querySelectorAll('[data-dashboard-record-row]'))
+        .map(linha => linha.getBoundingClientRect().height)
+        .filter(altura => Number.isFinite(altura) && altura > 0)
+        .sort((a, b) => a - b);
+    if (!alturas.length) return 32;
+    const meio = Math.floor(alturas.length / 2);
+    return alturas.length % 2 ? alturas[meio] : (alturas[meio - 1] + alturas[meio]) / 2;
+}
+
+function observarPaginacaoAdaptativaTabela(container, widget) {
+    if (!container || !widget || !obterConfiguracaoTabela(widget).paginacao) return;
+    let framePendente = 0;
+    let ajustando = false;
+
+    const agendar = () => {
+        cancelAnimationFrame(framePendente);
+        framePendente = requestAnimationFrame(() => {
+            if (ajustando || !container.isConnected) return;
+            const areaTabela = container.querySelector('.crm-chart-table-real');
+            const tabela = areaTabela?.querySelector('table');
+            const paginador = container.querySelector('[data-table-pagination-widget]');
+            if (!areaTabela || !tabela || !paginador || areaTabela.clientHeight <= 0) return;
+
+            const configuracao = obterConfiguracaoTabela(widget);
+            const quantidadeAtual = Number(paginador.dataset.tablePageSize) || configuracao.registrosPorPagina;
+            const totalRegistros = Number(paginador.dataset.tableTotalRecords) || quantidadeAtual;
+            const novaQuantidade = calcularRegistrosPorPaginaAdaptativos({
+                configurado: configuracao.registrosPorPagina,
+                atual: quantidadeAtual,
+                alturaDisponivel: areaTabela.clientHeight,
+                alturaConteudo: tabela.getBoundingClientRect().height,
+                alturaLinha: obterAlturaMedianaLinhasTabela(container),
+                totalRegistros
+            });
+            if (novaQuantidade === quantidadeAtual) return;
+
+            const paginaAtual = paginasTabelaDashboard.get(widget.id) || 1;
+            const primeiroRegistro = Math.max(0, (paginaAtual - 1) * quantidadeAtual);
+            registrosPorPaginaAdaptativos.set(widget.id, novaQuantidade);
+            paginasTabelaDashboard.set(widget.id, Math.floor(primeiroRegistro / novaQuantidade) + 1);
+            ajustando = true;
+            renderizarTabelaGrafico(container, widget);
+            ajustando = false;
+            agendar();
+        });
+    };
+
+    agendar();
+    if (!window.ResizeObserver) return;
+    const observador = new ResizeObserver(agendar);
+    observador.observe(container);
+    observadoresGraficosDashboard.set(widget.id, observador);
 }
 
 function ajustarConteudoKpi(container) {
@@ -3780,6 +3866,7 @@ function renderizarGraficosDashboard(widgets, widgetsCalculo = widgets) {
         container.classList.toggle('is-detail-enabled', widgetPossuiRelatorioDetalhe(widget));
         if (widget.tipo === 'table' || widget.tipo === 'pivot') {
             renderizarTabelaGrafico(container, widget);
+            observarPaginacaoAdaptativaTabela(container, widget);
             return;
         }
         if (widget.tipo === 'kpi-calculated') {
