@@ -196,12 +196,129 @@ function obterUrlImagemArrastada(event) {
 
     if (url) return url;
 
-    if (dataTransfer.files && dataTransfer.files.length > 0) {
-        alert('Por enquanto, use apenas URL de imagem. Arquivo local ainda não é permitido.');
-        return '';
+    return '';
+}
+
+const IMAGEM_PRODUTO_TAMANHO_ORIGINAL_MAXIMO = 15 * 1024 * 1024;
+const IMAGEM_PRODUTO_TAMANHO_UPLOAD_MAXIMO = 1.5 * 1024 * 1024;
+const IMAGEM_PRODUTO_DIMENSAO_MAXIMA = 1600;
+
+function arquivoImagemValido(arquivo) {
+    if (!arquivo) return false;
+    if (String(arquivo.type || '').startsWith('image/')) return true;
+    return /\.(?:jpe?g|png|webp|heic|heif)$/i.test(String(arquivo.name || ''));
+}
+
+function carregarImagemLocal(arquivo) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(arquivo);
+        const imagem = new Image();
+        imagem.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(imagem);
+        };
+        imagem.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Não foi possível abrir essa imagem. Escolha uma foto JPEG, PNG, WebP ou HEIC compatível.'));
+        };
+        imagem.src = url;
+    });
+}
+
+function canvasParaJpeg(canvas, qualidade) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+            if (blob) resolve(blob);
+            else reject(new Error('Não foi possível preparar a imagem para envio.'));
+        }, 'image/jpeg', qualidade);
+    });
+}
+
+async function prepararImagemProdutoParaUpload(arquivo) {
+    if (!arquivoImagemValido(arquivo)) {
+        throw new Error('Selecione uma imagem JPEG, PNG, WebP ou HEIC.');
+    }
+    if (arquivo.size > IMAGEM_PRODUTO_TAMANHO_ORIGINAL_MAXIMO) {
+        throw new Error('A imagem original deve ter no máximo 15 MB.');
     }
 
-    return '';
+    const imagem = await carregarImagemLocal(arquivo);
+    const maiorDimensao = Math.max(imagem.naturalWidth, imagem.naturalHeight);
+    if (!maiorDimensao) throw new Error('A imagem selecionada não possui dimensões válidas.');
+
+    let escala = Math.min(1, IMAGEM_PRODUTO_DIMENSAO_MAXIMA / maiorDimensao);
+    let qualidade = 0.86;
+    let resultado = null;
+
+    for (let tentativa = 0; tentativa < 6; tentativa += 1) {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(imagem.naturalWidth * escala));
+        canvas.height = Math.max(1, Math.round(imagem.naturalHeight * escala));
+        const contexto = canvas.getContext('2d', { alpha: false });
+        if (!contexto) throw new Error('O navegador não conseguiu preparar a imagem.');
+        contexto.fillStyle = '#ffffff';
+        contexto.fillRect(0, 0, canvas.width, canvas.height);
+        contexto.drawImage(imagem, 0, 0, canvas.width, canvas.height);
+        resultado = await canvasParaJpeg(canvas, qualidade);
+        if (resultado.size <= IMAGEM_PRODUTO_TAMANHO_UPLOAD_MAXIMO) break;
+        qualidade = Math.max(0.62, qualidade - 0.07);
+        escala *= 0.82;
+    }
+
+    if (!resultado || resultado.size > IMAGEM_PRODUTO_TAMANHO_UPLOAD_MAXIMO) {
+        throw new Error('Não foi possível reduzir a foto para o tamanho permitido.');
+    }
+    return resultado;
+}
+
+function blobParaBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(String(leitor.result || '').split(',')[1] || '');
+        leitor.onerror = () => reject(new Error('Não foi possível ler a imagem selecionada.'));
+        leitor.readAsDataURL(blob);
+    });
+}
+
+function atualizarStatusUploadImagem(index, mensagem) {
+    const statusCard = document.querySelector(`[data-custom-image-status="${index}"]`);
+    if (statusCard) statusCard.textContent = mensagem;
+}
+
+async function enviarArquivoImagemProdutoPersonalizado(index, arquivo, statusDialog = null) {
+    const definirStatus = mensagem => {
+        if (statusDialog) statusDialog.textContent = mensagem;
+        atualizarStatusUploadImagem(index, mensagem);
+    };
+
+    definirStatus('Preparando imagem...');
+    const imagemPreparada = await prepararImagemProdutoParaUpload(arquivo);
+    const dataBase64 = await blobParaBase64(imagemPreparada);
+    definirStatus('Enviando imagem...');
+
+    const resposta = await fetch('/api/upload-imagem-produto', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(usuarioLogado.sessionToken ? { Authorization: `Bearer ${usuarioLogado.sessionToken}` } : {})
+        },
+        body: JSON.stringify({
+            fileName: arquivo.name || 'produto-personalizado.jpg',
+            dataBase64
+        })
+    });
+    const resultado = await resposta.json().catch(() => ({}));
+    if (resposta.status === 401) {
+        window.top.location.replace('login.html');
+        throw new Error('Sua sessão expirou. Entre novamente.');
+    }
+    if (!resposta.ok || !normalizarUrlImagem(resultado.url)) {
+        throw new Error(resultado.error || 'Não foi possível enviar a imagem.');
+    }
+
+    definirImagemProdutoPersonalizado(index, resultado.url);
+    definirStatus('Imagem anexada com sucesso.');
+    return resultado.url;
 }
 
 function definirImagemProdutoPersonalizado(index, url) {
@@ -237,11 +354,19 @@ function obterDialogoImagemProdutoPersonalizado() {
         <div class="pdf-action-card" role="dialog" aria-modal="true" aria-labelledby="customImageTitle">
             <button class="pdf-action-close" type="button" data-custom-image-action="cancel" aria-label="Fechar">&times;</button>
             <h2 id="customImageTitle">Imagem do item</h2>
-            <p>Cole a URL da imagem que deseja usar no produto personalizado.</p>
-            <input type="url" data-custom-image-url placeholder="https://..." style="width:100%; font-size:13px; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:14px;">
+            <p>Escolha uma foto do aparelho, tire uma foto ou informe uma URL.</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;">
+                <button type="button" class="pdf-action-secondary" data-custom-image-action="choose">Galeria / arquivo</button>
+                <button type="button" class="pdf-action-secondary" data-custom-image-action="camera">Tirar foto</button>
+            </div>
+            <input type="file" data-custom-image-file accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" hidden>
+            <input type="file" data-custom-image-camera accept="image/*" capture="environment" hidden>
+            <label style="display:block; font-size:11px; font-weight:700; color:#496246; margin-bottom:6px;">Ou cole uma URL</label>
+            <input type="url" data-custom-image-url placeholder="https://..." autocomplete="off" spellcheck="false" style="width:100%; font-size:13px; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:8px;">
+            <p data-custom-image-status aria-live="polite" style="min-height:18px; margin:0 0 10px; font-size:11px; color:#496246;"></p>
             <div class="pdf-action-buttons">
                 <button type="button" class="pdf-action-secondary" data-custom-image-action="cancel">Cancelar</button>
-                <button type="button" class="pdf-action-primary" data-custom-image-action="save">Salvar imagem</button>
+                <button type="button" class="pdf-action-primary" data-custom-image-action="save">Usar URL</button>
             </div>
         </div>`;
     document.body.appendChild(dialog);
@@ -254,22 +379,54 @@ window.abrirDialogoImagemProdutoPersonalizado = (index) => {
 
     const dialog = obterDialogoImagemProdutoPersonalizado();
     const input = dialog.querySelector('[data-custom-image-url]');
+    const inputArquivo = dialog.querySelector('[data-custom-image-file]');
+    const inputCamera = dialog.querySelector('[data-custom-image-camera]');
+    const escolherArquivo = dialog.querySelector('[data-custom-image-action="choose"]');
+    const tirarFoto = dialog.querySelector('[data-custom-image-action="camera"]');
+    const status = dialog.querySelector('[data-custom-image-status]');
     const salvar = dialog.querySelector('[data-custom-image-action="save"]');
     const cancelar = dialog.querySelectorAll('[data-custom-image-action="cancel"]');
+    const botoes = dialog.querySelectorAll('button');
 
     input.value = obterImagemItem(item) || '';
+    inputArquivo.value = '';
+    inputCamera.value = '';
+    status.textContent = '';
     dialog.hidden = false;
     dialog.classList.add('is-open');
     document.body.classList.add('modal-open');
-    setTimeout(() => input.focus(), 60);
+    if (window.matchMedia('(pointer: fine)').matches) setTimeout(() => input.focus(), 60);
 
     const fechar = () => {
         dialog.classList.remove('is-open');
         document.body.classList.remove('modal-open');
         setTimeout(() => { dialog.hidden = true; }, 180);
         salvar.onclick = null;
+        escolherArquivo.onclick = null;
+        tirarFoto.onclick = null;
+        inputArquivo.onchange = null;
+        inputCamera.onchange = null;
         cancelar.forEach(btn => { btn.onclick = null; });
         input.onkeydown = null;
+    };
+
+    const alternarOcupado = ocupado => {
+        botoes.forEach(botao => { botao.disabled = ocupado; });
+        input.disabled = ocupado;
+    };
+
+    const anexar = async arquivo => {
+        if (!arquivo) return;
+        alternarOcupado(true);
+        try {
+            await enviarArquivoImagemProdutoPersonalizado(index, arquivo, status);
+            fechar();
+        } catch (error) {
+            status.textContent = error.message || 'Não foi possível enviar a imagem.';
+            alert(status.textContent);
+        } finally {
+            alternarOcupado(false);
+        }
     };
 
     const confirmar = () => {
@@ -285,6 +442,16 @@ window.abrirDialogoImagemProdutoPersonalizado = (index) => {
     };
 
     salvar.onclick = confirmar;
+    escolherArquivo.onclick = () => {
+        inputArquivo.value = '';
+        inputArquivo.click();
+    };
+    tirarFoto.onclick = () => {
+        inputCamera.value = '';
+        inputCamera.click();
+    };
+    inputArquivo.onchange = () => anexar(inputArquivo.files?.[0]);
+    inputCamera.onchange = () => anexar(inputCamera.files?.[0]);
     cancelar.forEach(btn => { btn.onclick = fechar; });
     input.onkeydown = (event) => {
         if (event.key === 'Enter') confirmar();
@@ -296,11 +463,22 @@ window.permitirArrastarImagemProdutoPersonalizado = (event) => {
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
 };
 
-window.receberImagemProdutoPersonalizado = (event, index) => {
+window.receberImagemProdutoPersonalizado = async (event, index) => {
     event.preventDefault();
     const url = obterUrlImagemArrastada(event);
-    if (!url) return;
-    definirImagemProdutoPersonalizado(index, url);
+    if (url) {
+        definirImagemProdutoPersonalizado(index, url);
+        return;
+    }
+
+    const arquivo = event.dataTransfer?.files?.[0];
+    if (!arquivo) return;
+    try {
+        await enviarArquivoImagemProdutoPersonalizado(index, arquivo);
+    } catch (error) {
+        atualizarStatusUploadImagem(index, 'Falha no envio.');
+        alert(error.message || 'Não foi possível enviar a imagem.');
+    }
 };
 function limparDimensoesPdf(texto) {
     return String(texto || '')
@@ -647,7 +825,7 @@ function renderCamposProdutoPersonalizado(item, index) {
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Imagem</label>
                 <button type="button" onclick="abrirDialogoImagemProdutoPersonalizado(${index})" ondragover="permitirArrastarImagemProdutoPersonalizado(event)" ondrop="receberImagemProdutoPersonalizado(event, ${index})" style="display:grid; grid-template-columns:64px 1fr; gap:10px; align-items:center; width:100%; min-height:78px; padding:8px; border:1px dashed #b9c9b8; border-radius:6px; background:#fbfdfb; cursor:pointer; text-align:left;">
                     <img src="${escaparHtml(imagemAtual)}" alt="Imagem do item personalizado" style="width:64px; height:60px; object-fit:cover; border-radius:4px; background:#f1f1f1;">
-                    <span style="font-size:11px; line-height:1.35; color:#496246;">Arraste uma imagem da web ou clique para inserir URL</span>
+                    <span data-custom-image-status="${index}" style="font-size:11px; line-height:1.35; color:#496246;">Anexe, tire uma foto, arraste uma imagem ou use uma URL</span>
                 </button>
                 <label style="font-size:10px; font-weight:bold; color:#1A3017;">Descrição</label>
                 <textarea placeholder="Descrição vendedor" onchange="atualizarDados(${index}, 'customSellerDescription', this.value)" style="width:100%; min-height:54px; font-size:10px; padding:7px; border:1px solid #eee; resize:vertical;">${escaparHtml(item.customSellerDescription || '')}</textarea>
