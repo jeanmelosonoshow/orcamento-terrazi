@@ -42,10 +42,10 @@ export default async function handler(req, res) {
   });
 
   try {
-    if (!orcamento.cust_name || !orcamento.cust_phone || !orcamento.cust_email) {
-      return res.status(400).json({ error: 'Nome, telefone e e-mail do cliente são obrigatórios.' });
+    if (!orcamento.cust_name || !orcamento.cust_phone) {
+      return res.status(400).json({ error: 'Nome e telefone do cliente são obrigatórios.' });
     }
-    if (!emailClienteValido(orcamento.cust_email)) {
+    if (normalizarEmailCliente(orcamento.cust_email) && !emailClienteValido(orcamento.cust_email)) {
       return res.status(400).json({ error: 'Informe um e-mail válido para o cliente.' });
     }
 

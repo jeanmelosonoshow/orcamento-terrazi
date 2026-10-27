@@ -45,6 +45,6 @@ test('formularios carregam a versao atualizada do fluxo de imagem', async () => 
   ]);
 
   for (const html of formularios) {
-    assert.match(html, /script\.js\?v=20261027-upload-imagem-blob-3/);
+    assert.match(html, /script\.js\?v=20261027-email-opcional-4/);
   }
 });

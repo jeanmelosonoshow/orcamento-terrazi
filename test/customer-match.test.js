@@ -27,6 +27,9 @@ test('normaliza os identificadores usados na correspondencia de cliente', () => 
 test('os dois formularios possuem email e confirmacao de cliente existente', () => {
     for (const html of [index, indexSonoShow]) {
         assert.match(html, /type="email" id="custEmail"/);
+        const campoEmail = html.match(/<input[^>]+id="custEmail"[^>]*>/)?.[0] || '';
+        assert.doesNotMatch(campoEmail, /\brequired\b/);
+        assert.match(campoEmail, /E-mail do Cliente \(opcional\)/);
         assert.match(html, /id="existingCustomerDialog"/);
         assert.match(html, /data-customer-match-action="load"/);
     }
@@ -38,6 +41,13 @@ test('o fluxo consulta cliente, preenche o formulario e salva email_cliente', ()
     assert.match(script, /cust_email: normalizarEmailCliente/);
     assert.ok(salvar.includes('email_cliente = $5'));
     assert.match(salvar, /email_cliente,/i);
+});
+
+test('email do cliente e opcional, mas continua validado quando preenchido', () => {
+    assert.doesNotMatch(script, /Preencha o e-mail do cliente/);
+    assert.match(script, /custEmail\.value\.trim\(\) && !emailClienteValido/);
+    assert.doesNotMatch(salvar, /!orcamento\.cust_email/);
+    assert.match(salvar, /normalizarEmailCliente\(orcamento\.cust_email\) && !emailClienteValido/);
 });
 
 test('a busca recupera o orcamento mais recente entre os registros correspondentes', () => {

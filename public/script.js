@@ -948,7 +948,6 @@ function validarDadosObrigatorios() {
     const camposObrigatorios = [
         { el: custName, msg: 'Preencha o nome do cliente.' },
         { el: custPhone, msg: 'Preencha o telefone do cliente.' },
-        { el: custEmail, msg: 'Preencha o e-mail do cliente.' },
         { el: quoteValid, msg: 'Preencha a data de validade do orçamento.' }
     ];
 
@@ -973,7 +972,7 @@ function validarDadosObrigatorios() {
         return false;
     }
 
-    if (!emailClienteValido(custEmail.value)) {
+    if (custEmail.value.trim() && !emailClienteValido(custEmail.value)) {
         alert('Informe um e-mail válido, por exemplo: cliente@dominio.com.br.');
         custEmail.focus();
         return false;
