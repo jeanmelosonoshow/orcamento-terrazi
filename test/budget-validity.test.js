@@ -30,8 +30,8 @@ test('recalcula ao abrir e gerar, e informa a regra nos PDFs', async () => {
 
   assert.doesNotMatch(script, /data\.data_validade\) quoteValid\.value/);
   assert.ok((script.match(/atualizarDataValidadeOrcamento\(\)/g) || []).length >= 4);
-  assert.match(script, /ou enquanto vigorar a tabela de preços\./);
-  assert.match(lista, /ou enquanto vigorar a tabela de preços\./);
+  assert.match(script, /ou enquanto vigorar a promoção vigente\./);
+  assert.match(lista, /ou enquanto vigorar a promoção vigente\./);
 });
 
 test('servidor calcula a validade e ignora datas manipuladas pelo cliente', async () => {

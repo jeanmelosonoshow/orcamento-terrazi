@@ -443,7 +443,7 @@ window.gerarImpressaoRapida = async (btn, id) => {
                     <div class="order-id">ORÇAMENTO #${data.id}</div>
                     <strong style="color: ${corPrimariaPdf};">FILIAL: ${idFilialPdf}</strong><br>
                     Emissão: ${dataEmissao} | Validade: ${dataValidade}<br>
-                    ou enquanto vigorar a tabela de preços.
+                    ou enquanto vigorar a promoção vigente.
                 </div>
             </div>
             <div class="info-box">

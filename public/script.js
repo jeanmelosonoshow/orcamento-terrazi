@@ -1315,7 +1315,7 @@ function montarDocumentoPdf(orcamentoID) {
                 <div class="order-id">ORÇAMENTO #${orcamentoID}</div>
                 <strong style="color: ${corPrimaria};">FILIAL: ${usuarioLogado.idfilial}</strong><br>
                 Emissão: ${new Date().toLocaleDateString('pt-BR')} | Validade: ${dataValidade}<br>
-                ou enquanto vigorar a tabela de preços.
+                ou enquanto vigorar a promoção vigente.
             </div>
         </div>
         <div class="info-box">
