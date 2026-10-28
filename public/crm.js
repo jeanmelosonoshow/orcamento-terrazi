@@ -1947,7 +1947,12 @@ function montarOpcaoECharts(widget, dados, container) {
                 splitLine: { lineStyle: { color: 'rgba(120,130,145,0.14)' } },
                 axisLabel: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) }
             },
-            dataZoom: muitasCategorias ? [{ type: 'inside', yAxisIndex: 0 }, { type: 'slider', yAxisIndex: 0, width: 8, right: 2 }] : [],
+            dataZoom: muitasCategorias ? [{
+                type: 'inside',
+                yAxisIndex: 0,
+                zoomOnMouseWheel: false,
+                moveOnMouseWheel: false
+            }, { type: 'slider', yAxisIndex: 0, width: 8, right: 2 }] : [],
             series: seriesCartesianas
         });
     }
@@ -2047,7 +2052,12 @@ function montarOpcaoECharts(widget, dados, container) {
             splitLine: { lineStyle: { color: 'rgba(120,130,145,0.14)' } },
             axisLabel: { formatter: value => formatarValorGrafico(value, primeiraSerie.formato) }
         },
-        dataZoom: muitasCategorias ? [{ type: 'inside', xAxisIndex: 0 }, { type: 'slider', xAxisIndex: 0, height: 12, bottom: 0 }] : [],
+        dataZoom: muitasCategorias ? [{
+            type: 'inside',
+            xAxisIndex: 0,
+            zoomOnMouseWheel: false,
+            moveOnMouseWheel: false
+        }, { type: 'slider', xAxisIndex: 0, height: 12, bottom: 0 }] : [],
         series: seriesCartesianas
     });
 }
@@ -4003,6 +4013,16 @@ function obterLayoutsRenderizacao(widgets, alturaCanvas = 0) {
     return new Map(layouts.map(layout => [layout.id, layout]));
 }
 
+function ordenarWidgetsParaMobile(widgets, editorAtivo) {
+    if (editorAtivo || !window.matchMedia?.('(max-width: 759px)').matches) return widgets;
+    if (!window.CRM_DASHBOARD_LAYOUT?.ordenarPorLeitura) return widgets;
+    const porId = new Map(widgets.map(widget => [widget.id, widget]));
+    const layouts = widgets.map((widget, index) => ({ id: widget.id, ...obterLayoutWidget(widget, index) }));
+    return window.CRM_DASHBOARD_LAYOUT.ordenarPorLeitura(layouts)
+        .map(layout => porId.get(layout.id))
+        .filter(Boolean);
+}
+
 function renderizarCategoriasWidget(widget) {
     if (!widgetCategoryOptions) return;
     const selecionadas = new Set(obterCategoriasPermitidasWidget(widget));
@@ -4342,9 +4362,10 @@ function renderizarDashboard() {
     const editorAtivo = podeEditarCenarios && modoEdicaoCenario;
     const todosWidgets = normalizarWidgetsDashboard(obterWidgetsDashboard());
     salvarWidgetsDashboard(todosWidgets);
-    const widgets = editorAtivo
+    const widgetsVisiveis = editorAtivo
         ? todosWidgets
         : todosWidgets.filter(widget => widgetVisivelParaCategoria(widget));
+    const widgets = ordenarWidgetsParaMobile(widgetsVisiveis, editorAtivo);
     const alturaCanvas = atualizarAlturaCanvas(widgets);
     const layoutsRenderizacao = editorAtivo
         ? new Map(widgets.map((widget, index) => [widget.id, obterLayoutWidget(widget, index)]))
@@ -6505,6 +6526,29 @@ function inicializarInteracaoLivreDashboard() {
     });
 }
 
+function elementoPodeRolarVerticalmente(elemento, deltaY) {
+    if (!elemento || elemento.scrollHeight <= elemento.clientHeight + 1) return false;
+    if (deltaY < 0) return elemento.scrollTop > 0;
+    return elemento.scrollTop + elemento.clientHeight < elemento.scrollHeight - 1;
+}
+
+function inicializarRolagemDashboard() {
+    if (!dashboardCanvas || dashboardCanvas.dataset.wheelScrollReady === 'true') return;
+    dashboardCanvas.dataset.wheelScrollReady = 'true';
+    dashboardCanvas.addEventListener('wheel', event => {
+        if (modoEdicaoCenario || event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+        const rolagemInterna = event.target.closest('.crm-chart-table-real, .crm-query-table-wrap');
+        if (elementoPodeRolarVerticalmente(rolagemInterna, event.deltaY)) return;
+        const areaPrincipal = dashboardCanvas.closest('.crm-main');
+        if (!areaPrincipal || !elementoPodeRolarVerticalmente(areaPrincipal, event.deltaY)) return;
+        const fator = event.deltaMode === 1
+            ? 16
+            : (event.deltaMode === 2 ? Math.max(1, areaPrincipal.clientHeight) : 1);
+        areaPrincipal.scrollTop += event.deltaY * fator;
+        event.preventDefault();
+    }, { capture: true, passive: false });
+}
+
 function aplicarModoEdicaoCenario(ativo) {
     modoEdicaoCenario = Boolean(ativo && podeEditarCenarios);
     document.body.classList.toggle('crm-scenario-editing', modoEdicaoCenario);
@@ -6928,6 +6972,7 @@ function inicializarEditorDashboard() {
             const widget = obterWidgetsDashboard().find(item => item.id === detailButton.dataset.openWidgetDetail);
             if (widget) await abrirRelatorioDetalhe(widget);
         });
+        inicializarRolagemDashboard();
         inicializarInteracaoLivreDashboard();
         if (window.ResizeObserver && !observadorTamanhoDashboard) {
             larguraDashboardObservada = Math.round(dashboardCanvas.clientWidth || 0);

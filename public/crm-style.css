@@ -5125,7 +5125,8 @@ body {
 .crm-table-filter-values,
 .crm-widget-detail-content {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
     scrollbar-gutter: stable;
 }
 

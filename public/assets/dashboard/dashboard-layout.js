@@ -88,11 +88,38 @@
         });
     }
 
+    function ordenarPorLeitura(layouts, opcoes = {}) {
+        const toleranciaLinha = Math.max(0, Number(opcoes.toleranciaLinha) || 32);
+        const ordenados = (Array.isArray(layouts) ? layouts : []).map((layout, indice) => ({
+            ...layout,
+            x: Math.max(0, Number(layout.x) || 0),
+            y: Math.max(0, Number(layout.y) || 0),
+            indiceOriginal: indice
+        })).sort((a, b) => (a.y - b.y) || (a.x - b.x) || (a.indiceOriginal - b.indiceOriginal));
+        const linhas = [];
+
+        ordenados.forEach(layout => {
+            const linha = linhas.find(item => Math.abs(layout.y - item.yReferencia) <= toleranciaLinha);
+            if (linha) {
+                linha.itens.push(layout);
+                linha.yReferencia = Math.min(linha.yReferencia, layout.y);
+                return;
+            }
+            linhas.push({ yReferencia: layout.y, itens: [layout] });
+        });
+
+        return linhas
+            .sort((a, b) => a.yReferencia - b.yReferencia)
+            .flatMap(linha => linha.itens.sort((a, b) => (a.x - b.x) || (a.y - b.y) || (a.indiceOriginal - b.indiceOriginal)))
+            .map(({ indiceOriginal, ...layout }) => layout);
+    }
+
     global.CRM_DASHBOARD_LAYOUT = Object.freeze({
         categorias,
         normalizarCategoriasPermitidas,
         widgetVisivelParaCategoria,
         ajustarLargurasDireita,
-        ajustarAlturasAbaixo
+        ajustarAlturasAbaixo,
+        ordenarPorLeitura
     });
 })(window);

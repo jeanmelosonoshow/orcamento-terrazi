@@ -83,6 +83,26 @@ test('usa a largura expandida para detectar o proximo card abaixo', async () => 
     assert.equal(ajustados[0].h, 448);
 });
 
+test('ordena o empilhamento mobile por linhas da esquerda para a direita', async () => {
+    const layout = await carregarLayoutDashboard();
+    const ordenados = layout.ordenarPorLeitura([
+        { id: 'valor-ap', x: 900, y: 250 },
+        { id: 'vendas', x: 500, y: 8 },
+        { id: 'meta', x: 0, y: 0 },
+        { id: 'faturamento', x: 0, y: 250 },
+        { id: 'ticket', x: 760, y: 0 },
+        { id: 'clientes', x: 320, y: 14 },
+        { id: 'total-produto', x: 330, y: 250 },
+        { id: 'imper', x: 650, y: 250 },
+        { id: 'plus', x: 0, y: 520 }
+    ]);
+
+    assert.deepEqual(
+        Array.from(ordenados, item => item.id),
+        ['meta', 'clientes', 'vendas', 'ticket', 'faturamento', 'total-produto', 'imper', 'valor-ap', 'plus']
+    );
+});
+
 
 test('a tela integra o seletor de categorias e o modulo responsivo', async () => {
     const [html, javascript] = await Promise.all([
@@ -97,4 +117,5 @@ test('a tela integra o seletor de categorias e o modulo responsivo', async () =>
     assert.ok(javascript.includes('todosWidgets.filter(widget => widgetVisivelParaCategoria(widget))'));
     assert.ok(javascript.includes('const layoutsRenderizacao = editorAtivo'));
     assert.ok(javascript.includes(': obterLayoutsRenderizacao(widgets, alturaCanvas)'));
+    assert.match(javascript, /ordenarWidgetsParaMobile\(widgetsVisiveis, editorAtivo\)/);
 });

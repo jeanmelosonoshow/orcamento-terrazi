@@ -16,11 +16,18 @@ test('auto-filtro esconde resultados da pesquisa sem perder opcoes nao visiveis'
 });
 
 test('crm libera gestos de rolagem no uso normal e captura somente durante edicao', async () => {
-    const css = await readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8');
+    const [javascript, css] = await Promise.all([
+        readFile(new URL('../public/crm.js', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8')
+    ]);
     assert.match(css, /\.crm-dashboard-widget\s*\{[^}]*touch-action:\s*pan-x pan-y/s);
     assert.match(css, /body\.crm-scenario-editing \.crm-dashboard-widget\s*\{[^}]*touch-action:\s*none/s);
     assert.match(css, /-webkit-overflow-scrolling:\s*touch/);
-    assert.match(css, /overscroll-behavior:\s*contain/);
+    assert.match(css, /overscroll-behavior-y:\s*auto/);
+    assert.match(javascript, /dashboardCanvas\.addEventListener\('wheel'/);
+    assert.match(javascript, /dashboardCanvas\.closest\('\.crm-main'\)/);
+    assert.match(javascript, /\{ capture:\s*true, passive:\s*false \}/);
+    assert.match(javascript, /zoomOnMouseWheel:\s*false/);
 });
 
 test('relatorio detalhe usa tela inteira e viewport dinamica no mobile', async () => {
