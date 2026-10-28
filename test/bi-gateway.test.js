@@ -297,6 +297,19 @@ test('rotas Firebird usam o Gateway e o cenario possui cache de painel', async (
     assert.match(arquivos[0], /Redis\/Upstash recusou o token ou as permissoes ACL/);
     assert.match(arquivos[0], /code: codigo/);
 });
+
+test('cenario permite consulta de ate tres minutos com teto explicito da Vercel', async () => {
+    const [api, cliente, servico] = await Promise.all([
+        readFile(new URL('../api/executar-cenario.js', import.meta.url), 'utf8'),
+        readFile(new URL('../lib/bi-gateway-client.js', import.meta.url), 'utf8'),
+        readFile(new URL('../lib/bi-gateway-service.js', import.meta.url), 'utf8')
+    ]);
+
+    assert.match(api, /maxDuration:\s*180/);
+    assert.match(api, /CONSULTA_TIMEOUT_MS\s*=\s*180000/);
+    assert.match(cliente, /BI_GATEWAY_TOTAL_BUDGET_MS[\s\S]*180000/);
+    assert.match(servico, /timeoutMs[\s\S]*180000/);
+});
 test('fila Redis adquire e libera lease compartilhado', async () => {
     const chamadas = [];
     const cliente = {
@@ -471,6 +484,24 @@ test('saturacao do pool e timeout de consulta nao abrem o circuit breaker', asyn
         assert.equal(execucoes, 3);
         assert.equal(servico.status().circuito.estado, 'fechado');
     }
+});
+test('falha do Cloudflare nao abre o circuit breaker do Gateway e Firebird', async () => {
+    let execucoes = 0;
+    const servico = criarServico(async () => {
+        execucoes += 1;
+        const error = new Error('Cloudflare retornou 502 HTML');
+        error.code = 'BI_GATEWAY_EDGE_502';
+        error.isGatewayTransportError = true;
+        error.isFirebirdConnectionError = false;
+        throw error;
+    }, { circuitFailureThreshold: 2, circuitOpenMs: 1000 });
+    const requisicao = { sql: 'select 1 from rdb$database' };
+
+    await assert.rejects(servico.executar(requisicao), error => error.code === 'BI_GATEWAY_EDGE_502');
+    await assert.rejects(servico.executar(requisicao), error => error.code === 'BI_GATEWAY_EDGE_502');
+    await assert.rejects(servico.executar(requisicao), error => error.code === 'BI_GATEWAY_EDGE_502');
+    assert.equal(execucoes, 3);
+    assert.equal(servico.status().circuito.estado, 'fechado');
 });
 test('Gateway remoto assina a consulta com HMAC e preserva o formato de linhas', async () => {
     const ambienteAnterior = salvarAmbienteGateway();

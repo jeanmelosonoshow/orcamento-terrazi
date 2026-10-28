@@ -1,5 +1,10 @@
 {
   "regions": ["gru1"],
+  "functions": {
+    "api/executar-cenario.js": {
+      "maxDuration": 180
+    }
+  },
   "crons": [
     { "path": "/api/manutencao-orcamentos", "schedule": "5 3 * * *" }
   ],

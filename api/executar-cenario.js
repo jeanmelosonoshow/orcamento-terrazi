@@ -35,12 +35,13 @@ import {
     prepararConsultaBaseVisualizacao,
     prepararConsultaVisual
 } from '../lib/scenario-visual-query.js';
+export const config = { maxDuration: 180 };
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const permissionsPath = path.join(__dirname, 'crm-permissions.json');
 const LIMITE_RETORNO = 1000;
 const LIMITE_PREVIA = 100;
-const CONSULTA_TIMEOUT_MS = 90000;
+const CONSULTA_TIMEOUT_MS = 180000;
 const DRILL_CACHE_MAX_ROWS = Math.min(10000, Math.max(100, Number(process.env.BI_DRILL_CACHE_MAX_ROWS) || 3000));
 const DRILL_CACHE_MAX_BYTES = Math.min(16777216, Math.max(262144, Number(process.env.BI_DRILL_CACHE_MAX_BYTES) || 4194304));
 const cacheFiltroRelacionamento = criarCacheGatewayAmbiente();
