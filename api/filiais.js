@@ -1,6 +1,9 @@
 import { requireRequestSession } from '../lib/session-token.js';
 import { executarConsultaFirebirdGateway, statusHttpErroConsulta } from '../lib/bi-gateway-client.js';
 const FIREBIRD_TIMEOUT_MS = 12000;
+const CACHE_STALE_MS = Number(process.env.BI_REFERENCE_CACHE_STALE_MS) > 0
+    ? Number(process.env.BI_REFERENCE_CACHE_STALE_MS)
+    : 21600000;
 
 function normalizarFilial(row) {
     return {
@@ -51,7 +54,7 @@ export default async function handler(req, res) {
             operacao: 'listar-filiais',
             timeoutMs: FIREBIRD_TIMEOUT_MS,
             cacheTtlMs: 300000,
-            cacheStaleMs: 1800000
+            cacheStaleMs: CACHE_STALE_MS
         });
         return res.status(200).json({ filiais: result.map(normalizarFilial) });
     } catch (error) {

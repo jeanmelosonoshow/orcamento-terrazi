@@ -219,7 +219,27 @@ timestamp, nonce e assinatura HMAC gerados automaticamente por `lib/bi-gateway-c
 Configure `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN` (ou os aliases
 `KV_REST_API_URL` e `KV_REST_API_TOKEN` criados pela integracao Vercel KV). A fila, os leases,
 os bloqueios de single-flight e o cache continuam compartilhados entre as instancias da Vercel antes
-da chamada ao Gateway Windows.
+da chamada ao Gateway Windows. Use o token REST padrao com escrita; o token read-only nao permite
+`SET`, `EVAL`, `ZADD`, renovacao de leases nem liberacao dos bloqueios.
+
+O cliente REST usa timeout curto, uma retentativa com espera progressiva e circuit breaker. Os
+scripts de fila e bloqueio sao idempotentes para que uma resposta de rede perdida possa ser repetida
+sem duplicar vagas. A espera da fila cresce de 250 ms ate 1,5 s com jitter, e leases/bloqueios sao
+renovados durante consultas demoradas. Em uma indisponibilidade do Redis, resultados stale ainda
+validos continuam sendo entregues; consultas sem contingencia falham rapidamente para proteger o
+Gateway e o Firebird contra uma avalanche de conexoes.
+
+Variaveis recomendadas para essa protecao:
+
+- `BI_REDIS_TIMEOUT_MS=1800`
+- `BI_REDIS_RETRIES=1`
+- `BI_REDIS_BACKOFF_MS=100`
+- `BI_REDIS_CIRCUIT_FAILURES=3`
+- `BI_REDIS_CIRCUIT_OPEN_MS=10000`
+- `BI_GATEWAY_QUEUE_POLL_MS=250`
+- `BI_GATEWAY_QUEUE_POLL_MAX_MS=1500`
+- `BI_GATEWAY_LOCK_SAFETY_MS=25000`
+- `BI_REFERENCE_CACHE_STALE_MS=21600000`
 
 No primeiro drill-down de uma tabela dinamica, a API carrega e mantem temporariamente a
 consulta-base nesse cache compartilhado. Os proximos niveis reaplicam dimensoes, filtros e agregacoes

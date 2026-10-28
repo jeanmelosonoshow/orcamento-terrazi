@@ -171,6 +171,58 @@ test('cliente Redis REST envia comandos sem dependencia adicional', async () => 
     assert.deepEqual(JSON.parse(requisicao.opcoes.body), ['SET', 'chave', 'valor']);
 });
 
+test('cliente Redis repete falha transitoria com backoff e recupera o circuito', async () => {
+    let chamadas = 0;
+    const cliente = new ClienteRedisRest({
+        url: 'https://redis.example',
+        token: 'segredo',
+        retries: 1,
+        backoffBaseMs: 10,
+        random: () => 0,
+        fetchImpl: async () => {
+            chamadas += 1;
+            if (chamadas === 1) throw Object.assign(new Error('conexao reiniciada'), { code: 'ECONNRESET' });
+            return { ok: true, status: 200, json: async () => ({ result: 'PONG' }) };
+        }
+    });
+
+    assert.equal(await cliente.comando('PING'), 'PONG');
+    assert.equal(chamadas, 2);
+    assert.equal(cliente.status().estado, 'fechado');
+    assert.equal(cliente.status().falhas, 0);
+});
+
+test('circuit breaker do Redis interrompe novas chamadas e permite uma prova de recuperacao', async () => {
+    let agora = 1000;
+    let falhar = true;
+    let chamadas = 0;
+    const cliente = new ClienteRedisRest({
+        url: 'https://redis.example',
+        token: 'segredo',
+        retries: 0,
+        circuitFailureThreshold: 2,
+        circuitOpenMs: 1000,
+        agora: () => agora,
+        fetchImpl: async () => {
+            chamadas += 1;
+            if (falhar) throw new Error('fetch failed');
+            return { ok: true, status: 200, json: async () => ({ result: 'OK' }) };
+        }
+    });
+
+    await assert.rejects(cliente.comando('GET', 'a'), error => error.code === 'BI_REDIS_UNAVAILABLE');
+    await assert.rejects(cliente.comando('GET', 'a'), error => error.code === 'BI_REDIS_UNAVAILABLE');
+    await assert.rejects(cliente.comando('GET', 'a'), error => error.code === 'BI_REDIS_CIRCUIT_OPEN');
+    assert.equal(chamadas, 2);
+    assert.equal(cliente.status().estado, 'aberto');
+
+    agora = 2001;
+    falhar = false;
+    assert.equal(await cliente.comando('GET', 'a'), 'OK');
+    assert.equal(chamadas, 3);
+    assert.equal(cliente.status().estado, 'fechado');
+});
+
 test('distingue token invalido e permissao ACL negada no Redis', async () => {
     for (const resposta of [
         { ok: false, status: 401, payload: { error: 'WRONGPASS invalid token' } },
@@ -248,6 +300,50 @@ test('fila Redis adquire e libera lease compartilhado', async () => {
     assert.equal(await fila.executar(async () => 42), 42);
     assert.equal(chamadas.filter(chamada => chamada.tipo === 'eval').length, 2);
     assert.equal(chamadas.at(-1).argumentos[0], 'ZREM');
+});
+
+test('fila Redis renova o lease enquanto a consulta continua ativa', async () => {
+    const chamadas = [];
+    const cliente = {
+        async avaliar(script, chaves, argumentos) {
+            chamadas.push({ script, chaves, argumentos });
+            return 1;
+        },
+        async comando() { return 1; }
+    };
+    const fila = new FilaRedisGateway(cliente, {
+        timeoutEsperaMs: 1000,
+        intervaloMs: 1,
+        leaseMs: 30,
+        renovacaoMinMs: 5,
+        random: () => 0
+    });
+
+    await fila.executar(async () => aguardar(35));
+
+    const renovacoes = chamadas.filter(chamada => chamada.chaves.length === 1 && chamada.argumentos.length === 3);
+    assert.ok(renovacoes.length >= 1);
+});
+
+test('single-flight renova o bloqueio enquanto a consulta esta ativa', async () => {
+    let renovacoes = 0;
+    const servico = new ServicoBiGateway({
+        executor: async () => [],
+        cache: {
+            async renovarBloqueio() {
+                renovacoes += 1;
+                return true;
+            }
+        },
+        fila: new FilaLimitadaGateway(),
+        lockRenewalMinMs: 5
+    });
+
+    const timer = servico.iniciarRenovacaoBloqueio('chave', 'token', 30);
+    await aguardar(35);
+    clearInterval(timer);
+
+    assert.ok(renovacoes >= 1);
 });
 
 test('fila Redis rejeita imediatamente quando o limite global foi atingido', async () => {
@@ -383,6 +479,74 @@ test('Gateway remoto envia somente as GTTs confirmadas no corpo assinado', async
             { tabelasTemporarias: ['GTT_CRM_CLIENTES'] }
         );
         assert.deepEqual(corpo.temporary_tables, ['GTT_CRM_CLIENTES']);
+    } finally {
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
+    }
+});
+
+test('Gateway repete resposta invalida e envia a versao do protocolo cliente', async () => {
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    let chamadas = 0;
+    let protocolo = '';
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_teste';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-de-teste';
+    globalThis.fetch = async (_url, options) => {
+        chamadas += 1;
+        protocolo = options.headers['X-Client-Protocol'];
+        if (chamadas === 1) {
+            return new Response(JSON.stringify({ linhas: [] }), {
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Gateway-Version': 'antiga'
+                }
+            });
+        }
+        return new Response(JSON.stringify({ success: true, rows: [{ OK: 1 }] }), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Gateway-Version': 'v1'
+            }
+        });
+    };
+    try {
+        const linhas = await executarConsultaFirebirdGateway('select 987654 from rdb$database');
+        assert.deepEqual(linhas, [{ OK: 1 }]);
+        assert.equal(chamadas, 2);
+        assert.equal(protocolo, 'terrazi-bi-v1');
+    } finally {
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
+    }
+});
+
+test('resposta invalida do Gateway informa formato, versao e request id sem registrar o corpo', async () => {
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_teste';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-de-teste';
+    globalThis.fetch = async () => new Response(JSON.stringify({ html: 'resposta inesperada' }), {
+        status: 200,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Gateway-Version': 'proxy-2',
+            'X-Request-ID': 'req-diagnostico'
+        }
+    });
+    try {
+        await assert.rejects(
+            executarConsultaFirebirdGateway('select 123456 from rdb$database'),
+            error => error.code === 'BI_GATEWAY_INVALID_RESPONSE'
+                && error.gatewayStatus === 200
+                && error.gatewayVersion === 'proxy-2'
+                && error.gatewayRequestId === 'req-diagnostico'
+                && error.gatewayResponseShape === 'html'
+        );
     } finally {
         globalThis.fetch = fetchAnterior;
         restaurarAmbienteGateway(ambienteAnterior);

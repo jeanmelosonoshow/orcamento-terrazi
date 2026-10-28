@@ -28,7 +28,7 @@ test('supervisor recebe somente as filiais vinculadas no Firebird', async () => 
     assert.deepEqual(chamada.valores, [142]);
     assert.match(chamada.sql, /F\.IDSUPERVISOR = \?/i);
     assert.equal(chamada.opcoes.cacheTtlMs, 300000);
-    assert.equal(chamada.opcoes.cacheStaleMs, 1800000);
+    assert.equal(chamada.opcoes.cacheStaleMs, 21600000);
 });
 
 test('supervisor reutiliza as filiais assinadas durante toda a sessao', async () => {
