@@ -51,7 +51,7 @@ test('single-flight executa consultas identicas simultaneas apenas uma vez', asy
     });
     const requisicao = { sql: 'select total from vendas', cache: { ttlMs: 1000, staleMs: 1000 } };
 
-    const resultados = await Promise.all(Array.from({ length: 20 }, () => servico.executar(requisicao)));
+    const resultados = await Promise.all(Array.from({ length: 250 }, () => servico.executar(requisicao)));
 
     assert.equal(execucoes, 1);
     assert.ok(resultados.every(resultado => resultado.linhas[0].TOTAL === 10));
@@ -325,6 +325,34 @@ test('fila Redis renova o lease enquanto a consulta continua ativa', async () =>
     assert.ok(renovacoes.length >= 1);
 });
 
+test('fila Redis nao acusa lease perdido quando a consulta termina durante uma renovacao', async () => {
+    const avisos = [];
+    let chamadas = 0;
+    const cliente = {
+        async avaliar(_script, chaves, argumentos) {
+            chamadas += 1;
+            if (chaves.length === 1 && argumentos.length === 3) {
+                await aguardar(20);
+                return 0;
+            }
+            return 1;
+        },
+        async comando() { return 1; }
+    };
+    const fila = new FilaRedisGateway(cliente, {
+        timeoutEsperaMs: 1000,
+        intervaloMs: 1,
+        leaseMs: 30,
+        renovacaoMinMs: 5,
+        logger: { warn(evento, detalhes) { avisos.push({ evento, detalhes }); } }
+    });
+
+    await fila.executar(async () => aguardar(12));
+
+    assert.ok(chamadas >= 3);
+    assert.equal(avisos.length, 0);
+});
+
 test('single-flight renova o bloqueio enquanto a consulta esta ativa', async () => {
     let renovacoes = 0;
     const servico = new ServicoBiGateway({
@@ -341,7 +369,7 @@ test('single-flight renova o bloqueio enquanto a consulta esta ativa', async () 
 
     const timer = servico.iniciarRenovacaoBloqueio('chave', 'token', 30);
     await aguardar(35);
-    clearInterval(timer);
+    await timer.parar();
 
     assert.ok(renovacoes >= 1);
 });
@@ -594,12 +622,74 @@ test('credencial recusada pelo Gateway vira erro de integracao, nao login invali
     }
 });
 
+test('Gateway classifica HTTP 502 como falha transitoria e preserva diagnostico', async () => {
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_teste';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-de-teste';
+    globalThis.fetch = async () => new Response(JSON.stringify({ error: 'bad_gateway' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json', 'X-Request-ID': 'req-502' }
+    });
+    try {
+        await assert.rejects(
+            executarConsultaFirebirdGateway('select 502 from rdb$database', [], { retryTransient: false }),
+            error => error.code === 'BI_GATEWAY_BAD_GATEWAY'
+                && error.isFirebirdConnectionError === true
+                && error.gatewayStatus === 502
+                && error.gatewayRequestId === 'req-502'
+                && error.attempts === 1
+        );
+    } finally {
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
+    }
+});
+
+test('Gateway nao repete falha lenta e respeita o orcamento total', async () => {
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    let chamadas = 0;
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_teste';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-de-teste';
+    process.env.BI_GATEWAY_TOTAL_BUDGET_MS = '180';
+    process.env.BI_GATEWAY_RETRY_MAX_ELAPSED_MS = '100';
+    globalThis.fetch = async (_url, options) => {
+        chamadas += 1;
+        return new Promise((_resolve, reject) => {
+            options.signal.addEventListener('abort', () => {
+                reject(Object.assign(new Error('abortado'), { name: 'AbortError' }));
+            }, { once: true });
+        });
+    };
+    try {
+        const inicio = Date.now();
+        await assert.rejects(
+            executarConsultaFirebirdGateway('select 60000 from rdb$database', [], { timeoutMs: 90000 }),
+            error => error.code === 'BI_GATEWAY_HTTP_TIMEOUT'
+                && error.attempts === 1
+                && error.gatewayBudgetMs === 180
+        );
+        assert.equal(chamadas, 1);
+        assert.ok(Date.now() - inicio < 1000);
+    } finally {
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
+    }
+});
+
 function salvarAmbienteGateway() {
-    return Object.fromEntries([
+    const ambiente = Object.fromEntries([
         'FIREBIRD_GATEWAY_URL',
         'FIREBIRD_GATEWAY_TOKEN_ID',
-        'FIREBIRD_GATEWAY_HMAC_SECRET'
+        'FIREBIRD_GATEWAY_HMAC_SECRET',
+        'BI_GATEWAY_TOTAL_BUDGET_MS',
+        'BI_GATEWAY_RETRY_MAX_ELAPSED_MS'
     ].map(nome => [nome, process.env[nome]]));
+    reiniciarServicosGateway();
+    return ambiente;
 }
 
 function restaurarAmbienteGateway(anterior) {
@@ -607,6 +697,12 @@ function restaurarAmbienteGateway(anterior) {
         if (valor === undefined) delete process.env[nome];
         else process.env[nome] = valor;
     }
+    reiniciarServicosGateway();
+}
+
+function reiniciarServicosGateway() {
+    delete globalThis[Symbol.for('terrazi.bi.gateway.local')];
+    delete globalThis[Symbol.for('terrazi.bi.gateway.remote.hmac')];
 }
 
 test('Gateway rejeita nomes de GTT manipulados antes de executar SQL', async () => {

@@ -346,8 +346,26 @@ export default async function handler(req, res) {
             || (fonteNormalizada === 'firebird' ? statusHttpErroConsulta(error) : 500);
         const codigo = String(error?.code || 'QUERY_ERROR');
         const mensagem = mensagemErroInfraestrutura(error, status);
-        console.error('[executar-cenario] falha', { codigo, status, duracaoMs: Date.now() - inicioRequisicao, message: error?.message });
-        if (status >= 503) res.setHeader('Retry-After', '1');
+        console.error('[executar-cenario] falha', {
+            codigo,
+            status,
+            duracaoMs: Date.now() - inicioRequisicao,
+            attempts: error?.attempts || null,
+            gatewayAttempt: error?.gatewayAttempt || null,
+            gatewayAttemptDurationMs: error?.gatewayAttemptDurationMs ?? null,
+            gatewayTotalDurationMs: error?.gatewayTotalDurationMs ?? null,
+            gatewayBudgetMs: error?.gatewayBudgetMs ?? null,
+            gatewayStatus: error?.gatewayStatus || null,
+            gatewayVersion: error?.gatewayVersion || null,
+            gatewayRequestId: error?.gatewayRequestId || null,
+            gatewayContentType: error?.gatewayContentType || null,
+            vercelRequestId: req.headers?.['x-vercel-id'] || null,
+            message: error?.message
+        });
+        if (status >= 502) {
+            const retryAfterSegundos = Math.max(1, Math.ceil(Number(error?.retryAfterMs || 1000) / 1000));
+            res.setHeader('Retry-After', String(retryAfterSegundos));
+        }
         res.status(status).json({
             error: mensagem,
             code: codigo,
