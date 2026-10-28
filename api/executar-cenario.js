@@ -110,7 +110,8 @@ function mensagemErroInfraestrutura(error, status) {
     if (codigo === 'BI_REDIS_ERROR') return 'Falha ao acessar o cache ou a fila Redis/Upstash.';
     if (codigo === 'BI_GATEWAY_QUEUE_FULL') return 'Fila de consultas lotada. Aguarde alguns segundos.';
     if (codigo === 'BI_GATEWAY_QUEUE_TIMEOUT') return 'Tempo limite aguardando uma vaga na fila de consultas.';
-    if (codigo === 'BI_GATEWAY_CIRCUIT_OPEN') return 'Firebird em recuperacao apos falhas consecutivas.';
+    if (codigo.startsWith('BI_GATEWAY_EDGE_')) return 'Conexao segura com o Gateway temporariamente indisponivel.';
+    if (codigo === 'BI_GATEWAY_CIRCUIT_OPEN') return 'Gateway de dados em recuperacao apos falhas consecutivas.';
     if (codigo === 'FB_ACQUIRE_TIMEOUT') return 'Capacidade de consultas ocupada. Aguarde alguns segundos e tente novamente.';
     if (codigo.startsWith('FB_') || error?.isFirebirdConnectionError) return 'Firebird temporariamente indisponivel.';
     return status >= 503 ? 'Servico de dados temporariamente indisponivel.' : 'Erro ao executar consulta.';
@@ -359,6 +360,7 @@ export default async function handler(req, res) {
             gatewayVersion: error?.gatewayVersion || null,
             gatewayRequestId: error?.gatewayRequestId || null,
             gatewayContentType: error?.gatewayContentType || null,
+            gatewayLayer: error?.gatewayLayer || null,
             vercelRequestId: req.headers?.['x-vercel-id'] || null,
             message: error?.message
         });

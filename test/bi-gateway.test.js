@@ -192,6 +192,25 @@ test('cliente Redis repete falha transitoria com backoff e recupera o circuito',
     assert.equal(cliente.status().falhas, 0);
 });
 
+test('cliente Redis encerra no prazo mesmo quando o fetch ignora o abort', async () => {
+    const cliente = new ClienteRedisRest({
+        url: 'https://redis.example',
+        token: 'segredo',
+        timeoutMs: 250,
+        retries: 0,
+        fetchImpl: async () => new Promise(() => {})
+    });
+    const inicio = Date.now();
+
+    await assert.rejects(
+        cliente.comando('GET', 'chave-presa'),
+        error => error.code === 'BI_REDIS_TIMEOUT'
+            && error.durationMs >= 200
+            && error.durationMs < 1000
+    );
+    assert.ok(Date.now() - inicio < 1000);
+});
+
 test('circuit breaker do Redis interrompe novas chamadas e permite uma prova de recuperacao', async () => {
     let agora = 1000;
     let falhar = true;
@@ -385,6 +404,23 @@ test('fila Redis rejeita imediatamente quando o limite global foi atingido', asy
         fila.executar(async () => 1),
         error => error.code === 'BI_GATEWAY_QUEUE_FULL'
     );
+});
+
+test('fila composta compartilha um unico prazo entre espera local e global', async () => {
+    const local = new FilaLimitadaGateway({ concorrencia: 1, limiteEspera: 10, timeoutEsperaMs: 1000 });
+    const compartilhada = new FilaLimitadaGateway({ concorrencia: 1, limiteEspera: 10, timeoutEsperaMs: 1000 });
+    const fila = new FilaCompostaGateway(local, compartilhada);
+    let liberarLocal;
+    const ocupante = fila.executar(() => new Promise(resolve => { liberarLocal = resolve; }));
+    const inicio = Date.now();
+
+    await assert.rejects(
+        fila.executar(async () => 'nao executada', { deadlineAt: inicio + 80 }),
+        error => error.code === 'BI_GATEWAY_QUEUE_TIMEOUT'
+    );
+    assert.ok(Date.now() - inicio < 300);
+    liberarLocal('ok');
+    await ocupante;
 });
 test('circuit breaker interrompe repeticao de falhas e permite recuperacao', async () => {
     let agora = 1000;
@@ -630,7 +666,11 @@ test('Gateway classifica HTTP 502 como falha transitoria e preserva diagnostico'
     process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-de-teste';
     globalThis.fetch = async () => new Response(JSON.stringify({ error: 'bad_gateway' }), {
         status: 502,
-        headers: { 'Content-Type': 'application/json', 'X-Request-ID': 'req-502' }
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Gateway-Version': '1.6.0',
+            'X-Request-ID': 'req-502'
+        }
     });
     try {
         await assert.rejects(
@@ -640,6 +680,31 @@ test('Gateway classifica HTTP 502 como falha transitoria e preserva diagnostico'
                 && error.gatewayStatus === 502
                 && error.gatewayRequestId === 'req-502'
                 && error.attempts === 1
+        );
+    } finally {
+        globalThis.fetch = fetchAnterior;
+        restaurarAmbienteGateway(ambienteAnterior);
+    }
+});
+
+test('Gateway distingue HTTP 502 HTML gerado pela borda Cloudflare', async () => {
+    const ambienteAnterior = salvarAmbienteGateway();
+    const fetchAnterior = globalThis.fetch;
+    process.env.FIREBIRD_GATEWAY_URL = 'https://gateway.test';
+    process.env.FIREBIRD_GATEWAY_TOKEN_ID = 'ssg_teste';
+    process.env.FIREBIRD_GATEWAY_HMAC_SECRET = 'segredo-de-teste';
+    globalThis.fetch = async () => new Response('<html>Bad gateway</html>', {
+        status: 502,
+        headers: { 'Content-Type': 'text/html; charset=UTF-8' }
+    });
+    try {
+        await assert.rejects(
+            executarConsultaFirebirdGateway('select 502 from rdb$database', [], { retryTransient: false }),
+            error => error.code === 'BI_GATEWAY_EDGE_502'
+                && error.isGatewayTransportError === true
+                && error.isFirebirdConnectionError === false
+                && error.gatewayLayer === 'edge'
+                && error.gatewayContentType === 'text/html; charset=UTF-8'
         );
     } finally {
         globalThis.fetch = fetchAnterior;
