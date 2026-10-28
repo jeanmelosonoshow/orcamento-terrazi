@@ -4461,7 +4461,8 @@ function obterNomesFiltrosDiretivasSql(sql) {
 function obterNomesParametrosSql(sql) {
     const permitidos = new Set([
         'categoria', 'data_inicial', 'data_final', 'filiais_permitidas', 'filiais',
-        'vendedores', 'arquitetos', 'idfuncionario', 'idfilial', 'idvendedor'
+        'vendedores', 'arquitetos', 'idfuncionario', 'idfilial', 'idvendedor',
+        'v_idfuncionario', 'v_idfilial', 'v_idvendedor'
     ]);
     const pesquisavel = String(sql || '').replace(
         /('(?:''|[^'])*'|"(?:""|[^"])*"|--[^\r\n]*|\/\*[\s\S]*?\*\/)/g,
@@ -4504,7 +4505,10 @@ function renderizarParametrosVisualizadorSql(sql) {
         arquitetos: filtros.arquitetos,
         idfuncionario: String(sessao.sub || '').trim(),
         idfilial: String(sessao.idfilial || '').trim(),
-        idvendedor: String(sessao.idvendedor || '').trim()
+        idvendedor: String(sessao.idvendedor || '').trim(),
+        v_idfuncionario: String(sessao.sub || '').trim(),
+        v_idfilial: String(sessao.idfilial || '').trim(),
+        v_idvendedor: String(sessao.idvendedor || '').trim()
     };
     const nomes = obterNomesParametrosSql(sql);
     sqlViewerParameters.innerHTML = nomes.length

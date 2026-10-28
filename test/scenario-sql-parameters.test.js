@@ -264,6 +264,34 @@ test('aceita parametros sem diferenciar maiusculas no Postgres', () => {
     assert.deepEqual(preparado.valores, ['VD', '01']);
 });
 
+test('aceita aliases legados V_IDFILIAL sem enviar parametro nomeado ao Firebird', () => {
+    const preparado = prepararSqlCenario(
+        `SELECT COUNT(DISTINCT S.IDFILIAL || '-' || S.IDVENDEDOR)
+           FROM SAIDA S
+          WHERE S.DATASAIDA BETWEEN :data_inicial AND :data_final
+            AND S.IDFILIAL = :V_IDFILIAL`,
+        'firebird',
+        { dataInicial: '2026-10-01', dataFinal: '2026-10-28', idfilial: '20' }
+    );
+
+    assert.doesNotMatch(preparado.sql, /:V_IDFILIAL/i);
+    assert.match(preparado.sql, /S\.IDFILIAL = \?/);
+    assert.deepEqual(preparado.valores, ['2026-10-01', '2026-10-28', '20']);
+});
+
+test('rejeita parametro Firebird desconhecido antes de chamar o Gateway', () => {
+    assert.throws(
+        () => prepararSqlCenario(
+            'SELECT 1 FROM RDB$DATABASE WHERE :PARAMETRO_DIGITADO_ERRADO = 1',
+            'firebird',
+            {}
+        ),
+        error => error.code === 'BI_SCENARIO_UNKNOWN_PARAMETER'
+            && error.status === 400
+            && /:PARAMETRO_DIGITADO_ERRADO/.test(error.message)
+    );
+});
+
 
 test('prepara parametros nomeados dentro de EXECUTE BLOCK Firebird', () => {
     const preparado = prepararSqlCenario(
