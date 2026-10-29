@@ -148,9 +148,10 @@ test('tecla Alt permite ajuste livre sem encaixe magnetico', async () => {
 
 
 test('a tela integra o seletor de categorias e o modulo responsivo', async () => {
-    const [html, javascript] = await Promise.all([
+    const [html, javascript, css] = await Promise.all([
         readFile(new URL('../public/crm.html', import.meta.url), 'utf8'),
-        readFile(new URL('../public/crm.js', import.meta.url), 'utf8')
+        readFile(new URL('../public/crm.js', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8')
     ]);
     assert.match(html, /data-widget-category-options/);
     assert.ok(html.includes('assets/dashboard/dashboard-layout.js'));
@@ -165,4 +166,6 @@ test('a tela integra o seletor de categorias e o modulo responsivo', async () =>
     assert.match(javascript, /ajustarLayoutEditor/);
     assert.match(javascript, /pointerEvent\.shiftKey/);
     assert.match(javascript, /livre:\s*pointerEvent\.altKey/);
+    assert.match(css, /\.crm-dashboard-widget-head \.crm-danger-button,[\s\S]*?width:\s*auto;[\s\S]*?min-width:\s*max-content;/);
+    assert.match(css, /@container \(max-width:\s*430px\)[\s\S]*?\.crm-dashboard-widget-actions[\s\S]*?flex-wrap:\s*wrap;/);
 });

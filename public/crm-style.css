@@ -5051,14 +5051,43 @@ body.crm-scenario-editing .crm-dashboard-widget[data-visual-engine="powerbi-v1"]
 
 .crm-dashboard-widget-actions {
     gap: 4px;
+    flex: 0 0 auto;
+    min-width: 0;
 }
 
-.crm-dashboard-widget-head .crm-widget-query-button,
-.crm-dashboard-widget-head .crm-danger-button {
+.crm-dashboard-widget-head .crm-widget-query-button {
     width: 30px;
     min-height: 30px;
     flex-basis: 30px;
     border-radius: 3px;
+}
+
+.crm-dashboard-widget-head .crm-danger-button,
+.crm-dashboard-widget-head [data-edit-widget] {
+    width: auto;
+    min-width: max-content;
+    min-height: 30px;
+    flex: 0 0 auto;
+    padding-inline: 10px;
+    white-space: nowrap;
+}
+
+.crm-dashboard-widget-head > strong {
+    flex: 1 1 auto;
+}
+
+@container (max-width: 430px) {
+    body.crm-scenario-editing .crm-dashboard-widget-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+    }
+
+    body.crm-scenario-editing .crm-dashboard-widget-actions {
+        width: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
 }
 
 .crm-dashboard-widget-head .crm-widget-query-button {
