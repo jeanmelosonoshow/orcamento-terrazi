@@ -981,6 +981,57 @@ body.crm-budget-mode .crm-budget-frame-wrap {
     z-index: 5;
 }
 
+.crm-dashboard-widget.is-overlapping {
+    outline-color: #c24132;
+    box-shadow: 0 0 0 4px rgba(194, 65, 50, 0.16), 0 18px 40px rgba(50, 38, 27, 0.16);
+}
+
+.crm-layout-guide {
+    position: absolute;
+    z-index: 18;
+    display: block;
+    pointer-events: none;
+    background: #1677ff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+
+.crm-layout-guide[hidden] {
+    display: none;
+}
+
+.crm-layout-guide.is-vertical {
+    top: 0;
+    bottom: 0;
+    width: 1px;
+}
+
+.crm-layout-guide.is-horizontal {
+    right: 0;
+    left: 0;
+    height: 1px;
+}
+
+.crm-layout-assistant-status {
+    position: absolute;
+    z-index: 19;
+    max-width: min(620px, calc(100% - 24px));
+    padding: 7px 10px;
+    border: 1px solid rgba(22, 119, 255, 0.38);
+    border-radius: 6px;
+    background: rgba(10, 38, 70, 0.94);
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(10, 38, 70, 0.2);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.35;
+    pointer-events: none;
+}
+
+.crm-layout-assistant-status.is-warning {
+    border-color: #ef8b7d;
+    background: rgba(139, 35, 24, 0.95);
+}
+
 .crm-dashboard-widget-actions {
     display: flex;
     align-items: center;

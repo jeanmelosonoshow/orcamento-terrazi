@@ -6475,6 +6475,45 @@ function salvarWidgetAtual() {
 function inicializarInteracaoLivreDashboard() {
     if (!dashboardCanvas || !podeEditarCenarios) return;
 
+    function criarAssistenteLayout() {
+        const guiaVertical = document.createElement('span');
+        guiaVertical.className = 'crm-layout-guide is-vertical';
+        guiaVertical.hidden = true;
+        const guiaHorizontal = document.createElement('span');
+        guiaHorizontal.className = 'crm-layout-guide is-horizontal';
+        guiaHorizontal.hidden = true;
+        const status = document.createElement('span');
+        status.className = 'crm-layout-assistant-status';
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        dashboardCanvas.append(guiaVertical, guiaHorizontal, status);
+        return { guiaVertical, guiaHorizontal, status };
+    }
+
+    function obterLayoutsIrmãos(card) {
+        return Array.from(dashboardCanvas.querySelectorAll('[data-widget-id]'))
+            .filter(item => item !== card)
+            .map(item => ({
+                x: item.offsetLeft,
+                y: item.offsetTop,
+                w: item.offsetWidth,
+                h: item.offsetHeight
+            }));
+    }
+
+    function atualizarAssistenteLayout(assistente, ajuste) {
+        const { layout, guias, correspondencias, sobrepoe } = ajuste;
+        assistente.guiaVertical.hidden = !Number.isFinite(guias.x);
+        assistente.guiaHorizontal.hidden = !Number.isFinite(guias.y);
+        if (Number.isFinite(guias.x)) assistente.guiaVertical.style.left = `${guias.x}px`;
+        if (Number.isFinite(guias.y)) assistente.guiaHorizontal.style.top = `${guias.y}px`;
+        assistente.status.style.left = `${dashboardCanvas.scrollLeft + 12}px`;
+        assistente.status.style.top = `${dashboardCanvas.scrollTop + 12}px`;
+        const detalhes = correspondencias.length ? ` • ${correspondencias.join(' • ')}` : ' • grade 24px';
+        assistente.status.textContent = `${Math.round(layout.w)} × ${Math.round(layout.h)} px • X ${Math.round(layout.x)} • Y ${Math.round(layout.y)}${detalhes}${sobrepoe ? ' • atenção: sobreposição' : ''}`;
+        assistente.status.classList.toggle('is-warning', sobrepoe);
+    }
+
     dashboardCanvas.addEventListener('pointerdown', event => {
         if (!modoEdicaoCenario) return;
         const card = event.target.closest('[data-widget-id]');
@@ -6491,6 +6530,8 @@ function inicializarInteracaoLivreDashboard() {
 
         const canvasRect = dashboardCanvas.getBoundingClientRect();
         const cardRect = card.getBoundingClientRect();
+        const assistente = criarAssistenteLayout();
+        const outrosLayouts = obterLayoutsIrmãos(card);
         const inicio = {
             pointerX: event.clientX,
             pointerY: event.clientY,
@@ -6500,30 +6541,54 @@ function inicializarInteracaoLivreDashboard() {
             h: cardRect.height
         };
 
+        function ajustarLayout(layoutBruto, pointerEvent) {
+            return window.CRM_DASHBOARD_LAYOUT?.ajustarLayoutEditor?.(layoutBruto, outrosLayouts, {
+                operacao: resizeHandle ? 'resize' : 'move',
+                grade: 24,
+                tolerancia: 10,
+                espacamento: 12,
+                larguraMinima: 260,
+                alturaMinima: 180,
+                larguraCanvas: dashboardCanvas.clientWidth,
+                livre: pointerEvent.altKey
+            }) || { layout: layoutBruto, guias: {}, correspondencias: [], sobrepoe: false };
+        }
+
         function mover(pointerEvent) {
             const deltaX = pointerEvent.clientX - inicio.pointerX;
             const deltaY = pointerEvent.clientY - inicio.pointerY;
-
+            let layoutBruto;
             if (resizeHandle) {
-                const largura = Math.max(260, inicio.w + deltaX);
-                const altura = Math.max(180, inicio.h + deltaY);
-                card.style.width = `${largura}px`;
-                card.style.height = `${altura}px`;
+                let largura = Math.max(260, inicio.w + deltaX);
+                let altura = Math.max(180, inicio.h + deltaY);
+                if (pointerEvent.shiftKey) {
+                    const proporcao = inicio.w / inicio.h;
+                    if (Math.abs(deltaX) >= Math.abs(deltaY)) altura = Math.max(180, largura / proporcao);
+                    else largura = Math.max(260, altura * proporcao);
+                }
+                layoutBruto = { x: inicio.x, y: inicio.y, w: largura, h: altura };
             } else {
-                const limiteX = Math.max(0, dashboardCanvas.clientWidth - card.offsetWidth);
-                const x = Math.max(0, Math.min(inicio.x + deltaX, limiteX));
-                const y = Math.max(0, inicio.y + deltaY);
-                card.style.left = `${x}px`;
-                card.style.top = `${y}px`;
+                layoutBruto = { x: inicio.x + deltaX, y: inicio.y + deltaY, w: inicio.w, h: inicio.h };
             }
+            const ajuste = ajustarLayout(layoutBruto, pointerEvent);
+            const layout = ajuste.layout;
+            card.style.left = `${layout.x}px`;
+            card.style.top = `${layout.y}px`;
+            card.style.width = `${layout.w}px`;
+            card.style.height = `${layout.h}px`;
+            card.classList.toggle('is-overlapping', ajuste.sobrepoe);
+            atualizarAssistenteLayout(assistente, ajuste);
         }
 
         function soltar() {
-            card.classList.remove('is-dragging', 'is-resizing');
+            card.classList.remove('is-dragging', 'is-resizing', 'is-overlapping');
             card.releasePointerCapture(event.pointerId);
             card.removeEventListener('pointermove', mover);
             card.removeEventListener('pointerup', soltar);
             card.removeEventListener('pointercancel', soltar);
+            assistente.guiaVertical.remove();
+            assistente.guiaHorizontal.remove();
+            assistente.status.remove();
             atualizarLayoutWidget(card.dataset.widgetId, {
                 x: Math.round(parseFloat(card.style.left) || 0),
                 y: Math.round(parseFloat(card.style.top) || 0),
@@ -6533,6 +6598,7 @@ function inicializarInteracaoLivreDashboard() {
             renderizarDashboard();
         }
 
+        mover(event);
         card.addEventListener('pointermove', mover);
         card.addEventListener('pointerup', soltar);
         card.addEventListener('pointercancel', soltar);

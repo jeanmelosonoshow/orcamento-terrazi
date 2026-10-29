@@ -103,6 +103,49 @@ test('ordena o empilhamento mobile por linhas da esquerda para a direita', async
     );
 });
 
+test('editor encaixa cards na grade e nas guias dos cards vizinhos', async () => {
+    const layout = await carregarLayoutDashboard();
+    const ajuste = layout.ajustarLayoutEditor(
+        { x: 305, y: 6, w: 300, h: 200 },
+        [{ x: 0, y: 0, w: 300, h: 200 }],
+        { operacao: 'move', larguraCanvas: 1000, grade: 24, tolerancia: 10, espacamento: 12 }
+    );
+
+    assert.equal(ajuste.layout.x, 312);
+    assert.equal(ajuste.layout.y, 0);
+    assert.equal(ajuste.guias.x, 312);
+    assert.equal(ajuste.guias.y, 0);
+    assert.ok(ajuste.correspondencias.includes('espaço de 12px'));
+    assert.ok(ajuste.correspondencias.includes('topos alinhados'));
+});
+
+test('editor sugere a mesma largura e altura durante o redimensionamento', async () => {
+    const layout = await carregarLayoutDashboard();
+    const ajuste = layout.ajustarLayoutEditor(
+        { x: 400, y: 300, w: 314, h: 234 },
+        [{ x: 0, y: 0, w: 320, h: 240 }],
+        { operacao: 'resize', larguraCanvas: 1000, tolerancia: 10 }
+    );
+
+    assert.equal(ajuste.layout.w, 320);
+    assert.equal(ajuste.layout.h, 240);
+    assert.ok(ajuste.correspondencias.includes('mesma largura'));
+    assert.ok(ajuste.correspondencias.includes('mesma altura'));
+});
+
+test('tecla Alt permite ajuste livre sem encaixe magnetico', async () => {
+    const layout = await carregarLayoutDashboard();
+    const ajuste = layout.ajustarLayoutEditor(
+        { x: 17, y: 19, w: 301, h: 201 },
+        [{ x: 0, y: 0, w: 300, h: 200 }],
+        { operacao: 'move', larguraCanvas: 1000, livre: true }
+    );
+
+    assert.equal(ajuste.layout.x, 17);
+    assert.equal(ajuste.layout.y, 19);
+    assert.deepEqual(Array.from(ajuste.correspondencias), []);
+});
+
 
 test('a tela integra o seletor de categorias e o modulo responsivo', async () => {
     const [html, javascript] = await Promise.all([
@@ -118,4 +161,8 @@ test('a tela integra o seletor de categorias e o modulo responsivo', async () =>
     assert.ok(javascript.includes('const layoutsRenderizacao = editorAtivo'));
     assert.ok(javascript.includes(': obterLayoutsRenderizacao(widgets, alturaCanvas)'));
     assert.match(javascript, /ordenarWidgetsParaMobile\(widgetsVisiveis, editorAtivo\)/);
+    assert.match(html, /Grade magnética e guias mantêm o painel alinhado/);
+    assert.match(javascript, /ajustarLayoutEditor/);
+    assert.match(javascript, /pointerEvent\.shiftKey/);
+    assert.match(javascript, /livre:\s*pointerEvent\.altKey/);
 });
