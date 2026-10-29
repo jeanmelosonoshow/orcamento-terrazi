@@ -170,6 +170,19 @@ const crmUserName = document.getElementById('crmUserName');
 const crmUserMeta = document.getElementById('crmUserMeta');
 const crmUserFilial = document.getElementById('crmUserFilial');
 const crmUserInitials = document.getElementById('crmUserInitials');
+const crmUserBox = document.querySelector('.crm-user-box');
+const crmTopbar = document.querySelector('.crm-topbar');
+const crmMobileUserSlot = document.querySelector('[data-mobile-user-slot]');
+const crmMobileViewport = window.matchMedia?.('(max-width: 759px)');
+
+function sincronizarPosicaoUsuarioMobile() {
+    if (!crmUserBox || !crmTopbar || !crmMobileUserSlot) return;
+    const destino = crmMobileViewport?.matches ? crmMobileUserSlot : crmTopbar;
+    if (crmUserBox.parentElement !== destino) destino.appendChild(crmUserBox);
+}
+
+sincronizarPosicaoUsuarioMobile();
+crmMobileViewport?.addEventListener?.('change', sincronizarPosicaoUsuarioMobile);
 const crmDataInicial = document.querySelector('[data-date-start]');
 const crmDataFinal = document.querySelector('[data-date-end]');
 const crmFilialFilter = document.querySelector('[data-filial-filter]');

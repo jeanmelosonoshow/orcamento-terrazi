@@ -51,6 +51,19 @@ test('menu mobile continua acessivel ao entrar em orcamentos', async () => {
     assert.match(css, /body\.crm-budget-mode \.crm-budget-frame-wrap\s*\{[^}]*height:\s*calc\(100dvh - 62px\)/s);
 });
 
+test('informacoes do usuario ficam antes do menu e dos filtros no mobile', async () => {
+    const [html, javascript, css] = await Promise.all([
+        readFile(new URL('../public/crm.html', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm.js', import.meta.url), 'utf8'),
+        readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8')
+    ]);
+
+    assert.ok(html.indexOf('data-mobile-user-slot') < html.indexOf('<aside class="crm-sidebar">'));
+    assert.match(javascript, /crmMobileViewport\?\.matches \? crmMobileUserSlot : crmTopbar/);
+    assert.match(javascript, /addEventListener\?\.\('change', sincronizarPosicaoUsuarioMobile\)/);
+    assert.match(css, /\.crm-mobile-user-slot\s*\{[^}]*display:\s*block[^}]*width:\s*100%/s);
+});
+
 test('cards do dashboard formam uma coluna rolavel no mobile', async () => {
     const css = await readFile(new URL('../public/crm-style.css', import.meta.url), 'utf8');
 

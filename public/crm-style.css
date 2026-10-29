@@ -22,6 +22,10 @@ body {
     background: var(--fundo);
 }
 
+.crm-mobile-user-slot {
+    display: none;
+}
+
 .crm-sidebar {
     background: linear-gradient(180deg, var(--sidebar-start, #172414) 0%, var(--sidebar-end, #241C16) 100%);
     color: #fff;
@@ -5157,6 +5161,22 @@ body.crm-widget-detail-open {
 
     body {
         display: block;
+    }
+
+    .crm-mobile-user-slot {
+        display: block;
+        width: 100%;
+        padding: 10px 10px 0;
+        background: var(--fundo);
+    }
+
+    .crm-mobile-user-slot:empty {
+        display: none;
+    }
+
+    .crm-mobile-user-slot .crm-user-box {
+        width: 100%;
+        margin: 0;
     }
 
     .crm-sidebar {
