@@ -4276,7 +4276,7 @@ function sanitizarClonePdf(documentoClonado) {
     const janela = documentoClonado?.defaultView;
     if (!raiz || !janela?.getComputedStyle) return;
     const compatibilidadePseudo = documentoClonado.createElement('style');
-    compatibilidadePseudo.textContent = '.crm-report-export *::before,.crm-report-export *::after{content:none!important;box-shadow:none!important;text-shadow:none!important}';
+    compatibilidadePseudo.textContent = '.crm-report-export *::before,.crm-report-export *::after{color:inherit!important;background-color:transparent!important;border-color:currentColor!important;box-shadow:none!important;text-shadow:none!important}';
     documentoClonado.head?.appendChild(compatibilidadePseudo);
     const elementos = Array.from(new Set([
         documentoClonado.documentElement,

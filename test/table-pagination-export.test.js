@@ -124,7 +124,7 @@ test('editor e cards oferecem paginacao, PDF, Excel e impressao', async () => {
     assert.match(html, /data-table-pagination/);
     assert.match(html, /data-table-page-size/);
     assert.match(html, /data-table-display-limit/);
-    assert.match(html, /html2pdf\.bundle\.min\.js/);
+    assert.match(html, /assets\/vendor\/html2pdf\/html2pdf\.bundle\.min\.js\?v=0\.10\.1/);
     assert.match(html, /xlsx\.full\.min\.js/);
     assert.match(source, /data-widget-export="pdf"/);
     assert.match(source, /data-widget-export="excel"/);
@@ -133,6 +133,30 @@ test('editor e cards oferecem paginacao, PDF, Excel e impressao', async () => {
     assert.match(source, /observarPaginacaoAdaptativaTabela/);
     assert.match(source, /data-dashboard-record-row/);
     assert.match(source, /new ResizeObserver\(agendar\)/);
+});
+
+test('CRM carrega localmente o gerador de PDF e todas as fontes dos icones', async () => {
+    const [html, html2pdf, fontawesome, solid, regular, brands, compatibilidade] = await Promise.all([
+        readFile(htmlPath, 'utf8'),
+        readFile(new URL('../public/assets/vendor/html2pdf/html2pdf.bundle.min.js', import.meta.url)),
+        readFile(new URL('../public/assets/vendor/fontawesome/css/all.min.css', import.meta.url), 'utf8'),
+        readFile(new URL('../public/assets/vendor/fontawesome/webfonts/fa-solid-900.woff2', import.meta.url)),
+        readFile(new URL('../public/assets/vendor/fontawesome/webfonts/fa-regular-400.woff2', import.meta.url)),
+        readFile(new URL('../public/assets/vendor/fontawesome/webfonts/fa-brands-400.woff2', import.meta.url)),
+        readFile(new URL('../public/assets/vendor/fontawesome/webfonts/fa-v4compatibility.woff2', import.meta.url))
+    ]);
+
+    assert.match(html, /assets\/vendor\/fontawesome\/css\/all\.min\.css\?v=7\.3\.0/);
+    assert.match(html, /assets\/vendor\/html2pdf\/html2pdf\.bundle\.min\.js\?v=0\.10\.1/);
+    assert.match(fontawesome, /\.\.\/webfonts\/fa-solid-900\.woff2/);
+    assert.match(fontawesome, /\.\.\/webfonts\/fa-regular-400\.woff2/);
+    assert.match(fontawesome, /\.\.\/webfonts\/fa-brands-400\.woff2/);
+    assert.match(fontawesome, /\.\.\/webfonts\/fa-v4compatibility\.woff2/);
+    assert.ok(html2pdf.length > 800000);
+    assert.ok(solid.length > 100000);
+    assert.ok(regular.length > 15000);
+    assert.ok(brands.length > 100000);
+    assert.ok(compatibilidade.length > 4000);
 });
 
 test('exportacao consulta novamente sem o limite visual de mil registros', async () => {
@@ -177,7 +201,9 @@ test('PDF normaliza cores modernas no clone antes de capturar o relatorio', asyn
     assert.match(source, /onclone:\s*sanitizarClonePdf/);
     assert.match(source, /documentoClonado\.documentElement/);
     assert.match(source, /Array\.from\(estiloCalculado\)/);
-    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-2/);
+    assert.match(source, /\*::before,.crm-report-export \*::after\{color:inherit!important/);
+    assert.doesNotMatch(source, /\*::before,.crm-report-export \*::after\{content:none/);
+    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-3/);
 });
 
 test('alerta de falha do PDF sempre possui fechamento independente do CSS', async () => {
