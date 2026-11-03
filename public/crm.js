@@ -3538,8 +3538,6 @@ function renderizarTabelaSimplesRelatorioDetalhe(container, widget, opcoes = {})
         container.innerHTML = '<div class="crm-chart-empty">Nenhum registro encontrado.</div>';
         return;
     }
-    const registros = aplicarAutoFiltrosTabela(widget.id, registrosBase);
-    const paginacao = prepararPaginacaoTabela(widget, registros, opcoes.exportarTudo === true);
     const numericas = new Set(colunas.filter(coluna => registrosBase.some(registro => typeof obterValorLinha(registro, coluna) === 'number')));
     const mapeamentos = new Map((widget.mapeamentos || []).map(item => [String(item.coluna).toLowerCase(), item]));
     const campos = colunas.map(coluna => mapeamentos.get(String(coluna).toLowerCase()) || {
@@ -3547,6 +3545,9 @@ function renderizarTabelaSimplesRelatorioDetalhe(container, widget, opcoes = {})
         apelido: coluna,
         alinhamento: numericas.has(coluna) ? 'right' : 'left'
     });
+    const registrosFiltrados = aplicarAutoFiltrosTabela(widget.id, registrosBase);
+    const registros = ordenarRegistrosPorCampos(registrosFiltrados, campos);
+    const paginacao = prepararPaginacaoTabela(widget, registros, opcoes.exportarTudo === true);
     const cabecalho = campos.map(campo =>
         '<th class="crm-filterable-header"' + atributoAlinhamentoCampo(campo, numericas.has(campo.coluna) ? 'right' : 'left') + '>'
         + renderizarCabecalhoAutoFiltro(widget, campo, registrosBase) + '</th>'
@@ -4234,6 +4235,56 @@ function removerElementoExportacao(elemento) {
     if (elemento?.parentNode) elemento.parentNode.removeChild(elemento);
 }
 
+function converterComponenteCorPdf(valor) {
+    const texto = String(valor ?? '').trim().toLowerCase();
+    if (!texto || texto === 'none') return 0;
+    const numero = Number.parseFloat(texto);
+    if (!Number.isFinite(numero)) return 0;
+    return texto.endsWith('%')
+        ? Math.max(0, Math.min(255, Math.round(numero * 2.55)))
+        : Math.max(0, Math.min(255, Math.round(numero * 255)));
+}
+
+function normalizarCoresCssParaPdf(valor) {
+    const texto = String(valor || '');
+    if (!/color\s*\(/i.test(texto)) return texto;
+    return texto.replace(/color\(\s*[a-z0-9-]+\s+([^)]*)\)/gi, (corOriginal, componentesTexto) => {
+        const partes = String(componentesTexto).trim().split(/\s*\/\s*/);
+        const componentes = partes[0].trim().split(/\s+/).filter(Boolean);
+        if (componentes.length < 3) return 'rgba(0, 0, 0, 0)';
+        const alfaTexto = String(partes[1] ?? '1').trim();
+        const alfaNumero = Number.parseFloat(alfaTexto);
+        const alfa = Number.isFinite(alfaNumero)
+            ? Math.max(0, Math.min(1, alfaTexto.endsWith('%') ? alfaNumero / 100 : alfaNumero))
+            : 1;
+        const [vermelho, verde, azul] = componentes.slice(0, 3).map(converterComponenteCorPdf);
+        return `rgba(${vermelho}, ${verde}, ${azul}, ${alfa})`;
+    });
+}
+
+function sanitizarClonePdf(documentoClonado) {
+    const raiz = documentoClonado?.querySelector('.crm-report-export');
+    const janela = documentoClonado?.defaultView;
+    if (!raiz || !janela?.getComputedStyle) return;
+    const propriedadesCor = [
+        'color', 'background-color', 'border-top-color', 'border-right-color',
+        'border-bottom-color', 'border-left-color', 'outline-color',
+        'text-decoration-color', 'fill', 'stroke', 'box-shadow', 'text-shadow',
+        'background-image'
+    ];
+    [raiz, ...raiz.querySelectorAll('*')].forEach(elemento => {
+        const estiloCalculado = janela.getComputedStyle(elemento);
+        propriedadesCor.forEach(propriedade => {
+            const valor = estiloCalculado.getPropertyValue(propriedade);
+            if (!/color\s*\(/i.test(valor)) return;
+            elemento.style.setProperty(propriedade, normalizarCoresCssParaPdf(valor), 'important');
+        });
+    });
+    const compatibilidadePseudo = documentoClonado.createElement('style');
+    compatibilidadePseudo.textContent = '.crm-report-export *::before,.crm-report-export *::after{box-shadow:none!important;text-shadow:none!important}';
+    documentoClonado.head?.appendChild(compatibilidadePseudo);
+}
+
 async function carregarRelatorioDetalheParaExportacao(widgetAtual) {
     const widgetOrigem = contextoRelatorioDetalheAtual?.widget;
     const selecao = contextoRelatorioDetalheAtual?.selecao || {};
@@ -4287,7 +4338,12 @@ async function exportarWidgetPdf(widget) {
             margin: 8,
             filename: nomeArquivoRelatorio(widget, 'pdf'),
             image: { type: 'jpeg', quality: 0.96 },
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF' },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#FFFFFF',
+                onclone: sanitizarClonePdf
+            },
             jsPDF: { unit: 'mm', format: 'a4', orientation: paisagem ? 'landscape' : 'portrait' },
             pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] }
         }).from(elemento).save();

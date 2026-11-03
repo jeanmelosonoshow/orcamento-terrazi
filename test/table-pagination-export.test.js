@@ -149,3 +149,41 @@ test('exportacao consulta novamente sem o limite visual de mil registros', async
     assert.match(api, /const limiteRetorno = consultaCompleta \? undefined : LIMITE_RETORNO/);
     assert.match(access, /'exportacao'/);
 });
+
+test('PDF normaliza cores modernas no clone antes de capturar o relatorio', async () => {
+    const source = await readFile(dashboardPath, 'utf8');
+    const inicio = source.indexOf('function converterComponenteCorPdf');
+    const fim = source.indexOf('function sanitizarClonePdf', inicio);
+    assert.ok(inicio >= 0 && fim > inicio);
+    const { normalizarCoresCssParaPdf } = Function(
+        source.slice(inicio, fim) + '; return { normalizarCoresCssParaPdf };'
+    )();
+
+    assert.equal(
+        normalizarCoresCssParaPdf('color(srgb 0.1 0.5 1 / 0.25)'),
+        'rgba(26, 128, 255, 0.25)'
+    );
+    assert.equal(
+        normalizarCoresCssParaPdf('linear-gradient(color(display-p3 1 0 0), #fff)'),
+        'linear-gradient(rgba(255, 0, 0, 1), #fff)'
+    );
+    assert.equal(
+        normalizarCoresCssParaPdf('color(srgb-linear 0 0.25 0.5)'),
+        'rgba(0, 64, 128, 1)'
+    );
+    assert.match(source, /onclone:\s*sanitizarClonePdf/);
+});
+
+test('PDF de tabelas refaz a consulta, preserva filtros e ordem e ignora a pagina atual', async () => {
+    const source = await readFile(dashboardPath, 'utf8');
+    const inicioTabela = source.indexOf('function renderizarTabelaGrafico');
+    const fimTabela = source.indexOf('\nfunction obterColunaDetalhe', inicioTabela);
+    const tabela = source.slice(inicioTabela, fimTabela);
+
+    assert.match(source, /modoExecucao:\s*'exportacao'/);
+    assert.match(tabela, /aplicarAutoFiltrosTabela\(widget\.id, todosRegistros\)/);
+    assert.match(tabela, /ordenarRegistrosPorCampos\(registrosFiltrados, camposOrdenacao\)/);
+    assert.match(tabela, /prepararPaginacaoTabela\(widget, registrosOrdenados, opcoes\.exportarTudo === true\)/);
+    assert.match(source, /renderizarTabelaGrafico\(conteudo, widget, \{ exportarTudo: true \}\)/);
+    assert.match(source, /ordenarRegistrosPorCampos\(registrosFiltrados, campos\)/);
+});
