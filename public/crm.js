@@ -4352,7 +4352,104 @@ async function carregarWidgetParaExportacao(widget) {
     return executarWidgetComFiltros(widget, obterFiltrosCenario(), { modoExecucao: 'exportacao' });
 }
 
+function textoCelulaPdf(celula) {
+    return String(celula?.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function extrairLinhasTabelaPdf(secao) {
+    return Array.from(secao?.rows || []).map(linha => {
+        const linhaTotal = linha.classList.contains('crm-pivot-grand-total')
+            || linha.classList.contains('crm-pivot-subtotal');
+        return Array.from(linha.cells).map(celula => {
+            const alinhamento = celula.dataset.align
+                || celula.style.textAlign
+                || (celula.classList.contains('is-value') ? 'right' : 'left');
+            return {
+                content: textoCelulaPdf(celula),
+                colSpan: Math.max(1, Number(celula.colSpan) || 1),
+                rowSpan: Math.max(1, Number(celula.rowSpan) || 1),
+                styles: {
+                    halign: ['left', 'center', 'right'].includes(alinhamento) ? alinhamento : 'left',
+                    ...(linhaTotal ? { fillColor: [232, 239, 235], fontStyle: 'bold' } : {})
+                }
+            };
+        });
+    });
+}
+
+function exportarTabelaWidgetPdf(widget) {
+    const JsPdf = window.jspdf?.jsPDF;
+    if (typeof JsPdf !== 'function') throw new Error('Gerador de PDF tabular indisponível.');
+    const elemento = criarElementoExportacao(widget);
+    try {
+        const tabela = elemento.querySelector('table');
+        if (!tabela) throw new Error('Tabela sem dados para exportar.');
+        const documento = new JsPdf({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        if (typeof documento.autoTable !== 'function') throw new Error('Gerador de tabela PDF indisponível.');
+        const titulo = widget.titulo || obterNomeGrafico(widget.tipo);
+        const periodo = [crmDataInicial?.value || '', crmDataFinal?.value || ''].filter(Boolean).join(' a ');
+        documento.setFont('helvetica', 'bold');
+        documento.setFontSize(14);
+        documento.setTextColor(23, 63, 53);
+        documento.text(String(titulo || 'Relatório'), 8, 11);
+        if (periodo) {
+            documento.setFont('helvetica', 'normal');
+            documento.setFontSize(8);
+            documento.setTextColor(70, 83, 96);
+            documento.text(periodo, 8, 16);
+        }
+        const cabecalho = extrairLinhasTabelaPdf(tabela.tHead);
+        const corpo = Array.from(tabela.tBodies || []).flatMap(extrairLinhasTabelaPdf);
+        const quantidadeColunas = Math.max(1, ...cabecalho.concat(corpo).map(linha =>
+            linha.reduce((total, celula) => total + (celula.colSpan || 1), 0)
+        ));
+        const tamanhoFonte = quantidadeColunas > 12 ? 5 : (quantidadeColunas > 8 ? 6 : 7);
+        documento.autoTable({
+            head: cabecalho,
+            body: corpo,
+            startY: periodo ? 20 : 16,
+            theme: 'grid',
+            showHead: 'everyPage',
+            rowPageBreak: 'avoid',
+            margin: { top: 9, right: 8, bottom: 10, left: 8 },
+            styles: {
+                font: 'helvetica',
+                fontSize: tamanhoFonte,
+                cellPadding: 1.4,
+                overflow: 'linebreak',
+                valign: 'middle',
+                lineColor: [205, 214, 222],
+                lineWidth: 0.15,
+                textColor: [36, 48, 58]
+            },
+            headStyles: {
+                fillColor: [23, 63, 53],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold'
+            },
+            alternateRowStyles: { fillColor: [247, 249, 248] }
+        });
+        const totalPaginas = documento.getNumberOfPages();
+        const larguraPagina = documento.internal.pageSize.getWidth();
+        const alturaPagina = documento.internal.pageSize.getHeight();
+        for (let pagina = 1; pagina <= totalPaginas; pagina += 1) {
+            documento.setPage(pagina);
+            documento.setFont('helvetica', 'normal');
+            documento.setFontSize(7);
+            documento.setTextColor(90, 100, 110);
+            documento.text(`${pagina} / ${totalPaginas}`, larguraPagina - 8, alturaPagina - 4, { align: 'right' });
+        }
+        documento.save(nomeArquivoRelatorio(widget, 'pdf'));
+    } finally {
+        removerElementoExportacao(elemento);
+    }
+}
+
 async function exportarWidgetPdf(widget) {
+    if (widget && ['table', 'pivot'].includes(widget.tipo)) {
+        exportarTabelaWidgetPdf(widget);
+        return;
+    }
     if (typeof window.html2pdf !== 'function') throw new Error('Gerador de PDF indisponível.');
     const elemento = criarElementoExportacao(widget);
     try {

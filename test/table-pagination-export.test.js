@@ -135,10 +135,12 @@ test('editor e cards oferecem paginacao, PDF, Excel e impressao', async () => {
     assert.match(source, /new ResizeObserver\(agendar\)/);
 });
 
-test('CRM carrega localmente o gerador de PDF e todas as fontes dos icones', async () => {
-    const [html, html2pdf, fontawesome, solid, regular, brands, compatibilidade] = await Promise.all([
+test('CRM carrega localmente os geradores de PDF e todas as fontes dos icones', async () => {
+    const [html, html2pdf, jspdf, autotable, fontawesome, solid, regular, brands, compatibilidade] = await Promise.all([
         readFile(htmlPath, 'utf8'),
         readFile(new URL('../public/assets/vendor/html2pdf/html2pdf.bundle.min.js', import.meta.url)),
+        readFile(new URL('../public/assets/vendor/jspdf/jspdf.umd.min.js', import.meta.url)),
+        readFile(new URL('../public/assets/vendor/jspdf/jspdf.plugin.autotable.min.js', import.meta.url)),
         readFile(new URL('../public/assets/vendor/fontawesome/css/all.min.css', import.meta.url), 'utf8'),
         readFile(new URL('../public/assets/vendor/fontawesome/webfonts/fa-solid-900.woff2', import.meta.url)),
         readFile(new URL('../public/assets/vendor/fontawesome/webfonts/fa-regular-400.woff2', import.meta.url)),
@@ -148,11 +150,15 @@ test('CRM carrega localmente o gerador de PDF e todas as fontes dos icones', asy
 
     assert.match(html, /assets\/vendor\/fontawesome\/css\/all\.min\.css\?v=7\.3\.0/);
     assert.match(html, /assets\/vendor\/html2pdf\/html2pdf\.bundle\.min\.js\?v=0\.10\.1/);
+    assert.match(html, /assets\/vendor\/jspdf\/jspdf\.umd\.min\.js\?v=2\.5\.1/);
+    assert.match(html, /assets\/vendor\/jspdf\/jspdf\.plugin\.autotable\.min\.js\?v=3\.8\.4/);
     assert.match(fontawesome, /\.\.\/webfonts\/fa-solid-900\.woff2/);
     assert.match(fontawesome, /\.\.\/webfonts\/fa-regular-400\.woff2/);
     assert.match(fontawesome, /\.\.\/webfonts\/fa-brands-400\.woff2/);
     assert.match(fontawesome, /\.\.\/webfonts\/fa-v4compatibility\.woff2/);
     assert.ok(html2pdf.length > 800000);
+    assert.ok(jspdf.length > 300000);
+    assert.ok(autotable.length > 30000);
     assert.ok(solid.length > 100000);
     assert.ok(regular.length > 15000);
     assert.ok(brands.length > 100000);
@@ -204,7 +210,7 @@ test('PDF normaliza cores modernas no clone antes de capturar o relatorio', asyn
     assert.match(source, /Array\.from\(estiloCalculado\)/);
     assert.match(source, /\*::before,.crm-report-export \*::after\{color:inherit!important/);
     assert.doesNotMatch(source, /\*::before,.crm-report-export \*::after\{content:none/);
-    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-4/);
+    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-5/);
 });
 
 test('alerta de falha do PDF sempre possui fechamento independente do CSS', async () => {
@@ -232,4 +238,8 @@ test('PDF de tabelas refaz a consulta, preserva filtros e ordem e ignora a pagin
     assert.match(tabela, /prepararPaginacaoTabela\(widget, registrosOrdenados, opcoes\.exportarTudo === true\)/);
     assert.match(source, /renderizarTabelaGrafico\(conteudo, widget, \{ exportarTudo: true \}\)/);
     assert.match(source, /ordenarRegistrosPorCampos\(registrosFiltrados, campos\)/);
+    assert.match(source, /function exportarTabelaWidgetPdf/);
+    assert.match(source, /documento\.autoTable\(/);
+    assert.match(source, /showHead:\s*'everyPage'/);
+    assert.match(source, /\['table', 'pivot'\]\.includes\(widget\.tipo\)/);
 });
