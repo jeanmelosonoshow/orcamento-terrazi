@@ -151,7 +151,10 @@ test('exportacao consulta novamente sem o limite visual de mil registros', async
 });
 
 test('PDF normaliza cores modernas no clone antes de capturar o relatorio', async () => {
-    const source = await readFile(dashboardPath, 'utf8');
+    const [source, html] = await Promise.all([
+        readFile(dashboardPath, 'utf8'),
+        readFile(htmlPath, 'utf8')
+    ]);
     const inicio = source.indexOf('function converterComponenteCorPdf');
     const fim = source.indexOf('function sanitizarClonePdf', inicio);
     assert.ok(inicio >= 0 && fim > inicio);
@@ -172,6 +175,20 @@ test('PDF normaliza cores modernas no clone antes de capturar o relatorio', asyn
         'rgba(0, 64, 128, 1)'
     );
     assert.match(source, /onclone:\s*sanitizarClonePdf/);
+    assert.match(source, /documentoClonado\.documentElement/);
+    assert.match(source, /Array\.from\(estiloCalculado\)/);
+    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-2/);
+});
+
+test('alerta de falha do PDF sempre possui fechamento independente do CSS', async () => {
+    const source = await readFile(dashboardPath, 'utf8');
+    const inicio = source.indexOf('function mostrarMensagemCrm');
+    const fim = source.indexOf('\nwindow.alert = mostrarMensagemCrm', inicio);
+    const alerta = source.slice(inicio, fim);
+
+    assert.match(alerta, /botao\.onclick = fechar/);
+    assert.match(alerta, /modal\.hidden = true/);
+    assert.match(alerta, /style\.setProperty\('display', 'none', 'important'\)/);
 });
 
 test('PDF de tabelas refaz a consulta, preserva filtros e ordem e ignora a pagina atual', async () => {

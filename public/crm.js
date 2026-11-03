@@ -31,10 +31,19 @@ function mostrarMensagemCrm(mensagem) {
         document.body.appendChild(modal);
     }
     modal.querySelector('[data-crm-message-text]').textContent = String(mensagem || 'Não foi possível concluir a operação.');
+    modal.style.removeProperty('display');
+    modal.removeAttribute('aria-hidden');
     modal.hidden = false;
     return new Promise(resolve => {
-        const fechar = () => { modal.hidden = true; resolve(); };
-        modal.querySelector('[data-crm-message-ok]').addEventListener('click', fechar, { once: true });
+        const botao = modal.querySelector('[data-crm-message-ok]');
+        const fechar = () => {
+            modal.hidden = true;
+            modal.setAttribute('aria-hidden', 'true');
+            modal.style.setProperty('display', 'none', 'important');
+            botao.onclick = null;
+            resolve();
+        };
+        botao.onclick = fechar;
     });
 }
 window.alert = mostrarMensagemCrm;
@@ -4266,23 +4275,23 @@ function sanitizarClonePdf(documentoClonado) {
     const raiz = documentoClonado?.querySelector('.crm-report-export');
     const janela = documentoClonado?.defaultView;
     if (!raiz || !janela?.getComputedStyle) return;
-    const propriedadesCor = [
-        'color', 'background-color', 'border-top-color', 'border-right-color',
-        'border-bottom-color', 'border-left-color', 'outline-color',
-        'text-decoration-color', 'fill', 'stroke', 'box-shadow', 'text-shadow',
-        'background-image'
-    ];
-    [raiz, ...raiz.querySelectorAll('*')].forEach(elemento => {
+    const compatibilidadePseudo = documentoClonado.createElement('style');
+    compatibilidadePseudo.textContent = '.crm-report-export *::before,.crm-report-export *::after{content:none!important;box-shadow:none!important;text-shadow:none!important}';
+    documentoClonado.head?.appendChild(compatibilidadePseudo);
+    const elementos = Array.from(new Set([
+        documentoClonado.documentElement,
+        documentoClonado.body,
+        raiz,
+        ...raiz.querySelectorAll('*')
+    ].filter(Boolean)));
+    elementos.forEach(elemento => {
         const estiloCalculado = janela.getComputedStyle(elemento);
-        propriedadesCor.forEach(propriedade => {
+        Array.from(estiloCalculado).forEach(propriedade => {
             const valor = estiloCalculado.getPropertyValue(propriedade);
             if (!/color\s*\(/i.test(valor)) return;
             elemento.style.setProperty(propriedade, normalizarCoresCssParaPdf(valor), 'important');
         });
     });
-    const compatibilidadePseudo = documentoClonado.createElement('style');
-    compatibilidadePseudo.textContent = '.crm-report-export *::before,.crm-report-export *::after{box-shadow:none!important;text-shadow:none!important}';
-    documentoClonado.head?.appendChild(compatibilidadePseudo);
 }
 
 async function carregarRelatorioDetalheParaExportacao(widgetAtual) {
