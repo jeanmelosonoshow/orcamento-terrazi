@@ -4445,32 +4445,143 @@ function exportarTabelaWidgetPdf(widget) {
     }
 }
 
+function adicionarRodapePdf(documento) {
+    const totalPaginas = documento.getNumberOfPages();
+    const larguraPagina = documento.internal.pageSize.getWidth();
+    const alturaPagina = documento.internal.pageSize.getHeight();
+    for (let pagina = 1; pagina <= totalPaginas; pagina += 1) {
+        documento.setPage(pagina);
+        documento.setFont('helvetica', 'normal');
+        documento.setFontSize(7);
+        documento.setTextColor(90, 100, 110);
+        documento.text(`${pagina} / ${totalPaginas}`, larguraPagina - 8, alturaPagina - 4, { align: 'right' });
+    }
+}
+
+function adicionarCabecalhoWidgetPdf(documento, widget) {
+    const titulo = widget.titulo || obterNomeGrafico(widget.tipo);
+    const periodo = [crmDataInicial?.value || '', crmDataFinal?.value || ''].filter(Boolean).join(' a ');
+    documento.setFont('helvetica', 'bold');
+    documento.setFontSize(15);
+    documento.setTextColor(23, 63, 53);
+    documento.text(String(titulo || 'Relatório'), 10, 13);
+    if (periodo) {
+        documento.setFont('helvetica', 'normal');
+        documento.setFontSize(8);
+        documento.setTextColor(70, 83, 96);
+        documento.text(periodo, 10, 18);
+    }
+    return periodo ? 24 : 19;
+}
+
+function obterResumoKpiPdf(widget) {
+    if (widget.tipo === 'kpi-calculated') {
+        const configuracao = widget.calculo || {};
+        const resultado = obterResultadoKpiCalculado(widget, normalizarWidgetsDashboard(obterWidgetsDashboard()));
+        return {
+            valor: resultado.erro ? resultado.erro : formatarValorGrafico(resultado.valor, configuracao.formatoSaida || 'decimal'),
+            rotulo: configuracao.rotulo || 'Resultado calculado',
+            detalhes: []
+        };
+    }
+    const dados = prepararDadosGrafico(widget);
+    const serie = dados?.series?.[0];
+    if (!serie) return { valor: 'Sem dados', rotulo: '', detalhes: [] };
+    const total = serie.valores.reduce((soma, valor) => soma + converterNumero(valor), 0);
+    const resumo = {
+        valor: formatarValorGrafico(total, serie.formato),
+        rotulo: serie.nome || 'Resultado',
+        detalhes: []
+    };
+    if (widget.tipo === 'kpi-target' && dados.series[1]) {
+        const serieMeta = dados.series[1];
+        const meta = serieMeta.valores.reduce((soma, valor) => soma + converterNumero(valor), 0);
+        const percentual = meta ? (total / meta) * 100 : null;
+        resumo.detalhes.push(['Meta', formatarValorGrafico(meta, serieMeta.formato || serie.formato)]);
+        resumo.detalhes.push(['Atingimento', percentual === null ? 'Sem percentual' : formatarValorGrafico(percentual, 'percent')]);
+    }
+    return resumo;
+}
+
+function adicionarDadosGraficoPdf(documento, widget, inicioY) {
+    const dados = prepararDadosGrafico(widget);
+    if (!dados || !dados.series.length) {
+        documento.setFont('helvetica', 'normal');
+        documento.setFontSize(10);
+        documento.setTextColor(70, 83, 96);
+        documento.text('Sem dados para exibir.', 10, inicioY + 8);
+        return;
+    }
+    documento.autoTable({
+        head: [[dados.nomeDimensao || 'Categoria', ...dados.series.map(serie => serie.nome)]],
+        body: dados.categorias.map((categoria, indice) => [
+            categoria,
+            ...dados.series.map(serie => formatarValorGrafico(serie.valores[indice], serie.formato))
+        ]),
+        startY: inicioY,
+        theme: 'grid',
+        showHead: 'everyPage',
+        margin: { top: 10, right: 10, bottom: 10, left: 10 },
+        styles: { font: 'helvetica', fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [23, 63, 53], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [247, 249, 248] }
+    });
+}
+
+function exportarCardWidgetPdf(widget) {
+    const JsPdf = window.jspdf?.jsPDF;
+    if (typeof JsPdf !== 'function') throw new Error('Gerador de PDF indisponível.');
+    const ehKpi = ['kpi', 'kpi-target', 'kpi-calculated'].includes(widget.tipo);
+    const documento = new JsPdf({ orientation: ehKpi ? 'portrait' : 'landscape', unit: 'mm', format: 'a4' });
+    const inicioY = adicionarCabecalhoWidgetPdf(documento, widget);
+    if (ehKpi) {
+        const resumo = obterResumoKpiPdf(widget);
+        documento.setFillColor(23, 63, 53);
+        documento.roundedRect(10, inicioY, 190, 48, 2, 2, 'F');
+        documento.setFont('helvetica', 'bold');
+        documento.setFontSize(30);
+        documento.setTextColor(255, 255, 255);
+        documento.text(String(resumo.valor), 18, inicioY + 22);
+        documento.setFont('helvetica', 'normal');
+        documento.setFontSize(11);
+        documento.text(String(resumo.rotulo || ''), 18, inicioY + 32);
+        let detalheY = inicioY + 39;
+        resumo.detalhes.forEach(([rotulo, valor]) => {
+            documento.setFontSize(8);
+            documento.text(`${rotulo}: ${valor}`, 18, detalheY);
+            detalheY += 5;
+        });
+    } else {
+        const instancia = instanciasGraficosDashboard.get(widget.id);
+        let imagemAdicionada = false;
+        if (instancia && typeof instancia.getDataURL === 'function') {
+            try {
+                const imagem = instancia.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#FFFFFF' });
+                const propriedades = documento.getImageProperties(imagem);
+                const larguraMaxima = documento.internal.pageSize.getWidth() - 20;
+                const alturaMaxima = documento.internal.pageSize.getHeight() - inicioY - 14;
+                const escala = Math.min(larguraMaxima / propriedades.width, alturaMaxima / propriedades.height);
+                const largura = propriedades.width * escala;
+                const altura = propriedades.height * escala;
+                const x = (documento.internal.pageSize.getWidth() - largura) / 2;
+                documento.addImage(imagem, 'PNG', x, inicioY, largura, altura, undefined, 'FAST');
+                imagemAdicionada = true;
+            } catch (error) {
+                console.warn('Não foi possível inserir a imagem do gráfico no PDF; usando dados tabulares.', error);
+            }
+        }
+        if (!imagemAdicionada) adicionarDadosGraficoPdf(documento, widget, inicioY);
+    }
+    adicionarRodapePdf(documento);
+    documento.save(nomeArquivoRelatorio(widget, 'pdf'));
+}
+
 async function exportarWidgetPdf(widget) {
     if (widget && ['table', 'pivot'].includes(widget.tipo)) {
         exportarTabelaWidgetPdf(widget);
         return;
     }
-    if (typeof window.html2pdf !== 'function') throw new Error('Gerador de PDF indisponível.');
-    const elemento = criarElementoExportacao(widget);
-    try {
-        const paisagem = widget.tipo === 'table' || widget.tipo === 'pivot';
-        await window.html2pdf().set({
-            margin: 8,
-            filename: nomeArquivoRelatorio(widget, 'pdf'),
-            image: { type: 'jpeg', quality: 0.96 },
-            html2canvas: {
-                scale: 2,
-                useCORS: true,
-                foreignObjectRendering: true,
-                backgroundColor: '#FFFFFF',
-                onclone: sanitizarClonePdf
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: paisagem ? 'landscape' : 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] }
-        }).from(elemento).save();
-    } finally {
-        removerElementoExportacao(elemento);
-    }
+    exportarCardWidgetPdf(widget);
 }
 
 function montarPlanilhaGrafico(widget) {

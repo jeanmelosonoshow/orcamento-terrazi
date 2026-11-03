@@ -58,7 +58,7 @@ test('opcoes dos filtros usam texto escuro com alto contraste e cache renovado',
     assert.match(style, /\.crm-multiselect-option > span\s*\{[\s\S]*?color:\s*#17324d !important;/);
     assert.match(html, /assets\/vendor\/fontawesome\/css\/all\.min\.css\?v=7\.3\.0/);
     assert.match(html, /crm-style\.css\?v=crm-20261028-card-actions-1/);
-    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-5/);
+    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-6/);
 });
 test('restauracao recarrega todas as opcoes permitidas antes de aplicar', () => {
     const inicio = script.indexOf('async function restaurarFiltrosPadrao()');

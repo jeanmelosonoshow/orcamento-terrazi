@@ -180,7 +180,7 @@ test('exportacao consulta novamente sem o limite visual de mil registros', async
     assert.match(access, /'exportacao'/);
 });
 
-test('PDF normaliza cores modernas no clone antes de capturar o relatorio', async () => {
+test('normalizador legado de cores modernas continua seguro', async () => {
     const [source, html] = await Promise.all([
         readFile(dashboardPath, 'utf8'),
         readFile(htmlPath, 'utf8')
@@ -204,13 +204,7 @@ test('PDF normaliza cores modernas no clone antes de capturar o relatorio', asyn
         normalizarCoresCssParaPdf('color(srgb-linear 0 0.25 0.5)'),
         'rgba(0, 64, 128, 1)'
     );
-    assert.match(source, /onclone:\s*sanitizarClonePdf/);
-    assert.match(source, /foreignObjectRendering:\s*true/);
-    assert.match(source, /documentoClonado\.documentElement/);
-    assert.match(source, /Array\.from\(estiloCalculado\)/);
-    assert.match(source, /\*::before,.crm-report-export \*::after\{color:inherit!important/);
-    assert.doesNotMatch(source, /\*::before,.crm-report-export \*::after\{content:none/);
-    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-5/);
+    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-6/);
 });
 
 test('alerta de falha do PDF sempre possui fechamento independente do CSS', async () => {
@@ -242,4 +236,10 @@ test('PDF de tabelas refaz a consulta, preserva filtros e ordem e ignora a pagin
     assert.match(source, /documento\.autoTable\(/);
     assert.match(source, /showHead:\s*'everyPage'/);
     assert.match(source, /\['table', 'pivot'\]\.includes\(widget\.tipo\)/);
+    assert.match(source, /function exportarCardWidgetPdf/);
+    assert.match(source, /instancia\.getDataURL\(/);
+    assert.match(source, /adicionarDadosGraficoPdf\(documento, widget, inicioY\)/);
+    const inicioExportacaoPdf = source.indexOf('async function exportarWidgetPdf');
+    const fimExportacaoPdf = source.indexOf('\nfunction montarPlanilhaGrafico', inicioExportacaoPdf);
+    assert.doesNotMatch(source.slice(inicioExportacaoPdf, fimExportacaoPdf), /html2pdf|html2canvas/);
 });
