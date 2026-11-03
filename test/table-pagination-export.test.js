@@ -199,11 +199,12 @@ test('PDF normaliza cores modernas no clone antes de capturar o relatorio', asyn
         'rgba(0, 64, 128, 1)'
     );
     assert.match(source, /onclone:\s*sanitizarClonePdf/);
+    assert.match(source, /foreignObjectRendering:\s*true/);
     assert.match(source, /documentoClonado\.documentElement/);
     assert.match(source, /Array\.from\(estiloCalculado\)/);
     assert.match(source, /\*::before,.crm-report-export \*::after\{color:inherit!important/);
     assert.doesNotMatch(source, /\*::before,.crm-report-export \*::after\{content:none/);
-    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-3/);
+    assert.match(html, /crm\.js\?v=crm-20261103-pdf-export-4/);
 });
 
 test('alerta de falha do PDF sempre possui fechamento independente do CSS', async () => {
@@ -212,9 +213,11 @@ test('alerta de falha do PDF sempre possui fechamento independente do CSS', asyn
     const fim = source.indexOf('\nwindow.alert = mostrarMensagemCrm', inicio);
     const alerta = source.slice(inicio, fim);
 
-    assert.match(alerta, /botao\.onclick = fechar/);
-    assert.match(alerta, /modal\.hidden = true/);
-    assert.match(alerta, /style\.setProperty\('display', 'none', 'important'\)/);
+    assert.match(alerta, /botao\.onclick = fecharMensagemCrm/);
+    assert.match(source, /modal\.hidden = true/);
+    assert.match(source, /style\.setProperty\('display', 'none', 'important'\)/);
+    assert.match(source, /event\.target\.closest\('\[data-crm-message-ok\]'\)/);
+    assert.match(source, /event\.stopPropagation\(\)/);
 });
 
 test('PDF de tabelas refaz a consulta, preserva filtros e ordem e ignora a pagina atual', async () => {

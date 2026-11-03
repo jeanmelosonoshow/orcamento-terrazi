@@ -20,6 +20,17 @@ const nome = usuarioLogado.nomefuncionario || usuarioLogado.nome || 'Usuário';
 const filialId = String(usuarioLogado.idfilial || usuarioLogado.id_filial || '').trim().toUpperCase();
 const idFuncionarioLogado = usuarioLogado.idfuncionario || usuarioLogado.id_funcionario || usuarioLogado.IDFUNCIONARIO || '';
 const idVendedorLogado = usuarioLogado.idvendedor || usuarioLogado.id_vendedor || usuarioLogado.IDVENDEDOR || '';
+let resolverMensagemCrmAtual = null;
+function fecharMensagemCrm() {
+    const modal = document.querySelector('[data-crm-message-modal]');
+    if (!modal) return;
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+    modal.style.setProperty('display', 'none', 'important');
+    const resolver = resolverMensagemCrmAtual;
+    resolverMensagemCrmAtual = null;
+    if (resolver) resolver();
+}
 function mostrarMensagemCrm(mensagem) {
     let modal = document.querySelector('[data-crm-message-modal]');
     if (!modal) {
@@ -36,17 +47,20 @@ function mostrarMensagemCrm(mensagem) {
     modal.hidden = false;
     return new Promise(resolve => {
         const botao = modal.querySelector('[data-crm-message-ok]');
-        const fechar = () => {
-            modal.hidden = true;
-            modal.setAttribute('aria-hidden', 'true');
-            modal.style.setProperty('display', 'none', 'important');
-            botao.onclick = null;
-            resolve();
-        };
-        botao.onclick = fechar;
+        resolverMensagemCrmAtual = resolve;
+        botao.onclick = fecharMensagemCrm;
     });
 }
 window.alert = mostrarMensagemCrm;
+document.addEventListener('click', event => {
+    if (!event.target.closest('[data-crm-message-ok]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    fecharMensagemCrm();
+}, true);
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.querySelector('[data-crm-message-modal]:not([hidden])')) fecharMensagemCrm();
+});
 let moduloArquitetosAtivo = usuarioLogado.architectModuleEnabled === true;
 let podeGerenciarComissaoArquiteto = moduloArquitetosAtivo && (usuarioLogado.architectCommissionManager === true
     || usuarioLogado.podeGerenciarComissaoArquiteto === true);
@@ -4350,6 +4364,7 @@ async function exportarWidgetPdf(widget) {
             html2canvas: {
                 scale: 2,
                 useCORS: true,
+                foreignObjectRendering: true,
                 backgroundColor: '#FFFFFF',
                 onclone: sanitizarClonePdf
             },
